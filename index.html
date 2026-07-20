@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GETLOCATION06 — Location de véhicules sur la Côte d'Azur</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="demo-banner">Site de démonstration — paiement simulé, aucune carte n'est réellement débitée.</div>
+
+<header class="site-header">
+  <div class="header-inner container">
+    <a href="index.html" class="logo">
+      <span class="logo-mark">G06</span>
+      GETLOCATION06
+    </a>
+    <nav class="main-nav">
+      <a href="index.html" class="active">Accueil</a>
+      <a href="vehicules.html">Véhicules</a>
+      <a href="index.html#contact">Contact</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="container">
+    <h1>Louez votre véhicule sur la Côte d'Azur</h1>
+    <p>Agences à Grasse, Cannes et Antibes, retrait possible à l'aéroport de Nice. Réservation en ligne et paiement sécurisé.</p>
+  </div>
+</section>
+
+<div class="container">
+  <form id="search-form" class="search-card">
+    <div class="field">
+      <label for="lieu-prise">Lieu de prise en charge</label>
+      <select id="lieu-prise" required></select>
+    </div>
+    <div class="field">
+      <label for="lieu-retour">Lieu de restitution</label>
+      <select id="lieu-retour" required></select>
+    </div>
+    <div class="field">
+      <label for="date-debut">Date de départ</label>
+      <input type="date" id="date-debut" required>
+    </div>
+    <div class="field">
+      <label for="date-fin">Date de retour</label>
+      <input type="date" id="date-fin" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Rechercher</button>
+  </form>
+</div>
+
+<section class="section container">
+  <h2 class="section-title">Notre flotte 2026</h2>
+  <p class="section-subtitle">Citadine, SUV et utilitaire — assurance et assistance incluses.</p>
+  <div class="vehicle-grid">
+    <div class="vehicle-card">
+      <div class="vehicle-media">
+        <img src="images/opel-corsa.jpg" alt="Opel Corsa Business 1.2T" class="vehicle-photo" onerror="this.remove()">
+        <span class="vehicle-emoji-fallback">🚗</span>
+      </div>
+      <div class="vehicle-body">
+        <div class="vehicle-category">Citadine</div>
+        <div class="vehicle-name">Opel Corsa Business 1.2T</div>
+        <p class="hint-text">Compacte et économique, parfaite pour vos déplacements pro entre Cannes, Antibes et Grasse.</p>
+      </div>
+    </div>
+    <div class="vehicle-card">
+      <div class="vehicle-media">
+        <img src="images/peugeot-3008.jpg" alt="Peugeot 3008 &amp; 2008 Hybrid" class="vehicle-photo" onerror="this.remove()">
+        <span class="vehicle-emoji-fallback">🚙</span>
+      </div>
+      <div class="vehicle-body">
+        <div class="vehicle-category">SUV Hybride</div>
+        <div class="vehicle-name">Peugeot 3008 &amp; 2008 Hybrid</div>
+        <p class="hint-text">Confort et sobriété pour rayonner sur toute la Côte d'Azur, en famille ou entre amis.</p>
+      </div>
+    </div>
+    <div class="vehicle-card">
+      <div class="vehicle-media">
+        <img src="images/toyota-proace-city.jpg" alt="Toyota Proace City" class="vehicle-photo" onerror="this.remove()">
+        <span class="vehicle-emoji-fallback">🚐</span>
+      </div>
+      <div class="vehicle-body">
+        <div class="vehicle-category">Utilitaire</div>
+        <div class="vehicle-name">Toyota Proace City</div>
+        <p class="hint-text">Grand volume de chargement, idéal pour bagages, matériel ou déménagement.</p>
+      </div>
+    </div>
+  </div>
+  <div style="text-align:center; margin-top: 30px;">
+    <a href="vehicules.html" class="btn btn-secondary">Voir tous les véhicules</a>
+  </div>
+</section>
+
+<footer class="site-footer" id="contact">
+  <div class="container footer-grid">
+    <div>
+      <h4>GETLOCATION06</h4>
+      <p>Location de véhicules dans les Alpes-Maritimes (06). Agences à Grasse, Cannes et Antibes — TLST SAS.</p>
+    </div>
+    <div>
+      <h4>Liens</h4>
+      <a href="index.html">Accueil</a>
+      <a href="vehicules.html">Véhicules</a>
+      <a href="mentions-legales.html">Mentions légales</a>
+      <a href="cgl.html">Conditions de location</a>
+      <a href="confidentialite.html">Confidentialité</a>
+    </div>
+    <div>
+      <h4>Contact</h4>
+      <a href="mailto:contact@getlocation.fr">contact@getlocation.fr</a>
+      <a href="tel:+33493000000">+33 4 93 00 00 00</a>
+    </div>
+  </div>
+  <div class="footer-bottom">© <span id="footer-year"></span> GETLOCATION06 (TLST SAS) — Site de démonstration.</div>
+</footer>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
