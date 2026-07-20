@@ -1,4 +1,4 @@
-// Données de démonstration — GETLOCATION06 (TLST SAS)
+// Données de démonstration — GETLOCATION (TLST SAS)
 // Location de véhicules dans les Alpes-Maritimes (06) / Côte d'Azur.
 // À remplacer par de vraies données (base de données / CMS) en production.
 
