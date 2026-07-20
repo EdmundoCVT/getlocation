@@ -4,6 +4,86 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GETLOCATION — Location de véhicules sur la Côte d'Azur</title>
+<meta name="description" content="Location de véhicules récents (Peugeot, Opel, Toyota) à Nice, Cannes, Antibes, Grasse et Monaco. Réservation en ligne, paiement sécurisé, agences sur toute la Côte d'Azur.">
+<link rel="canonical" href="https://getlocation.fr/">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/images/favicon-180.png">
+<meta name="theme-color" content="#111111">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GETLOCATION">
+<meta property="og:title" content="GETLOCATION — Location de véhicules sur la Côte d'Azur">
+<meta property="og:description" content="Location de véhicules récents (Peugeot, Opel, Toyota) à Nice, Cannes, Antibes, Grasse et Monaco. Réservation en ligne, paiement sécurisé, agences sur toute la Côte d'Azur.">
+<meta property="og:url" content="https://getlocation.fr/">
+<meta property="og:image" content="https://getlocation.fr/images/peugeot-3008.jpg">
+<meta property="og:locale" content="fr_FR">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="GETLOCATION — Location de véhicules sur la Côte d'Azur">
+<meta name="twitter:description" content="Location de véhicules récents (Peugeot, Opel, Toyota) à Nice, Cannes, Antibes, Grasse et Monaco. Réservation en ligne, paiement sécurisé, agences sur toute la Côte d'Azur.">
+<meta name="twitter:image" content="https://getlocation.fr/images/peugeot-3008.jpg">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "AutoRental",
+  "name": "GETLOCATION",
+  "alternateName": "TLST SAS",
+  "url": "https://getlocation.fr/",
+  "logo": "https://getlocation.fr/images/favicon-512.png",
+  "image": "https://getlocation.fr/images/peugeot-3008.jpg",
+  "telephone": "+33493000000",
+  "email": "contact@getlocation.fr",
+  "priceRange": "€€",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "11 Chemin de la Halte",
+    "postalCode": "06130",
+    "addressLocality": "Grasse",
+    "addressRegion": "Alpes-Maritimes",
+    "addressCountry": "FR"
+  },
+  "areaServed": [
+    {
+      "@type": "City",
+      "name": "Nice"
+    },
+    {
+      "@type": "City",
+      "name": "Cannes"
+    },
+    {
+      "@type": "City",
+      "name": "Antibes"
+    },
+    {
+      "@type": "City",
+      "name": "Grasse"
+    },
+    {
+      "@type": "City",
+      "name": "Monaco"
+    }
+  ],
+  "openingHoursSpecification": {
+    "@type": "OpeningHoursSpecification",
+    "dayOfWeek": [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday"
+    ],
+    "opens": "08:00",
+    "closes": "20:00"
+  }
+}
+</script>
+
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -59,7 +139,10 @@
   <div class="vehicle-grid">
     <div class="vehicle-card">
       <div class="vehicle-media">
-        <img src="images/opel-corsa.jpg" alt="Opel Corsa Business 1.2T" class="vehicle-photo" onerror="this.remove()">
+        <picture>
+          <source srcset="images/opel-corsa.webp" type="image/webp">
+          <img src="images/opel-corsa.jpg" alt="Opel Corsa Business 1.2T" class="vehicle-photo" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
+        </picture>
         <span class="vehicle-emoji-fallback">🚗</span>
       </div>
       <div class="vehicle-body">
@@ -70,7 +153,10 @@
     </div>
     <div class="vehicle-card">
       <div class="vehicle-media">
-        <img src="images/peugeot-3008.jpg" alt="Peugeot 3008 &amp; 2008 Hybrid" class="vehicle-photo" onerror="this.remove()">
+        <picture>
+          <source srcset="images/peugeot-3008.webp" type="image/webp">
+          <img src="images/peugeot-3008.jpg" alt="Peugeot 3008 &amp; 2008 Hybrid" class="vehicle-photo" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
+        </picture>
         <span class="vehicle-emoji-fallback">🚙</span>
       </div>
       <div class="vehicle-body">
@@ -81,7 +167,10 @@
     </div>
     <div class="vehicle-card">
       <div class="vehicle-media">
-        <img src="images/toyota-proace-city.jpg" alt="Toyota Proace City" class="vehicle-photo" onerror="this.remove()">
+        <picture>
+          <source srcset="images/toyota-proace-city.webp" type="image/webp">
+          <img src="images/toyota-proace-city.jpg" alt="Toyota Proace City" class="vehicle-photo" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
+        </picture>
         <span class="vehicle-emoji-fallback">🚐</span>
       </div>
       <div class="vehicle-body">
@@ -95,6 +184,98 @@
     <a href="vehicules.html" class="btn btn-secondary">Voir tous les véhicules</a>
   </div>
 </section>
+
+<section class="section container">
+  <h2 class="section-title">Location de voiture sur la Côte d'Azur</h2>
+  <p class="section-subtitle">GETLOCATION (TLST SAS) est une agence de location de véhicules basée à Grasse, dans les Alpes-Maritimes (06). Nous proposons une flotte récente (modèles 2026) et une réservation entièrement en ligne, avec paiement sécurisé.</p>
+  <div class="vehicle-grid">
+    <div class="card">
+      <h3>Zones desservies</h3>
+      <p class="hint-text">Nos véhicules sont disponibles à la prise en charge à <strong>Grasse</strong>, <strong>Cannes</strong> et <strong>Antibes</strong>, avec un retrait possible à l'<strong>aéroport de Nice</strong>. Nous intervenons également sur <strong>Monaco</strong> et l'ensemble du bassin cannois et azuréen, sur demande.</p>
+    </div>
+    <div class="card">
+      <h3>Comment ça marche</h3>
+      <p class="hint-text">1. Choisissez vos dates et votre lieu de prise en charge.<br>2. Sélectionnez un véhicule dans notre flotte.<br>3. Renseignez vos informations conducteur.<br>4. Payez en ligne via Stripe et recevez votre confirmation immédiatement.</p>
+    </div>
+    <div class="card">
+      <h3>Pourquoi GETLOCATION</h3>
+      <p class="hint-text">Véhicules récents et entretenus, tarifs transparents sans frais cachés, assurance incluse, et une équipe locale joignable directement à Grasse.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section container" style="max-width: 820px;">
+  <h2 class="section-title">Questions fréquentes</h2>
+  <div class="card" style="margin-bottom: 16px;">
+    <h3>Quel âge minimum pour louer un véhicule ?</h3>
+    <p class="hint-text">Le conducteur doit être âgé d'au moins 21 ans et titulaire d'un permis de conduire valide depuis au moins 2 ans. Voir nos <a href="cgl.html">conditions générales de location</a>.</p>
+  </div>
+  <div class="card" style="margin-bottom: 16px;">
+    <h3>Dans quelles villes puis-je récupérer mon véhicule ?</h3>
+    <p class="hint-text">À Grasse, Cannes, Antibes, ou à l'aéroport de Nice. Nous desservons également Monaco sur demande.</p>
+  </div>
+  <div class="card" style="margin-bottom: 16px;">
+    <h3>Une caution est-elle demandée ?</h3>
+    <p class="hint-text">Oui, un dépôt de garantie est demandé lors de la prise en charge du véhicule ; son montant varie selon le modèle loué (voir la fiche de chaque véhicule).</p>
+  </div>
+  <div class="card" style="margin-bottom: 16px;">
+    <h3>Le paiement en ligne est-il sécurisé ?</h3>
+    <p class="hint-text">Oui, le paiement est traité par Stripe, un prestataire de paiement certifié. GETLOCATION ne stocke aucune donnée bancaire.</p>
+  </div>
+  <div class="card">
+    <h3>Quels véhicules proposez-vous ?</h3>
+    <p class="hint-text">Une citadine (Opel Corsa Business), deux SUV/berlines hybrides (Peugeot 3008 et 2008 Hybrid) et un utilitaire compact (Toyota Proace City), tous des modèles 2026.</p>
+  </div>
+</section>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Quel âge minimum pour louer un véhicule ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Le conducteur doit être âgé d'au moins 21 ans et titulaire d'un permis de conduire valide depuis au moins 2 ans."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Dans quelles villes puis-je récupérer mon véhicule ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "À Grasse, Cannes, Antibes, ou à l'aéroport de Nice. GETLOCATION dessert également Monaco sur demande."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Une caution est-elle demandée ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Oui, un dépôt de garantie est demandé lors de la prise en charge du véhicule ; son montant varie selon le modèle loué."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Le paiement en ligne est-il sécurisé ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Oui, le paiement est traité par Stripe, un prestataire de paiement certifié. GETLOCATION ne stocke aucune donnée bancaire."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Quels véhicules propose GETLOCATION ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Une citadine (Opel Corsa Business 1.2T), deux SUV/berlines hybrides (Peugeot 3008 et 2008 Hybrid) et un utilitaire compact (Toyota Proace City), tous des modèles 2026."
+      }
+    }
+  ]
+}
+</script>
 
 <footer class="site-footer" id="contact">
   <div class="container footer-grid">

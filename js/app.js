@@ -141,7 +141,7 @@ function initVehiculesPage() {
       card.className = "vehicle-card";
       card.innerHTML = `
         <div class="vehicle-media">
-          <img src="${v.photo}" alt="${v.nom}" class="vehicle-photo" onerror="this.remove()">
+          ${pictureVehicule(v, "vehicle-photo")}
           <span class="vehicle-emoji-fallback">${v.emoji}</span>
         </div>
         <div class="vehicle-body">
@@ -185,10 +185,22 @@ function formatDateFR(iso) {
 
 // Vignette véhicule : affiche la vraie photo si le fichier images/xxx.jpg existe,
 // sinon repli automatique sur l'emoji (aucune photo fournie pour l'instant).
+// Génère un <picture> WebP + repli JPG + repli emoji, avec lazy loading et
+// dimensions explicites (évite le layout shift / bon score CLS).
+function pictureVehicule(v, imgClass) {
+  const webp = v.photo.replace(/\.jpe?g$/i, ".webp");
+  return `
+    <picture>
+      <source srcset="${webp}" type="image/webp">
+      <img src="${v.photo}" alt="${v.nom}" class="${imgClass}" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
+    </picture>
+  `;
+}
+
 function vignetteVehicule(v) {
   return `
     <div class="emoji">
-      <img src="${v.photo}" alt="${v.nom}" class="vehicle-photo-sm" onerror="this.remove()">
+      ${pictureVehicule(v, "vehicle-photo-sm")}
       <span class="vehicle-emoji-fallback-sm">${v.emoji}</span>
     </div>
   `;
