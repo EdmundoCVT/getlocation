@@ -1,0 +1,9 @@
+{
+  "name": "getlocation-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Site GETLOCATION — réservation et paiement Stripe",
+  "dependencies": {
+    "stripe": "^16.12.0"
+  }
+}

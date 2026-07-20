@@ -163,6 +163,22 @@ img, svg { max-width: 100%; display: block; }
   outline-offset: 1px;
 }
 
+#stripe-card-element {
+  padding: 11px 12px;
+  border: 1px solid #d7dee0;
+  border-radius: 8px;
+  background: white;
+}
+
+#stripe-card-element.StripeElement--focus {
+  outline: 2px solid var(--turquoise);
+  outline-offset: 1px;
+}
+
+#stripe-card-element.StripeElement--invalid {
+  border-color: var(--rouge);
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

@@ -8,7 +8,7 @@
 </head>
 <body>
 
-<div class="demo-banner">Site de démonstration — paiement simulé (mode test), aucune carte n'est réellement débitée.</div>
+<div class="demo-banner" id="demo-banner">Paiement sécurisé propulsé par Stripe.</div>
 
 <header class="site-header">
   <div class="header-inner container">
@@ -44,26 +44,16 @@
             <div class="error-text" id="err-card-name"></div>
           </div>
           <div class="field full">
-            <label for="card-number">Numéro de carte</label>
-            <input type="text" id="card-number" inputmode="numeric" placeholder="4242 4242 4242 4242" maxlength="19" required>
-            <div class="error-text" id="err-card-number"></div>
-          </div>
-          <div class="field">
-            <label for="card-expiry">Expiration (MM/AA)</label>
-            <input type="text" id="card-expiry" inputmode="numeric" placeholder="12/28" maxlength="5" required>
-            <div class="error-text" id="err-card-expiry"></div>
-          </div>
-          <div class="field">
-            <label for="card-cvc">CVC</label>
-            <input type="text" id="card-cvc" inputmode="numeric" placeholder="123" maxlength="3" required>
-            <div class="error-text" id="err-card-cvc"></div>
+            <label for="stripe-card-element">Carte bancaire</label>
+            <div id="stripe-card-element"></div>
+            <div class="error-text" id="stripe-card-errors"></div>
           </div>
         </div>
         <button type="submit" class="btn btn-primary btn-block" id="pay-button" style="margin-top: 10px;">
           <span class="spinner"></span>
           <span class="btn-label">Payer maintenant</span>
         </button>
-        <div class="pay-lock">🔒 Paiement chiffré — simulation, carte test 4242 4242 4242 4242</div>
+        <div class="pay-lock">🔒 Paiement chiffré de bout en bout par Stripe — GETLOCATION ne stocke aucune donnée bancaire.</div>
         <div class="hint-text" style="text-align:center; margin-top:6px;">Retrait de la caution sur place à l'agence, selon le véhicule choisi.</div>
       </form>
     </div>
@@ -98,7 +88,9 @@
   <div class="footer-bottom">© <span id="footer-year"></span> GETLOCATION (TLST SAS) — Site de démonstration.</div>
 </footer>
 
+<script src="https://js.stripe.com/v3/"></script>
 <script src="js/data.js"></script>
+<script src="js/stripe-config.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

@@ -284,7 +284,7 @@ function validateDriverForm(form) {
 }
 
 /* ---------------------------------------------------------
-   PAGE : paiement.html — simulation de paiement (type Stripe)
+   PAGE : paiement.html — paiement réel via Stripe
 --------------------------------------------------------- */
 function initPaiementPage() {
   const summary = document.getElementById("payment-summary");
@@ -300,6 +300,7 @@ function initPaiementPage() {
   const sousTotal = vehicule.prixJour * data.jours;
   const assurance = data.assurance ? PRIX_ASSURANCE_JOUR * data.jours : 0;
   const total = sousTotal + assurance;
+  const totalCentimes = Math.round(total * 100);
 
   summary.innerHTML = `
     <div class="summary-vehicle">
@@ -315,80 +316,99 @@ function initPaiementPage() {
     <div class="summary-row total"><span>Total à régler</span><span>${formatEUR(total)}</span></div>
   `;
 
-  const cardNumber = document.getElementById("card-number");
-  const cardExpiry = document.getElementById("card-expiry");
-  const cardCvc = document.getElementById("card-cvc");
   const cardName = document.getElementById("card-name");
   const form = document.getElementById("payment-form");
   const payButton = document.getElementById("pay-button");
+  const cardErrors = document.getElementById("stripe-card-errors");
+  const banner = document.getElementById("demo-banner");
 
-  cardNumber.addEventListener("input", () => {
-    let digits = cardNumber.value.replace(/\D/g, "").slice(0, 16);
-    cardNumber.value = digits.replace(/(.{4})/g, "$1 ").trim();
+  if (typeof Stripe === "undefined" || !window.STRIPE_PUBLISHABLE_KEY || window.STRIPE_PUBLISHABLE_KEY.includes("A_REMPLACER")) {
+    if (banner) {
+      banner.textContent = "Paiement non configuré : la clé Stripe publique n'a pas encore été renseignée (js/stripe-config.js).";
+    }
+    payButton.disabled = true;
+    return;
+  }
+
+  const stripe = Stripe(window.STRIPE_PUBLISHABLE_KEY);
+  const elements = stripe.elements();
+  const cardElement = elements.create("card", {
+    style: {
+      base: { fontSize: "16px", color: "#2a2438", "::placeholder": { color: "#8a969a" } },
+      invalid: { color: "#d64545" }
+    }
+  });
+  cardElement.mount("#stripe-card-element");
+  cardElement.on("change", (event) => {
+    cardErrors.textContent = event.error ? event.error.message : "";
   });
 
-  cardExpiry.addEventListener("input", () => {
-    let digits = cardExpiry.value.replace(/\D/g, "").slice(0, 4);
-    if (digits.length >= 3) digits = digits.slice(0, 2) + "/" + digits.slice(2);
-    cardExpiry.value = digits;
-  });
-
-  cardCvc.addEventListener("input", () => {
-    cardCvc.value = cardCvc.value.replace(/\D/g, "").slice(0, 3);
-  });
-
-  form.addEventListener("submit", (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (!validatePaymentForm()) return;
+    cardErrors.textContent = "";
+
+    if (!cardName.value.trim() || cardName.value.trim().length < 2) {
+      document.getElementById("err-card-name").textContent = "Nom du titulaire requis";
+      return;
+    }
+    document.getElementById("err-card-name").textContent = "";
 
     payButton.classList.add("loading");
     payButton.disabled = true;
 
-    // Simulation d'un appel serveur Stripe (mode test / démo).
-    // En production : créer un PaymentIntent côté serveur et confirmer avec Stripe.js.
-    setTimeout(() => {
-      const reference = "CT-" + Math.random().toString(36).slice(2, 8).toUpperCase();
-      writeJSON(STORAGE.confirmation, {
-        reference,
-        vehiculeId: data.vehiculeId,
-        dateDebut: data.dateDebut,
-        dateFin: data.dateFin,
-        jours: data.jours,
-        lieuPrise: data.lieuPrise,
-        lieuRetour: data.lieuRetour,
-        conducteur: data.conducteur,
-        assurance: data.assurance,
-        total,
-        carteFin: cardNumber.value.replace(/\s/g, "").slice(-4)
+    try {
+      const response = await fetch("/.netlify/functions/create-payment-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: totalCentimes,
+          currency: "eur",
+          description: `Location ${vehicule.nom} — ${data.jours} jour(s)`,
+          receiptEmail: data.conducteur.email
+        })
       });
-      window.location.href = "confirmation.html";
-    }, 1400);
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        throw new Error(result.error || "Le paiement n'a pas pu être initialisé.");
+      }
+
+      const { paymentIntent, error } = await stripe.confirmCardPayment(result.clientSecret, {
+        payment_method: {
+          card: cardElement,
+          billing_details: { name: cardName.value.trim(), email: data.conducteur.email }
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message || "Paiement refusé.");
+      }
+
+      if (paymentIntent && paymentIntent.status === "succeeded") {
+        const reference = "GL-" + paymentIntent.id.slice(-8).toUpperCase();
+        writeJSON(STORAGE.confirmation, {
+          reference,
+          vehiculeId: data.vehiculeId,
+          dateDebut: data.dateDebut,
+          dateFin: data.dateFin,
+          jours: data.jours,
+          lieuPrise: data.lieuPrise,
+          lieuRetour: data.lieuRetour,
+          conducteur: data.conducteur,
+          assurance: data.assurance,
+          total,
+          paymentIntentId: paymentIntent.id
+        });
+        window.location.href = "confirmation.html";
+      } else {
+        throw new Error("Le paiement n'a pas abouti (statut : " + (paymentIntent && paymentIntent.status) + ").");
+      }
+    } catch (err) {
+      cardErrors.textContent = err.message;
+      payButton.classList.remove("loading");
+      payButton.disabled = false;
+    }
   });
-
-  function validatePaymentForm() {
-    let valid = true;
-    const rules = [
-      { input: cardName, test: v => v.trim().length >= 2, err: "err-card-name", msg: "Nom du titulaire requis" },
-      { input: cardNumber, test: v => v.replace(/\s/g, "").length === 16, err: "err-card-number", msg: "Numéro de carte invalide (16 chiffres)" },
-      { input: cardExpiry, test: v => /^\d{2}\/\d{2}$/.test(v) && isExpiryValid(v), err: "err-card-expiry", msg: "Date d'expiration invalide" },
-      { input: cardCvc, test: v => v.length === 3, err: "err-card-cvc", msg: "CVC invalide" }
-    ];
-    rules.forEach(({ input, test, err, msg }) => {
-      const ok = test(input.value || "");
-      if (!ok) valid = false;
-      const el = document.getElementById(err);
-      if (el) el.textContent = ok ? "" : msg;
-    });
-    return valid;
-  }
-
-  function isExpiryValid(v) {
-    const [mm, yy] = v.split("/").map(Number);
-    if (mm < 1 || mm > 12) return false;
-    const now = new Date();
-    const expiry = new Date(2000 + yy, mm);
-    return expiry > now;
-  }
 }
 
 /* ---------------------------------------------------------
@@ -418,7 +438,7 @@ function initConfirmationPage() {
     </div>
     <div class="summary-row"><span>Conducteur</span><span>${data.conducteur.prenom} ${data.conducteur.nom}</span></div>
     <div class="summary-row"><span>E-mail</span><span>${data.conducteur.email}</span></div>
-    <div class="summary-row"><span>Carte utilisée</span><span>•••• ${data.carteFin}</span></div>
+    <div class="summary-row"><span>Paiement</span><span>Confirmé via Stripe</span></div>
     <div class="summary-row total"><span>Montant réglé</span><span>${formatEUR(data.total)}</span></div>
   `;
 }
