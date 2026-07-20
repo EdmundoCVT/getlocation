@@ -101,7 +101,7 @@ img, svg { max-width: 100%; display: block; }
   border-bottom-color: var(--turquoise);
 }
 
-.demo-banner {
+.info-banner {
   background: var(--sable-clair);
   color: #4a2f8f;
   text-align: center;

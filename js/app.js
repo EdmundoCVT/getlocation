@@ -332,7 +332,7 @@ function initPaiementPage() {
   const form = document.getElementById("payment-form");
   const payButton = document.getElementById("pay-button");
   const cardErrors = document.getElementById("stripe-card-errors");
-  const banner = document.getElementById("demo-banner");
+  const banner = document.getElementById("info-banner");
 
   if (typeof Stripe === "undefined" || !window.STRIPE_PUBLISHABLE_KEY || window.STRIPE_PUBLISHABLE_KEY.includes("A_REMPLACER")) {
     if (banner) {

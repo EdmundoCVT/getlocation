@@ -24,7 +24,7 @@ const VEHICULES = [
     transmission: "Manuelle",
     clim: true,
     hybride: false,
-    prixJour: 35,
+    prixJour: 60,
     caution: 300,
     description: "Compacte et économique, parfaite pour vos déplacements pro entre Cannes, Antibes et Grasse."
   },
@@ -40,7 +40,7 @@ const VEHICULES = [
     transmission: "Automatique",
     clim: true,
     hybride: true,
-    prixJour: 50,
+    prixJour: 70,
     caution: 500,
     description: "SUV compact hybride, confortable et sobre pour rayonner sur toute la Côte d'Azur."
   },
@@ -56,7 +56,7 @@ const VEHICULES = [
     transmission: "Automatique",
     clim: true,
     hybride: true,
-    prixJour: 65,
+    prixJour: 80,
     caution: 600,
     description: "SUV familial haut de gamme, idéal pour vos trajets entre Nice, Cannes et l'arrière-pays."
   },
@@ -72,7 +72,7 @@ const VEHICULES = [
     transmission: "Manuelle",
     clim: true,
     hybride: false,
-    prixJour: 45,
+    prixJour: 90,
     caution: 450,
     description: "Ludospace polyvalent au grand volume de chargement, idéal bagages, matériel ou déménagement."
   }
