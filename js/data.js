@@ -1,12 +1,12 @@
-// Données de démonstration — GETLOCATION (TLST SAS)
+// Données de démonstration — GETLOCATION
 // Location de véhicules dans les Alpes-Maritimes (06) / Côte d'Azur.
 // À remplacer par de vraies données (base de données / CMS) en production.
 
+const LIEU_LIVRAISON = "Livraison à l'adresse de votre choix";
+
 const LIEUX = [
   "Agence Grasse (siège)",
-  "Agence Cannes",
-  "Agence Antibes",
-  "Aéroport Nice Côte d'Azur"
+  LIEU_LIVRAISON
 ];
 
 const CATEGORIES = ["Citadine", "SUV", "Utilitaire"];

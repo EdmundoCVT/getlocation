@@ -106,7 +106,7 @@
 <section class="hero">
   <div class="container">
     <h1>Louez votre véhicule sur la Côte d'Azur</h1>
-    <p>Agences à Grasse, Cannes et Antibes, retrait possible à l'aéroport de Nice. Réservation en ligne et paiement sécurisé.</p>
+    <p>Agence à Grasse, avec livraison possible à l'adresse de votre choix sur Cannes, Antibes, Nice et Monaco. Réservation en ligne et paiement sécurisé.</p>
   </div>
 </section>
 
@@ -116,9 +116,17 @@
       <label for="lieu-prise">Lieu de prise en charge</label>
       <select id="lieu-prise" required></select>
     </div>
+    <div class="field" id="adresse-prise-field" style="display:none;">
+      <label for="adresse-prise">Adresse de livraison</label>
+      <input type="text" id="adresse-prise" placeholder="Ex. 12 rue de la Croisette, Cannes">
+    </div>
     <div class="field">
       <label for="lieu-retour">Lieu de restitution</label>
       <select id="lieu-retour" required></select>
+    </div>
+    <div class="field" id="adresse-retour-field" style="display:none;">
+      <label for="adresse-retour">Adresse de restitution</label>
+      <input type="text" id="adresse-retour" placeholder="Ex. 12 rue de la Croisette, Cannes">
     </div>
     <div class="field">
       <label for="date-debut">Date de départ</label>
@@ -161,15 +169,29 @@
     <div class="vehicle-card">
       <div class="vehicle-media">
         <picture>
-          <source srcset="images/peugeot-3008.webp" type="image/webp">
-          <img src="images/peugeot-3008.jpg" alt="Peugeot 3008 &amp; 2008 Hybrid" class="vehicle-photo" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
+          <source srcset="images/peugeot-2008-hybrid.webp" type="image/webp">
+          <img src="images/peugeot-2008-hybrid.jpg" alt="Peugeot 2008 Hybrid" class="vehicle-photo" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
         </picture>
         <span class="vehicle-emoji-fallback">🚙</span>
       </div>
       <div class="vehicle-body">
         <div class="vehicle-category">SUV Hybride</div>
-        <div class="vehicle-name">Peugeot 3008 &amp; 2008 Hybrid</div>
-        <p class="hint-text">Confort et sobriété pour rayonner sur toute la Côte d'Azur, en famille ou entre amis.</p>
+        <div class="vehicle-name">Peugeot 2008 Hybrid</div>
+        <p class="hint-text">SUV compact hybride, confortable et sobre pour rayonner sur toute la Côte d'Azur.</p>
+      </div>
+    </div>
+    <div class="vehicle-card">
+      <div class="vehicle-media">
+        <picture>
+          <source srcset="images/peugeot-3008.webp" type="image/webp">
+          <img src="images/peugeot-3008.jpg" alt="Peugeot 3008" class="vehicle-photo" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
+        </picture>
+        <span class="vehicle-emoji-fallback">🚙</span>
+      </div>
+      <div class="vehicle-body">
+        <div class="vehicle-category">SUV Hybride</div>
+        <div class="vehicle-name">Peugeot 3008</div>
+        <p class="hint-text">SUV familial haut de gamme, idéal pour vos trajets entre Nice, Cannes et l'arrière-pays.</p>
       </div>
     </div>
     <div class="vehicle-card">
@@ -194,11 +216,11 @@
 
 <section class="section container">
   <h2 class="section-title">Location de voiture sur la Côte d'Azur</h2>
-  <p class="section-subtitle">GETLOCATION (TLST SAS) est une agence de location de véhicules basée à Grasse, dans les Alpes-Maritimes (06). Nous proposons une flotte récente (modèles 2026) et une réservation entièrement en ligne, avec paiement sécurisé.</p>
+  <p class="section-subtitle">GETLOCATION est une agence de location de véhicules basée à Grasse, dans les Alpes-Maritimes (06). Nous proposons une flotte récente (modèles 2026) et une réservation entièrement en ligne, avec paiement sécurisé.</p>
   <div class="vehicle-grid">
     <div class="card">
       <h3>Zones desservies</h3>
-      <p class="hint-text">Nos véhicules sont disponibles à la prise en charge à <strong>Grasse</strong>, <strong>Cannes</strong> et <strong>Antibes</strong>, avec un retrait possible à l'<strong>aéroport de Nice</strong>. Nous intervenons également sur <strong>Monaco</strong> et l'ensemble du bassin cannois et azuréen, sur demande.</p>
+      <p class="hint-text">Notre agence se trouve à <strong>Grasse</strong>. Nous proposons également la <strong>livraison à l'adresse de votre choix</strong> sur <strong>Cannes</strong>, <strong>Antibes</strong>, <strong>Nice</strong> et <strong>Monaco</strong>, ainsi que sur l'ensemble du bassin cannois et azuréen, sur demande.</p>
     </div>
     <div class="card">
       <h3>Comment ça marche</h3>
@@ -219,7 +241,7 @@
   </div>
   <div class="card" style="margin-bottom: 16px;">
     <h3>Dans quelles villes puis-je récupérer mon véhicule ?</h3>
-    <p class="hint-text">À Grasse, Cannes, Antibes, ou à l'aéroport de Nice. Nous desservons également Monaco sur demande.</p>
+    <p class="hint-text">À notre agence de Grasse, ou en livraison à l'adresse de votre choix sur Cannes, Antibes, Nice et Monaco.</p>
   </div>
   <div class="card" style="margin-bottom: 16px;">
     <h3>Une caution est-elle demandée ?</h3>
@@ -253,7 +275,7 @@
       "name": "Dans quelles villes puis-je récupérer mon véhicule ?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "À Grasse, Cannes, Antibes, ou à l'aéroport de Nice. GETLOCATION dessert également Monaco sur demande."
+        "text": "À notre agence de Grasse, ou en livraison à l'adresse de votre choix sur Cannes, Antibes, Nice et Monaco."
       }
     },
     {
@@ -288,7 +310,7 @@
   <div class="container footer-grid">
     <div>
       <h4>GETLOCATION</h4>
-      <p>Location de véhicules dans les Alpes-Maritimes (06). Agences à Grasse, Cannes et Antibes — TLST SAS.</p>
+      <p>Location de véhicules dans les Alpes-Maritimes (06). Agence à Grasse, livraison possible sur toute la Côte d'Azur.</p>
     </div>
     <div>
       <h4>Liens</h4>
@@ -304,7 +326,7 @@
       <a href="tel:+33667485430">+33 6 67 48 54 30</a>
     </div>
   </div>
-  <div class="footer-bottom">© <span id="footer-year"></span> GETLOCATION (TLST SAS).</div>
+  <div class="footer-bottom">© <span id="footer-year"></span> GETLOCATION.</div>
 </footer>
 
 <script src="js/data.js"></script>

@@ -73,12 +73,35 @@ function initSearchForm() {
   const inputFin = document.getElementById("date-fin");
   const inputHeureDebut = document.getElementById("heure-debut");
   const inputHeureFin = document.getElementById("heure-fin");
+  const champAdressePrise = document.getElementById("adresse-prise-field");
+  const inputAdressePrise = document.getElementById("adresse-prise");
+  const champAdresseRetour = document.getElementById("adresse-retour-field");
+  const inputAdresseRetour = document.getElementById("adresse-retour");
 
   LIEUX.forEach(lieu => {
     selectPrise.add(new Option(lieu, lieu));
     selectRetour.add(new Option(lieu, lieu));
   });
   selectRetour.value = LIEUX[0];
+
+  // Affiche/masque le champ d'adresse libre selon que "Livraison" est
+  // sélectionné comme lieu de prise en charge ou de restitution.
+  function majChampAdresse(select, champ, input) {
+    if (!champ || !input) return;
+    const estLivraison = select.value === LIEU_LIVRAISON;
+    champ.style.display = estLivraison ? "" : "none";
+    input.required = estLivraison;
+    if (!estLivraison) input.value = "";
+  }
+
+  if (selectPrise) {
+    majChampAdresse(selectPrise, champAdressePrise, inputAdressePrise);
+    selectPrise.addEventListener("change", () => majChampAdresse(selectPrise, champAdressePrise, inputAdressePrise));
+  }
+  if (selectRetour) {
+    majChampAdresse(selectRetour, champAdresseRetour, inputAdresseRetour);
+    selectRetour.addEventListener("change", () => majChampAdresse(selectRetour, champAdresseRetour, inputAdresseRetour));
+  }
 
   inputDebut.min = todayISO();
   inputDebut.value = todayISO(2);
@@ -128,6 +151,8 @@ function initSearchForm() {
     writeJSON(STORAGE.recherche, {
       lieuPrise: selectPrise.value,
       lieuRetour: selectRetour.value,
+      adressePrise: (selectPrise.value === LIEU_LIVRAISON && inputAdressePrise) ? inputAdressePrise.value.trim() : "",
+      adresseRetour: (selectRetour.value === LIEU_LIVRAISON && inputAdresseRetour) ? inputAdresseRetour.value.trim() : "",
       dateDebut: inputDebut.value,
       dateFin: inputFin.value,
       heureDebut: inputHeureDebut ? inputHeureDebut.value : "10:00",
@@ -135,6 +160,15 @@ function initSearchForm() {
     });
     window.location.href = "vehicules.html";
   });
+}
+
+// Libellé lisible d'un lieu : si c'est une livraison avec adresse renseignée,
+// affiche l'adresse plutôt que le libellé générique.
+function libelleLieu(lieu, adresse) {
+  if (lieu === LIEU_LIVRAISON && adresse) {
+    return `Livraison — ${adresse}`;
+  }
+  return lieu;
 }
 
 /* ---------------------------------------------------------
@@ -147,21 +181,25 @@ function initVehiculesPage() {
   const recherche = readJSON(STORAGE.recherche, {
     lieuPrise: LIEUX[0],
     lieuRetour: LIEUX[0],
+    adressePrise: "",
+    adresseRetour: "",
     dateDebut: todayISO(2),
     dateFin: todayISO(5),
     heureDebut: "10:00",
     heureFin: "10:00"
   });
-  // Compatibilité : anciennes recherches enregistrées sans heure.
+  // Compatibilité : anciennes recherches enregistrées sans heure / adresse.
   if (!recherche.heureDebut) recherche.heureDebut = "10:00";
   if (!recherche.heureFin) recherche.heureFin = "10:00";
+  if (!recherche.adressePrise) recherche.adressePrise = "";
+  if (!recherche.adresseRetour) recherche.adresseRetour = "";
 
   const dureeHeures = dureeEnHeures(recherche.dateDebut, recherche.heureDebut, recherche.dateFin, recherche.heureFin);
   const jours = joursFacturablesDepuisHeures(dureeHeures);
 
   const infoBar = document.getElementById("search-summary");
   if (infoBar) {
-    infoBar.textContent = `${recherche.lieuPrise} · du ${formatDateHeureFR(recherche.dateDebut, recherche.heureDebut)} au ${formatDateHeureFR(recherche.dateFin, recherche.heureFin)} (${jours} jour${jours > 1 ? "s" : ""})`;
+    infoBar.textContent = `${libelleLieu(recherche.lieuPrise, recherche.adressePrise)} · du ${formatDateHeureFR(recherche.dateDebut, recherche.heureDebut)} au ${formatDateHeureFR(recherche.dateFin, recherche.heureFin)} (${jours} jour${jours > 1 ? "s" : ""})`;
   }
 
   const filterBar = document.getElementById("filter-bar");
@@ -293,7 +331,7 @@ function initReservationPage() {
         ${vignetteVehicule(vehicule)}
         <div>
           <div class="vehicle-name">${vehicule.nom}</div>
-          <div class="hint-text">${data.lieuPrise} → ${data.lieuRetour}</div>
+          <div class="hint-text">${libelleLieu(data.lieuPrise, data.adressePrise)} → ${libelleLieu(data.lieuRetour, data.adresseRetour)}</div>
           <div class="hint-text">${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${data.jours} jour${data.jours > 1 ? "s" : ""})</div>
         </div>
       </div>
@@ -462,6 +500,8 @@ function initPaiementPage() {
           jours: data.jours,
           lieuPrise: data.lieuPrise,
           lieuRetour: data.lieuRetour,
+          adressePrise: data.adressePrise,
+          adresseRetour: data.adresseRetour,
           conducteur: data.conducteur,
           assurance: data.assurance,
           total,
@@ -500,7 +540,7 @@ function initConfirmationPage() {
       ${vignetteVehicule(vehicule)}
       <div>
         <div class="vehicle-name">${vehicule.nom}</div>
-        <div class="hint-text">${data.lieuPrise} → ${data.lieuRetour}</div>
+        <div class="hint-text">${libelleLieu(data.lieuPrise, data.adressePrise)} → ${libelleLieu(data.lieuRetour, data.adresseRetour)}</div>
         <div class="hint-text">${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${data.jours} jour${data.jours > 1 ? "s" : ""})</div>
       </div>
     </div>
