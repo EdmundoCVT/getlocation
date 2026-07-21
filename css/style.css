@@ -156,24 +156,20 @@ img, svg { max-width: 100%; display: block; }
   font-size: 1.05rem;
 }
 
-.hero-image {
-  flex: 0 1 420px;
+.hero-graphic {
+  flex: 0 1 360px;
   min-width: 0;
   display: flex;
   justify-content: center;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.5);
+  pointer-events: none;
 }
 
-.hero-image img {
+.hero-graphic svg {
   width: 100%;
-  max-width: 440px;
-  border-radius: 18px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
-  transform: rotate(-2deg);
-  transition: transform 0.3s ease;
-}
-
-.hero-image img:hover {
-  transform: rotate(0deg) scale(1.02);
+  max-width: 340px;
+  height: auto;
 }
 
 /* Search card */
@@ -687,7 +683,7 @@ img, svg { max-width: 100%; display: block; }
   .hero-inner { flex-direction: column; text-align: center; }
   .hero-text { flex: none; width: 100%; }
   .hero p { margin-left: auto; margin-right: auto; }
-  .hero-image { flex: none; width: 100%; max-width: 340px; margin: 24px auto 0; }
+  .hero-graphic { flex: none; width: 100%; max-width: 220px; margin: 16px auto 0; }
 }
 
 @media (max-width: 640px) {
@@ -695,6 +691,5 @@ img, svg { max-width: 100%; display: block; }
   .search-card { grid-template-columns: 1fr; margin-top: -40px; }
   .form-grid { grid-template-columns: 1fr; }
   .hero h1 { font-size: 1.8rem; }
-  .hero-image { max-width: 220px; margin-top: 20px; }
-  .hero-image img { transform: none; }
+  .hero-graphic { max-width: 160px; margin-top: 12px; }
 }
