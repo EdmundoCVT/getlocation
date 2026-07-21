@@ -262,8 +262,8 @@ function initVehiculesPage() {
           </div>
           <p class="hint-text">${v.description}</p>
           <div class="vehicle-footer">
-            <div class="price">${formatEUR(v.prixJour)}<small> / jour</small></div>
-            <button class="btn btn-primary" data-id="${v.id}">Réserver</button>
+            <div class="price"><span class="price-from">À partir de</span>${formatEUR(v.prixJour)}<small> / jour</small></div>
+            <button class="btn btn-primary btn-sm" data-id="${v.id}">Réserver</button>
           </div>
           <div class="hint-text">Total pour ${jours} jour${jours > 1 ? "s" : ""} : ${formatEUR(total)}</div>
         </div>
@@ -295,6 +295,15 @@ function formatDateFR(iso) {
 // Génère un <picture> WebP + repli JPG + repli emoji, avec lazy loading et
 // dimensions explicites (évite le layout shift / bon score CLS).
 function pictureVehicule(v, imgClass) {
+  if (v.photoCutout) {
+    // Photo détourée (fond transparent) : object-fit:contain via la classe is-cutout,
+    // le fond de la carte (gris très clair) fait office de socle.
+    return `
+      <picture>
+        <img src="${v.photoCutout}" alt="${v.nom}" class="${imgClass} is-cutout" loading="lazy" decoding="async" width="900" height="620" onerror="this.classList.remove('is-cutout')">
+      </picture>
+    `;
+  }
   const webp = v.photo.replace(/\.jpe?g$/i, ".webp");
   return `
     <picture>
@@ -566,6 +575,68 @@ function initConfirmationPage() {
   `;
 }
 
+/* ---------------------------------------------------------
+   Slider "Avis clients" — structure facilement modifiable.
+   ATTENTION : ces avis sont des exemples de démonstration (placeholders).
+   Remplacer par de vrais avis clients avant mise en production, et ne pas
+   ajouter de balisage Schema.org Review/AggregateRating tant que les avis
+   ne sont pas authentiques (risque de pénalité Google + tromperie client).
+--------------------------------------------------------- */
+const TEMOIGNAGES = [
+  { texte: "Service impeccable, tout s'est fait en ligne en quelques minutes.", auteur: "Client GETLOCATION" },
+  { texte: "Voiture neuve et parfaitement propre à la prise en charge.", auteur: "Client GETLOCATION" },
+  { texte: "Livraison à l'aéroport de Nice à l'heure convenue, très pratique.", auteur: "Client GETLOCATION" }
+];
+
+function initTestimonialsSlider() {
+  const root = document.querySelector(".testimonials");
+  if (!root) return;
+  const track = root.querySelector(".testimonial-track");
+  const dotsWrap = root.querySelector(".testimonial-dots");
+  if (!track) return;
+
+  track.innerHTML = TEMOIGNAGES.map((t, i) => `
+    <div class="testimonial-slide${i === 0 ? " active" : ""}" role="group" aria-roledescription="slide" aria-label="Avis ${i + 1} sur ${TEMOIGNAGES.length}">
+      <div class="testimonial-stars" aria-hidden="true">★★★★★</div>
+      <p class="testimonial-quote">« ${t.texte} »</p>
+      <div class="testimonial-author">${t.auteur}</div>
+    </div>
+  `).join("");
+
+  if (dotsWrap) {
+    dotsWrap.innerHTML = TEMOIGNAGES.map((_, i) =>
+      `<button type="button" class="testimonial-dot${i === 0 ? " active" : ""}" aria-label="Aller à l'avis ${i + 1}"></button>`
+    ).join("");
+  }
+
+  const slides = root.querySelectorAll(".testimonial-slide");
+  const dots = root.querySelectorAll(".testimonial-dot");
+  let index = 0;
+  let timer = null;
+
+  function show(i) {
+    index = (i + slides.length) % slides.length;
+    slides.forEach((s, si) => s.classList.toggle("active", si === index));
+    dots.forEach((d, di) => d.classList.toggle("active", di === index));
+  }
+
+  function restartAutoplay() {
+    if (timer) clearInterval(timer);
+    if (slides.length > 1) timer = setInterval(() => show(index + 1), 6000);
+  }
+
+  root.querySelectorAll(".testimonial-arrow").forEach(btn => {
+    btn.addEventListener("click", () => {
+      show(index + (btn.dataset.dir === "prev" ? -1 : 1));
+      restartAutoplay();
+    });
+  });
+
+  dots.forEach((d, i) => d.addEventListener("click", () => { show(i); restartAutoplay(); }));
+
+  restartAutoplay();
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   setFooterYear();
   initSearchForm();
@@ -573,4 +644,5 @@ document.addEventListener("DOMContentLoaded", () => {
   initReservationPage();
   initPaiementPage();
   initConfirmationPage();
+  initTestimonialsSlider();
 });
