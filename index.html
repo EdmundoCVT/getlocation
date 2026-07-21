@@ -130,11 +130,13 @@
     </div>
     <div class="field">
       <label for="datetime-debut">Date et heure de départ</label>
-      <input type="datetime-local" id="datetime-debut" required>
+      <input type="datetime-local" id="datetime-debut" step="1800" required>
+      <span class="hint-text">Horaires d'ouverture : 08:00 – 19:00</span>
     </div>
     <div class="field">
       <label for="datetime-fin">Date et heure de retour</label>
-      <input type="datetime-local" id="datetime-fin" required>
+      <input type="datetime-local" id="datetime-fin" step="1800" required>
+      <span class="hint-text">Horaires d'ouverture : 08:00 – 19:00</span>
     </div>
     <button type="submit" class="btn btn-primary">Rechercher</button>
   </form>

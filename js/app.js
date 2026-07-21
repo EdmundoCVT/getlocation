@@ -9,6 +9,10 @@ const STORAGE = {
   confirmation: "ct_confirmation"
 };
 
+// Horaires d'ouverture pour la prise en charge / restitution des véhicules.
+const HEURE_OUVERTURE = "08:00";
+const HEURE_FERMETURE = "19:00";
+
 function todayISO(offsetDays = 0) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
@@ -113,9 +117,27 @@ function initSearchForm() {
     return { date: date || "", heure: (heure || "00:00").slice(0, 5) };
   }
 
-  inputDebut.min = datetimeLocal(0, "00:00");
+  // Contraint une heure saisie dans les horaires d'ouverture (08:00 - 19:00),
+  // en l'arrondissant au palier de 30 minutes le plus proche.
+  function heureDansHoraires(heure) {
+    const versMinutes = h => {
+      const [hh, mm] = h.split(":").map(Number);
+      return hh * 60 + mm;
+    };
+    const versHeure = m => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+    let minutes = Math.round(versMinutes(heure) / 30) * 30;
+    minutes = Math.max(versMinutes(HEURE_OUVERTURE), Math.min(versMinutes(HEURE_FERMETURE), minutes));
+    return versHeure(minutes);
+  }
+
+  function corrigerHoraireOuverture(input) {
+    const { date, heure } = splitDatetime(input.value);
+    if (date) input.value = `${date}T${heureDansHoraires(heure)}`;
+  }
+
+  inputDebut.min = datetimeLocal(0, HEURE_OUVERTURE);
   inputDebut.value = datetimeLocal(2, "10:00");
-  inputFin.min = datetimeLocal(3, "00:00");
+  inputFin.min = datetimeLocal(3, HEURE_OUVERTURE);
   inputFin.value = datetimeLocal(5, "10:00");
 
   // Si la date/heure de retour tombe avant ou pile sur la date/heure de départ,
@@ -132,16 +154,22 @@ function initSearchForm() {
   }
 
   inputDebut.addEventListener("change", () => {
+    corrigerHoraireOuverture(inputDebut);
     const debut = splitDatetime(inputDebut.value);
     const d = new Date(debut.date);
     d.setDate(d.getDate() + 1);
-    inputFin.min = `${d.toISOString().slice(0, 10)}T00:00`;
+    inputFin.min = `${d.toISOString().slice(0, 10)}T${HEURE_OUVERTURE}`;
     corrigerFinSiNecessaire();
   });
-  inputFin.addEventListener("change", corrigerFinSiNecessaire);
+  inputFin.addEventListener("change", () => {
+    corrigerHoraireOuverture(inputFin);
+    corrigerFinSiNecessaire();
+  });
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
+    corrigerHoraireOuverture(inputDebut);
+    corrigerHoraireOuverture(inputFin);
     corrigerFinSiNecessaire();
     const debut = splitDatetime(inputDebut.value);
     const fin = splitDatetime(inputFin.value);
