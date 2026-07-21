@@ -5,7 +5,7 @@
 const LIEU_LIVRAISON = "Livraison à l'adresse de votre choix";
 
 const LIEUX = [
-  "Agence Grasse (siège)",
+  "Agence Grasse",
   LIEU_LIVRAISON
 ];
 

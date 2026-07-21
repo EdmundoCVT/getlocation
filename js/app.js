@@ -69,10 +69,8 @@ function initSearchForm() {
 
   const selectPrise = document.getElementById("lieu-prise");
   const selectRetour = document.getElementById("lieu-retour");
-  const inputDebut = document.getElementById("date-debut");
-  const inputFin = document.getElementById("date-fin");
-  const inputHeureDebut = document.getElementById("heure-debut");
-  const inputHeureFin = document.getElementById("heure-fin");
+  const inputDebut = document.getElementById("datetime-debut");
+  const inputFin = document.getElementById("datetime-fin");
   const champAdressePrise = document.getElementById("adresse-prise-field");
   const inputAdressePrise = document.getElementById("adresse-prise");
   const champAdresseRetour = document.getElementById("adresse-retour-field");
@@ -103,60 +101,59 @@ function initSearchForm() {
     selectRetour.addEventListener("change", () => majChampAdresse(selectRetour, champAdresseRetour, inputAdresseRetour));
   }
 
-  inputDebut.min = todayISO();
-  inputDebut.value = todayISO(2);
-  inputFin.min = todayISO(3);
-  inputFin.value = todayISO(5);
-  if (inputHeureDebut) inputHeureDebut.value = "10:00";
-  if (inputHeureFin) inputHeureFin.value = "10:00";
+  // Construit une valeur pour <input type="datetime-local"> : "AAAA-MM-JJTHH:mm".
+  function datetimeLocal(offsetDays, heure) {
+    return `${todayISO(offsetDays)}T${heure}`;
+  }
+
+  // Sépare la valeur combinée date+heure en deux parties exploitables ailleurs
+  // dans l'app (le reste du tunnel de réservation utilise dateXxx/heureXxx).
+  function splitDatetime(value) {
+    const [date, heure] = (value || "").split("T");
+    return { date: date || "", heure: (heure || "00:00").slice(0, 5) };
+  }
+
+  inputDebut.min = datetimeLocal(0, "00:00");
+  inputDebut.value = datetimeLocal(2, "10:00");
+  inputFin.min = datetimeLocal(3, "00:00");
+  inputFin.value = datetimeLocal(5, "10:00");
+
+  // Si la date/heure de retour tombe avant ou pile sur la date/heure de départ,
+  // on corrige automatiquement pour garantir une durée de location positive.
+  function corrigerFinSiNecessaire() {
+    const debut = splitDatetime(inputDebut.value);
+    const fin = splitDatetime(inputFin.value);
+    const duree = dureeEnHeures(debut.date, debut.heure, fin.date, fin.heure);
+    if (duree <= 0) {
+      const d = new Date(debut.date);
+      d.setDate(d.getDate() + 1);
+      inputFin.value = `${d.toISOString().slice(0, 10)}T${debut.heure}`;
+    }
+  }
 
   inputDebut.addEventListener("change", () => {
-    inputFin.min = todayISO(joursEntreOffset(inputDebut.value));
-    if (inputFin.value < inputDebut.value) {
-      const d = new Date(inputDebut.value);
-      d.setDate(d.getDate() + 1);
-      inputFin.value = d.toISOString().slice(0, 10);
-    }
-  });
-
-  function joursEntreOffset(dateStr) {
-    const d = new Date(dateStr);
+    const debut = splitDatetime(inputDebut.value);
+    const d = new Date(debut.date);
     d.setDate(d.getDate() + 1);
-    return Math.round((d - new Date()) / (1000 * 60 * 60 * 24));
-  }
-
-  // Si la date/heure de retour tombe avant ou pile sur la date/heure de départ
-  // (ex. même jour, heure de retour plus tôt), on corrige automatiquement pour
-  // garantir une durée de location positive.
-  function corrigerHeureFinSiNecessaire() {
-    if (!inputHeureDebut || !inputHeureFin) return;
-    const duree = dureeEnHeures(inputDebut.value, inputHeureDebut.value, inputFin.value, inputHeureFin.value);
-    if (duree <= 0) {
-      if (inputFin.value === inputDebut.value) {
-        const d = new Date(inputDebut.value);
-        d.setDate(d.getDate() + 1);
-        inputFin.value = d.toISOString().slice(0, 10);
-      } else {
-        inputHeureFin.value = inputHeureDebut.value;
-      }
-    }
-  }
-
-  if (inputHeureDebut) inputHeureDebut.addEventListener("change", corrigerHeureFinSiNecessaire);
-  if (inputHeureFin) inputHeureFin.addEventListener("change", corrigerHeureFinSiNecessaire);
+    inputFin.min = `${d.toISOString().slice(0, 10)}T00:00`;
+    corrigerFinSiNecessaire();
+  });
+  inputFin.addEventListener("change", corrigerFinSiNecessaire);
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    corrigerHeureFinSiNecessaire();
+    corrigerFinSiNecessaire();
+    const debut = splitDatetime(inputDebut.value);
+    const fin = splitDatetime(inputFin.value);
     writeJSON(STORAGE.recherche, {
       lieuPrise: selectPrise.value,
       lieuRetour: selectRetour.value,
       adressePrise: (selectPrise.value === LIEU_LIVRAISON && inputAdressePrise) ? inputAdressePrise.value.trim() : "",
       adresseRetour: (selectRetour.value === LIEU_LIVRAISON && inputAdresseRetour) ? inputAdresseRetour.value.trim() : "",
-      dateDebut: inputDebut.value,
-      dateFin: inputFin.value,
-      heureDebut: inputHeureDebut ? inputHeureDebut.value : "10:00",
-      heureFin: inputHeureFin ? inputHeureFin.value : "10:00"
+      dateDebut: debut.date,
+      dateFin: fin.date,
+      heureDebut: debut.heure,
+      heureFin: fin.heure
     });
     window.location.href = "vehicules.html";
   });
