@@ -25,7 +25,7 @@
 <meta name="twitter:description" content="Location de véhicules récents (Peugeot, Opel, Toyota) à Nice, Cannes, Antibes, Grasse et Monaco. Réservation en ligne, paiement sécurisé, livraison possible sur toute la Côte d'Azur.">
 <meta name="twitter:image" content="https://getlocation.fr/images/peugeot-3008.jpg">
 
-<link rel="preload" as="image" href="images/peugeot-3008-cutout.webp" imagesrcset="images/peugeot-3008-cutout-700w.webp 700w, images/peugeot-3008-cutout.webp 1300w" fetchpriority="high">
+<link rel="preload" as="image" href="images/peugeot-3008-fleet.webp" fetchpriority="high">
 
 <script type="application/ld+json">
 {
@@ -63,7 +63,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="css/style.css?v=2">
+<link rel="stylesheet" href="css/style.css?v=3">
 </head>
 <body>
 
@@ -100,11 +100,36 @@
         <a href="vehicules.html" class="btn btn-secondary">Voir les véhicules</a>
       </div>
     </div>
-    <div class="hero-visual">
-      <picture>
-        <source srcset="images/peugeot-3008-cutout-700w.webp 700w, images/peugeot-3008-cutout.webp 1300w" type="image/webp">
-        <img src="images/peugeot-3008-cutout.png" alt="Peugeot 3008 disponible à la location chez GETLOCATION" width="1300" height="890" decoding="async" fetchpriority="high">
-      </picture>
+    <div class="hero-fleet">
+      <span class="hero-fleet-grid-note">Toute notre flotte 2026</span>
+      <div class="fleet-card">
+        <picture>
+          <source srcset="images/opel-corsa-fleet.webp" type="image/webp">
+          <img src="images/opel-corsa-fleet.jpg" alt="Opel Corsa disponible à la location chez GETLOCATION" width="1200" height="900" decoding="async">
+        </picture>
+        <span class="fleet-card-label">Opel Corsa<small>Citadine</small></span>
+      </div>
+      <div class="fleet-card is-flagship">
+        <picture>
+          <source srcset="images/peugeot-3008-fleet.webp" type="image/webp">
+          <img src="images/peugeot-3008-fleet.jpg" alt="Peugeot 3008 disponible à la location chez GETLOCATION" width="1200" height="900" decoding="async" fetchpriority="high">
+        </picture>
+        <span class="fleet-card-label">Peugeot 3008<small>SUV</small></span>
+      </div>
+      <div class="fleet-card">
+        <picture>
+          <source srcset="images/peugeot-2008-hybrid-fleet.webp" type="image/webp">
+          <img src="images/peugeot-2008-hybrid-fleet.jpg" alt="Peugeot 2008 Hybrid disponible à la location chez GETLOCATION" width="1200" height="900" decoding="async" loading="lazy">
+        </picture>
+        <span class="fleet-card-label">Peugeot 2008<small>SUV hybride</small></span>
+      </div>
+      <div class="fleet-card">
+        <picture>
+          <source srcset="images/toyota-proace-city-fleet.webp" type="image/webp">
+          <img src="images/toyota-proace-city-fleet.jpg" alt="Toyota Proace City disponible à la location chez GETLOCATION" width="1200" height="900" decoding="async" loading="lazy">
+        </picture>
+        <span class="fleet-card-label">Toyota Proace<small>Utilitaire</small></span>
+      </div>
     </div>
   </div>
 </section>
@@ -202,10 +227,12 @@
     <p class="section-subtitle">Citadine, SUV et utilitaire — assurance et assistance incluses.</p>
     <div class="vehicle-grid">
       <div class="vehicle-card">
-        <div class="vehicle-media">
+        <div class="vehicle-media" data-gallery="opel-corsa">
           <picture>
-            <img src="images/opel-corsa-cutout.webp" alt="Opel Corsa Business 1.2T" class="vehicle-photo is-cutout" loading="lazy" decoding="async" width="900" height="612" onerror="this.classList.remove('is-cutout')">
+            <source srcset="images/gallery/opel-corsa-1-700w.webp 700w, images/gallery/opel-corsa-1.webp 1400w" sizes="(max-width: 480px) 90vw, 340px" type="image/webp">
+            <img src="images/gallery/opel-corsa-1-700w.jpg" alt="Opel Corsa Business 1.2T" class="vehicle-photo" loading="lazy" decoding="async" width="1400" height="1050" onerror="this.remove()">
           </picture>
+          <span class="vehicle-photo-count">6</span>
           <span class="vehicle-emoji-fallback">🚗</span>
         </div>
         <div class="vehicle-body">
@@ -219,10 +246,12 @@
         </div>
       </div>
       <div class="vehicle-card">
-        <div class="vehicle-media">
+        <div class="vehicle-media" data-gallery="peugeot-2008-hybrid">
           <picture>
-            <img src="images/peugeot-2008-hybrid-cutout.webp" alt="Peugeot 2008 Hybrid" class="vehicle-photo is-cutout" loading="lazy" decoding="async" width="900" height="616" onerror="this.classList.remove('is-cutout')">
+            <source srcset="images/gallery/peugeot-2008-hybrid-1-700w.webp 700w, images/gallery/peugeot-2008-hybrid-1.webp 1400w" sizes="(max-width: 480px) 90vw, 340px" type="image/webp">
+            <img src="images/gallery/peugeot-2008-hybrid-1-700w.jpg" alt="Peugeot 2008 Hybrid" class="vehicle-photo" loading="lazy" decoding="async" width="1400" height="1050" onerror="this.remove()">
           </picture>
+          <span class="vehicle-photo-count">6</span>
           <span class="vehicle-emoji-fallback">🚙</span>
         </div>
         <div class="vehicle-body">
@@ -236,10 +265,12 @@
         </div>
       </div>
       <div class="vehicle-card">
-        <div class="vehicle-media">
+        <div class="vehicle-media" data-gallery="peugeot-3008">
           <picture>
-            <img src="images/peugeot-3008-cutout-veh.webp" alt="Peugeot 3008" class="vehicle-photo is-cutout" loading="lazy" decoding="async" width="900" height="616" onerror="this.classList.remove('is-cutout')">
+            <source srcset="images/gallery/peugeot-3008-1-700w.webp 700w, images/gallery/peugeot-3008-1.webp 1400w" sizes="(max-width: 480px) 90vw, 340px" type="image/webp">
+            <img src="images/gallery/peugeot-3008-1-700w.jpg" alt="Peugeot 3008" class="vehicle-photo" loading="lazy" decoding="async" width="1400" height="1050" onerror="this.remove()">
           </picture>
+          <span class="vehicle-photo-count">6</span>
           <span class="vehicle-emoji-fallback">🚙</span>
         </div>
         <div class="vehicle-body">
@@ -253,10 +284,10 @@
         </div>
       </div>
       <div class="vehicle-card">
-        <div class="vehicle-media">
+        <div class="vehicle-media" data-gallery="toyota-proace-city">
           <picture>
-            <source srcset="images/toyota-proace-city.webp" type="image/webp">
-            <img src="images/toyota-proace-city.jpg" alt="Toyota Proace City" class="vehicle-photo" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
+            <source srcset="images/gallery/toyota-proace-city-1-700w.webp 700w, images/gallery/toyota-proace-city-1.webp 1400w" sizes="(max-width: 480px) 90vw, 340px" type="image/webp">
+            <img src="images/gallery/toyota-proace-city-1-700w.jpg" alt="Toyota Proace City" class="vehicle-photo" loading="lazy" decoding="async" width="1400" height="1050" onerror="this.remove()">
           </picture>
           <span class="vehicle-emoji-fallback">🚐</span>
         </div>
