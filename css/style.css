@@ -116,6 +116,31 @@ img, svg { max-width: 100%; display: block; }
   color: white;
   padding: 64px 0 110px;
   position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  top: -20%;
+  right: -10%;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.16), transparent 70%);
+  pointer-events: none;
+}
+
+.hero-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-text {
+  flex: 1 1 480px;
 }
 
 .hero h1 {
@@ -128,6 +153,25 @@ img, svg { max-width: 100%; display: block; }
   max-width: 560px;
   opacity: 0.92;
   font-size: 1.05rem;
+}
+
+.hero-image {
+  flex: 0 1 420px;
+  display: flex;
+  justify-content: center;
+}
+
+.hero-image img {
+  width: 100%;
+  max-width: 440px;
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  transform: rotate(-2deg);
+  transition: transform 0.3s ease;
+}
+
+.hero-image img:hover {
+  transform: rotate(0deg) scale(1.02);
 }
 
 /* Search card */
@@ -638,6 +682,10 @@ img, svg { max-width: 100%; display: block; }
   .search-card { grid-template-columns: 1fr 1fr; }
   .booking-layout { grid-template-columns: 1fr; }
   .footer-grid { grid-template-columns: 1fr; }
+  .hero-inner { flex-direction: column; text-align: center; }
+  .hero-text { flex-basis: auto; }
+  .hero p { margin-left: auto; margin-right: auto; }
+  .hero-image { flex-basis: auto; max-width: 340px; margin: 0 auto; }
 }
 
 @media (max-width: 640px) {
@@ -645,4 +693,6 @@ img, svg { max-width: 100%; display: block; }
   .search-card { grid-template-columns: 1fr; margin-top: -40px; }
   .form-grid { grid-template-columns: 1fr; }
   .hero h1 { font-size: 1.8rem; }
+  .hero-image { max-width: 260px; }
+  .hero-image img { transform: none; }
 }
