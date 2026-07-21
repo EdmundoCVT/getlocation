@@ -129,14 +129,18 @@
       <input type="text" id="adresse-retour" placeholder="Ex. 12 rue de la Croisette, Cannes">
     </div>
     <div class="field">
-      <label for="datetime-debut">Date et heure de départ</label>
-      <input type="datetime-local" id="datetime-debut" step="1800" required>
-      <span class="hint-text">Horaires d'ouverture : 08:00 – 19:00</span>
+      <label for="date-debut">Date et heure de départ</label>
+      <div class="datetime-group">
+        <input type="date" id="date-debut" required>
+        <select id="heure-debut" required></select>
+      </div>
     </div>
     <div class="field">
-      <label for="datetime-fin">Date et heure de retour</label>
-      <input type="datetime-local" id="datetime-fin" step="1800" required>
-      <span class="hint-text">Horaires d'ouverture : 08:00 – 19:00</span>
+      <label for="date-fin">Date et heure de retour</label>
+      <div class="datetime-group">
+        <input type="date" id="date-fin" required>
+        <select id="heure-fin" required></select>
+      </div>
     </div>
     <button type="submit" class="btn btn-primary">Rechercher</button>
   </form>

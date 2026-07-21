@@ -175,6 +175,21 @@ img, svg { max-width: 100%; display: block; }
   outline-offset: 1px;
 }
 
+.datetime-group {
+  display: flex;
+  gap: 8px;
+}
+
+.datetime-group input[type="date"] {
+  flex: 1.4;
+  min-width: 0;
+}
+
+.datetime-group select {
+  flex: 1;
+  min-width: 0;
+}
+
 #stripe-card-element {
   padding: 11px 12px;
   border: 1px solid #d7dee0;

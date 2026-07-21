@@ -73,8 +73,10 @@ function initSearchForm() {
 
   const selectPrise = document.getElementById("lieu-prise");
   const selectRetour = document.getElementById("lieu-retour");
-  const inputDebut = document.getElementById("datetime-debut");
-  const inputFin = document.getElementById("datetime-fin");
+  const inputDebut = document.getElementById("date-debut");
+  const inputFin = document.getElementById("date-fin");
+  const selectHeureDebut = document.getElementById("heure-debut");
+  const selectHeureFin = document.getElementById("heure-fin");
   const champAdressePrise = document.getElementById("adresse-prise-field");
   const inputAdressePrise = document.getElementById("adresse-prise");
   const champAdresseRetour = document.getElementById("adresse-retour-field");
@@ -105,83 +107,71 @@ function initSearchForm() {
     selectRetour.addEventListener("change", () => majChampAdresse(selectRetour, champAdresseRetour, inputAdresseRetour));
   }
 
-  // Construit une valeur pour <input type="datetime-local"> : "AAAA-MM-JJTHH:mm".
-  function datetimeLocal(offsetDays, heure) {
-    return `${todayISO(offsetDays)}T${heure}`;
+  // Remplit un <select> avec la liste des horaires d'ouverture (08:00 à 19:00,
+  // par pas de 30 min) : garantit qu'on ne peut choisir qu'un créneau valide.
+  function remplirHeures(select) {
+    if (!select || select.options.length) return;
+    const [hOuv] = HEURE_OUVERTURE.split(":").map(Number);
+    const [hFer, mFer] = HEURE_FERMETURE.split(":").map(Number);
+    let minutes = hOuv * 60;
+    const fin = hFer * 60 + mFer;
+    while (minutes <= fin) {
+      const h = String(Math.floor(minutes / 60)).padStart(2, "0");
+      const m = String(minutes % 60).padStart(2, "0");
+      select.add(new Option(`${h}:${m}`, `${h}:${m}`));
+      minutes += 30;
+    }
   }
+  remplirHeures(selectHeureDebut);
+  remplirHeures(selectHeureFin);
 
-  // Sépare la valeur combinée date+heure en deux parties exploitables ailleurs
-  // dans l'app (le reste du tunnel de réservation utilise dateXxx/heureXxx).
-  function splitDatetime(value) {
-    const [date, heure] = (value || "").split("T");
-    return { date: date || "", heure: (heure || "00:00").slice(0, 5) };
-  }
-
-  // Contraint une heure saisie dans les horaires d'ouverture (08:00 - 19:00),
-  // en l'arrondissant au palier de 30 minutes le plus proche.
-  function heureDansHoraires(heure) {
-    const versMinutes = h => {
-      const [hh, mm] = h.split(":").map(Number);
-      return hh * 60 + mm;
-    };
-    const versHeure = m => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-    let minutes = Math.round(versMinutes(heure) / 30) * 30;
-    minutes = Math.max(versMinutes(HEURE_OUVERTURE), Math.min(versMinutes(HEURE_FERMETURE), minutes));
-    return versHeure(minutes);
-  }
-
-  function corrigerHoraireOuverture(input) {
-    const { date, heure } = splitDatetime(input.value);
-    if (date) input.value = `${date}T${heureDansHoraires(heure)}`;
-  }
-
-  inputDebut.min = datetimeLocal(0, HEURE_OUVERTURE);
-  inputDebut.value = datetimeLocal(2, "10:00");
-  inputFin.min = datetimeLocal(3, HEURE_OUVERTURE);
-  inputFin.value = datetimeLocal(5, "10:00");
+  inputDebut.min = todayISO();
+  inputDebut.value = todayISO(2);
+  inputFin.min = todayISO(3);
+  inputFin.value = todayISO(5);
+  if (selectHeureDebut) selectHeureDebut.value = "10:00";
+  if (selectHeureFin) selectHeureFin.value = "10:00";
 
   // Si la date/heure de retour tombe avant ou pile sur la date/heure de départ,
   // on corrige automatiquement pour garantir une durée de location positive.
   function corrigerFinSiNecessaire() {
-    const debut = splitDatetime(inputDebut.value);
-    const fin = splitDatetime(inputFin.value);
-    const duree = dureeEnHeures(debut.date, debut.heure, fin.date, fin.heure);
+    const duree = dureeEnHeures(inputDebut.value, selectHeureDebut.value, inputFin.value, selectHeureFin.value);
     if (duree <= 0) {
-      const d = new Date(debut.date);
-      d.setDate(d.getDate() + 1);
-      inputFin.value = `${d.toISOString().slice(0, 10)}T${debut.heure}`;
+      if (inputFin.value === inputDebut.value) {
+        const d = new Date(inputDebut.value);
+        d.setDate(d.getDate() + 1);
+        inputFin.value = d.toISOString().slice(0, 10);
+      } else {
+        selectHeureFin.value = selectHeureDebut.value;
+      }
     }
   }
 
   inputDebut.addEventListener("change", () => {
-    corrigerHoraireOuverture(inputDebut);
-    const debut = splitDatetime(inputDebut.value);
-    const d = new Date(debut.date);
+    const d = new Date(inputDebut.value);
     d.setDate(d.getDate() + 1);
-    inputFin.min = `${d.toISOString().slice(0, 10)}T${HEURE_OUVERTURE}`;
+    inputFin.min = d.toISOString().slice(0, 10);
+    if (inputFin.value < inputDebut.value) {
+      inputFin.value = inputDebut.value;
+    }
     corrigerFinSiNecessaire();
   });
-  inputFin.addEventListener("change", () => {
-    corrigerHoraireOuverture(inputFin);
-    corrigerFinSiNecessaire();
-  });
+  inputFin.addEventListener("change", corrigerFinSiNecessaire);
+  if (selectHeureDebut) selectHeureDebut.addEventListener("change", corrigerFinSiNecessaire);
+  if (selectHeureFin) selectHeureFin.addEventListener("change", corrigerFinSiNecessaire);
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    corrigerHoraireOuverture(inputDebut);
-    corrigerHoraireOuverture(inputFin);
     corrigerFinSiNecessaire();
-    const debut = splitDatetime(inputDebut.value);
-    const fin = splitDatetime(inputFin.value);
     writeJSON(STORAGE.recherche, {
       lieuPrise: selectPrise.value,
       lieuRetour: selectRetour.value,
       adressePrise: (selectPrise.value === LIEU_LIVRAISON && inputAdressePrise) ? inputAdressePrise.value.trim() : "",
       adresseRetour: (selectRetour.value === LIEU_LIVRAISON && inputAdresseRetour) ? inputAdresseRetour.value.trim() : "",
-      dateDebut: debut.date,
-      dateFin: fin.date,
-      heureDebut: debut.heure,
-      heureFin: fin.heure
+      dateDebut: inputDebut.value,
+      dateFin: inputFin.value,
+      heureDebut: selectHeureDebut ? selectHeureDebut.value : "10:00",
+      heureFin: selectHeureFin ? selectHeureFin.value : "10:00"
     });
     window.location.href = "vehicules.html";
   });
