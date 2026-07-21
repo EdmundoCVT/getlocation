@@ -22,6 +22,26 @@ function joursEntre(dateDebut, dateFin) {
   return Math.max(diff, 1);
 }
 
+// Calcule la durée réelle de location en heures, en tenant compte de l'heure
+// de prise en charge et de restitution (pas seulement de la date calendaire).
+function dureeEnHeures(dateDebut, heureDebut, dateFin, heureFin) {
+  const debut = new Date(`${dateDebut}T${heureDebut || "00:00"}:00`);
+  const fin = new Date(`${dateFin}T${heureFin || "00:00"}:00`);
+  return (fin - debut) / (1000 * 60 * 60);
+}
+
+// Convertit une durée en heures en nombre de jours facturables : toute heure
+// entamée au-delà d'un multiple de 24h compte pour un jour supplémentaire.
+function joursFacturablesDepuisHeures(dureeHeures) {
+  if (!isFinite(dureeHeures) || dureeHeures <= 0) return 1;
+  return Math.max(Math.ceil(dureeHeures / 24), 1);
+}
+
+function formatDateHeureFR(iso, heure) {
+  const base = formatDateFR(iso);
+  return heure ? `${base} à ${heure}` : base;
+}
+
 function readJSON(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -51,6 +71,8 @@ function initSearchForm() {
   const selectRetour = document.getElementById("lieu-retour");
   const inputDebut = document.getElementById("date-debut");
   const inputFin = document.getElementById("date-fin");
+  const inputHeureDebut = document.getElementById("heure-debut");
+  const inputHeureFin = document.getElementById("heure-fin");
 
   LIEUX.forEach(lieu => {
     selectPrise.add(new Option(lieu, lieu));
@@ -62,6 +84,8 @@ function initSearchForm() {
   inputDebut.value = todayISO(2);
   inputFin.min = todayISO(3);
   inputFin.value = todayISO(5);
+  if (inputHeureDebut) inputHeureDebut.value = "10:00";
+  if (inputHeureFin) inputHeureFin.value = "10:00";
 
   inputDebut.addEventListener("change", () => {
     inputFin.min = todayISO(joursEntreOffset(inputDebut.value));
@@ -78,13 +102,36 @@ function initSearchForm() {
     return Math.round((d - new Date()) / (1000 * 60 * 60 * 24));
   }
 
+  // Si la date/heure de retour tombe avant ou pile sur la date/heure de départ
+  // (ex. même jour, heure de retour plus tôt), on corrige automatiquement pour
+  // garantir une durée de location positive.
+  function corrigerHeureFinSiNecessaire() {
+    if (!inputHeureDebut || !inputHeureFin) return;
+    const duree = dureeEnHeures(inputDebut.value, inputHeureDebut.value, inputFin.value, inputHeureFin.value);
+    if (duree <= 0) {
+      if (inputFin.value === inputDebut.value) {
+        const d = new Date(inputDebut.value);
+        d.setDate(d.getDate() + 1);
+        inputFin.value = d.toISOString().slice(0, 10);
+      } else {
+        inputHeureFin.value = inputHeureDebut.value;
+      }
+    }
+  }
+
+  if (inputHeureDebut) inputHeureDebut.addEventListener("change", corrigerHeureFinSiNecessaire);
+  if (inputHeureFin) inputHeureFin.addEventListener("change", corrigerHeureFinSiNecessaire);
+
   form.addEventListener("submit", (e) => {
     e.preventDefault();
+    corrigerHeureFinSiNecessaire();
     writeJSON(STORAGE.recherche, {
       lieuPrise: selectPrise.value,
       lieuRetour: selectRetour.value,
       dateDebut: inputDebut.value,
-      dateFin: inputFin.value
+      dateFin: inputFin.value,
+      heureDebut: inputHeureDebut ? inputHeureDebut.value : "10:00",
+      heureFin: inputHeureFin ? inputHeureFin.value : "10:00"
     });
     window.location.href = "vehicules.html";
   });
@@ -101,13 +148,20 @@ function initVehiculesPage() {
     lieuPrise: LIEUX[0],
     lieuRetour: LIEUX[0],
     dateDebut: todayISO(2),
-    dateFin: todayISO(5)
+    dateFin: todayISO(5),
+    heureDebut: "10:00",
+    heureFin: "10:00"
   });
-  const jours = joursEntre(recherche.dateDebut, recherche.dateFin);
+  // Compatibilité : anciennes recherches enregistrées sans heure.
+  if (!recherche.heureDebut) recherche.heureDebut = "10:00";
+  if (!recherche.heureFin) recherche.heureFin = "10:00";
+
+  const dureeHeures = dureeEnHeures(recherche.dateDebut, recherche.heureDebut, recherche.dateFin, recherche.heureFin);
+  const jours = joursFacturablesDepuisHeures(dureeHeures);
 
   const infoBar = document.getElementById("search-summary");
   if (infoBar) {
-    infoBar.textContent = `${recherche.lieuPrise} · du ${formatDateFR(recherche.dateDebut)} au ${formatDateFR(recherche.dateFin)} (${jours} jour${jours > 1 ? "s" : ""})`;
+    infoBar.textContent = `${recherche.lieuPrise} · du ${formatDateHeureFR(recherche.dateDebut, recherche.heureDebut)} au ${formatDateHeureFR(recherche.dateFin, recherche.heureFin)} (${jours} jour${jours > 1 ? "s" : ""})`;
   }
 
   const filterBar = document.getElementById("filter-bar");
@@ -240,7 +294,7 @@ function initReservationPage() {
         <div>
           <div class="vehicle-name">${vehicule.nom}</div>
           <div class="hint-text">${data.lieuPrise} → ${data.lieuRetour}</div>
-          <div class="hint-text">${formatDateFR(data.dateDebut)} — ${formatDateFR(data.dateFin)} (${data.jours} jour${data.jours > 1 ? "s" : ""})</div>
+          <div class="hint-text">${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${data.jours} jour${data.jours > 1 ? "s" : ""})</div>
         </div>
       </div>
       <div class="summary-row"><span>Location (${data.jours} × ${formatEUR(vehicule.prixJour)})</span><span>${formatEUR(sousTotal)}</span></div>
@@ -320,7 +374,7 @@ function initPaiementPage() {
       <div>
         <div class="vehicle-name">${vehicule.nom}</div>
         <div class="hint-text">${data.conducteur.prenom} ${data.conducteur.nom}</div>
-        <div class="hint-text">${formatDateFR(data.dateDebut)} — ${formatDateFR(data.dateFin)}</div>
+        <div class="hint-text">${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)}</div>
       </div>
     </div>
     <div class="summary-row"><span>Location (${data.jours} jours)</span><span>${formatEUR(sousTotal)}</span></div>
@@ -403,6 +457,8 @@ function initPaiementPage() {
           vehiculeId: data.vehiculeId,
           dateDebut: data.dateDebut,
           dateFin: data.dateFin,
+          heureDebut: data.heureDebut,
+          heureFin: data.heureFin,
           jours: data.jours,
           lieuPrise: data.lieuPrise,
           lieuRetour: data.lieuRetour,
@@ -445,7 +501,7 @@ function initConfirmationPage() {
       <div>
         <div class="vehicle-name">${vehicule.nom}</div>
         <div class="hint-text">${data.lieuPrise} → ${data.lieuRetour}</div>
-        <div class="hint-text">${formatDateFR(data.dateDebut)} — ${formatDateFR(data.dateFin)} (${data.jours} jour${data.jours > 1 ? "s" : ""})</div>
+        <div class="hint-text">${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${data.jours} jour${data.jours > 1 ? "s" : ""})</div>
       </div>
     </div>
     <div class="summary-row"><span>Conducteur</span><span>${data.conducteur.prenom} ${data.conducteur.nom}</span></div>

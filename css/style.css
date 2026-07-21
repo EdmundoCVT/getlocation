@@ -140,7 +140,7 @@ img, svg { max-width: 100%; display: block; }
   position: relative;
   z-index: 5;
   display: grid;
-  grid-template-columns: repeat(4, 1fr) auto;
+  grid-template-columns: repeat(6, 1fr) auto;
   gap: 16px;
   align-items: end;
 }
