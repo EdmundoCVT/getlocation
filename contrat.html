@@ -281,11 +281,21 @@
   var inputDateRetour = document.getElementById('dateRetour');
   var selectHeureDepart = document.getElementById('heureDepart');
   var selectHeureRetour = document.getElementById('heureRetour');
+  var inputImmat = document.getElementById('immat');
 
   VEHICULES.forEach(function(v){
     selectVehicule.add(new Option(v.nom + ' (' + v.annee + ') — ' + v.prixJour + ' €/jour', v.id));
   });
   LIEUX.forEach(function(l){ selectLieu.add(new Option(l, l)); });
+
+  // Pré-remplit automatiquement la plaque d'immatriculation connue pour le
+  // véhicule choisi (reste modifiable si un véhicule de remplacement est utilisé).
+  function majImmatriculation(){
+    var v = currentVehicule();
+    if(v && v.immatriculation) inputImmat.value = v.immatriculation;
+  }
+  selectVehicule.addEventListener('change', majImmatriculation);
+  majImmatriculation();
 
   function majAdresseLivraison(){
     var estLivraison = selectLieu.value === LIEU_LIVRAISON;

@@ -15,6 +15,7 @@ const VEHICULES = [
   {
     id: "opel-corsa",
     nom: "Opel Corsa Business 1.2T",
+    immatriculation: "HJ-967-KQ",
     annee: 2026,
     categorie: "Citadine",
     emoji: "🚗",
@@ -31,6 +32,7 @@ const VEHICULES = [
   {
     id: "peugeot-2008-hybrid",
     nom: "Peugeot 2008 Hybrid",
+    immatriculation: "HK-493-ZN",
     annee: 2026,
     categorie: "SUV",
     emoji: "🚙",
@@ -47,6 +49,7 @@ const VEHICULES = [
   {
     id: "peugeot-3008",
     nom: "Peugeot 3008",
+    immatriculation: "HK-085-LQ",
     annee: 2026,
     categorie: "SUV",
     emoji: "🚙",
@@ -63,6 +66,7 @@ const VEHICULES = [
   {
     id: "toyota-proace-city",
     nom: "Toyota Proace City",
+    immatriculation: "",
     annee: 2026,
     categorie: "Utilitaire",
     emoji: "🚐",
