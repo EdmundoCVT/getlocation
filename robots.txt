@@ -2,5 +2,6 @@ User-agent: *
 Allow: /
 Disallow: /paiement.html
 Disallow: /confirmation.html
+Disallow: /contrat.html
 
 Sitemap: https://getlocation.fr/sitemap.xml

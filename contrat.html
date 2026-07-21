@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contrat de location — GETLOCATION</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/images/favicon-180.png">
+<meta name="theme-color" content="#111111">
+<style>
+  :root{
+    --bleu-nuit:#2d1b4e;
+    --bleu-ocean:#6c3fd1;
+    --turquoise:#7c4dff;
+    --sable:#c9a8f5;
+    --sable-clair:#f3eefc;
+    --gris-fonce:#2a2438;
+    --gris-clair:#f6f4fb;
+    --blanc:#ffffff;
+    --vert:#2f9e5b;
+    --vert-clair:#eaf7f0;
+    --ligne:#e3e8ea;
+    --radius:14px;
+    --ombre:0 8px 24px rgba(45,27,78,.14);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--gris-fonce);background:var(--gris-clair);line-height:1.55;
+  }
+  .wrap{max-width:780px;margin:0 auto;padding:32px 20px 90px;}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+  .brand-mark{
+    width:36px;height:36px;border-radius:10px;
+    background:linear-gradient(135deg,var(--bleu-ocean),var(--turquoise));
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;flex:none;
+  }
+  .brand-name{font-weight:700;font-size:20px;letter-spacing:-.01em;color:var(--bleu-nuit);}
+  .brand-sub{color:#6b6478;font-size:13px;margin:0 0 26px 46px;}
+  h1{font-size:22px;margin:0 0 6px;color:var(--bleu-nuit);letter-spacing:-.01em;}
+  .lead{color:#6b6478;font-size:14.5px;margin:0 0 26px;}
+  .card{
+    background:var(--blanc);border:1px solid var(--ligne);border-radius:var(--radius);
+    padding:22px 22px 24px;margin-bottom:18px;box-shadow:var(--ombre);
+  }
+  .card h2{
+    font-size:13px;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--bleu-ocean);margin:0 0 16px;font-weight:700;
+  }
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media(max-width:560px){.grid{grid-template-columns:1fr;}}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field.full{grid-column:1/-1;}
+  label{font-size:13px;color:#6b6478;font-weight:600;}
+  input,select,textarea{
+    font:inherit;font-size:14.5px;padding:10px 12px;
+    border:1px solid var(--ligne);border-radius:9px;background:var(--blanc);color:var(--gris-fonce);width:100%;
+  }
+  input:focus,select:focus,textarea:focus{
+    outline:none;border-color:var(--bleu-ocean);box-shadow:0 0 0 3px var(--sable-clair);
+  }
+  .vehicule-recap{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:var(--sable-clair);border-radius:10px;padding:12px 14px;margin-top:10px;font-size:13.5px;
+  }
+  .vehicule-recap strong{color:var(--bleu-nuit);}
+  .price-block{display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px dashed var(--sable);font-size:14px;}
+  .price-block .total{font-weight:700;color:var(--bleu-nuit);font-size:16px;}
+  .contract-text{
+    max-height:320px;overflow-y:auto;font-size:14px;color:var(--gris-fonce);
+    border:1px solid var(--ligne);border-radius:10px;padding:16px 18px;background:var(--gris-clair);
+  }
+  .contract-text h3{font-size:14px;margin:16px 0 6px;color:var(--bleu-ocean);}
+  .contract-text h3:first-child{margin-top:0;}
+  .contract-text p{margin:0 0 10px;color:#5b5568;}
+  .fill{color:var(--bleu-ocean);font-weight:700;}
+  .sig-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .sig-row .hint{font-size:13px;color:#6b6478;}
+  canvas#pad{
+    width:100%;height:150px;border:1.5px dashed var(--ligne);border-radius:10px;
+    background:var(--blanc);touch-action:none;cursor:crosshair;display:block;
+  }
+  .btn{
+    font:inherit;font-size:14px;font-weight:600;padding:10px 16px;
+    border-radius:9px;border:1px solid var(--ligne);background:var(--blanc);color:var(--gris-fonce);cursor:pointer;
+  }
+  .btn:hover{background:var(--gris-clair);}
+  .btn-ghost{border-color:transparent;color:#6b6478;}
+  .btn-primary{
+    background:var(--bleu-ocean);border-color:var(--bleu-ocean);color:#fff;
+    width:100%;padding:13px 16px;font-size:15px;margin-top:6px;
+  }
+  .btn-primary:hover{background:#5a32b0;}
+  .btn-primary:disabled{background:var(--sable);border-color:var(--sable);cursor:not-allowed;}
+  .check-row{display:flex;align-items:flex-start;gap:10px;margin:14px 0 4px;}
+  .check-row input{width:16px;height:16px;margin-top:2px;flex:none;}
+  .check-row label{font-weight:400;color:var(--gris-fonce);font-size:13.5px;}
+  .status{
+    display:none;align-items:center;gap:8px;background:var(--vert-clair);color:var(--vert);
+    border:1px solid #c7ebd8;border-radius:10px;padding:12px 14px;font-size:14px;font-weight:600;margin-top:14px;
+  }
+  .status.show{display:flex;}
+  .signed-block{display:none;}
+  .signed-block.show{display:block;}
+  .signed-img{border:1px solid var(--ligne);border-radius:8px;background:#fff;max-width:260px;display:block;margin-top:8px;}
+  .meta-line{font-size:12.5px;color:#6b6478;margin-top:6px;}
+  .actions-final{display:flex;gap:10px;margin-top:16px;}
+  .actions-final .btn{flex:1;}
+  @media print{
+    .no-print{display:none!important;}
+    body{background:#fff;}
+    .card{border:none;box-shadow:none;padding:0;margin-bottom:16px;}
+    .contract-text{max-height:none;overflow:visible;border:none;padding:0;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand">
+    <div class="brand-mark">GL</div>
+    <div class="brand-name">GETLOCATION</div>
+  </div>
+  <p class="brand-sub">Location de véhicules — TLST SAS · Grasse, Alpes-Maritimes</p>
+
+  <h1>Contrat de location — signature en ligne</h1>
+  <p class="lead">Choisissez le véhicule et les dates, relisez le contrat, puis signez directement à l'écran.</p>
+
+  <form id="contractForm">
+
+    <div class="card">
+      <h2>Véhicule et durée</h2>
+      <div class="grid">
+        <div class="field full">
+          <label for="vehicule">Véhicule</label>
+          <select id="vehicule" required></select>
+        </div>
+        <div class="field">
+          <label for="immat">Immatriculation</label>
+          <input id="immat" type="text" placeholder="AA-123-BB" required>
+        </div>
+        <div class="field">
+          <label for="lieu">Lieu de prise en charge</label>
+          <select id="lieu" required></select>
+        </div>
+        <div class="field full" id="adresseLivraisonField" style="display:none;">
+          <label for="adresseLivraison">Adresse de livraison</label>
+          <input id="adresseLivraison" type="text" placeholder="Ex. 12 rue de la Croisette, Cannes">
+        </div>
+        <div class="field">
+          <label for="dateDepart">Date de départ</label>
+          <input id="dateDepart" type="date" required>
+        </div>
+        <div class="field">
+          <label for="heureDepart">Heure de départ</label>
+          <select id="heureDepart" required></select>
+        </div>
+        <div class="field">
+          <label for="dateRetour">Date de retour</label>
+          <input id="dateRetour" type="date" required>
+        </div>
+        <div class="field">
+          <label for="heureRetour">Heure de retour</label>
+          <select id="heureRetour" required></select>
+        </div>
+      </div>
+      <div class="vehicule-recap" id="vehiculeRecap"></div>
+      <div class="price-block">
+        <span>Durée : <strong id="dureeTxt">—</strong></span>
+        <span class="total">Total : <span id="totalTxt">—</span></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Locataire</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="nom">Nom et prénom</label>
+          <input id="nom" type="text" required>
+        </div>
+        <div class="field">
+          <label for="naissance">Date de naissance</label>
+          <input id="naissance" type="date" required>
+        </div>
+        <div class="field full">
+          <label for="adresse">Adresse</label>
+          <input id="adresse" type="text" required>
+        </div>
+        <div class="field">
+          <label for="tel">Téléphone</label>
+          <input id="tel" type="tel" required>
+        </div>
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input id="email" type="email" required>
+        </div>
+        <div class="field full">
+          <label for="permis">N° de permis de conduire</label>
+          <input id="permis" type="text" required>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Conditions de location</h2>
+      <div class="contract-text" id="contractText">
+        <h3>Article 1 — Objet</h3>
+        <p>GETLOCATION (TLST SAS) loue au locataire désigné ci-dessus le véhicule <span class="fill" data-fill="vehicule">…</span>, immatriculé <span class="fill" data-fill="immat">…</span>, du <span class="fill" data-fill="depart">…</span> au <span class="fill" data-fill="retour">…</span> (<span class="fill" data-fill="duree">…</span>), prise en charge à <span class="fill" data-fill="lieu">…</span>, pour un montant total de <span class="fill" data-fill="total">…</span>.</p>
+        <h3>Article 2 — Assurance et franchise</h3>
+        <p>Le véhicule est couvert par une assurance responsabilité civile et les garanties complémentaires en vigueur. Une franchise reste à la charge du locataire en cas de sinistre responsable. Le locataire déclare être titulaire d'un permis valide et s'engage à respecter le code de la route.</p>
+        <h3>Article 3 — Caution et état du véhicule</h3>
+        <p>Une caution de <span class="fill" data-fill="caution">…</span> est prélevée avant remise des clés. Un état des lieux (photos, kilométrage, niveau de carburant) est réalisé au départ et à la restitution. Toute dégradation non mentionnée au départ sera facturée sur devis.</p>
+        <h3>Article 4 — Kilométrage et carburant</h3>
+        <p>Le véhicule est loué avec un forfait kilométrique convenu à la réservation ; tout dépassement est facturé au tarif en vigueur. Le véhicule doit être restitué avec le même niveau de carburant qu'au départ.</p>
+        <h3>Article 5 — Restitution et retard</h3>
+        <p>Le véhicule doit être restitué au lieu, à la date et à l'heure convenus. Tout retard non signalé au préalable entraîne une facturation complémentaire.</p>
+        <h3>Article 6 — Droit applicable</h3>
+        <p>Le présent contrat est soumis au droit français. Le locataire reconnaît avoir pris connaissance de l'ensemble des conditions ci-dessus avant signature.</p>
+      </div>
+
+      <div class="check-row">
+        <input type="checkbox" id="accept" required>
+        <label for="accept">J'ai lu et j'accepte les conditions de location ci-dessus.</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Signature électronique</h2>
+      <div class="sig-row">
+        <span class="hint">Signez avec la souris, le trackpad ou le doigt</span>
+        <button type="button" class="btn btn-ghost no-print" id="clearBtn">Effacer</button>
+      </div>
+      <canvas id="pad" width="700" height="150"></canvas>
+      <p class="meta-line no-print" id="padHint">Le champ signature est requis avant validation.</p>
+
+      <button type="submit" class="btn btn-primary no-print" id="submitBtn" disabled>Signer et valider le contrat</button>
+
+      <div class="status" id="statusBox">
+        <span>✓</span>
+        <span id="statusText">Contrat signé électroniquement.</span>
+      </div>
+
+      <div class="signed-block" id="signedBlock">
+        <p class="meta-line" id="signedMeta"></p>
+        <div class="actions-final no-print">
+          <button type="button" class="btn" id="printBtn">Télécharger / imprimer le PDF</button>
+          <button type="button" class="btn" id="resetBtn">Nouveau contrat</button>
+        </div>
+      </div>
+    </div>
+
+  </form>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+// Ce script réutilise les données et fonctions partagées du site
+// (js/data.js : VEHICULES, LIEUX, LIEU_LIVRAISON — js/app.js : todayISO,
+// dureeEnHeures, joursFacturablesDepuisHeures, formatDateFR, libelleLieu,
+// HEURE_OUVERTURE/HEURE_FERMETURE) pour rester en permanence synchronisé
+// avec les tarifs et lieux réels du site de réservation.
+(function(){
+  var form = document.getElementById('contractForm');
+  var canvas = document.getElementById('pad');
+  var ctx = canvas.getContext('2d');
+  var submitBtn = document.getElementById('submitBtn');
+  var accept = document.getElementById('accept');
+  var hasSignature = false;
+  var drawing = false;
+  var last = null;
+
+  var selectVehicule = document.getElementById('vehicule');
+  var selectLieu = document.getElementById('lieu');
+  var champAdresseLivraison = document.getElementById('adresseLivraisonField');
+  var inputAdresseLivraison = document.getElementById('adresseLivraison');
+  var inputDateDepart = document.getElementById('dateDepart');
+  var inputDateRetour = document.getElementById('dateRetour');
+  var selectHeureDepart = document.getElementById('heureDepart');
+  var selectHeureRetour = document.getElementById('heureRetour');
+
+  VEHICULES.forEach(function(v){
+    selectVehicule.add(new Option(v.nom + ' (' + v.annee + ') — ' + v.prixJour + ' €/jour', v.id));
+  });
+  LIEUX.forEach(function(l){ selectLieu.add(new Option(l, l)); });
+
+  function majAdresseLivraison(){
+    var estLivraison = selectLieu.value === LIEU_LIVRAISON;
+    champAdresseLivraison.style.display = estLivraison ? '' : 'none';
+    inputAdresseLivraison.required = estLivraison;
+    if(!estLivraison) inputAdresseLivraison.value = '';
+  }
+  selectLieu.addEventListener('change', majAdresseLivraison);
+  majAdresseLivraison();
+
+  function remplirHeures(select){
+    var hOuv = parseInt(HEURE_OUVERTURE.split(':')[0], 10);
+    var parts = HEURE_FERMETURE.split(':').map(Number);
+    var fin = parts[0] * 60 + parts[1];
+    var minutes = hOuv * 60;
+    while(minutes <= fin){
+      var h = String(Math.floor(minutes / 60)).padStart(2, '0');
+      var m = String(minutes % 60).padStart(2, '0');
+      select.add(new Option(h + ':' + m, h + ':' + m));
+      minutes += 30;
+    }
+  }
+  remplirHeures(selectHeureDepart);
+  remplirHeures(selectHeureRetour);
+
+  inputDateDepart.min = todayISO();
+  inputDateDepart.value = todayISO(2);
+  inputDateRetour.min = todayISO(3);
+  inputDateRetour.value = todayISO(5);
+  selectHeureDepart.value = '10:00';
+  selectHeureRetour.value = '10:00';
+
+  function corrigerRetourSiNecessaire(){
+    var duree = dureeEnHeures(inputDateDepart.value, selectHeureDepart.value, inputDateRetour.value, selectHeureRetour.value);
+    if(duree <= 0){
+      if(inputDateRetour.value === inputDateDepart.value){
+        var d = new Date(inputDateDepart.value);
+        d.setDate(d.getDate() + 1);
+        inputDateRetour.value = d.toISOString().slice(0, 10);
+      } else {
+        selectHeureRetour.value = selectHeureDepart.value;
+      }
+    }
+  }
+
+  inputDateDepart.addEventListener('change', function(){
+    var d = new Date(inputDateDepart.value);
+    d.setDate(d.getDate() + 1);
+    inputDateRetour.min = d.toISOString().slice(0, 10);
+    if(inputDateRetour.value < inputDateDepart.value) inputDateRetour.value = inputDateDepart.value;
+    corrigerRetourSiNecessaire();
+    updateSummary();
+  });
+  [inputDateRetour, selectHeureDepart, selectHeureRetour].forEach(function(el){
+    el.addEventListener('change', function(){ corrigerRetourSiNecessaire(); updateSummary(); });
+  });
+
+  function currentVehicule(){
+    return VEHICULES.find(function(v){ return v.id === selectVehicule.value; });
+  }
+
+  function updateSummary(){
+    var v = currentVehicule();
+    if(!v || !inputDateDepart.value || !inputDateRetour.value){
+      document.getElementById('vehiculeRecap').textContent = '';
+      document.getElementById('dureeTxt').textContent = '—';
+      document.getElementById('totalTxt').textContent = '—';
+      return;
+    }
+    var heures = dureeEnHeures(inputDateDepart.value, selectHeureDepart.value, inputDateRetour.value, selectHeureRetour.value);
+    var jours = joursFacturablesDepuisHeures(heures);
+    var total = jours * v.prixJour;
+    var dureeTxt = jours + ' jour' + (jours > 1 ? 's' : '');
+    var lieuTxt = libelleLieu(selectLieu.value, inputAdresseLivraison.value.trim());
+
+    document.getElementById('vehiculeRecap').innerHTML =
+      '<span><strong>' + v.nom + '</strong> — ' + v.prixJour + ' €/jour</span>' +
+      '<span>Caution : ' + formatEUR(v.caution) + '</span>';
+    document.getElementById('dureeTxt').textContent = dureeTxt;
+    document.getElementById('totalTxt').textContent = formatEUR(total);
+
+    setFill('vehicule', v.nom + ' (' + v.annee + ')');
+    setFill('immat', document.getElementById('immat').value || '…');
+    setFill('depart', formatDateFR(inputDateDepart.value) + ' à ' + selectHeureDepart.value);
+    setFill('retour', formatDateFR(inputDateRetour.value) + ' à ' + selectHeureRetour.value);
+    setFill('duree', dureeTxt);
+    setFill('lieu', lieuTxt || '…');
+    setFill('total', formatEUR(total));
+    setFill('caution', formatEUR(v.caution));
+  }
+  function setFill(name, value){
+    var el = document.querySelector('[data-fill="' + name + '"]');
+    if(el) el.textContent = value;
+  }
+
+  form.addEventListener('input', updateSummary);
+  updateSummary();
+
+  function resizeCanvas(){
+    var ratio = window.devicePixelRatio || 1;
+    var rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * ratio;
+    canvas.height = rect.height * ratio;
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#2a2438';
+  }
+  window.addEventListener('resize', function(){
+    var data = hasSignature ? canvas.toDataURL() : null;
+    resizeCanvas();
+    if(data){
+      var img = new Image();
+      img.onload = function(){ ctx.drawImage(img,0,0,canvas.getBoundingClientRect().width,canvas.getBoundingClientRect().height); };
+      img.src = data;
+    }
+  });
+  resizeCanvas();
+
+  function pos(e){
+    var rect = canvas.getBoundingClientRect();
+    var p = e.touches ? e.touches[0] : e;
+    return { x: p.clientX - rect.left, y: p.clientY - rect.top };
+  }
+  function start(e){ e.preventDefault(); drawing = true; last = pos(e); }
+  function move(e){
+    if(!drawing) return;
+    e.preventDefault();
+    var p = pos(e);
+    ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    last = p; hasSignature = true; updateSubmitState();
+  }
+  function end(){ drawing = false; }
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  canvas.addEventListener('touchstart', start, {passive:false});
+  canvas.addEventListener('touchmove', move, {passive:false});
+  canvas.addEventListener('touchend', end);
+
+  document.getElementById('clearBtn').addEventListener('click', function(){
+    var rect = canvas.getBoundingClientRect();
+    ctx.clearRect(0,0,rect.width,rect.height);
+    hasSignature = false;
+    updateSubmitState();
+  });
+
+  function formFilled(){
+    var required = form.querySelectorAll('[required]');
+    for(var i=0;i<required.length;i++){
+      if(required[i].type === 'checkbox'){ if(!required[i].checked) return false; }
+      else if(!required[i].value) return false;
+    }
+    return true;
+  }
+  function updateSubmitState(){
+    submitBtn.disabled = !(hasSignature && accept.checked && formFilled());
+    document.getElementById('padHint').textContent = hasSignature
+      ? 'Signature enregistrée.'
+      : 'Le champ signature est requis avant validation.';
+  }
+  accept.addEventListener('change', updateSubmitState);
+  form.addEventListener('input', updateSubmitState);
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    if(!hasSignature || !formFilled()){ updateSubmitState(); return; }
+
+    var now = new Date();
+    var stamp = now.toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' }) +
+      ' à ' + now.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+    var sigData = canvas.toDataURL('image/png');
+
+    Array.prototype.forEach.call(form.querySelectorAll('input, select, textarea, button'), function(el){ el.disabled = true; });
+    document.getElementById('clearBtn').style.display = 'none';
+
+    document.getElementById('statusBox').classList.add('show');
+    document.getElementById('statusText').textContent = 'Contrat signé électroniquement le ' + stamp + '.';
+
+    var signedBlock = document.getElementById('signedBlock');
+    signedBlock.classList.add('show');
+    document.getElementById('signedMeta').textContent =
+      'Identifiant de signature : ' + Math.random().toString(36).slice(2,10).toUpperCase() + ' — GETLOCATION (TLST SAS)';
+
+    var img = document.createElement('img');
+    img.src = sigData;
+    img.className = 'signed-img';
+    signedBlock.insertBefore(img, signedBlock.firstChild);
+
+    document.getElementById('printBtn').addEventListener('click', function(){ window.print(); });
+    document.getElementById('resetBtn').addEventListener('click', function(){ window.location.reload(); });
+  });
+
+  updateSubmitState();
+})();
+</script>
+</body>
+</html>
