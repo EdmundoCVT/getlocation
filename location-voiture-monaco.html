@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Location de voiture à Monaco — GETLOCATION</title>
+<meta name="description" content="Location de voiture à Monaco et Monte-Carlo avec GETLOCATION : citadine, SUV ou utilitaire livré à l'adresse de votre choix. Réservation en ligne, paiement sécurisé.">
+<link rel="canonical" href="https://getlocation.fr/location-voiture-monaco">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/images/favicon-180.png">
+<meta name="theme-color" content="#6c3bff">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GETLOCATION">
+<meta property="og:title" content="Location de voiture à Monaco — GETLOCATION">
+<meta property="og:description" content="Location de voiture à Monaco et Monte-Carlo avec GETLOCATION : citadine, SUV ou utilitaire livré à l'adresse de votre choix. Réservation en ligne, paiement sécurisé.">
+<meta property="og:url" content="https://getlocation.fr/location-voiture-monaco">
+<meta property="og:image" content="https://getlocation.fr/images/peugeot-3008.jpg">
+<meta property="og:locale" content="fr_FR">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Location de voiture à Monaco — GETLOCATION">
+<meta name="twitter:description" content="Location de voiture à Monaco et Monte-Carlo avec GETLOCATION : citadine, SUV ou utilitaire livré à l'adresse de votre choix. Réservation en ligne, paiement sécurisé.">
+<meta name="twitter:image" content="https://getlocation.fr/images/peugeot-3008.jpg">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "AutoRental",
+  "name": "GETLOCATION",
+  "alternateName": "TLST SAS",
+  "url": "https://getlocation.fr/",
+  "logo": "https://getlocation.fr/images/favicon-512.png",
+  "image": "https://getlocation.fr/images/peugeot-3008.jpg",
+  "telephone": "+33667485430",
+  "email": "contact@getlocation.fr",
+  "priceRange": "€€",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "11 Chemin de la Halte",
+    "postalCode": "06130",
+    "addressLocality": "Grasse",
+    "addressRegion": "Alpes-Maritimes",
+    "addressCountry": "FR"
+  },
+  "areaServed": [
+    { "@type": "City", "name": "Nice" },
+    { "@type": "City", "name": "Cannes" },
+    { "@type": "City", "name": "Antibes" },
+    { "@type": "City", "name": "Grasse" },
+    { "@type": "City", "name": "Monaco" }
+  ],
+  "openingHoursSpecification": {
+    "@type": "OpeningHoursSpecification",
+    "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
+    "opens": "08:00",
+    "closes": "20:00"
+  }
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Accueil", "item": "https://getlocation.fr/" },
+    { "@type": "ListItem", "position": 2, "name": "Location voiture Monaco", "item": "https://getlocation.fr/location-voiture-monaco" }
+  ]
+}
+</script>
+
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+
+<header class="site-header">
+  <div class="header-inner container">
+    <a href="index.html" class="logo">
+      <span class="logo-mark">GL</span>
+      GETLOCATION
+    </a>
+    <nav class="main-nav">
+      <a href="index.html">Accueil</a>
+      <a href="vehicules.html">Véhicules</a>
+      <a href="index.html#contact">Contact</a>
+      <a href="tel:+33667485430" class="btn btn-secondary btn-sm">Nous appeler</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero" style="padding: 56px 0 40px;">
+  <div class="container">
+    <h1>Location de voiture à Monaco</h1>
+    <p class="hero-subtitle">Pour un séjour à Monaco ou Monte-Carlo, GETLOCATION propose la livraison de son véhicule à l'adresse de votre choix en Principauté, sur demande. Nos SUV Peugeot 3008 et 2008 Hybrid conviennent parfaitement aux trajets entre Monaco et le reste de la Côte d'Azur. Pensez à vérifier que votre permis et vos papiers sont à jour avant le passage de la frontière.</p>
+    <div class="hero-cta">
+      <a href="#search-form" class="btn btn-primary">Réserver maintenant</a>
+      <a href="vehicules.html" class="btn btn-secondary">Voir les véhicules</a>
+    </div>
+  </div>
+</section>
+
+<div class="container">
+  <form id="search-form" class="search-card">
+    <div class="field">
+      <label for="lieu-prise">Lieu de prise en charge</label>
+      <select id="lieu-prise" required></select>
+    </div>
+    <div class="field" id="adresse-prise-field" style="display:none;">
+      <label for="adresse-prise">Adresse de livraison</label>
+      <input type="text" id="adresse-prise" placeholder="Ex. adresse à Monaco">
+    </div>
+    <div class="field">
+      <label for="lieu-retour">Lieu de restitution</label>
+      <select id="lieu-retour" required></select>
+    </div>
+    <div class="field" id="adresse-retour-field" style="display:none;">
+      <label for="adresse-retour">Adresse de restitution</label>
+      <input type="text" id="adresse-retour" placeholder="Ex. adresse à Monaco">
+    </div>
+    <div class="field">
+      <label for="date-debut">Date et heure de départ</label>
+      <div class="datetime-group">
+        <input type="date" id="date-debut" required>
+        <select id="heure-debut" required></select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="date-fin">Date et heure de retour</label>
+      <div class="datetime-group">
+        <input type="date" id="date-fin" required>
+        <select id="heure-fin" required></select>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Rechercher</button>
+  </form>
+</div>
+
+<section class="section container">
+  <span class="section-eyebrow">Notre flotte</span>
+  <h2 class="section-title">Véhicules disponibles</h2>
+  <p class="section-subtitle">Citadine, SUV et utilitaire — assurance et assistance incluses, livrés à Monaco ou à récupérer à notre agence de Grasse.</p>
+  <div class="vehicle-grid">
+    <div class="vehicle-card">
+      <div class="vehicle-media">
+        <picture><img src="images/opel-corsa-cutout.webp" alt="Opel Corsa Business 1.2T" class="vehicle-photo is-cutout" loading="lazy" decoding="async" width="900" height="612" onerror="this.classList.remove('is-cutout')"></picture>
+        <span class="vehicle-emoji-fallback">🚗</span>
+      </div>
+      <div class="vehicle-body">
+        <div class="vehicle-category">Citadine</div>
+        <div class="vehicle-name">Opel Corsa Business 1.2T</div>
+        <div class="vehicle-specs"><span>5 places</span><span>Manuelle</span><span>Climatisation</span></div>
+        <div class="vehicle-footer">
+          <div class="price"><span class="price-from">À partir de</span>60 €<small> / jour</small></div>
+          <a href="vehicules.html" class="btn btn-primary btn-sm">Réserver</a>
+        </div>
+      </div>
+    </div>
+    <div class="vehicle-card">
+      <div class="vehicle-media">
+        <picture><img src="images/peugeot-2008-hybrid-cutout.webp" alt="Peugeot 2008 Hybrid" class="vehicle-photo is-cutout" loading="lazy" decoding="async" width="900" height="616" onerror="this.classList.remove('is-cutout')"></picture>
+        <span class="vehicle-emoji-fallback">🚙</span>
+      </div>
+      <div class="vehicle-body">
+        <div class="vehicle-category">SUV Hybride</div>
+        <div class="vehicle-name">Peugeot 2008 Hybrid</div>
+        <div class="vehicle-specs"><span>5 places</span><span>Automatique</span><span>Climatisation</span></div>
+        <div class="vehicle-footer">
+          <div class="price"><span class="price-from">À partir de</span>70 €<small> / jour</small></div>
+          <a href="vehicules.html" class="btn btn-primary btn-sm">Réserver</a>
+        </div>
+      </div>
+    </div>
+    <div class="vehicle-card">
+      <div class="vehicle-media">
+        <picture><img src="images/peugeot-3008-cutout-veh.webp" alt="Peugeot 3008" class="vehicle-photo is-cutout" loading="lazy" decoding="async" width="900" height="616" onerror="this.classList.remove('is-cutout')"></picture>
+        <span class="vehicle-emoji-fallback">🚙</span>
+      </div>
+      <div class="vehicle-body">
+        <div class="vehicle-category">SUV Hybride</div>
+        <div class="vehicle-name">Peugeot 3008</div>
+        <div class="vehicle-specs"><span>5 places</span><span>Automatique</span><span>Climatisation</span></div>
+        <div class="vehicle-footer">
+          <div class="price"><span class="price-from">À partir de</span>80 €<small> / jour</small></div>
+          <a href="vehicules.html" class="btn btn-primary btn-sm">Réserver</a>
+        </div>
+      </div>
+    </div>
+    <div class="vehicle-card">
+      <div class="vehicle-media">
+        <picture>
+          <source srcset="images/toyota-proace-city.webp" type="image/webp">
+          <img src="images/toyota-proace-city.jpg" alt="Toyota Proace City" class="vehicle-photo" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
+        </picture>
+        <span class="vehicle-emoji-fallback">🚐</span>
+      </div>
+      <div class="vehicle-body">
+        <div class="vehicle-category">Utilitaire</div>
+        <div class="vehicle-name">Toyota Proace City</div>
+        <div class="vehicle-specs"><span>5 places</span><span>Manuelle</span><span>Climatisation</span></div>
+        <div class="vehicle-footer">
+          <div class="price"><span class="price-from">À partir de</span>90 €<small> / jour</small></div>
+          <a href="vehicules.html" class="btn btn-primary btn-sm">Réserver</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section container" style="max-width: 820px;">
+  <h2 class="section-title">Questions fréquentes — Monaco</h2>
+  <div class="card" style="margin-bottom: 16px;">
+    <h3>Livrez-vous un véhicule jusqu'à Monaco ?</h3>
+    <p class="hint-text">Oui, sur demande : choisissez « Livraison » lors de la réservation et indiquez l'adresse souhaitée à Monaco ou Monte-Carlo.</p>
+  </div>
+  <div class="card" style="margin-bottom: 16px;">
+    <h3>Faut-il des papiers spécifiques pour circuler entre la France et Monaco ?</h3>
+    <p class="hint-text">Un permis de conduire valide et les papiers du véhicule fournis par GETLOCATION suffisent ; aucune formalité douanière particulière n'est requise pour un véhicule loué en France.</p>
+  </div>
+</section>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Livrez-vous un véhicule jusqu'à Monaco ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Oui, sur demande : choisissez « Livraison » lors de la réservation et indiquez l'adresse souhaitée à Monaco ou Monte-Carlo."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Faut-il des papiers spécifiques pour circuler entre la France et Monaco ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Un permis de conduire valide et les papiers du véhicule fournis par GETLOCATION suffisent ; aucune formalité douanière particulière n'est requise pour un véhicule loué en France."
+      }
+    }
+  ]
+}
+</script>
+
+<section class="section section-alt">
+  <div class="container">
+    <h2 class="section-title">Autres villes desservies</h2>
+    <p class="section-subtitle">GETLOCATION livre également sur :</p>
+    <div style="display:flex; flex-wrap:wrap; gap:12px;">
+      <a href="location-voiture-nice.html" class="btn btn-secondary btn-sm">Nice</a>
+      <a href="location-voiture-cannes.html" class="btn btn-secondary btn-sm">Cannes</a>
+      <a href="location-voiture-antibes.html" class="btn btn-secondary btn-sm">Antibes</a>
+      <a href="location-voiture-grasse.html" class="btn btn-secondary btn-sm">Grasse</a>
+      <a href="location-voiture-aeroport-nice.html" class="btn btn-secondary btn-sm">Aéroport de Nice</a>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <h4>GETLOCATION</h4>
+      <p class="footer-tagline">Location de véhicules dans les Alpes-Maritimes (06). Agence à Grasse, livraison possible sur toute la Côte d'Azur.</p>
+    </div>
+    <div>
+      <h4>Liens</h4>
+      <a href="index.html">Accueil</a>
+      <a href="vehicules.html">Véhicules</a>
+      <a href="mentions-legales.html">Mentions légales</a>
+      <a href="cgl.html">Conditions de location</a>
+      <a href="confidentialite.html">Confidentialité</a>
+    </div>
+    <div>
+      <h4>Zones desservies</h4>
+      <a href="location-voiture-nice.html">Location voiture Nice</a>
+      <a href="location-voiture-cannes.html">Location voiture Cannes</a>
+      <a href="location-voiture-antibes.html">Location voiture Antibes</a>
+      <a href="location-voiture-grasse.html">Location voiture Grasse</a>
+      <a href="location-voiture-monaco.html">Location voiture Monaco</a>
+      <a href="location-voiture-aeroport-nice.html">Aéroport de Nice</a>
+    </div>
+    <div>
+      <h4>Contact</h4>
+      <a href="tel:+33667485430">📞 +33 6 67 48 54 30</a>
+      <a href="https://wa.me/33667485430" target="_blank" rel="noopener">💬 WhatsApp</a>
+      <a href="mailto:contact@getlocation.fr">✉️ contact@getlocation.fr</a>
+      <a href="https://www.google.com/maps/search/?api=1&query=11+Chemin+de+la+Halte+06130+Grasse" target="_blank" rel="noopener">📍 11 Chemin de la Halte, 06130 Grasse</a>
+    </div>
+  </div>
+  <div class="footer-bottom">© <span id="footer-year"></span> GETLOCATION — TLST SAS · SIRET 932 098 908 00019 · <a href="mentions-legales.html">Mentions légales</a></div>
+</footer>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

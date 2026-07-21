@@ -4,26 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GETLOCATION — Location de véhicules sur la Côte d'Azur</title>
-<meta name="description" content="Location de véhicules récents (Peugeot, Opel, Toyota) à Nice, Cannes, Antibes, Grasse et Monaco. Réservation en ligne, paiement sécurisé, agences sur toute la Côte d'Azur.">
+<meta name="description" content="Location de véhicules récents (Peugeot, Opel, Toyota) à Nice, Cannes, Antibes, Grasse et Monaco. Réservation en ligne, paiement sécurisé, livraison possible sur toute la Côte d'Azur.">
 <link rel="canonical" href="https://getlocation.fr/">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/images/favicon-180.png">
-<meta name="theme-color" content="#111111">
+<meta name="theme-color" content="#6c3bff">
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GETLOCATION">
 <meta property="og:title" content="GETLOCATION — Location de véhicules sur la Côte d'Azur">
-<meta property="og:description" content="Location de véhicules récents (Peugeot, Opel, Toyota) à Nice, Cannes, Antibes, Grasse et Monaco. Réservation en ligne, paiement sécurisé, agences sur toute la Côte d'Azur.">
+<meta property="og:description" content="Location de véhicules récents (Peugeot, Opel, Toyota) à Nice, Cannes, Antibes, Grasse et Monaco. Réservation en ligne, paiement sécurisé, livraison possible sur toute la Côte d'Azur.">
 <meta property="og:url" content="https://getlocation.fr/">
 <meta property="og:image" content="https://getlocation.fr/images/peugeot-3008.jpg">
 <meta property="og:locale" content="fr_FR">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="GETLOCATION — Location de véhicules sur la Côte d'Azur">
-<meta name="twitter:description" content="Location de véhicules récents (Peugeot, Opel, Toyota) à Nice, Cannes, Antibes, Grasse et Monaco. Réservation en ligne, paiement sécurisé, agences sur toute la Côte d'Azur.">
+<meta name="twitter:description" content="Location de véhicules récents (Peugeot, Opel, Toyota) à Nice, Cannes, Antibes, Grasse et Monaco. Réservation en ligne, paiement sécurisé, livraison possible sur toute la Côte d'Azur.">
 <meta name="twitter:image" content="https://getlocation.fr/images/peugeot-3008.jpg">
+
+<link rel="preload" as="image" href="images/peugeot-3008-cutout.webp" imagesrcset="images/peugeot-3008-cutout-700w.webp 700w, images/peugeot-3008-cutout.webp 1300w" fetchpriority="high">
 
 <script type="application/ld+json">
 {
@@ -46,38 +48,15 @@
     "addressCountry": "FR"
   },
   "areaServed": [
-    {
-      "@type": "City",
-      "name": "Nice"
-    },
-    {
-      "@type": "City",
-      "name": "Cannes"
-    },
-    {
-      "@type": "City",
-      "name": "Antibes"
-    },
-    {
-      "@type": "City",
-      "name": "Grasse"
-    },
-    {
-      "@type": "City",
-      "name": "Monaco"
-    }
+    { "@type": "City", "name": "Nice" },
+    { "@type": "City", "name": "Cannes" },
+    { "@type": "City", "name": "Antibes" },
+    { "@type": "City", "name": "Grasse" },
+    { "@type": "City", "name": "Monaco" }
   ],
   "openingHoursSpecification": {
     "@type": "OpeningHoursSpecification",
-    "dayOfWeek": [
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-      "Sunday"
-    ],
+    "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
     "opens": "08:00",
     "closes": "20:00"
   }
@@ -99,6 +78,7 @@
       <a href="index.html" class="active">Accueil</a>
       <a href="vehicules.html">Véhicules</a>
       <a href="index.html#contact">Contact</a>
+      <a href="tel:+33667485430" class="btn btn-secondary btn-sm">Nous appeler</a>
     </nav>
   </div>
 </header>
@@ -106,21 +86,25 @@
 <section class="hero">
   <div class="container hero-inner">
     <div class="hero-text">
-      <h1>Louez votre véhicule sur la Côte d'Azur</h1>
-      <p>Agence à Grasse, avec livraison possible à l'adresse de votre choix sur Cannes, Antibes, Nice et Monaco. Réservation en ligne et paiement sécurisé.</p>
+      <h1>Location de voitures sur la Côte d'Azur</h1>
+      <p class="hero-subtitle">Citadines, SUV et utilitaires disponibles à Grasse, Nice, Cannes, Antibes et Monaco. Livraison à l'adresse de votre choix.</p>
+      <div class="hero-badges">
+        <span class="hero-stars" aria-hidden="true">★★★★★</span>
+        <span class="badge-item">Entreprise locale</span>
+        <span class="badge-item">Véhicules 2026</span>
+        <span class="badge-item">Paiement sécurisé</span>
+        <span class="badge-item">Assurance incluse</span>
+      </div>
+      <div class="hero-cta">
+        <a href="#search-form" class="btn btn-primary">Réserver maintenant</a>
+        <a href="vehicules.html" class="btn btn-secondary">Voir les véhicules</a>
+      </div>
     </div>
-    <div class="hero-graphic" aria-hidden="true">
-      <svg viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg">
-        <line x1="10" y1="95" x2="55" y2="95" stroke="currentColor" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
-        <line x1="0" y1="115" x2="60" y2="115" stroke="currentColor" stroke-width="6" stroke-linecap="round" opacity="0.7"/>
-        <line x1="15" y1="135" x2="55" y2="135" stroke="currentColor" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
-        <path d="M75,150 Q75,100 120,100 L150,60 Q160,48 178,48 L248,48 Q266,48 276,60 L306,100 Q345,100 345,150 Z" fill="currentColor"/>
-        <rect x="150" y="60" width="98" height="40" rx="6" fill="var(--bleu-nuit)" opacity="0.35"/>
-        <circle cx="140" cy="152" r="30" fill="currentColor"/>
-        <circle cx="140" cy="152" r="13" fill="var(--bleu-nuit)" opacity="0.45"/>
-        <circle cx="285" cy="152" r="30" fill="currentColor"/>
-        <circle cx="285" cy="152" r="13" fill="var(--bleu-nuit)" opacity="0.45"/>
-      </svg>
+    <div class="hero-visual">
+      <picture>
+        <source srcset="images/peugeot-3008-cutout-700w.webp 700w, images/peugeot-3008-cutout.webp 1300w" type="image/webp">
+        <img src="images/peugeot-3008-cutout.png" alt="Peugeot 3008 disponible à la location chez GETLOCATION" width="1300" height="890" decoding="async" fetchpriority="high">
+      </picture>
     </div>
   </div>
 </section>
@@ -162,68 +146,213 @@
 </div>
 
 <section class="section container">
-  <h2 class="section-title">Notre flotte 2026</h2>
-  <p class="section-subtitle">Citadine, SUV et utilitaire — assurance et assistance incluses.</p>
-  <div class="vehicle-grid">
-    <div class="vehicle-card">
-      <div class="vehicle-media">
-        <picture>
-          <source srcset="images/opel-corsa.webp" type="image/webp">
-          <img src="images/opel-corsa.jpg" alt="Opel Corsa Business 1.2T" class="vehicle-photo" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
-        </picture>
-        <span class="vehicle-emoji-fallback">🚗</span>
+  <span class="section-eyebrow">Pourquoi nous choisir</span>
+  <h2 class="section-title">Pourquoi choisir GETLOCATION ?</h2>
+  <p class="section-subtitle">Une agence locale, des véhicules récents et une réservation pensée pour aller vite.</p>
+  <div class="why-grid">
+    <div class="why-card">
+      <div class="why-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="9" width="15" height="8" rx="1.5"/><path d="M16 12h3.5l3 3.5V17h-6.5z"/><circle cx="6" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg>
       </div>
-      <div class="vehicle-body">
-        <div class="vehicle-category">Citadine</div>
-        <div class="vehicle-name">Opel Corsa Business 1.2T</div>
-        <p class="hint-text">Compacte et économique, parfaite pour vos déplacements pro entre Cannes, Antibes et Grasse.</p>
-      </div>
+      <h3>Livraison partout sur la Côte d'Azur</h3>
+      <p>Récupérez votre véhicule à l'adresse de votre choix : domicile, hôtel ou aéroport.</p>
     </div>
-    <div class="vehicle-card">
-      <div class="vehicle-media">
-        <picture>
-          <source srcset="images/peugeot-2008-hybrid.webp" type="image/webp">
-          <img src="images/peugeot-2008-hybrid.jpg" alt="Peugeot 2008 Hybrid" class="vehicle-photo" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
-        </picture>
-        <span class="vehicle-emoji-fallback">🚙</span>
+    <div class="why-card">
+      <div class="why-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z"/></svg>
       </div>
-      <div class="vehicle-body">
-        <div class="vehicle-category">SUV Hybride</div>
-        <div class="vehicle-name">Peugeot 2008 Hybrid</div>
-        <p class="hint-text">SUV compact hybride, confortable et sobre pour rayonner sur toute la Côte d'Azur.</p>
-      </div>
+      <h3>Assurance comprise</h3>
+      <p>Chaque location inclut une assurance, sans mauvaise surprise à la restitution.</p>
     </div>
-    <div class="vehicle-card">
-      <div class="vehicle-media">
-        <picture>
-          <source srcset="images/peugeot-3008.webp" type="image/webp">
-          <img src="images/peugeot-3008.jpg" alt="Peugeot 3008" class="vehicle-photo" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
-        </picture>
-        <span class="vehicle-emoji-fallback">🚙</span>
+    <div class="why-card">
+      <div class="why-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
       </div>
-      <div class="vehicle-body">
-        <div class="vehicle-category">SUV Hybride</div>
-        <div class="vehicle-name">Peugeot 3008</div>
-        <p class="hint-text">SUV familial haut de gamme, idéal pour vos trajets entre Nice, Cannes et l'arrière-pays.</p>
-      </div>
+      <h3>Paiement sécurisé Stripe</h3>
+      <p>Réglez en ligne en toute confiance : aucune donnée bancaire stockée par nos soins.</p>
     </div>
-    <div class="vehicle-card">
-      <div class="vehicle-media">
-        <picture>
-          <source srcset="images/toyota-proace-city.webp" type="image/webp">
-          <img src="images/toyota-proace-city.jpg" alt="Toyota Proace City" class="vehicle-photo" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
-        </picture>
-        <span class="vehicle-emoji-fallback">🚐</span>
+    <div class="why-card">
+      <div class="why-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.34 1.79.65 2.65a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.43-1.22a2 2 0 0 1 2.11-.45c.86.31 1.75.53 2.65.65A2 2 0 0 1 22 16.92z"/></svg>
       </div>
-      <div class="vehicle-body">
-        <div class="vehicle-category">Utilitaire</div>
-        <div class="vehicle-name">Toyota Proace City</div>
-        <p class="hint-text">Grand volume de chargement, idéal pour bagages, matériel ou déménagement.</p>
+      <h3>Assistance 7j/7</h3>
+      <p>Une équipe locale joignable directement, sept jours sur sept.</p>
+    </div>
+    <div class="why-card">
+      <div class="why-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.3L18 9l-4.1 1.7L12 15l-1.9-4.3L6 9l4.1-1.7z"/><path d="M19 15l.8 1.8L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
       </div>
+      <h3>Véhicules neufs 2026</h3>
+      <p>Une flotte récente, entretenue et régulièrement renouvelée.</p>
+    </div>
+    <div class="why-card">
+      <div class="why-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h7l-1 8 11-14h-7z"/></svg>
+      </div>
+      <h3>Réservation rapide</h3>
+      <p>Choisissez vos dates, votre véhicule et payez en ligne en moins de deux minutes.</p>
     </div>
   </div>
-  <div style="text-align:center; margin-top: 30px;">
-    <a href="vehicules.html" class="btn btn-secondary">Voir tous les véhicules</a>
+</section>
+
+<section class="section section-alt">
+  <div class="container">
+    <span class="section-eyebrow">Notre flotte</span>
+    <h2 class="section-title">Notre flotte 2026</h2>
+    <p class="section-subtitle">Citadine, SUV et utilitaire — assurance et assistance incluses.</p>
+    <div class="vehicle-grid">
+      <div class="vehicle-card">
+        <div class="vehicle-media">
+          <picture>
+            <img src="images/opel-corsa-cutout.webp" alt="Opel Corsa Business 1.2T" class="vehicle-photo is-cutout" loading="lazy" decoding="async" width="900" height="612" onerror="this.classList.remove('is-cutout')">
+          </picture>
+          <span class="vehicle-emoji-fallback">🚗</span>
+        </div>
+        <div class="vehicle-body">
+          <div class="vehicle-category">Citadine</div>
+          <div class="vehicle-name">Opel Corsa Business 1.2T</div>
+          <div class="vehicle-specs"><span>5 places</span><span>Manuelle</span><span>Climatisation</span></div>
+          <div class="vehicle-footer">
+            <div class="price"><span class="price-from">À partir de</span>60 €<small> / jour</small></div>
+            <a href="vehicules.html" class="btn btn-primary btn-sm">Réserver</a>
+          </div>
+        </div>
+      </div>
+      <div class="vehicle-card">
+        <div class="vehicle-media">
+          <picture>
+            <img src="images/peugeot-2008-hybrid-cutout.webp" alt="Peugeot 2008 Hybrid" class="vehicle-photo is-cutout" loading="lazy" decoding="async" width="900" height="616" onerror="this.classList.remove('is-cutout')">
+          </picture>
+          <span class="vehicle-emoji-fallback">🚙</span>
+        </div>
+        <div class="vehicle-body">
+          <div class="vehicle-category">SUV Hybride</div>
+          <div class="vehicle-name">Peugeot 2008 Hybrid</div>
+          <div class="vehicle-specs"><span>5 places</span><span>Automatique</span><span>Climatisation</span></div>
+          <div class="vehicle-footer">
+            <div class="price"><span class="price-from">À partir de</span>70 €<small> / jour</small></div>
+            <a href="vehicules.html" class="btn btn-primary btn-sm">Réserver</a>
+          </div>
+        </div>
+      </div>
+      <div class="vehicle-card">
+        <div class="vehicle-media">
+          <picture>
+            <img src="images/peugeot-3008-cutout-veh.webp" alt="Peugeot 3008" class="vehicle-photo is-cutout" loading="lazy" decoding="async" width="900" height="616" onerror="this.classList.remove('is-cutout')">
+          </picture>
+          <span class="vehicle-emoji-fallback">🚙</span>
+        </div>
+        <div class="vehicle-body">
+          <div class="vehicle-category">SUV Hybride</div>
+          <div class="vehicle-name">Peugeot 3008</div>
+          <div class="vehicle-specs"><span>5 places</span><span>Automatique</span><span>Climatisation</span></div>
+          <div class="vehicle-footer">
+            <div class="price"><span class="price-from">À partir de</span>80 €<small> / jour</small></div>
+            <a href="vehicules.html" class="btn btn-primary btn-sm">Réserver</a>
+          </div>
+        </div>
+      </div>
+      <div class="vehicle-card">
+        <div class="vehicle-media">
+          <picture>
+            <source srcset="images/toyota-proace-city.webp" type="image/webp">
+            <img src="images/toyota-proace-city.jpg" alt="Toyota Proace City" class="vehicle-photo" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
+          </picture>
+          <span class="vehicle-emoji-fallback">🚐</span>
+        </div>
+        <div class="vehicle-body">
+          <div class="vehicle-category">Utilitaire</div>
+          <div class="vehicle-name">Toyota Proace City</div>
+          <div class="vehicle-specs"><span>5 places</span><span>Manuelle</span><span>Climatisation</span></div>
+          <div class="vehicle-footer">
+            <div class="price"><span class="price-from">À partir de</span>90 €<small> / jour</small></div>
+            <a href="vehicules.html" class="btn btn-primary btn-sm">Réserver</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center; margin-top: 40px;">
+      <a href="vehicules.html" class="btn btn-secondary">Voir tous les véhicules</a>
+    </div>
+  </div>
+</section>
+
+<section class="section container">
+  <span class="section-eyebrow">Le parcours</span>
+  <h2 class="section-title">Comment ça fonctionne</h2>
+  <p class="section-subtitle">Une réservation 100 % en ligne, du choix du véhicule à la remise des clés.</p>
+  <div class="how-steps">
+    <div class="how-step">
+      <div class="how-step-num">1</div>
+      <h3>Choisissez vos dates</h3>
+      <p>Lieu de prise en charge, date et heure de départ et de retour.</p>
+    </div>
+    <div class="how-step-arrow" aria-hidden="true">→</div>
+    <div class="how-step">
+      <div class="how-step-num">2</div>
+      <h3>Choisissez votre véhicule</h3>
+      <p>Citadine, SUV ou utilitaire selon vos besoins.</p>
+    </div>
+    <div class="how-step-arrow" aria-hidden="true">→</div>
+    <div class="how-step">
+      <div class="how-step-num">3</div>
+      <h3>Payez en ligne</h3>
+      <p>Paiement sécurisé par carte via Stripe.</p>
+    </div>
+    <div class="how-step-arrow" aria-hidden="true">→</div>
+    <div class="how-step">
+      <div class="how-step-num">4</div>
+      <h3>Récupérez votre véhicule</h3>
+      <p>À notre agence de Grasse ou en livraison à l'adresse choisie.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="container trust-section">
+    <div>
+      <span class="section-eyebrow">Confiance</span>
+      <h2 class="section-title">Pourquoi nous faire confiance</h2>
+      <ul class="trust-list">
+        <li><span class="trust-check" aria-hidden="true">✓</span><span>Entreprise locale basée à Grasse, dans les Alpes-Maritimes.</span></li>
+        <li><span class="trust-check" aria-hidden="true">✓</span><span>Service personnalisé, une équipe joignable directement.</span></li>
+        <li><span class="trust-check" aria-hidden="true">✓</span><span>Livraison possible sur toute la Côte d'Azur.</span></li>
+        <li><span class="trust-check" aria-hidden="true">✓</span><span>Paiement sécurisé par carte, via Stripe.</span></li>
+        <li><span class="trust-check" aria-hidden="true">✓</span><span>Aucun frais caché : le prix affiché est le prix payé.</span></li>
+      </ul>
+    </div>
+    <div class="trust-visual">
+      <div class="big-stat">2026</div>
+      <div class="big-stat-label">Flotte 100 % modèles récents</div>
+    </div>
+  </div>
+</section>
+
+<section class="section container" style="max-width: 760px;">
+  <span class="section-eyebrow" style="text-align:center; display:block;">Avis clients</span>
+  <h2 class="section-title" style="text-align:center;">Ce que disent nos clients</h2>
+  <p class="section-subtitle" style="text-align:center; margin-left:auto; margin-right:auto;">Un aperçu des retours reçus par l'agence.</p>
+  <div class="testimonials">
+    <div class="testimonial-track"></div>
+    <div class="testimonial-controls">
+      <button type="button" class="testimonial-arrow" data-dir="prev" aria-label="Avis précédent">‹</button>
+      <div class="testimonial-dots"></div>
+      <button type="button" class="testimonial-arrow" data-dir="next" aria-label="Avis suivant">›</button>
+    </div>
+  </div>
+</section>
+
+<section class="section container">
+  <div class="cta-band">
+    <h2>Prêt à réserver votre véhicule ?</h2>
+    <p>Choisissez vos dates, votre véhicule, et prenez la route sur la Côte d'Azur.</p>
+    <div class="cta-buttons">
+      <a href="#search-form" class="btn btn-primary">Réserver maintenant</a>
+      <a href="vehicules.html" class="btn btn-outline">Voir la flotte</a>
+      <a href="tel:+33667485430" class="btn btn-outline">Nous appeler</a>
+      <a href="https://wa.me/33667485430" class="btn btn-outline" target="_blank" rel="noopener">WhatsApp</a>
+      <a href="mailto:contact@getlocation.fr?subject=Demande%20de%20devis%20GETLOCATION" class="btn btn-outline">Demander un devis</a>
+    </div>
   </div>
 </section>
 
@@ -233,7 +362,7 @@
   <div class="vehicle-grid">
     <div class="card">
       <h3>Zones desservies</h3>
-      <p class="hint-text">Notre agence se trouve à <strong>Grasse</strong>. Nous proposons également la <strong>livraison à l'adresse de votre choix</strong> sur <strong>Cannes</strong>, <strong>Antibes</strong>, <strong>Nice</strong> et <strong>Monaco</strong>, ainsi que sur l'ensemble du bassin cannois et azuréen, sur demande.</p>
+      <p class="hint-text">Notre agence se trouve à <a href="location-voiture-grasse.html"><strong>Grasse</strong></a>. Nous proposons également la <strong>livraison à l'adresse de votre choix</strong> sur <a href="location-voiture-nice.html">Nice</a>, <a href="location-voiture-cannes.html">Cannes</a>, <a href="location-voiture-antibes.html">Antibes</a> et <a href="location-voiture-monaco.html">Monaco</a>, ainsi que sur l'ensemble du bassin cannois et azuréen, sur demande. Voir aussi la <a href="location-voiture-aeroport-nice.html">location à l'aéroport de Nice</a>.</p>
     </div>
     <div class="card">
       <h3>Comment ça marche</h3>
@@ -278,42 +407,27 @@
     {
       "@type": "Question",
       "name": "Quel âge minimum pour louer un véhicule ?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Le conducteur doit être âgé d'au moins 21 ans et titulaire d'un permis de conduire valide depuis au moins 2 ans."
-      }
+      "acceptedAnswer": { "@type": "Answer", "text": "Le conducteur doit être âgé d'au moins 21 ans et titulaire d'un permis de conduire valide depuis au moins 2 ans." }
     },
     {
       "@type": "Question",
       "name": "Dans quelles villes puis-je récupérer mon véhicule ?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "À notre agence de Grasse, ou en livraison à l'adresse de votre choix sur Cannes, Antibes, Nice et Monaco."
-      }
+      "acceptedAnswer": { "@type": "Answer", "text": "À notre agence de Grasse, ou en livraison à l'adresse de votre choix sur Cannes, Antibes, Nice et Monaco." }
     },
     {
       "@type": "Question",
       "name": "Une caution est-elle demandée ?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Oui, un dépôt de garantie est demandé lors de la prise en charge du véhicule ; son montant varie selon le modèle loué."
-      }
+      "acceptedAnswer": { "@type": "Answer", "text": "Oui, un dépôt de garantie est demandé lors de la prise en charge du véhicule ; son montant varie selon le modèle loué." }
     },
     {
       "@type": "Question",
       "name": "Le paiement en ligne est-il sécurisé ?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Oui, le paiement est traité par Stripe, un prestataire de paiement certifié. GETLOCATION ne stocke aucune donnée bancaire."
-      }
+      "acceptedAnswer": { "@type": "Answer", "text": "Oui, le paiement est traité par Stripe, un prestataire de paiement certifié. GETLOCATION ne stocke aucune donnée bancaire." }
     },
     {
       "@type": "Question",
       "name": "Quels véhicules propose GETLOCATION ?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Une citadine (Opel Corsa Business 1.2T), deux SUV/berlines hybrides (Peugeot 3008 et 2008 Hybrid) et un utilitaire compact (Toyota Proace City), tous des modèles 2026."
-      }
+      "acceptedAnswer": { "@type": "Answer", "text": "Une citadine (Opel Corsa Business 1.2T), deux SUV/berlines hybrides (Peugeot 3008 et 2008 Hybrid) et un utilitaire compact (Toyota Proace City), tous des modèles 2026." }
     }
   ]
 }
@@ -323,7 +437,11 @@
   <div class="container footer-grid">
     <div>
       <h4>GETLOCATION</h4>
-      <p>Location de véhicules dans les Alpes-Maritimes (06). Agence à Grasse, livraison possible sur toute la Côte d'Azur.</p>
+      <p class="footer-tagline">Location de véhicules dans les Alpes-Maritimes (06). Agence à Grasse, livraison possible sur toute la Côte d'Azur.</p>
+      <div class="footer-social">
+        <!-- Pas encore de comptes Instagram/Facebook actifs : ajouter ici au format
+             <a href="https://instagram.com/..." aria-label="Instagram">…</a> le moment venu. -->
+      </div>
     </div>
     <div>
       <h4>Liens</h4>
@@ -334,12 +452,26 @@
       <a href="confidentialite.html">Confidentialité</a>
     </div>
     <div>
+      <h4>Zones desservies</h4>
+      <a href="location-voiture-nice.html">Location voiture Nice</a>
+      <a href="location-voiture-cannes.html">Location voiture Cannes</a>
+      <a href="location-voiture-antibes.html">Location voiture Antibes</a>
+      <a href="location-voiture-grasse.html">Location voiture Grasse</a>
+      <a href="location-voiture-monaco.html">Location voiture Monaco</a>
+      <a href="location-voiture-aeroport-nice.html">Aéroport de Nice</a>
+    </div>
+    <div>
       <h4>Contact</h4>
-      <a href="mailto:contact@getlocation.fr">contact@getlocation.fr</a>
-      <a href="tel:+33667485430">+33 6 67 48 54 30</a>
+      <a href="tel:+33667485430">📞 +33 6 67 48 54 30</a>
+      <a href="https://wa.me/33667485430" target="_blank" rel="noopener">💬 WhatsApp</a>
+      <a href="mailto:contact@getlocation.fr">✉️ contact@getlocation.fr</a>
+      <a href="https://www.google.com/maps/search/?api=1&query=11+Chemin+de+la+Halte+06130+Grasse" target="_blank" rel="noopener">📍 11 Chemin de la Halte, 06130 Grasse</a>
+      <span class="hint-text" style="display:block; margin-top:8px; color:#9a9aa4;">Horaires : 7j/7, 08:00–20:00</span>
     </div>
   </div>
-  <div class="footer-bottom">© <span id="footer-year"></span> GETLOCATION.</div>
+  <div class="footer-bottom">
+    © <span id="footer-year"></span> GETLOCATION — TLST SAS · SIRET 932 098 908 00019 · <a href="mentions-legales.html">Mentions légales</a>
+  </div>
 </footer>
 
 <script src="js/data.js"></script>
