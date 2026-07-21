@@ -246,9 +246,11 @@ function initVehiculesPage() {
       const total = v.prixJour * jours;
       const card = document.createElement("div");
       card.className = "vehicle-card";
+      const nbPhotos = v.photos ? v.photos.length : 0;
       card.innerHTML = `
-        <div class="vehicle-media">
+        <div class="vehicle-media"${nbPhotos ? ` data-gallery="${v.id}"` : ""}>
           ${pictureVehicule(v, "vehicle-photo")}
+          ${nbPhotos > 1 ? `<span class="vehicle-photo-count">${nbPhotos}</span>` : ""}
           <span class="vehicle-emoji-fallback">${v.emoji}</span>
         </div>
         <div class="vehicle-body">
@@ -295,6 +297,16 @@ function formatDateFR(iso) {
 // Génère un <picture> WebP + repli JPG + repli emoji, avec lazy loading et
 // dimensions explicites (évite le layout shift / bon score CLS).
 function pictureVehicule(v, imgClass) {
+  if (v.photos && v.photos.length) {
+    // Vraie photo professionnelle (première de la galerie) : image principale de la carte.
+    const p0 = v.photos[0];
+    return `
+      <picture>
+        <source srcset="${p0.thumbWebp} 700w, ${p0.webp} 1400w" sizes="(max-width: 480px) 90vw, 340px" type="image/webp">
+        <img src="${p0.thumbJpg}" alt="${v.nom}" class="${imgClass}" loading="lazy" decoding="async" width="1400" height="1050" onerror="this.remove()">
+      </picture>
+    `;
+  }
   if (v.photoCutout) {
     // Photo détourée (fond transparent) : object-fit:contain via la classe is-cutout,
     // le fond de la carte (gris très clair) fait office de socle.
@@ -311,6 +323,98 @@ function pictureVehicule(v, imgClass) {
       <img src="${v.photo}" alt="${v.nom}" class="${imgClass}" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
     </picture>
   `;
+}
+
+/* ---------------------------------------------------------
+   Galerie photo (lightbox) — ouverture au clic sur une vignette véhicule.
+   Fonctionne sur toutes les pages listant des véhicules (accueil, catalogue,
+   pages locales SEO) puisque VEHICULES / getVehiculeParId viennent de data.js.
+--------------------------------------------------------- */
+const galleryState = { photos: [], index: 0, vehiculeNom: "" };
+
+function buildGalleryLightbox() {
+  if (document.querySelector(".gallery-lightbox")) return document.querySelector(".gallery-lightbox");
+  const el = document.createElement("div");
+  el.className = "gallery-lightbox";
+  el.innerHTML = `
+    <div class="gallery-lightbox-inner">
+      <div class="gallery-lightbox-frame">
+        <button type="button" class="gallery-lightbox-close" aria-label="Fermer la galerie">✕</button>
+        <button type="button" class="gallery-lightbox-arrow prev" aria-label="Photo précédente">‹</button>
+        <picture>
+          <source class="gallery-lightbox-source" type="image/webp">
+          <img class="gallery-lightbox-img" alt="">
+        </picture>
+        <button type="button" class="gallery-lightbox-arrow next" aria-label="Photo suivante">›</button>
+      </div>
+      <div class="gallery-lightbox-caption"></div>
+      <div class="gallery-lightbox-counter"></div>
+      <div class="gallery-lightbox-thumbs"></div>
+    </div>
+  `;
+  document.body.appendChild(el);
+
+  el.querySelector(".gallery-lightbox-close").addEventListener("click", closeGallery);
+  el.addEventListener("click", (e) => { if (e.target === el) closeGallery(); });
+  el.querySelector(".gallery-lightbox-arrow.prev").addEventListener("click", () => showGalleryIndex(galleryState.index - 1));
+  el.querySelector(".gallery-lightbox-arrow.next").addEventListener("click", () => showGalleryIndex(galleryState.index + 1));
+
+  document.addEventListener("keydown", (e) => {
+    if (!el.classList.contains("is-open")) return;
+    if (e.key === "Escape") closeGallery();
+    if (e.key === "ArrowLeft") showGalleryIndex(galleryState.index - 1);
+    if (e.key === "ArrowRight") showGalleryIndex(galleryState.index + 1);
+  });
+
+  return el;
+}
+
+function openGallery(vehiculeId, startIndex) {
+  const v = typeof getVehiculeParId === "function" ? getVehiculeParId(vehiculeId) : null;
+  if (!v || !v.photos || !v.photos.length) return;
+  const el = buildGalleryLightbox();
+  galleryState.photos = v.photos;
+  galleryState.vehiculeNom = v.nom;
+  showGalleryIndex(startIndex || 0);
+  el.classList.add("is-open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeGallery() {
+  const el = document.querySelector(".gallery-lightbox");
+  if (el) el.classList.remove("is-open");
+  document.body.style.overflow = "";
+}
+
+function showGalleryIndex(i) {
+  const el = document.querySelector(".gallery-lightbox");
+  if (!el) return;
+  const photos = galleryState.photos;
+  if (!photos.length) return;
+  galleryState.index = (i + photos.length) % photos.length;
+  const photo = photos[galleryState.index];
+
+  el.querySelector(".gallery-lightbox-source").srcset = photo.webp;
+  const img = el.querySelector(".gallery-lightbox-img");
+  img.src = photo.jpg;
+  img.alt = `${galleryState.vehiculeNom}${photo.legende ? " — " + photo.legende : ""}`;
+  el.querySelector(".gallery-lightbox-caption").textContent = `${galleryState.vehiculeNom}${photo.legende ? " — " + photo.legende : ""}`;
+  el.querySelector(".gallery-lightbox-counter").textContent = photos.length > 1 ? `${galleryState.index + 1} / ${photos.length}` : "";
+  el.querySelectorAll(".gallery-lightbox-arrow").forEach(btn => { btn.style.display = photos.length > 1 ? "" : "none"; });
+
+  const thumbs = el.querySelector(".gallery-lightbox-thumbs");
+  thumbs.innerHTML = photos.length > 1
+    ? photos.map((p, pi) => `<img src="${p.thumbJpg}" data-i="${pi}" class="${pi === galleryState.index ? "is-active" : ""}" alt="Photo ${pi + 1}">`).join("")
+    : "";
+  thumbs.querySelectorAll("img").forEach(t => t.addEventListener("click", () => showGalleryIndex(Number(t.dataset.i))));
+}
+
+function initVehicleGalleries() {
+  document.addEventListener("click", (e) => {
+    const media = e.target.closest("[data-gallery]");
+    if (!media) return;
+    openGallery(media.dataset.gallery, 0);
+  });
 }
 
 function vignetteVehicule(v) {
@@ -645,4 +749,5 @@ document.addEventListener("DOMContentLoaded", () => {
   initPaiementPage();
   initConfirmationPage();
   initTestimonialsSlider();
+  initVehicleGalleries();
 });
