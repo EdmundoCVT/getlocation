@@ -349,6 +349,7 @@ function buildGalleryLightbox() {
       </div>
       <div class="gallery-lightbox-caption"></div>
       <div class="gallery-lightbox-counter"></div>
+      <div class="gallery-lightbox-swipe-hint">← Glissez pour naviguer →</div>
       <div class="gallery-lightbox-thumbs"></div>
     </div>
   `;
@@ -365,6 +366,24 @@ function buildGalleryLightbox() {
     if (e.key === "ArrowLeft") showGalleryIndex(galleryState.index - 1);
     if (e.key === "ArrowRight") showGalleryIndex(galleryState.index + 1);
   });
+
+  // Support du swipe tactile (mobile) pour naviguer entre les photos.
+  const frame = el.querySelector(".gallery-lightbox-frame");
+  let touchStartX = 0;
+  let touchStartY = 0;
+  const SWIPE_THRESHOLD = 40;
+  frame.addEventListener("touchstart", (e) => {
+    touchStartX = e.changedTouches[0].clientX;
+    touchStartY = e.changedTouches[0].clientY;
+  }, { passive: true });
+  frame.addEventListener("touchend", (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_THRESHOLD) {
+      if (dx < 0) showGalleryIndex(galleryState.index + 1);
+      else showGalleryIndex(galleryState.index - 1);
+    }
+  }, { passive: true });
 
   return el;
 }
