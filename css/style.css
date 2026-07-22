@@ -184,8 +184,8 @@ textarea:focus-visible,
 
 /* ============ HERO ============ */
 .hero {
-  background: var(--blanc);
-  color: var(--gris-fonce);
+  background: linear-gradient(135deg, var(--violet), var(--violet-dark));
+  color: white;
   padding: 72px 0 60px;
   position: relative;
   overflow: hidden;
@@ -198,7 +198,7 @@ textarea:focus-visible,
   right: -8%;
   width: 620px;
   height: 620px;
-  background: radial-gradient(circle, var(--violet-light) 0%, rgba(237, 231, 255, 0) 70%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 70%);
   pointer-events: none;
 }
 
@@ -239,7 +239,7 @@ textarea:focus-visible,
 
 .hero p.hero-subtitle {
   max-width: 540px;
-  color: #55555f;
+  color: rgba(255, 255, 255, 0.88);
   font-size: 1.15rem;
   line-height: 1.6;
   margin: 0 0 26px;
@@ -253,11 +253,11 @@ textarea:focus-visible,
   margin-bottom: 30px;
   font-size: 0.88rem;
   font-weight: 600;
-  color: #45454e;
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .hero-stars {
-  color: #f5a623;
+  color: #ffce54;
   font-size: 1rem;
   letter-spacing: 1px;
 }
@@ -270,8 +270,34 @@ textarea:focus-visible,
 
 .hero-badges .badge-item::before {
   content: "✓";
-  color: var(--violet);
+  color: #ffffff;
   font-weight: 800;
+}
+
+/* Boutons du hero : inversés pour rester lisibles sur le fond violet
+   (le bouton primaire devient blanc, le secondaire devient un contour
+   blanc translucide — motif déjà utilisé par .btn-outline ailleurs). */
+.hero .btn-primary {
+  background: white;
+  color: var(--violet-dark);
+  box-shadow: 0 10px 24px rgba(18, 16, 26, 0.18);
+}
+
+.hero .btn-primary:hover {
+  background: #f3f0ff;
+  box-shadow: 0 12px 28px rgba(18, 16, 26, 0.22);
+}
+
+.hero .btn-secondary {
+  background: transparent;
+  color: white;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+}
+
+.hero .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: white;
+  color: white;
 }
 
 .hero-cta {
@@ -306,7 +332,8 @@ textarea:focus-visible,
   gap: 16px;
   padding: 22px;
   border-radius: 28px;
-  background: radial-gradient(circle at 30% 20%, var(--violet-light) 0%, #fbfaff 55%, #ffffff 100%);
+  background: #ffffff;
+  box-shadow: 0 20px 50px rgba(18, 16, 26, 0.22);
 }
 
 .fleet-card {
