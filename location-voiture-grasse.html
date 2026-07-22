@@ -72,7 +72,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="css/style.css?v=9">
+<link rel="stylesheet" href="css/style.css?v=10">
 </head>
 <body>
 
@@ -103,16 +103,22 @@
       <select id="lieu-prise" required></select>
     </div>
     <div class="field" id="adresse-prise-field" style="display:none;">
-      <label for="adresse-prise">Adresse de livraison</label>
-      <input type="text" id="adresse-prise" placeholder="Ex. adresse à Grasse">
+      <label for="adresse-prise">Ville de livraison</label>
+      <select id="adresse-prise"></select>
     </div>
-    <div class="field">
-      <label for="lieu-retour">Lieu de restitution</label>
-      <select id="lieu-retour" required></select>
+    <div class="field field-toggle-retour">
+      <button type="button" class="toggle-retour" id="toggle-retour">
+        <svg class="icon-toggle" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h13l-3.5-3.5M20 17H7l3.5 3.5"/></svg>
+        Restituer à un endroit différent
+      </button>
+      <div class="field" id="retour-field" hidden>
+        <label for="lieu-retour">Lieu de restitution</label>
+        <select id="lieu-retour" required></select>
+      </div>
     </div>
     <div class="field" id="adresse-retour-field" style="display:none;">
-      <label for="adresse-retour">Adresse de restitution</label>
-      <input type="text" id="adresse-retour" placeholder="Ex. adresse à Grasse">
+      <label for="adresse-retour">Ville de livraison (restitution)</label>
+      <select id="adresse-retour"></select>
     </div>
     <div class="field">
       <label for="date-debut">Date et heure de départ</label>
@@ -303,6 +309,6 @@
 </footer>
 
 <script src="js/data.js"></script>
-<script src="js/app.js?v=4"></script>
+<script src="js/app.js?v=5"></script>
 </body>
 </html>

@@ -17,6 +17,14 @@ const LIEUX = [
   LIEU_LIVRAISON
 ];
 
+// Zones de livraison proposées à la recherche : uniquement des villes de la
+// Côte d'Azur (cohérent avec les pages location-voiture-*.html et le
+// areaServed du balisage Schema.org). Remplace la saisie libre d'une adresse
+// complète par un choix simple parmi ces villes, plus rapide et sans risque
+// de faute de frappe. L'adresse précise de livraison reste à convenir avec
+// l'agence (téléphone/WhatsApp) une fois la réservation initiée.
+const VILLES_LIVRAISON = ["Nice", "Cannes", "Antibes", "Grasse", "Monaco"];
+
 const CATEGORIES = ["Citadine", "SUV", "Utilitaire"];
 
 // Horaires d'ouverture pour la prise en charge / restitution des véhicules.
@@ -182,6 +190,7 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     LIEU_LIVRAISON,
+    VILLES_LIVRAISON,
     LIEUX,
     CATEGORIES,
     VEHICULES,

@@ -2,7 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { validateReservationInput } = require("../netlify/functions/lib/validate-reservation-input.js");
-const { CGL_VERSION } = require("../js/data.js");
+const { CGL_VERSION, LIEU_LIVRAISON, VILLES_LIVRAISON } = require("../js/data.js");
 
 function basePayload(overrides = {}) {
   return {
@@ -129,4 +129,29 @@ test("rejette une version de CGL obsolète ou incorrecte", () => {
 test("accepte une case CGL cochée avec la version en vigueur", () => {
   const { valid } = validateReservationInput(basePayload());
   assert.equal(valid, true);
+});
+
+test("accepte une ville de livraison valide (Côte d'Azur) quand le lieu est \"Livraison\"", () => {
+  for (const ville of VILLES_LIVRAISON) {
+    const { valid, errors } = validateReservationInput(
+      basePayload({ lieuPrise: LIEU_LIVRAISON, lieuRetour: LIEU_LIVRAISON, adressePrise: ville, adresseRetour: ville })
+    );
+    assert.equal(valid, true, `${ville} devrait être acceptée : ${errors.join(", ")}`);
+  }
+});
+
+test("rejette une adresse libre (texte arbitraire) à la place d'une ville de livraison", () => {
+  const { valid, errors } = validateReservationInput(
+    basePayload({ lieuPrise: LIEU_LIVRAISON, adressePrise: "12 rue du Test, Nice" })
+  );
+  assert.equal(valid, false);
+  assert.ok(errors.some((e) => e.includes("Ville de livraison")));
+});
+
+test("rejette une ville de livraison renseignée alors que le lieu n'est pas \"Livraison\"", () => {
+  const { valid, errors } = validateReservationInput(
+    basePayload({ lieuPrise: "Agence Grasse", adressePrise: "Nice" })
+  );
+  assert.equal(valid, false);
+  assert.ok(errors.some((e) => e.includes("Ville de livraison")));
 });

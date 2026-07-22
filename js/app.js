@@ -174,38 +174,66 @@ function initSearchForm() {
 
   const selectPrise = document.getElementById("lieu-prise");
   const selectRetour = document.getElementById("lieu-retour");
+  const champRetour = document.getElementById("retour-field");
+  const boutonToggleRetour = document.getElementById("toggle-retour");
   const inputDebut = document.getElementById("date-debut");
   const inputFin = document.getElementById("date-fin");
   const selectHeureDebut = document.getElementById("heure-debut");
   const selectHeureFin = document.getElementById("heure-fin");
   const champAdressePrise = document.getElementById("adresse-prise-field");
-  const inputAdressePrise = document.getElementById("adresse-prise");
+  const selectAdressePrise = document.getElementById("adresse-prise");
   const champAdresseRetour = document.getElementById("adresse-retour-field");
-  const inputAdresseRetour = document.getElementById("adresse-retour");
+  const selectAdresseRetour = document.getElementById("adresse-retour");
 
   LIEUX.forEach(lieu => {
     selectPrise.add(new Option(lieu, lieu));
-    selectRetour.add(new Option(lieu, lieu));
+    if (selectRetour) selectRetour.add(new Option(lieu, lieu));
   });
-  selectRetour.value = LIEUX[0];
+  [selectAdressePrise, selectAdresseRetour].forEach(select => {
+    if (!select) return;
+    select.add(new Option("Choisissez une ville", "", true, true));
+    select.options[0].disabled = true;
+    VILLES_LIVRAISON.forEach(ville => select.add(new Option(ville, ville)));
+  });
 
-  // Affiche/masque le champ d'adresse libre selon que "Livraison" est
-  // sélectionné comme lieu de prise en charge ou de restitution.
-  function majChampAdresse(select, champ, input) {
-    if (!champ || !input) return;
+  // Lieu de restitution : masqué par défaut et synchronisé sur le lieu de
+  // prise en charge (motif Sixt/Europcar — la plupart des locations se
+  // terminent au même endroit). Un petit bouton "Restituer à un endroit
+  // différent" révèle le champ pour le cas contraire ; une fois révélé, le
+  // lieu de restitution redevient indépendant.
+  let retourIndependant = false;
+  if (boutonToggleRetour && champRetour && selectRetour) {
+    boutonToggleRetour.addEventListener("click", () => {
+      retourIndependant = true;
+      champRetour.hidden = false;
+      boutonToggleRetour.hidden = true;
+      majChampAdresse(selectRetour, champAdresseRetour, selectAdresseRetour);
+      selectRetour.focus();
+    });
+  }
+
+  // Affiche/masque le select de ville selon que "Livraison" est sélectionné
+  // comme lieu de prise en charge ou de restitution.
+  function majChampAdresse(select, champ, selectVille) {
+    if (!champ || !selectVille) return;
     const estLivraison = select.value === LIEU_LIVRAISON;
     champ.style.display = estLivraison ? "" : "none";
-    input.required = estLivraison;
-    if (!estLivraison) input.value = "";
+    selectVille.required = estLivraison;
+    if (!estLivraison) selectVille.value = "";
   }
 
   if (selectPrise) {
-    majChampAdresse(selectPrise, champAdressePrise, inputAdressePrise);
-    selectPrise.addEventListener("change", () => majChampAdresse(selectPrise, champAdressePrise, inputAdressePrise));
+    majChampAdresse(selectPrise, champAdressePrise, selectAdressePrise);
+    selectPrise.addEventListener("change", () => {
+      majChampAdresse(selectPrise, champAdressePrise, selectAdressePrise);
+      if (!retourIndependant && selectRetour) selectRetour.value = selectPrise.value;
+    });
   }
+  // Tant que la restitution n'a pas été rendue indépendante, son champ ville
+  // reste masqué : elle reprend silencieusement la ville de prise en charge
+  // au moment de l'envoi (voir plus bas), pas besoin de la resaisir.
   if (selectRetour) {
-    majChampAdresse(selectRetour, champAdresseRetour, inputAdresseRetour);
-    selectRetour.addEventListener("change", () => majChampAdresse(selectRetour, champAdresseRetour, inputAdresseRetour));
+    selectRetour.addEventListener("change", () => majChampAdresse(selectRetour, champAdresseRetour, selectAdresseRetour));
   }
 
   // Remplit un <select> avec la liste des horaires d'ouverture (08:00 à 19:00,
@@ -264,11 +292,21 @@ function initSearchForm() {
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     corrigerFinSiNecessaire();
+
+    const adressePriseFinale = (selectPrise.value === LIEU_LIVRAISON && selectAdressePrise) ? selectAdressePrise.value : "";
+    // Sans restitution indépendante, on reprend silencieusement le lieu (et
+    // la ville de livraison) de la prise en charge : pas besoin de le
+    // ressaisir pour le cas le plus courant (même lieu au départ et au retour).
+    const lieuRetourFinal = retourIndependant ? selectRetour.value : selectPrise.value;
+    const adresseRetourFinale = retourIndependant
+      ? ((selectRetour.value === LIEU_LIVRAISON && selectAdresseRetour) ? selectAdresseRetour.value : "")
+      : adressePriseFinale;
+
     writeJSON(STORAGE.recherche, {
       lieuPrise: selectPrise.value,
-      lieuRetour: selectRetour.value,
-      adressePrise: (selectPrise.value === LIEU_LIVRAISON && inputAdressePrise) ? inputAdressePrise.value.trim() : "",
-      adresseRetour: (selectRetour.value === LIEU_LIVRAISON && inputAdresseRetour) ? inputAdresseRetour.value.trim() : "",
+      lieuRetour: lieuRetourFinal,
+      adressePrise: adressePriseFinale,
+      adresseRetour: adresseRetourFinale,
       dateDebut: inputDebut.value,
       dateFin: inputFin.value,
       heureDebut: selectHeureDebut ? selectHeureDebut.value : "10:00",

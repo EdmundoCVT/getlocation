@@ -5,15 +5,14 @@
 // dates/heures bien formées et futures, longueurs de chaînes bornées) —
 // ne calcule et ne fait jamais confiance à un prix fourni par le client.
 
-const { getVehiculeParId, LIEUX, CGL_VERSION } = require("../../../js/data.js");
+const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, VILLES_LIVRAISON, CGL_VERSION } = require("../../../js/data.js");
 
 const MAX_LEN = {
   nom: 100,
   prenom: 100,
   email: 254,
   telephone: 30,
-  permis: 50,
-  adresse: 200
+  permis: 50
 };
 
 function isNonEmptyString(v, max, min = 1) {
@@ -85,11 +84,20 @@ function validateReservationInput(payload) {
   if (lieuRetour !== undefined && lieuRetour !== null && !LIEUX.includes(lieuRetour)) {
     errors.push("Lieu de restitution invalide");
   }
-  if (adressePrise !== undefined && adressePrise !== null && adressePrise !== "" && !isNonEmptyString(adressePrise, MAX_LEN.adresse)) {
-    errors.push("Adresse de prise en charge invalide");
+  // Depuis le passage à un choix de ville (plutôt qu'une adresse libre), la
+  // valeur envoyée doit être exactement une des villes autorisées — jamais
+  // une saisie arbitraire. La contrainte n'est appliquée que si le lieu
+  // correspondant est bien "Livraison" (sinon adressePrise/adresseRetour
+  // doivent être vides).
+  if (adressePrise !== undefined && adressePrise !== null && adressePrise !== "") {
+    if (lieuPrise !== LIEU_LIVRAISON || !VILLES_LIVRAISON.includes(adressePrise)) {
+      errors.push("Ville de livraison (prise en charge) invalide");
+    }
   }
-  if (adresseRetour !== undefined && adresseRetour !== null && adresseRetour !== "" && !isNonEmptyString(adresseRetour, MAX_LEN.adresse)) {
-    errors.push("Adresse de restitution invalide");
+  if (adresseRetour !== undefined && adresseRetour !== null && adresseRetour !== "") {
+    if (lieuRetour !== LIEU_LIVRAISON || !VILLES_LIVRAISON.includes(adresseRetour)) {
+      errors.push("Ville de livraison (restitution) invalide");
+    }
   }
 
   if (typeof assurance !== "boolean") errors.push("Champ assurance invalide");
