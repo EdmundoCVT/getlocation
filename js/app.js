@@ -350,7 +350,7 @@ function initVehiculesPage() {
       const nbPhotos = v.photos ? v.photos.length : 0;
       card.innerHTML = `
         <div class="vehicle-media"${nbPhotos ? ` data-gallery="${v.id}"` : ""}>
-          ${pictureVehicule(v, "vehicle-photo")}
+          ${pictureVehicule(v, "vehicle-photo", true)}
           ${nbPhotos > 1 ? `<span class="vehicle-photo-count">${nbPhotos}</span>` : ""}
           <span class="vehicle-emoji-fallback">${v.emoji}</span>
         </div>
@@ -397,7 +397,20 @@ function formatDateFR(iso) {
 // sinon repli automatique sur l'emoji (aucune photo fournie pour l'instant).
 // Génère un <picture> WebP + repli JPG + repli emoji, avec lazy loading et
 // dimensions explicites (évite le layout shift / bon score CLS).
-function pictureVehicule(v, imgClass) {
+//
+// preferCutout=true (grille catalogue vehicules.html) : affiche la photo
+// détourée (fond transparent, catalogue façon comparateur) quand elle existe,
+// tout en gardant data-gallery/le clic vers les vraies photos (voir l'appelant
+// à la ligne ~353). preferCutout=false (résumé réservation/paiement, vignette
+// plus petite) garde le comportement d'origine : vraie photo en priorité.
+function pictureVehicule(v, imgClass, preferCutout = false) {
+  if (preferCutout && v.photoCutout) {
+    return `
+      <picture>
+        <img src="${v.photoCutout}" alt="${v.nom}" class="${imgClass} is-cutout" loading="lazy" decoding="async" width="900" height="620" onerror="this.classList.remove('is-cutout')">
+      </picture>
+    `;
+  }
   if (v.photos && v.photos.length) {
     // Vraie photo professionnelle (première de la galerie) : image principale de la carte.
     const p0 = v.photos[0];

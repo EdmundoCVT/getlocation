@@ -331,6 +331,14 @@ textarea:focus-visible,
   display: block;
 }
 
+/* Photos détourées (fond transparent, style catalogue) : on ne les recadre
+   pas comme une vraie photo pleine page, on les pose sur un socle uni. */
+.fleet-card img.is-cutout {
+  object-fit: contain;
+  padding: 12px;
+  background: var(--gris-clair);
+}
+
 .fleet-card-label {
   position: absolute;
   left: 0;
