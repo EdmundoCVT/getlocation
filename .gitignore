@@ -1,3 +1,8 @@
 node_modules/
 .DS_Store
 deployer.command
+auto-push.sh
+com.getlocation.autopush.plist
+auto-push.log
+auto-push-launchd.log
+.auto-push.lock
