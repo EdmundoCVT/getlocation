@@ -203,10 +203,16 @@ function initSearchForm() {
   // lieu de restitution redevient indépendant.
   let retourIndependant = false;
   if (boutonToggleRetour && champRetour && selectRetour) {
+    // Note : on force l'affichage/masquage via style.display plutôt que la
+    // propriété hidden — .field applique display:flex en CSS, qui l'emporte
+    // sur la règle [hidden]{display:none} du navigateur (même spécificité,
+    // le style de la page passe après la feuille de style par défaut).
+    // style.display en ligne, lui, l'emporte toujours.
+    champRetour.style.display = "none";
     boutonToggleRetour.addEventListener("click", () => {
       retourIndependant = true;
-      champRetour.hidden = false;
-      boutonToggleRetour.hidden = true;
+      champRetour.style.display = "";
+      boutonToggleRetour.style.display = "none";
       majChampAdresse(selectRetour, champAdresseRetour, selectAdresseRetour);
       selectRetour.focus();
     });

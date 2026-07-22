@@ -33,7 +33,7 @@ function searchFormHtml() {
       </div>
       <div class="field field-toggle-retour">
         <button type="button" class="toggle-retour" id="toggle-retour">Restituer à un endroit différent</button>
-        <div class="field" id="retour-field" hidden>
+        <div class="field" id="retour-field" style="display:none;">
           <label for="lieu-retour">Lieu de restitution</label>
           <select id="lieu-retour" required></select>
         </div>
@@ -69,10 +69,15 @@ function newWindow() {
 }
 
 test("le lieu de restitution est masqué par défaut, le bouton pour le révéler est visible", () => {
+  // On vérifie style.display (pas la propriété hidden, qui ne reflète que la
+  // présence de l'attribut HTML et pas le rendu visuel réel une fois la
+  // feuille de style du site appliquée — .field impose display:flex, qui
+  // l'emportait sur [hidden]{display:none} dans un vrai navigateur, bug
+  // corrigé en pilotant l'affichage uniquement via style.display en JS).
   const window = newWindow();
   const document = window.document;
-  assert.equal(document.getElementById("retour-field").hidden, true);
-  assert.equal(document.getElementById("toggle-retour").hidden, false);
+  assert.equal(document.getElementById("retour-field").style.display, "none");
+  assert.notEqual(document.getElementById("toggle-retour").style.display, "none");
 });
 
 test("les villes de livraison (Côte d'Azur) peuplent les deux selects d'adresse, rien d'autre", () => {
@@ -88,8 +93,8 @@ test("cliquer sur le bouton révèle le lieu de restitution et masque le bouton"
   const window = newWindow();
   const document = window.document;
   document.getElementById("toggle-retour").dispatchEvent(new window.Event("click", { bubbles: true }));
-  assert.equal(document.getElementById("retour-field").hidden, false);
-  assert.equal(document.getElementById("toggle-retour").hidden, true);
+  assert.equal(document.getElementById("retour-field").style.display, "");
+  assert.equal(document.getElementById("toggle-retour").style.display, "none");
 });
 
 test("sans restitution indépendante : le lieu et la ville de retour reprennent silencieusement ceux de la prise en charge", () => {
