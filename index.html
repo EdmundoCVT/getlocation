@@ -63,7 +63,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
 
@@ -74,7 +74,12 @@
       <span class="logo-mark">GL</span>
       GETLOCATION
     </a>
-    <nav class="main-nav">
+    <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="main-nav" aria-label="Ouvrir le menu">
+      <span class="nav-toggle-bar"></span>
+      <span class="nav-toggle-bar"></span>
+      <span class="nav-toggle-bar"></span>
+    </button>
+    <nav class="main-nav" id="main-nav">
       <a href="index.html" class="active">Accueil</a>
       <a href="vehicules.html">Véhicules</a>
       <a href="index.html#contact">Contact</a>
@@ -361,8 +366,8 @@
 
 <section class="section container" style="max-width: 760px;">
   <span class="section-eyebrow" style="text-align:center; display:block;">Avis clients</span>
-  <h2 class="section-title" style="text-align:center;">Ce que disent nos clients</h2>
-  <p class="section-subtitle" style="text-align:center; margin-left:auto; margin-right:auto;">Un aperçu des retours reçus par l'agence.</p>
+  <h2 class="section-title" style="text-align:center;">Avis clients</h2>
+  <p class="section-subtitle" style="text-align:center; margin-left:auto; margin-right:auto;">Nous recueillons les avis de nos clients — ils seront publiés ici prochainement.</p>
   <div class="testimonials">
     <div class="testimonial-track"></div>
     <div class="testimonial-controls">
@@ -506,6 +511,6 @@
 </footer>
 
 <script src="js/data.js"></script>
-<script src="js/app.js?v=2"></script>
+<script src="js/app.js?v=3"></script>
 </body>
 </html>

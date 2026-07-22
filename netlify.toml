@@ -5,6 +5,19 @@
 [functions]
   node_bundler = "esbuild"
 
+# Toutes les pages déclarent une URL canonique "propre" (sans .html, ex.
+# https://getlocation.fr/vehicules) et sitemap.xml utilise le même format.
+# Sans ce réglage, ces URL ne sont PAS automatiquement servies par Netlify
+# (elles renverraient une 404) à moins que l'option "Pretty URLs" n'ait été
+# activée manuellement dans le tableau de bord Netlify — un réglage
+# invisible depuis ce dépôt. On le déclare donc explicitement ici pour que
+# le comportement soit garanti par la configuration versionnée plutôt que
+# par un réglage caché du dashboard. Les URL avec .html restent également
+# accessibles (pas de redirection forcée) : aucune URL existante n'est
+# cassée par ce changement.
+[build.processing.html]
+  pretty_urls = true
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
@@ -25,12 +38,21 @@
   [headers.values]
     Cache-Control = "public, max-age=3600, must-revalidate"
 
+# css/style.css et js/app.js sont chargés avec un paramètre de version
+# (?v=N, incrémenté manuellement à chaque changement fonctionnel — voir
+# js/app.js?v=3 et css/style.css?v=5 dans les pages HTML). Le navigateur
+# met en cache chaque combinaison URL+query string séparément : un cache
+# long et "immutable" est donc sûr ici, puisqu'un changement de contenu
+# s'accompagne toujours d'un nouveau ?v=, qui pointe vers une URL jamais
+# vue auparavant. IMPORTANT : si un changement est fait à ces fichiers
+# sans incrémenter ?v=, les visiteurs déjà passés sur le site garderont
+# l'ancienne version jusqu'à un an — toujours penser à bumper la version.
 [[headers]]
   for = "/css/*"
   [headers.values]
-    Cache-Control = "public, max-age=300, must-revalidate"
+    Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
   for = "/js/*"
   [headers.values]
-    Cache-Control = "public, max-age=300, must-revalidate"
+    Cache-Control = "public, max-age=31536000, immutable"

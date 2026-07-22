@@ -6,6 +6,7 @@
 <title>Réservation — GETLOCATION</title>
 <meta name="description" content="Finalisez votre réservation de véhicule GETLOCATION : renseignez vos informations conducteur et accédez au paiement sécurisé en quelques clics.">
 <link rel="canonical" href="https://getlocation.fr/reservation">
+<meta name="robots" content="noindex, follow">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
@@ -111,7 +112,7 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
 
@@ -122,7 +123,12 @@
       <span class="logo-mark">GL</span>
       GETLOCATION
     </a>
-    <nav class="main-nav">
+    <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="main-nav" aria-label="Ouvrir le menu">
+      <span class="nav-toggle-bar"></span>
+      <span class="nav-toggle-bar"></span>
+      <span class="nav-toggle-bar"></span>
+    </button>
+    <nav class="main-nav" id="main-nav">
       <a href="index.html">Accueil</a>
       <a href="vehicules.html">Véhicules</a>
       <a href="index.html#contact">Contact</a>
@@ -147,33 +153,33 @@
         <div class="form-grid">
           <div class="field">
             <label for="nom">Nom</label>
-            <input type="text" id="nom" name="nom" required>
-            <div class="error-text" id="err-nom"></div>
+            <input type="text" id="nom" name="nom" required aria-describedby="err-nom" aria-invalid="false">
+            <div class="error-text" id="err-nom" aria-live="polite"></div>
           </div>
           <div class="field">
             <label for="prenom">Prénom</label>
-            <input type="text" id="prenom" name="prenom" required>
-            <div class="error-text" id="err-prenom"></div>
+            <input type="text" id="prenom" name="prenom" required aria-describedby="err-prenom" aria-invalid="false">
+            <div class="error-text" id="err-prenom" aria-live="polite"></div>
           </div>
           <div class="field">
             <label for="email">E-mail</label>
-            <input type="email" id="email" name="email" required>
-            <div class="error-text" id="err-email"></div>
+            <input type="email" id="email" name="email" required aria-describedby="err-email" aria-invalid="false">
+            <div class="error-text" id="err-email" aria-live="polite"></div>
           </div>
           <div class="field">
             <label for="telephone">Téléphone</label>
-            <input type="tel" id="telephone" name="telephone" placeholder="+33 6 ..." required>
-            <div class="error-text" id="err-telephone"></div>
+            <input type="tel" id="telephone" name="telephone" placeholder="+33 6 ..." required aria-describedby="err-telephone" aria-invalid="false">
+            <div class="error-text" id="err-telephone" aria-live="polite"></div>
           </div>
           <div class="field">
             <label for="permis">N° de permis de conduire</label>
-            <input type="text" id="permis" name="permis" required>
-            <div class="error-text" id="err-permis"></div>
+            <input type="text" id="permis" name="permis" required aria-describedby="err-permis" aria-invalid="false">
+            <div class="error-text" id="err-permis" aria-live="polite"></div>
           </div>
           <div class="field">
             <label for="age">Âge du conducteur</label>
-            <input type="number" id="age" name="age" min="18" max="99" required>
-            <div class="error-text" id="err-age"></div>
+            <input type="number" id="age" name="age" min="18" max="99" required aria-describedby="err-age" aria-invalid="false">
+            <div class="error-text" id="err-age" aria-live="polite"></div>
           </div>
         </div>
         <button type="submit" class="btn btn-primary btn-block" style="margin-top: 10px;">Continuer vers le paiement</button>
@@ -182,7 +188,7 @@
 
     <div class="card">
       <h2>Résumé de la réservation</h2>
-      <div id="reservation-summary"></div>
+      <div id="reservation-summary" aria-live="polite"></div>
       <label class="badge-insurance">
         <input type="checkbox" id="assurance">
         Ajouter l'assurance tous risques (8 € / jour) — franchise réduite à 0 €
@@ -226,6 +232,6 @@
 </footer>
 
 <script src="js/data.js"></script>
-<script src="js/app.js?v=2"></script>
+<script src="js/app.js?v=3"></script>
 </body>
 </html>

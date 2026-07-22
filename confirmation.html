@@ -6,6 +6,7 @@
 <title>Réservation confirmée — GETLOCATION</title>
 <meta name="description" content="Votre réservation GETLOCATION est confirmée. Retrouvez le récapitulatif complet de votre location de véhicule.">
 <link rel="canonical" href="https://getlocation.fr/confirmation">
+<meta name="robots" content="noindex, follow">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
@@ -105,7 +106,7 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
 
@@ -116,7 +117,12 @@
       <span class="logo-mark">GL</span>
       GETLOCATION
     </a>
-    <nav class="main-nav">
+    <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="main-nav" aria-label="Ouvrir le menu">
+      <span class="nav-toggle-bar"></span>
+      <span class="nav-toggle-bar"></span>
+      <span class="nav-toggle-bar"></span>
+    </button>
+    <nav class="main-nav" id="main-nav">
       <a href="index.html">Accueil</a>
       <a href="vehicules.html">Véhicules</a>
       <a href="index.html#contact">Contact</a>
@@ -134,7 +140,7 @@
 
   <div class="card">
     <h2>Détails de votre réservation</h2>
-    <div id="confirmation-details"></div>
+    <div id="confirmation-details" aria-live="polite"></div>
   </div>
 
   <div style="text-align:center; margin-top: 26px;">
@@ -177,6 +183,6 @@
 </footer>
 
 <script src="js/data.js"></script>
-<script src="js/app.js?v=2"></script>
+<script src="js/app.js?v=3"></script>
 </body>
 </html>

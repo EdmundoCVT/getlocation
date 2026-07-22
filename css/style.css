@@ -134,6 +134,45 @@ textarea:focus-visible,
   border-bottom-color: var(--violet);
 }
 
+/* Bouton menu mobile (masqué au-delà de 640px, cf. media query plus bas) */
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid #e2e2e6;
+  border-radius: var(--radius-sm);
+  background: var(--blanc);
+  cursor: pointer;
+}
+
+.nav-toggle-bar {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: var(--gris-fonce);
+  border-radius: 2px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.nav-toggle[aria-expanded="true"] .nav-toggle-bar:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+.nav-toggle[aria-expanded="true"] .nav-toggle-bar:nth-child(2) {
+  opacity: 0;
+}
+.nav-toggle[aria-expanded="true"] .nav-toggle-bar:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-toggle-bar { transition: none; }
+}
+
 .info-banner {
   background: var(--sable-clair);
   color: var(--violet-dark);
@@ -1388,7 +1427,38 @@ textarea:focus-visible,
 }
 
 @media (max-width: 640px) {
-  .main-nav { display: none; }
+  .nav-toggle { display: flex; }
+
+  /* Le menu n'est plus caché sans alternative : il devient un panneau
+     déroulant sous l'en-tête, ouvert/fermé par le bouton .nav-toggle
+     (voir initMobileMenu dans js/app.js). Fermé par défaut. */
+  .main-nav {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    background: var(--blanc);
+    border-bottom: 1px solid #eef0f2;
+    box-shadow: var(--ombre);
+    padding: 8px 24px 16px;
+  }
+  .main-nav.is-open {
+    display: flex;
+  }
+  .main-nav a {
+    padding: 12px 4px;
+    border-bottom: 1px solid #f1f1f4;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  .main-nav a:last-child { border-bottom: none; }
+  .header-inner { position: relative; }
+
   .search-card { grid-template-columns: 1fr; margin-top: 20px; padding: 22px; }
   .form-grid { grid-template-columns: 1fr; }
   .hero { padding: 48px 0 40px; }

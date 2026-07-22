@@ -1,17 +1,21 @@
-// Capver Tours — logique du site de démonstration
-// Stockage local (localStorage) uniquement, pas de serveur : à remplacer par de vraies
-// API (réservation + paiement Stripe côté serveur) pour une mise en production réelle.
+// GETLOCATION — logique du site (catalogue, réservation, paiement, galerie).
+// Stockage local (localStorage) : uniquement pour le confort du parcours
+// (pré-remplissage, résumé). La confirmation de paiement et le prix qui fait
+// foi viennent toujours du serveur (netlify/functions) — voir P0 (AUDIT.md).
+//
+// HEURE_OUVERTURE, HEURE_FERMETURE, PRIX_ASSURANCE_JOUR, dureeEnHeures,
+// joursFacturablesDepuisHeures et calculerPrixTotal vivent désormais dans
+// js/data.js (source unique partagée avec le serveur) — chargé avant ce
+// fichier sur chaque page, ils restent donc disponibles ici sans import.
 
+// Note : il n'y a plus de clé "confirmation" — la confirmation de paiement
+// est désormais lue depuis le serveur (voir initConfirmationPage), jamais
+// depuis localStorage.
 const STORAGE = {
-  recherche: "ct_recherche",
-  selection: "ct_selection",
-  reservation: "ct_reservation",
-  confirmation: "ct_confirmation"
+  recherche: "gl_recherche",
+  selection: "gl_selection",
+  reservation: "gl_reservation"
 };
-
-// Horaires d'ouverture pour la prise en charge / restitution des véhicules.
-const HEURE_OUVERTURE = "08:00";
-const HEURE_FERMETURE = "19:00";
 
 function todayISO(offsetDays = 0) {
   const d = new Date();
@@ -24,21 +28,6 @@ function joursEntre(dateDebut, dateFin) {
   const b = new Date(dateFin);
   const diff = Math.round((b - a) / (1000 * 60 * 60 * 24));
   return Math.max(diff, 1);
-}
-
-// Calcule la durée réelle de location en heures, en tenant compte de l'heure
-// de prise en charge et de restitution (pas seulement de la date calendaire).
-function dureeEnHeures(dateDebut, heureDebut, dateFin, heureFin) {
-  const debut = new Date(`${dateDebut}T${heureDebut || "00:00"}:00`);
-  const fin = new Date(`${dateFin}T${heureFin || "00:00"}:00`);
-  return (fin - debut) / (1000 * 60 * 60);
-}
-
-// Convertit une durée en heures en nombre de jours facturables : toute heure
-// entamée au-delà d'un multiple de 24h compte pour un jour supplémentaire.
-function joursFacturablesDepuisHeures(dureeHeures) {
-  if (!isFinite(dureeHeures) || dureeHeures <= 0) return 1;
-  return Math.max(Math.ceil(dureeHeures / 24), 1);
 }
 
 function formatDateHeureFR(iso, heure) {
@@ -59,9 +48,121 @@ function writeJSON(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+function clearJSON(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch (e) {
+    // Stockage indisponible (navigation privée stricte, etc.) : sans effet,
+    // rien de plus à faire ici.
+  }
+}
+
+// Durée de vie maximale des données de réservation en cours (dont les
+// coordonnées du conducteur et le numéro de permis) conservées dans ce
+// navigateur : passé ce délai, un panier abandonné est purgé
+// automatiquement à la prochaine visite d'une page du tunnel de
+// réservation. Ces données sont de toute façon systématiquement effacées
+// avec succès dès la confirmation du paiement (voir initPaiementPage).
+const RESERVATION_LOCAL_MAX_AGE_MS = 1000 * 60 * 60 * 2; // 2 heures
+
+function writeReservationLocal(data) {
+  writeJSON(STORAGE.reservation, { ...data, _savedAt: Date.now() });
+}
+
+function readReservationLocal() {
+  const data = readJSON(STORAGE.reservation, null);
+  if (!data) return null;
+  if (!data._savedAt || Date.now() - data._savedAt > RESERVATION_LOCAL_MAX_AGE_MS) {
+    clearJSON(STORAGE.reservation);
+    return null;
+  }
+  return data;
+}
+
 function setFooterYear() {
   const el = document.getElementById("footer-year");
   if (el) el.textContent = new Date().getFullYear();
+}
+
+/* ---------------------------------------------------------
+   Menu mobile — bouton .nav-toggle + panneau .main-nav (toutes les pages).
+   Avant ce correctif, .main-nav disparaissait purement et simplement en
+   dessous de 640px sans aucune alternative (y compris le lien
+   "Nous appeler") : plus aucune navigation ni accès téléphone n'était
+   possible sur mobile. Voir AUDIT.md, P1.
+--------------------------------------------------------- */
+function initMobileMenu() {
+  const toggle = document.getElementById("nav-toggle");
+  const nav = document.getElementById("main-nav");
+  if (!toggle || !nav) return;
+
+  function isOpen() {
+    return toggle.getAttribute("aria-expanded") === "true";
+  }
+
+  function open() {
+    toggle.setAttribute("aria-expanded", "true");
+    toggle.setAttribute("aria-label", "Fermer le menu");
+    nav.classList.add("is-open");
+    const firstLink = nav.querySelector("a");
+    if (firstLink) firstLink.focus();
+    document.addEventListener("keydown", onKeydown);
+    document.addEventListener("click", onClickOutside, true);
+  }
+
+  function close({ restoreFocus = false } = {}) {
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-label", "Ouvrir le menu");
+    nav.classList.remove("is-open");
+    document.removeEventListener("keydown", onKeydown);
+    document.removeEventListener("click", onClickOutside, true);
+    if (restoreFocus) toggle.focus();
+  }
+
+  function onKeydown(e) {
+    if (e.key === "Escape") {
+      close({ restoreFocus: true });
+      return;
+    }
+    // Focus trap simple : Tab/Shift+Tab restent parmi les liens du menu
+    // tant qu'il est ouvert.
+    if (e.key === "Tab") {
+      const focusables = nav.querySelectorAll("a");
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  }
+
+  function onClickOutside(e) {
+    if (!nav.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+      close();
+    }
+  }
+
+  toggle.addEventListener("click", () => {
+    if (isOpen()) close({ restoreFocus: true });
+    else open();
+  });
+
+  // Un clic sur un lien du menu doit le refermer avant de naviguer.
+  nav.querySelectorAll("a").forEach((a) => {
+    a.addEventListener("click", () => close());
+  });
+
+  // Si la fenêtre repasse au-delà du point de rupture mobile (rotation,
+  // redimensionnement), on referme proprement plutôt que de laisser le
+  // panneau ouvert dans un état incohérent avec le CSS desktop.
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 640 && isOpen()) close();
+  });
 }
 
 /* ---------------------------------------------------------
@@ -271,7 +372,7 @@ function initVehiculesPage() {
         </div>
       `;
       card.querySelector("button").addEventListener("click", () => {
-        writeJSON(STORAGE.reservation, {
+        writeReservationLocal({
           vehiculeId: v.id,
           ...recherche,
           jours,
@@ -448,13 +549,11 @@ function vignetteVehicule(v) {
 /* ---------------------------------------------------------
    PAGE : reservation.html — infos conducteur
 --------------------------------------------------------- */
-const PRIX_ASSURANCE_JOUR = 8;
-
 function initReservationPage() {
   const container = document.getElementById("reservation-summary");
   if (!container) return;
 
-  const data = readJSON(STORAGE.reservation, null);
+  const data = readReservationLocal();
   if (!data) {
     window.location.href = "vehicules.html";
     return;
@@ -468,24 +567,39 @@ function initReservationPage() {
   const assuranceCheckbox = document.getElementById("assurance");
   assuranceCheckbox.checked = !!data.assurance;
 
+  // Rendu via createElement/textContent (jamais innerHTML) pour les
+  // valeurs pouvant contenir une saisie utilisateur (adresse de livraison
+  // libre) : protection XSS, cf. AUDIT.md P0-7.
   function render() {
     const sousTotal = vehicule.prixJour * data.jours;
     const assurance = assuranceCheckbox.checked ? PRIX_ASSURANCE_JOUR * data.jours : 0;
     const total = sousTotal + assurance;
 
-    container.innerHTML = `
-      <div class="summary-vehicle">
-        ${vignetteVehicule(vehicule)}
-        <div>
-          <div class="vehicle-name">${vehicule.nom}</div>
-          <div class="hint-text">${libelleLieu(data.lieuPrise, data.adressePrise)} → ${libelleLieu(data.lieuRetour, data.adresseRetour)}</div>
-          <div class="hint-text">${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${data.jours} jour${data.jours > 1 ? "s" : ""})</div>
-        </div>
-      </div>
-      <div class="summary-row"><span>Location (${data.jours} × ${formatEUR(vehicule.prixJour)})</span><span>${formatEUR(sousTotal)}</span></div>
-      <div class="summary-row"><span>Assurance tous risques</span><span>${assurance > 0 ? formatEUR(assurance) : "—"}</span></div>
-      <div class="summary-row total"><span>Total</span><span>${formatEUR(total)}</span></div>
-    `;
+    container.textContent = "";
+
+    const vehicleBlock = document.createElement("div");
+    vehicleBlock.className = "summary-vehicle";
+    vehicleBlock.innerHTML = vignetteVehicule(vehicule); // sûr : données véhicule internes uniquement
+
+    const infoDiv = document.createElement("div");
+    const nameDiv = document.createElement("div");
+    nameDiv.className = "vehicle-name";
+    nameDiv.textContent = vehicule.nom;
+    const routeDiv = document.createElement("div");
+    routeDiv.className = "hint-text";
+    routeDiv.textContent = `${libelleLieu(data.lieuPrise, data.adressePrise)} → ${libelleLieu(data.lieuRetour, data.adresseRetour)}`;
+    const datesDiv = document.createElement("div");
+    datesDiv.className = "hint-text";
+    datesDiv.textContent = `${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${data.jours} jour${data.jours > 1 ? "s" : ""})`;
+    infoDiv.append(nameDiv, routeDiv, datesDiv);
+    vehicleBlock.appendChild(infoDiv);
+    container.appendChild(vehicleBlock);
+
+    container.appendChild(summaryRow(`Location (${data.jours} × ${formatEUR(vehicule.prixJour)})`, formatEUR(sousTotal)));
+    container.appendChild(summaryRow("Assurance tous risques", assurance > 0 ? formatEUR(assurance) : "—"));
+    const totalRow = summaryRow("Total", formatEUR(total));
+    totalRow.classList.add("total");
+    container.appendChild(totalRow);
   }
 
   assuranceCheckbox.addEventListener("change", () => {
@@ -496,6 +610,17 @@ function initReservationPage() {
   render();
 
   const form = document.getElementById("driver-form");
+
+  // Retour arrière sans perte : si le conducteur avait déjà rempli ce
+  // formulaire (ex. retour depuis paiement.html via le bouton précédent du
+  // navigateur), on pré-remplit les champs plutôt que de les laisser vides.
+  if (data.conducteur) {
+    ["nom", "prenom", "email", "telephone", "permis", "age"].forEach((id) => {
+      const input = form.querySelector(`[name="${id}"]`);
+      if (input && data.conducteur[id] !== undefined) input.value = data.conducteur[id];
+    });
+  }
+
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     if (!validateDriverForm(form)) return;
@@ -503,7 +628,7 @@ function initReservationPage() {
     const formData = new FormData(form);
     const conducteur = Object.fromEntries(formData.entries());
 
-    writeJSON(STORAGE.reservation, {
+    writeReservationLocal({
       ...data,
       assurance: assuranceCheckbox.checked,
       conducteur
@@ -514,6 +639,7 @@ function initReservationPage() {
 
 function validateDriverForm(form) {
   let valid = true;
+  let firstInvalid = null;
   const champs = [
     { id: "nom", test: v => v.trim().length >= 2, msg: "Nom requis (2 caractères min.)" },
     { id: "prenom", test: v => v.trim().length >= 2, msg: "Prénom requis" },
@@ -527,9 +653,18 @@ function validateDriverForm(form) {
     const input = form.querySelector(`[name="${id}"]`);
     const errorEl = document.getElementById(`err-${id}`);
     const ok = test(input.value || "");
-    if (!ok) valid = false;
+    if (!ok) {
+      valid = false;
+      if (!firstInvalid) firstInvalid = input;
+    }
     if (errorEl) errorEl.textContent = ok ? "" : msg;
+    if (input) input.setAttribute("aria-invalid", ok ? "false" : "true");
   });
+
+  // Focus sur le premier champ en erreur : évite qu'un utilisateur au
+  // clavier ou avec un lecteur d'écran ne perde le fil après une
+  // soumission refusée.
+  if (firstInvalid) firstInvalid.focus();
 
   return valid;
 }
@@ -537,35 +672,102 @@ function validateDriverForm(form) {
 /* ---------------------------------------------------------
    PAGE : paiement.html — paiement réel via Stripe
 --------------------------------------------------------- */
+// Insère un repli honnête (téléphone / WhatsApp) quand le paiement en
+// ligne n'est pas disponible — jamais de fausse promesse de paiement
+// opérationnel (cf. AUDIT.md, contrainte "ne jamais annoncer une
+// fonctionnalité comme opérationnelle sans preuve").
+function showPaymentUnavailableFallback(message) {
+  const banner = document.getElementById("info-banner");
+  if (banner) banner.textContent = message;
+
+  const form = document.getElementById("payment-form");
+  if (form) {
+    form.querySelectorAll("input, button").forEach((el) => { el.disabled = true; });
+  }
+
+  const formCard = form ? form.closest(".card") : null;
+  if (!formCard || !formCard.parentNode || document.getElementById("payment-fallback")) return;
+
+  const fallback = document.createElement("div");
+  fallback.className = "card";
+  fallback.id = "payment-fallback";
+  fallback.style.marginTop = "16px";
+
+  const p = document.createElement("p");
+  p.textContent = "Vous pouvez finaliser votre réservation directement avec notre équipe :";
+
+  const links = document.createElement("div");
+  links.style.display = "flex";
+  links.style.gap = "10px";
+  links.style.flexWrap = "wrap";
+
+  const tel = document.createElement("a");
+  tel.href = "tel:+33667485430";
+  tel.className = "btn btn-secondary btn-sm";
+  tel.textContent = "📞 Appeler l'agence";
+
+  const wa = document.createElement("a");
+  wa.href = "https://wa.me/33667485430";
+  wa.target = "_blank";
+  wa.rel = "noopener";
+  wa.className = "btn btn-secondary btn-sm";
+  wa.textContent = "💬 WhatsApp";
+
+  links.append(tel, wa);
+  fallback.append(p, links);
+  formCard.parentNode.insertBefore(fallback, formCard.nextSibling);
+}
+
+function buildPaymentSummary(container, vehicule, data, sousTotal, assuranceMontant, total) {
+  container.textContent = "";
+  const vehicleBlock = document.createElement("div");
+  vehicleBlock.className = "summary-vehicle";
+  vehicleBlock.innerHTML = vignetteVehicule(vehicule); // sûr : données véhicule internes uniquement
+
+  const infoDiv = document.createElement("div");
+  const nameDiv = document.createElement("div");
+  nameDiv.className = "vehicle-name";
+  nameDiv.textContent = vehicule.nom;
+  const driverDiv = document.createElement("div");
+  driverDiv.className = "hint-text";
+  driverDiv.textContent = `${data.conducteur.prenom} ${data.conducteur.nom}`;
+  const datesDiv = document.createElement("div");
+  datesDiv.className = "hint-text";
+  datesDiv.textContent = `${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)}`;
+  infoDiv.append(nameDiv, driverDiv, datesDiv);
+  vehicleBlock.appendChild(infoDiv);
+  container.appendChild(vehicleBlock);
+
+  container.appendChild(summaryRow(`Location (${data.jours} jours)`, formatEUR(sousTotal)));
+  container.appendChild(summaryRow("Assurance", assuranceMontant > 0 ? formatEUR(assuranceMontant) : "—"));
+  const totalRow = summaryRow("Total à régler", formatEUR(total));
+  totalRow.classList.add("total");
+  container.appendChild(totalRow);
+}
+
 function initPaiementPage() {
   const summary = document.getElementById("payment-summary");
   if (!summary) return;
 
-  const data = readJSON(STORAGE.reservation, null);
+  const data = readReservationLocal();
   if (!data || !data.conducteur) {
     window.location.href = "vehicules.html";
     return;
   }
   const vehicule = getVehiculeParId(data.vehiculeId);
+  if (!vehicule) {
+    window.location.href = "vehicules.html";
+    return;
+  }
 
+  // Affichage strictement indicatif : le montant qui fait foi est
+  // recalculé côté serveur lors de la création du PaymentIntent (voir
+  // netlify/functions/create-payment-intent.js). Le client n'envoie jamais
+  // ce total au serveur.
   const sousTotal = vehicule.prixJour * data.jours;
-  const assurance = data.assurance ? PRIX_ASSURANCE_JOUR * data.jours : 0;
-  const total = sousTotal + assurance;
-  const totalCentimes = Math.round(total * 100);
-
-  summary.innerHTML = `
-    <div class="summary-vehicle">
-      ${vignetteVehicule(vehicule)}
-      <div>
-        <div class="vehicle-name">${vehicule.nom}</div>
-        <div class="hint-text">${data.conducteur.prenom} ${data.conducteur.nom}</div>
-        <div class="hint-text">${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)}</div>
-      </div>
-    </div>
-    <div class="summary-row"><span>Location (${data.jours} jours)</span><span>${formatEUR(sousTotal)}</span></div>
-    <div class="summary-row"><span>Assurance</span><span>${assurance > 0 ? formatEUR(assurance) : "—"}</span></div>
-    <div class="summary-row total"><span>Total à régler</span><span>${formatEUR(total)}</span></div>
-  `;
+  const assuranceMontant = data.assurance ? PRIX_ASSURANCE_JOUR * data.jours : 0;
+  const total = sousTotal + assuranceMontant;
+  buildPaymentSummary(summary, vehicule, data, sousTotal, assuranceMontant, total);
 
   const cardName = document.getElementById("card-name");
   const form = document.getElementById("payment-form");
@@ -574,10 +776,7 @@ function initPaiementPage() {
   const banner = document.getElementById("info-banner");
 
   if (typeof Stripe === "undefined" || !window.STRIPE_PUBLISHABLE_KEY || window.STRIPE_PUBLISHABLE_KEY.includes("A_REMPLACER")) {
-    if (banner) {
-      banner.textContent = "Paiement non configuré : la clé Stripe publique n'a pas encore été renseignée (js/stripe-config.js).";
-    }
-    payButton.disabled = true;
+    showPaymentUnavailableFallback("Le paiement en ligne n'est pas encore configuré. Contactez-nous pour finaliser votre réservation :");
     return;
   }
 
@@ -594,15 +793,38 @@ function initPaiementPage() {
     cardErrors.textContent = event.error ? event.error.message : "";
   });
 
+  // Générée une seule fois par chargement de page et réutilisée sur toute
+  // nouvelle tentative de soumission : permet au serveur (via l'option
+  // idempotencyKey transmise à Stripe) d'éviter de créer deux PaymentIntent
+  // distincts si l'utilisateur soumet plusieurs fois (double clic, retry
+  // réseau) sans avoir rechargé la page.
+  const idempotencyKey = (window.crypto && typeof crypto.randomUUID === "function")
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     cardErrors.textContent = "";
 
     if (!cardName.value.trim() || cardName.value.trim().length < 2) {
       document.getElementById("err-card-name").textContent = "Nom du titulaire requis";
+      cardName.setAttribute("aria-invalid", "true");
+      cardName.focus();
       return;
     }
     document.getElementById("err-card-name").textContent = "";
+    cardName.setAttribute("aria-invalid", "false");
+
+    const cglCheckbox = document.getElementById("cgl-accept");
+    const errCgl = document.getElementById("err-cgl-accept");
+    if (cglCheckbox && !cglCheckbox.checked) {
+      if (errCgl) errCgl.textContent = "Merci d'accepter les conditions générales de location et la politique de confidentialité avant de payer.";
+      cglCheckbox.setAttribute("aria-invalid", "true");
+      cglCheckbox.focus();
+      return;
+    }
+    if (errCgl) errCgl.textContent = "";
+    if (cglCheckbox) cglCheckbox.setAttribute("aria-invalid", "false");
 
     payButton.classList.add("loading");
     payButton.disabled = true;
@@ -612,16 +834,39 @@ function initPaiementPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: totalCentimes,
-          currency: "eur",
-          description: `Location ${vehicule.nom} — ${data.jours} jour(s)`,
-          receiptEmail: data.conducteur.email
+          // Uniquement des paramètres MÉTIER : jamais de montant, devise ou
+          // description — le serveur recalcule tout à partir de
+          // js/data.js (voir AUDIT.md, P0).
+          vehiculeId: data.vehiculeId,
+          dateDebut: data.dateDebut,
+          heureDebut: data.heureDebut,
+          dateFin: data.dateFin,
+          heureFin: data.heureFin,
+          lieuPrise: data.lieuPrise,
+          lieuRetour: data.lieuRetour,
+          adressePrise: data.adressePrise,
+          adresseRetour: data.adresseRetour,
+          assurance: !!data.assurance,
+          conducteur: data.conducteur,
+          cglAccepted: true,
+          cglVersion: CGL_VERSION,
+          idempotencyKey
         })
       });
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
 
-      if (!response.ok || result.error) {
-        throw new Error(result.error || "Le paiement n'a pas pu être initialisé.");
+      if (response.status === 503 && result.code === "stripe_not_configured") {
+        showPaymentUnavailableFallback("Le paiement en ligne n'est pas encore disponible. Contactez-nous pour finaliser votre réservation :");
+        return;
+      }
+      if (response.status === 409 && result.code === "not_available") {
+        throw new Error("Ce véhicule vient d'être réservé sur ces dates. Merci de modifier vos dates ou de choisir un autre véhicule.");
+      }
+      if (response.status === 429) {
+        throw new Error("Trop de tentatives. Merci de patienter quelques instants avant de réessayer.");
+      }
+      if (!response.ok || result.error || !result.clientSecret || !result.reservationId) {
+        throw new Error("Le paiement n'a pas pu être initialisé. Merci de réessayer.");
       }
 
       const { paymentIntent, error } = await stripe.confirmCardPayment(result.clientSecret, {
@@ -636,25 +881,12 @@ function initPaiementPage() {
       }
 
       if (paymentIntent && paymentIntent.status === "succeeded") {
-        const reference = "GL-" + paymentIntent.id.slice(-8).toUpperCase();
-        writeJSON(STORAGE.confirmation, {
-          reference,
-          vehiculeId: data.vehiculeId,
-          dateDebut: data.dateDebut,
-          dateFin: data.dateFin,
-          heureDebut: data.heureDebut,
-          heureFin: data.heureFin,
-          jours: data.jours,
-          lieuPrise: data.lieuPrise,
-          lieuRetour: data.lieuRetour,
-          adressePrise: data.adressePrise,
-          adresseRetour: data.adresseRetour,
-          conducteur: data.conducteur,
-          assurance: data.assurance,
-          total,
-          paymentIntentId: paymentIntent.id
-        });
-        window.location.href = "confirmation.html";
+        // La confirmation qui fait foi vit désormais côté serveur
+        // (reservation-status, confirmée par le webhook Stripe signé) : la
+        // copie locale temporaire des données conducteur (dont le permis)
+        // n'est plus nécessaire dans ce navigateur, on l'efface donc.
+        clearJSON(STORAGE.reservation);
+        window.location.href = `confirmation.html?reservation=${encodeURIComponent(result.reservationId)}`;
       } else {
         throw new Error("Le paiement n'a pas abouti (statut : " + (paymentIntent && paymentIntent.status) + ").");
       }
@@ -669,99 +901,145 @@ function initPaiementPage() {
 /* ---------------------------------------------------------
    PAGE : confirmation.html
 --------------------------------------------------------- */
+// PAGE : confirmation.html — la confirmation fait TOUJOURS foi côté
+// serveur (endpoint /.netlify/functions/reservation-status), jamais sur la
+// seule base de ce que le navigateur a stocké en localStorage (qui peut
+// être absent, périmé, ou modifié). L'identifiant de réservation arrive
+// via le paramètre d'URL ?reservation=res_xxx, positionné par paiement.html
+// après création du PaymentIntent (voir initPaiementPage).
+//
+// Rendu construit exclusivement via createElement/textContent (jamais
+// innerHTML) pour les valeurs issues du conducteur (nom/prénom/e-mail) ou
+// d'une adresse de livraison saisie par l'utilisateur : ces valeurs ne
+// doivent jamais être interprétées comme du HTML (protection XSS).
 function initConfirmationPage() {
   const container = document.getElementById("confirmation-details");
   if (!container) return;
 
-  const data = readJSON(STORAGE.confirmation, null);
-  if (!data) {
+  const params = new URLSearchParams(window.location.search);
+  const reservationId = params.get("reservation");
+
+  if (!reservationId || !/^res_[a-f0-9]{32}$/.test(reservationId)) {
     window.location.href = "index.html";
     return;
   }
-  const vehicule = getVehiculeParId(data.vehiculeId);
 
-  document.getElementById("confirmation-ref").textContent = data.reference;
+  container.textContent = "Chargement de votre confirmation…";
 
-  container.innerHTML = `
-    <div class="summary-vehicle">
-      ${vignetteVehicule(vehicule)}
-      <div>
-        <div class="vehicle-name">${vehicule.nom}</div>
-        <div class="hint-text">${libelleLieu(data.lieuPrise, data.adressePrise)} → ${libelleLieu(data.lieuRetour, data.adresseRetour)}</div>
-        <div class="hint-text">${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${data.jours} jour${data.jours > 1 ? "s" : ""})</div>
-      </div>
-    </div>
-    <div class="summary-row"><span>Conducteur</span><span>${data.conducteur.prenom} ${data.conducteur.nom}</span></div>
-    <div class="summary-row"><span>E-mail</span><span>${data.conducteur.email}</span></div>
-    <div class="summary-row"><span>Paiement</span><span>Confirmé via Stripe</span></div>
-    <div class="summary-row total"><span>Montant réglé</span><span>${formatEUR(data.total)}</span></div>
-  `;
+  fetch(`/.netlify/functions/reservation-status?id=${encodeURIComponent(reservationId)}`)
+    .then((response) => {
+      if (!response.ok) throw new Error("reservation_status_error");
+      return response.json();
+    })
+    .then((data) => {
+      if (data.status === "paid") {
+        const refEl = document.getElementById("confirmation-ref");
+        if (refEl) refEl.textContent = "GL-" + data.id.slice(-8).toUpperCase();
+        renderConfirmationDetails(container, data);
+      } else {
+        renderConfirmationPendingOrError(container, data.status);
+      }
+    })
+    .catch(() => {
+      renderConfirmationPendingOrError(container, null);
+    });
+}
+
+function summaryRow(label, value) {
+  const row = document.createElement("div");
+  row.className = "summary-row";
+  const labelEl = document.createElement("span");
+  labelEl.textContent = label;
+  const valueEl = document.createElement("span");
+  valueEl.textContent = value;
+  row.append(labelEl, valueEl);
+  return row;
+}
+
+function renderConfirmationDetails(container, data) {
+  container.textContent = "";
+  const vehicule = data.vehicule ? getVehiculeParId(data.vehicule.id) : null;
+
+  const vehicleBlock = document.createElement("div");
+  vehicleBlock.className = "summary-vehicle";
+  if (vehicule) {
+    vehicleBlock.innerHTML = vignetteVehicule(vehicule); // sûr : données véhicule internes uniquement
+  }
+
+  const infoDiv = document.createElement("div");
+  const nameDiv = document.createElement("div");
+  nameDiv.className = "vehicle-name";
+  nameDiv.textContent = vehicule ? vehicule.nom : "Véhicule";
+  const routeDiv = document.createElement("div");
+  routeDiv.className = "hint-text";
+  routeDiv.textContent = `${libelleLieu(data.lieuPrise, data.adressePrise) || ""} → ${libelleLieu(data.lieuRetour, data.adresseRetour) || ""}`;
+  const datesDiv = document.createElement("div");
+  datesDiv.className = "hint-text";
+  datesDiv.textContent = `${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${data.jours} jour${data.jours > 1 ? "s" : ""})`;
+  infoDiv.append(nameDiv, routeDiv, datesDiv);
+  vehicleBlock.appendChild(infoDiv);
+  container.appendChild(vehicleBlock);
+
+  if (data.conducteur) {
+    container.appendChild(summaryRow("Conducteur", `${data.conducteur.prenom} ${data.conducteur.nom}`));
+    container.appendChild(summaryRow("E-mail", data.conducteur.email));
+  }
+  container.appendChild(summaryRow("Paiement", "Confirmé via Stripe"));
+  const totalRow = summaryRow("Montant réglé", formatEUR(data.total));
+  totalRow.classList.add("total");
+  container.appendChild(totalRow);
+}
+
+function renderConfirmationPendingOrError(container, status) {
+  container.textContent = "";
+  const msg = document.createElement("p");
+  msg.className = "hint-text";
+  msg.setAttribute("aria-live", "polite");
+  if (status === "pending_payment") {
+    msg.textContent = "Votre paiement est en cours de confirmation. Rafraîchissez cette page dans quelques instants.";
+  } else if (status === "cancelled" || status === "expired") {
+    msg.textContent = "Cette réservation n'a pas abouti (paiement refusé, annulé ou expiré). Contactez-nous si vous pensez qu'il s'agit d'une erreur.";
+  } else {
+    msg.textContent = "Impossible de retrouver cette réservation pour le moment. Si vous venez de payer, patientez quelques instants puis rafraîchissez la page.";
+  }
+  container.appendChild(msg);
 }
 
 /* ---------------------------------------------------------
-   Slider "Avis clients" — structure facilement modifiable.
-   ATTENTION : ces avis sont des exemples de démonstration (placeholders).
-   Remplacer par de vrais avis clients avant mise en production, et ne pas
-   ajouter de balisage Schema.org Review/AggregateRating tant que les avis
-   ne sont pas authentiques (risque de pénalité Google + tromperie client).
+   Section "Avis clients".
+   Les anciens témoignages étaient des exemples de démonstration
+   (faux noms, fausses citations) : les présenter comme de vrais avis
+   clients serait trompeur, donc ils ont été retirés (cf. AUDIT.md, P1).
+   Cette fonction affiche à la place un état neutre et honnête, sans
+   inventer d'avis ni de note. Aucun balisage Schema.org Review/
+   AggregateRating ne doit être ajouté tant qu'il n'y a pas de vrais avis
+   vérifiables à afficher.
 --------------------------------------------------------- */
-const TEMOIGNAGES = [
-  { texte: "Service impeccable, tout s'est fait en ligne en quelques minutes.", auteur: "Client GETLOCATION" },
-  { texte: "Voiture neuve et parfaitement propre à la prise en charge.", auteur: "Client GETLOCATION" },
-  { texte: "Livraison à l'aéroport de Nice à l'heure convenue, très pratique.", auteur: "Client GETLOCATION" }
-];
-
 function initTestimonialsSlider() {
   const root = document.querySelector(".testimonials");
   if (!root) return;
   const track = root.querySelector(".testimonial-track");
-  const dotsWrap = root.querySelector(".testimonial-dots");
+  const controls = root.querySelector(".testimonial-controls");
   if (!track) return;
 
-  track.innerHTML = TEMOIGNAGES.map((t, i) => `
-    <div class="testimonial-slide${i === 0 ? " active" : ""}" role="group" aria-roledescription="slide" aria-label="Avis ${i + 1} sur ${TEMOIGNAGES.length}">
-      <div class="testimonial-stars" aria-hidden="true">★★★★★</div>
-      <p class="testimonial-quote">« ${t.texte} »</p>
-      <div class="testimonial-author">${t.auteur}</div>
-    </div>
-  `).join("");
+  track.textContent = "";
+  const notice = document.createElement("div");
+  notice.className = "testimonial-slide active";
+  const p = document.createElement("p");
+  p.className = "hint-text";
+  p.style.textAlign = "center";
+  p.textContent = "Les avis de nos clients seront bientôt disponibles ici.";
+  notice.appendChild(p);
+  track.appendChild(notice);
 
-  if (dotsWrap) {
-    dotsWrap.innerHTML = TEMOIGNAGES.map((_, i) =>
-      `<button type="button" class="testimonial-dot${i === 0 ? " active" : ""}" aria-label="Aller à l'avis ${i + 1}"></button>`
-    ).join("");
-  }
-
-  const slides = root.querySelectorAll(".testimonial-slide");
-  const dots = root.querySelectorAll(".testimonial-dot");
-  let index = 0;
-  let timer = null;
-
-  function show(i) {
-    index = (i + slides.length) % slides.length;
-    slides.forEach((s, si) => s.classList.toggle("active", si === index));
-    dots.forEach((d, di) => d.classList.toggle("active", di === index));
-  }
-
-  function restartAutoplay() {
-    if (timer) clearInterval(timer);
-    if (slides.length > 1) timer = setInterval(() => show(index + 1), 6000);
-  }
-
-  root.querySelectorAll(".testimonial-arrow").forEach(btn => {
-    btn.addEventListener("click", () => {
-      show(index + (btn.dataset.dir === "prev" ? -1 : 1));
-      restartAutoplay();
-    });
-  });
-
-  dots.forEach((d, i) => d.addEventListener("click", () => { show(i); restartAutoplay(); }));
-
-  restartAutoplay();
+  // Pas de plusieurs avis à faire défiler pour l'instant : les flèches et
+  // points de navigation n'ont pas lieu d'être affichés.
+  if (controls) controls.style.display = "none";
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   setFooterYear();
+  initMobileMenu();
   initSearchForm();
   initVehiculesPage();
   initReservationPage();

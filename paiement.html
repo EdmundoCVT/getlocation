@@ -6,6 +6,7 @@
 <title>Paiement — GETLOCATION</title>
 <meta name="description" content="Paiement sécurisé par Stripe pour votre location de véhicule GETLOCATION sur la Côte d'Azur.">
 <link rel="canonical" href="https://getlocation.fr/paiement">
+<meta name="robots" content="noindex, follow">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
@@ -117,7 +118,7 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
 
@@ -129,7 +130,12 @@
       <span class="logo-mark">GL</span>
       GETLOCATION
     </a>
-    <nav class="main-nav">
+    <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="main-nav" aria-label="Ouvrir le menu">
+      <span class="nav-toggle-bar"></span>
+      <span class="nav-toggle-bar"></span>
+      <span class="nav-toggle-bar"></span>
+    </button>
+    <nav class="main-nav" id="main-nav">
       <a href="index.html">Accueil</a>
       <a href="vehicules.html">Véhicules</a>
       <a href="index.html#contact">Contact</a>
@@ -154,15 +160,25 @@
         <div class="form-grid">
           <div class="field full">
             <label for="card-name">Nom du titulaire</label>
-            <input type="text" id="card-name" required>
-            <div class="error-text" id="err-card-name"></div>
+            <input type="text" id="card-name" required aria-describedby="err-card-name" aria-invalid="false">
+            <div class="error-text" id="err-card-name" aria-live="polite"></div>
           </div>
           <div class="field full">
             <label for="stripe-card-element">Carte bancaire</label>
             <div id="stripe-card-element"></div>
-            <div class="error-text" id="stripe-card-errors"></div>
+            <div class="error-text" id="stripe-card-errors" aria-live="polite"></div>
           </div>
         </div>
+        <label class="badge-insurance" for="cgl-accept" style="align-items:flex-start;">
+          <input type="checkbox" id="cgl-accept" required aria-describedby="err-cgl-accept" aria-invalid="false">
+          <span>
+            J'ai lu et j'accepte les
+            <a href="cgl.html" target="_blank" rel="noopener">conditions générales de location</a>
+            et la
+            <a href="confidentialite.html" target="_blank" rel="noopener">politique de confidentialité</a>.
+          </span>
+        </label>
+        <div class="error-text" id="err-cgl-accept" aria-live="polite"></div>
         <button type="submit" class="btn btn-primary btn-block" id="pay-button" style="margin-top: 10px;">
           <span class="spinner"></span>
           <span class="btn-label">Payer maintenant</span>
@@ -174,7 +190,7 @@
 
     <div class="card">
       <h2>Résumé de la commande</h2>
-      <div id="payment-summary"></div>
+      <div id="payment-summary" aria-live="polite"></div>
     </div>
   </div>
 </section>
@@ -216,6 +232,6 @@
 <script src="https://js.stripe.com/v3/"></script>
 <script src="js/data.js"></script>
 <script src="js/stripe-config.js"></script>
-<script src="js/app.js?v=2"></script>
+<script src="js/app.js?v=3"></script>
 </body>
 </html>

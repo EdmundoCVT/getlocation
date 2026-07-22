@@ -1,6 +1,14 @@
 // Données de démonstration — GETLOCATION
 // Location de véhicules dans les Alpes-Maritimes (06) / Côte d'Azur.
 // À remplacer par de vraies données (base de données / CMS) en production.
+//
+// IMPORTANT : ce fichier est la SEULE source de vérité pour les tarifs, les
+// horaires et les règles de calcul de durée. Il est chargé tel quel par le
+// navigateur (balise <script>, variables globales) ET requis tel quel par les
+// fonctions Netlify côté serveur (voir l'export gardé en bas de fichier) afin
+// que le prix affiché au client et le prix recalculé par le serveur ne
+// puissent jamais diverger. Ne dupliquez pas ces valeurs ailleurs : modifiez
+// uniquement ce fichier.
 
 const LIEU_LIVRAISON = "Livraison à l'adresse de votre choix";
 
@@ -10,6 +18,24 @@ const LIEUX = [
 ];
 
 const CATEGORIES = ["Citadine", "SUV", "Utilitaire"];
+
+// Horaires d'ouverture pour la prise en charge / restitution des véhicules.
+const HEURE_OUVERTURE = "08:00";
+const HEURE_FERMETURE = "19:00";
+
+// Prix de l'assurance tous risques optionnelle (par jour facturable).
+const PRIX_ASSURANCE_JOUR = 8;
+
+// Identifiant de version des conditions générales de location (CGL) et de
+// la politique de confidentialité actuellement en vigueur. Toute
+// acceptation client est tracée avec cette version (voir
+// netlify/functions/create-payment-intent.js) afin de savoir précisément
+// quel texte a été accepté à quelle date. À incrémenter (ex. date du jour)
+// à chaque modification substantielle de cgl.html ou confidentialite.html.
+// IMPORTANT : cgl.html contient encore des placeholders [à compléter] non
+// résolus (cf. LEGAL-TODO.md) — ce mécanisme trace la version acceptée,
+// il ne garantit pas à lui seul la validité juridique du texte.
+const CGL_VERSION = "2026-07-22";
 
 const VEHICULES = [
   {
@@ -118,4 +144,54 @@ function formatEUR(montant) {
 
 function getVehiculeParId(id) {
   return VEHICULES.find(v => v.id === id);
+}
+
+// Calcule la durée réelle de location en heures, en tenant compte de l'heure
+// de prise en charge et de restitution (pas seulement de la date calendaire).
+function dureeEnHeures(dateDebut, heureDebut, dateFin, heureFin) {
+  const debut = new Date(`${dateDebut}T${heureDebut || "00:00"}:00`);
+  const fin = new Date(`${dateFin}T${heureFin || "00:00"}:00`);
+  return (fin - debut) / (1000 * 60 * 60);
+}
+
+// Convertit une durée en heures en nombre de jours facturables : toute heure
+// entamée au-delà d'un multiple de 24h compte pour un jour supplémentaire.
+function joursFacturablesDepuisHeures(dureeHeures) {
+  if (!isFinite(dureeHeures) || dureeHeures <= 0) return 1;
+  return Math.max(Math.ceil(dureeHeures / 24), 1);
+}
+
+// Recalcule le prix total d'une location à partir des seules données
+// métier (jamais d'un montant fourni par le client). Utilisé à la fois par
+// l'affichage côté navigateur et par le recalcul faisant foi côté serveur.
+function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFin, assurance }) {
+  const vehicule = getVehiculeParId(vehiculeId);
+  if (!vehicule) return null;
+  const dureeHeures = dureeEnHeures(dateDebut, heureDebut, dateFin, heureFin);
+  if (!isFinite(dureeHeures) || dureeHeures <= 0) return null;
+  const jours = joursFacturablesDepuisHeures(dureeHeures);
+  const sousTotal = vehicule.prixJour * jours;
+  const assuranceMontant = assurance ? PRIX_ASSURANCE_JOUR * jours : 0;
+  const total = sousTotal + assuranceMontant;
+  return { vehicule, jours, sousTotal, assuranceMontant, total, totalCentimes: Math.round(total * 100) };
+}
+
+// Export CommonJS gardé : ne s'exécute que côté Node (fonctions Netlify).
+// `module` n'existe pas dans le navigateur, donc ce bloc est ignoré tel quel
+// par <script src="js/data.js">, aucun changement de comportement côté site.
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    LIEU_LIVRAISON,
+    LIEUX,
+    CATEGORIES,
+    VEHICULES,
+    HEURE_OUVERTURE,
+    HEURE_FERMETURE,
+    PRIX_ASSURANCE_JOUR,
+    formatEUR,
+    getVehiculeParId,
+    dureeEnHeures,
+    joursFacturablesDepuisHeures,
+    calculerPrixTotal
+  };
 }

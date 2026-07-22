@@ -1,7 +1,13 @@
 User-agent: *
 Allow: /
-Disallow: /paiement.html
-Disallow: /confirmation.html
-Disallow: /contrat.html
+
+# Les pages du tunnel de réservation/paiement et le contrat de location ne
+# sont volontairement PAS bloquées ici : elles portent chacune une balise
+# <meta name="robots" content="noindex, follow"> dans leur <head>
+# (reservation.html, paiement.html, confirmation.html, contrat.html).
+# Un blocage via robots.txt empêcherait les moteurs de recherche de lire
+# cette balise et pourrait, paradoxalement, laisser l'URL apparaître dans
+# les résultats sans contenu si elle est liée depuis ailleurs — voir la
+# documentation Google sur noindex vs robots.txt.
 
 Sitemap: https://getlocation.fr/sitemap.xml
