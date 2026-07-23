@@ -165,6 +165,105 @@ function initMobileMenu() {
   });
 }
 
+// Remplit un <select> avec la liste des horaires d'ouverture (08:00 à 19:00,
+// par pas de 30 min) : garantit qu'on ne peut choisir qu'un créneau valide.
+// Fonction partagée par le formulaire de recherche (initSearchForm) et la
+// barre de dates persistante du tunnel de réservation (initDateBar).
+function remplirOptionsHeure(select) {
+  if (!select || select.options.length) return;
+  const [hOuv] = HEURE_OUVERTURE.split(":").map(Number);
+  const [hFer, mFer] = HEURE_FERMETURE.split(":").map(Number);
+  let minutes = hOuv * 60;
+  const fin = hFer * 60 + mFer;
+  while (minutes <= fin) {
+    const h = String(Math.floor(minutes / 60)).padStart(2, "0");
+    const m = String(minutes % 60).padStart(2, "0");
+    select.add(new Option(`${h}:${m}`, `${h}:${m}`));
+    minutes += 30;
+  }
+}
+
+// Mesure la hauteur réelle de l'en-tête et l'expose en variable CSS
+// (--header-h) : utilisé pour positionner la barre de dates persistante
+// juste en dessous, sans dupliquer une hauteur devinée à la main qui
+// pourrait devenir fausse si l'en-tête change (menu mobile, etc.).
+function syncHeaderHeightVar() {
+  const header = document.querySelector(".site-header");
+  if (!header) return;
+  document.documentElement.style.setProperty("--header-h", `${header.offsetHeight}px`);
+}
+
+// Barre de dates persistante : affichée sous l'en-tête sur les pages du
+// tunnel de réservation (véhicules, réservation, paiement) pour permettre au
+// client d'ajuster ses dates — par ex. ajouter un jour en voyant le prix
+// final — sans revenir en arrière dans le parcours. `getData()` doit
+// retourner { dateDebut, heureDebut, dateFin, heureFin, jours } à partir de
+// la source de vérité de la page ; `onApply(nouvellesDates)` doit persister
+// ces nouvelles dates et re-calculer/ré-afficher le prix de la page.
+function initDateBar({ getData, onApply }) {
+  const bar = document.getElementById("date-bar");
+  if (!bar) return;
+  const toggleBtn = document.getElementById("date-bar-toggle");
+  const formEl = document.getElementById("date-bar-form");
+  const textEl = document.getElementById("date-bar-text");
+  const inputDebut = document.getElementById("bar-date-debut");
+  const selectHeureDebut = document.getElementById("bar-heure-debut");
+  const inputFin = document.getElementById("bar-date-fin");
+  const selectHeureFin = document.getElementById("bar-heure-fin");
+  const applyBtn = document.getElementById("date-bar-apply");
+  const errorEl = document.getElementById("date-bar-error");
+  if (!toggleBtn || !formEl || !textEl || !inputDebut || !selectHeureDebut || !inputFin || !selectHeureFin || !applyBtn) return;
+
+  remplirOptionsHeure(selectHeureDebut);
+  remplirOptionsHeure(selectHeureFin);
+  inputDebut.min = todayISO();
+
+  function refresh() {
+    const d = getData();
+    textEl.textContent = `${formatDateHeureFR(d.dateDebut, d.heureDebut)} → ${formatDateHeureFR(d.dateFin, d.heureFin)} (${d.jours} jour${d.jours > 1 ? "s" : ""})`;
+    inputDebut.value = d.dateDebut;
+    selectHeureDebut.value = d.heureDebut;
+    inputFin.min = d.dateDebut;
+    inputFin.value = d.dateFin;
+    selectHeureFin.value = d.heureFin;
+  }
+  refresh();
+
+  function fermerFormulaire() {
+    formEl.style.display = "none";
+    toggleBtn.textContent = "Modifier les dates";
+    toggleBtn.setAttribute("aria-expanded", "false");
+  }
+
+  toggleBtn.addEventListener("click", () => {
+    const vaOuvrir = formEl.style.display !== "flex";
+    formEl.style.display = vaOuvrir ? "flex" : "none";
+    toggleBtn.textContent = vaOuvrir ? "Fermer" : "Modifier les dates";
+    toggleBtn.setAttribute("aria-expanded", String(vaOuvrir));
+  });
+
+  inputDebut.addEventListener("change", () => {
+    if (inputFin.value < inputDebut.value) inputFin.value = inputDebut.value;
+    inputFin.min = inputDebut.value;
+  });
+
+  applyBtn.addEventListener("click", () => {
+    const dateDebut = inputDebut.value;
+    const heureDebut = selectHeureDebut.value;
+    const dateFin = inputFin.value;
+    const heureFin = selectHeureFin.value;
+    const duree = dureeEnHeures(dateDebut, heureDebut, dateFin, heureFin);
+    if (!dateDebut || !dateFin || !isFinite(duree) || duree <= 0) {
+      if (errorEl) errorEl.textContent = "La date/heure de retour doit être après la date/heure de départ.";
+      return;
+    }
+    if (errorEl) errorEl.textContent = "";
+    onApply({ dateDebut, heureDebut, dateFin, heureFin });
+    refresh();
+    fermerFormulaire();
+  });
+}
+
 /* ---------------------------------------------------------
    PAGE : index.html — formulaire de recherche
 --------------------------------------------------------- */
@@ -242,23 +341,8 @@ function initSearchForm() {
     selectRetour.addEventListener("change", () => majChampAdresse(selectRetour, champAdresseRetour, selectAdresseRetour));
   }
 
-  // Remplit un <select> avec la liste des horaires d'ouverture (08:00 à 19:00,
-  // par pas de 30 min) : garantit qu'on ne peut choisir qu'un créneau valide.
-  function remplirHeures(select) {
-    if (!select || select.options.length) return;
-    const [hOuv] = HEURE_OUVERTURE.split(":").map(Number);
-    const [hFer, mFer] = HEURE_FERMETURE.split(":").map(Number);
-    let minutes = hOuv * 60;
-    const fin = hFer * 60 + mFer;
-    while (minutes <= fin) {
-      const h = String(Math.floor(minutes / 60)).padStart(2, "0");
-      const m = String(minutes % 60).padStart(2, "0");
-      select.add(new Option(`${h}:${m}`, `${h}:${m}`));
-      minutes += 30;
-    }
-  }
-  remplirHeures(selectHeureDebut);
-  remplirHeures(selectHeureFin);
+  remplirOptionsHeure(selectHeureDebut);
+  remplirOptionsHeure(selectHeureFin);
 
   inputDebut.min = todayISO();
   inputDebut.value = todayISO(2);
@@ -354,13 +438,19 @@ function initVehiculesPage() {
   if (!recherche.adressePrise) recherche.adressePrise = "";
   if (!recherche.adresseRetour) recherche.adresseRetour = "";
 
-  const dureeHeures = dureeEnHeures(recherche.dateDebut, recherche.heureDebut, recherche.dateFin, recherche.heureFin);
-  const jours = joursFacturablesDepuisHeures(dureeHeures);
+  // `jours` est recalculé (pas seulement à l'initialisation) quand le client
+  // modifie ses dates depuis la barre de dates persistante (voir
+  // initDateBar plus bas) — d'où le `let` plutôt qu'un `const`.
+  let jours = joursFacturablesDepuisHeures(
+    dureeEnHeures(recherche.dateDebut, recherche.heureDebut, recherche.dateFin, recherche.heureFin)
+  );
 
   const infoBar = document.getElementById("search-summary");
-  if (infoBar) {
+  function updateInfoBar() {
+    if (!infoBar) return;
     infoBar.textContent = `${libelleLieu(recherche.lieuPrise, recherche.adressePrise)} · du ${formatDateHeureFR(recherche.dateDebut, recherche.heureDebut)} au ${formatDateHeureFR(recherche.dateFin, recherche.heureFin)} (${jours} jour${jours > 1 ? "s" : ""})`;
   }
+  updateInfoBar();
 
   const filterBar = document.getElementById("filter-bar");
   let activeCategorie = "Toutes";
@@ -430,6 +520,28 @@ function initVehiculesPage() {
 
   renderChips();
   renderGrid();
+
+  // Barre de dates persistante : le client peut ajuster ses dates ici même
+  // sans revenir à l'accueil — la liste des véhicules et le total par
+  // véhicule se recalculent immédiatement (voir P2-6 / demande client).
+  initDateBar({
+    getData: () => ({
+      dateDebut: recherche.dateDebut,
+      heureDebut: recherche.heureDebut,
+      dateFin: recherche.dateFin,
+      heureFin: recherche.heureFin,
+      jours
+    }),
+    onApply: (nouvellesDates) => {
+      Object.assign(recherche, nouvellesDates);
+      writeJSON(STORAGE.recherche, recherche);
+      jours = joursFacturablesDepuisHeures(
+        dureeEnHeures(recherche.dateDebut, recherche.heureDebut, recherche.dateFin, recherche.heureFin)
+      );
+      updateInfoBar();
+      renderGrid();
+    }
+  });
 }
 
 function formatDateFR(iso) {
@@ -666,6 +778,21 @@ function initReservationPage() {
 
   render();
 
+  // Barre de dates persistante : permet d'ajuster les dates directement
+  // depuis cette page (avant de renseigner ses informations conducteur)
+  // sans revenir en arrière — le résumé et le total se recalculent aussitôt.
+  initDateBar({
+    getData: () => ({ dateDebut: data.dateDebut, heureDebut: data.heureDebut, dateFin: data.dateFin, heureFin: data.heureFin, jours: data.jours }),
+    onApply: (nouvellesDates) => {
+      Object.assign(data, nouvellesDates);
+      data.jours = joursFacturablesDepuisHeures(
+        dureeEnHeures(data.dateDebut, data.heureDebut, data.dateFin, data.heureFin)
+      );
+      writeReservationLocal(data);
+      render();
+    }
+  });
+
   const form = document.getElementById("driver-form");
 
   // Retour arrière sans perte : si le conducteur avait déjà rempli ce
@@ -821,10 +948,30 @@ function initPaiementPage() {
   // recalculé côté serveur lors de la création du PaymentIntent (voir
   // netlify/functions/create-payment-intent.js). Le client n'envoie jamais
   // ce total au serveur.
-  const sousTotal = vehicule.prixJour * data.jours;
-  const assuranceMontant = data.assurance ? PRIX_ASSURANCE_JOUR * data.jours : 0;
-  const total = sousTotal + assuranceMontant;
-  buildPaymentSummary(summary, vehicule, data, sousTotal, assuranceMontant, total);
+  function renderSummary() {
+    const sousTotal = vehicule.prixJour * data.jours;
+    const assuranceMontant = data.assurance ? PRIX_ASSURANCE_JOUR * data.jours : 0;
+    const total = sousTotal + assuranceMontant;
+    buildPaymentSummary(summary, vehicule, data, sousTotal, assuranceMontant, total);
+  }
+  renderSummary();
+
+  // Barre de dates persistante : le client peut encore ajuster ses dates ici,
+  // au moment où il voit le prix final — ex. rajouter un jour — sans revenir
+  // en arrière. `data` (référencé par le formulaire de paiement plus bas au
+  // moment de l'envoi) est mis à jour en place, donc le PaymentIntent créé
+  // au clic sur "Payer" utilisera toujours les dates les plus récentes.
+  initDateBar({
+    getData: () => ({ dateDebut: data.dateDebut, heureDebut: data.heureDebut, dateFin: data.dateFin, heureFin: data.heureFin, jours: data.jours }),
+    onApply: (nouvellesDates) => {
+      Object.assign(data, nouvellesDates);
+      data.jours = joursFacturablesDepuisHeures(
+        dureeEnHeures(data.dateDebut, data.heureDebut, data.dateFin, data.heureFin)
+      );
+      writeReservationLocal(data);
+      renderSummary();
+    }
+  });
 
   const cardName = document.getElementById("card-name");
   const form = document.getElementById("payment-form");
@@ -1096,6 +1243,7 @@ function initTestimonialsSlider() {
 
 document.addEventListener("DOMContentLoaded", () => {
   setFooterYear();
+  syncHeaderHeightVar();
   initMobileMenu();
   initSearchForm();
   initVehiculesPage();
@@ -1105,3 +1253,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initTestimonialsSlider();
   initVehicleGalleries();
 });
+
+// Réajuste la position de la barre de dates persistante (--header-h) si la
+// hauteur de l'en-tête change (rotation d'écran, ouverture du menu mobile
+// qui n'affecte pas la hauteur mais par prudence en cas de futurs
+// changements responsives).
+window.addEventListener("resize", syncHeaderHeightVar);

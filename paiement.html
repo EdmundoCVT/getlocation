@@ -118,7 +118,7 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=10">
+<link rel="stylesheet" href="css/style.css?v=11">
 </head>
 <body>
 
@@ -142,6 +142,32 @@
     </nav>
   </div>
 </header>
+
+<div class="date-bar" id="date-bar">
+  <div class="date-bar-summary container">
+    <svg class="icon-toggle" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+    <span id="date-bar-text">Chargement de vos dates…</span>
+    <button type="button" class="date-bar-edit" id="date-bar-toggle" aria-expanded="false" aria-controls="date-bar-form">Modifier les dates</button>
+  </div>
+  <div class="date-bar-form container" id="date-bar-form">
+    <div class="field">
+      <label for="bar-date-debut">Départ</label>
+      <div class="datetime-group">
+        <input type="date" id="bar-date-debut">
+        <select id="bar-heure-debut"></select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="bar-date-fin">Retour</label>
+      <div class="datetime-group">
+        <input type="date" id="bar-date-fin">
+        <select id="bar-heure-fin"></select>
+      </div>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm" id="date-bar-apply">Mettre à jour le prix</button>
+    <div class="error-text" id="date-bar-error" aria-live="polite"></div>
+  </div>
+</div>
 
 <section class="section container">
   <h1 class="sr-only">Paiement sécurisé de votre location</h1>
@@ -232,6 +258,6 @@
 <script src="https://js.stripe.com/v3/"></script>
 <script src="js/data.js"></script>
 <script src="js/stripe-config.js"></script>
-<script src="js/app.js?v=6"></script>
+<script src="js/app.js?v=7"></script>
 </body>
 </html>
