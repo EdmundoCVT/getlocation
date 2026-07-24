@@ -104,12 +104,16 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "Requête invalide" }) };
   }
 
-  const { valid, errors, vehicule } = validateReservationInput(payload);
+  const { valid, errors, vehicule, options, codePromo } = validateReservationInput(payload);
   if (!valid) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "Requête invalide", details: errors }) };
   }
 
-  const prix = calculerPrixTotal(payload);
+  // Le prix qui fait foi est recalculé uniquement à partir des champs déjà
+  // validés/normalisés ci-dessus (options, codePromo) — jamais depuis
+  // `payload.options`/`payload.codePromo` bruts, qui pourraient contenir des
+  // valeurs non vérifiées.
+  const prix = calculerPrixTotal({ ...payload, options, codePromo });
   if (!prix || !isFinite(prix.totalCentimes) || prix.totalCentimes < 50) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "Impossible de calculer le prix pour cette demande" }) };
   }
@@ -157,6 +161,13 @@ exports.handler = async (event) => {
     adresseRetour: payload.adresseRetour || null,
     assurance: !!payload.assurance,
     jours: prix.jours,
+    sousTotalBrut: prix.sousTotalBrut,
+    reductionDuree: prix.reductionDuree,
+    assuranceMontant: prix.assuranceMontant,
+    options: prix.optionsSelectionnees,
+    optionsMontant: prix.optionsMontant,
+    codePromo: prix.codePromo,
+    reductionPromoMontant: prix.reductionPromoMontant,
     total: prix.total,
     cglVersion: payload.cglVersion,
     cglAcceptedAt: new Date().toISOString(),
@@ -191,7 +202,9 @@ exports.handler = async (event) => {
           reservationId: reservation.id,
           vehiculeId: vehicule.id,
           jours: String(prix.jours),
-          assurance: String(!!payload.assurance)
+          assurance: String(!!payload.assurance),
+          options: prix.optionsSelectionnees.map((o) => o.id).join(",") || "aucune",
+          codePromo: prix.codePromo ? prix.codePromo.code : "aucun"
         }
       },
       requestOptions

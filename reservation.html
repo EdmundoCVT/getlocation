@@ -112,7 +112,7 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=11">
+<link rel="stylesheet" href="css/style.css?v=12">
 </head>
 <body>
 
@@ -219,6 +219,16 @@
         <input type="checkbox" id="assurance">
         Ajouter l'assurance tous risques (8 € / jour) — franchise réduite à 0 €
       </label>
+
+      <h3 class="options-title">Options supplémentaires</h3>
+      <div id="options-list" class="options-list"></div>
+
+      <h3 class="options-title">Code promo</h3>
+      <div class="promo-group">
+        <input type="text" id="promo-input" placeholder="Ex. BIENVENUE10" aria-describedby="promo-message">
+        <button type="button" class="btn btn-secondary btn-sm" id="promo-apply">Appliquer</button>
+      </div>
+      <div class="error-text" id="promo-message" aria-live="polite"></div>
     </div>
   </div>
 </section>
@@ -258,6 +268,6 @@
 </footer>
 
 <script src="js/data.js"></script>
-<script src="js/app.js?v=7"></script>
+<script src="js/app.js?v=8"></script>
 </body>
 </html>

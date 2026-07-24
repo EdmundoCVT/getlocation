@@ -5,15 +5,18 @@
 // dates/heures bien formées et futures, longueurs de chaînes bornées) —
 // ne calcule et ne fait jamais confiance à un prix fourni par le client.
 
-const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, VILLES_LIVRAISON, CGL_VERSION } = require("../../../js/data.js");
+const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, VILLES_LIVRAISON, CGL_VERSION, OPTIONS } = require("../../../js/data.js");
 
 const MAX_LEN = {
   nom: 100,
   prenom: 100,
   email: 254,
   telephone: 30,
-  permis: 50
+  permis: 50,
+  codePromo: 40
 };
+
+const OPTION_IDS = new Set(OPTIONS.map(o => o.id));
 
 function isNonEmptyString(v, max, min = 1) {
   return typeof v === "string" && v.trim().length >= min && v.length <= max;
@@ -52,6 +55,8 @@ function validateReservationInput(payload) {
     adressePrise,
     adresseRetour,
     assurance,
+    options,
+    codePromo,
     conducteur,
     idempotencyKey,
     cglAccepted,
@@ -102,6 +107,37 @@ function validateReservationInput(payload) {
 
   if (typeof assurance !== "boolean") errors.push("Champ assurance invalide");
 
+  // Options : liste facultative d'identifiants — chacun doit correspondre à
+  // une option connue du catalogue (js/data.js). Un identifiant inconnu est
+  // rejeté plutôt qu'ignoré, pour éviter qu'un client ne fasse passer un
+  // identifiant arbitraire qui échapperait au calcul serveur.
+  let optionsNormalisees = [];
+  if (options !== undefined && options !== null) {
+    if (!Array.isArray(options) || options.length > 20) {
+      errors.push("Options invalides");
+    } else {
+      const inconnues = options.filter(id => typeof id !== "string" || !OPTION_IDS.has(id));
+      if (inconnues.length > 0) {
+        errors.push("Option inconnue");
+      } else {
+        optionsNormalisees = [...new Set(options)];
+      }
+    }
+  }
+
+  // Code promo : facultatif, simple chaîne bornée (la validité du code lui-
+  // même — existe-t-il, quel taux — est vérifiée par getCodePromo() lors du
+  // calcul, jamais ici : un code inconnu ou expiré n'est pas une erreur de
+  // requête, il est simplement ignoré par le calcul du total).
+  let codePromoNormalise = null;
+  if (codePromo !== undefined && codePromo !== null && codePromo !== "") {
+    if (!isNonEmptyString(codePromo, MAX_LEN.codePromo)) {
+      errors.push("Code promo invalide");
+    } else {
+      codePromoNormalise = codePromo;
+    }
+  }
+
   if (!conducteur || typeof conducteur !== "object") {
     errors.push("Informations conducteur manquantes");
   } else {
@@ -134,7 +170,7 @@ function validateReservationInput(payload) {
     errors.push("La version des conditions générales a été mise à jour, veuillez recharger la page et réessayer");
   }
 
-  return { valid: errors.length === 0, errors, vehicule };
+  return { valid: errors.length === 0, errors, vehicule, options: optionsNormalisees, codePromo: codePromoNormalise };
 }
 
 module.exports = { validateReservationInput };

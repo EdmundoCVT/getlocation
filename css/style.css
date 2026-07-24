@@ -1373,6 +1373,11 @@ textarea:focus-visible,
   padding-top: 16px;
 }
 
+.summary-row.discount {
+  color: var(--vert);
+  font-weight: 600;
+}
+
 .summary-vehicle {
   display: flex;
   align-items: center;
@@ -1420,6 +1425,76 @@ textarea:focus-visible,
   padding: 13px 16px;
   font-size: 0.88rem;
   margin-top: 16px;
+}
+
+.badge-remise {
+  display: inline-block;
+  background: rgba(47, 158, 91, 0.12);
+  color: var(--vert);
+  border-radius: 20px;
+  padding: 2px 8px;
+  font-weight: 700;
+  font-size: 0.72rem;
+  margin-left: 4px;
+}
+
+.options-title {
+  font-size: 0.95rem;
+  margin: 18px 0 8px;
+}
+
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e4e4e9;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.option-item:hover {
+  border-color: var(--sable);
+  background: var(--gris-clair);
+}
+
+.option-item input[type="checkbox"] {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.option-nom {
+  font-weight: 600;
+}
+
+.option-desc {
+  color: #5f5f68;
+}
+
+.promo-group {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.promo-group input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #d8d8de;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+
+#promo-message.is-success {
+  color: var(--vert);
 }
 
 .error-text {

@@ -478,7 +478,19 @@ function initVehiculesPage() {
       return;
     }
     liste.forEach(v => {
-      const total = v.prixJour * jours;
+      // Le total affiché tient compte de la réduction durée (7/14/30 jours,
+      // voir REDUCTIONS_DUREE dans js/data.js) dès la page catalogue : le
+      // client voit l'avantage avant même de choisir son véhicule.
+      const prixInfo = calculerPrixTotal({
+        vehiculeId: v.id,
+        dateDebut: recherche.dateDebut,
+        heureDebut: recherche.heureDebut,
+        dateFin: recherche.dateFin,
+        heureFin: recherche.heureFin,
+        assurance: false
+      });
+      const total = prixInfo ? prixInfo.total : v.prixJour * jours;
+      const remise = prixInfo && prixInfo.reductionDuree ? prixInfo.reductionDuree : null;
       const card = document.createElement("div");
       card.className = "vehicle-card";
       const nbPhotos = v.photos ? v.photos.length : 0;
@@ -502,7 +514,7 @@ function initVehiculesPage() {
             <div class="price"><span class="price-from">À partir de</span>${formatEUR(v.prixJour)}<small> / jour</small></div>
             <button class="btn btn-primary btn-sm" data-id="${v.id}">Réserver</button>
           </div>
-          <div class="hint-text">Total pour ${jours} jour${jours > 1 ? "s" : ""} : ${formatEUR(total)}</div>
+          <div class="hint-text">Total pour ${jours} jour${jours > 1 ? "s" : ""} : ${formatEUR(total)}${remise ? ` <span class="badge-remise">-${remise.pourcentage}% dès ${remise.libelle.toLowerCase()}</span>` : ""}</div>
         </div>
       `;
       card.querySelector("button").addEventListener("click", () => {
@@ -732,17 +744,33 @@ function initReservationPage() {
     window.location.href = "vehicules.html";
     return;
   }
+  // Compatibilité : réservations en cours démarrées avant l'ajout des
+  // options/code promo (localStorage déjà rempli sans ces champs).
+  if (!Array.isArray(data.options)) data.options = [];
+  if (typeof data.codePromo !== "string") data.codePromo = "";
 
   const assuranceCheckbox = document.getElementById("assurance");
   assuranceCheckbox.checked = !!data.assurance;
 
+  function prixCourant() {
+    return calculerPrixTotal({
+      vehiculeId: data.vehiculeId,
+      dateDebut: data.dateDebut,
+      heureDebut: data.heureDebut,
+      dateFin: data.dateFin,
+      heureFin: data.heureFin,
+      assurance: assuranceCheckbox.checked,
+      options: data.options,
+      codePromo: data.codePromo
+    });
+  }
+
   // Rendu via createElement/textContent (jamais innerHTML) pour les
   // valeurs pouvant contenir une saisie utilisateur (adresse de livraison
-  // libre) : protection XSS, cf. AUDIT.md P0-7.
+  // libre, code promo) : protection XSS, cf. AUDIT.md P0-7.
   function render() {
-    const sousTotal = vehicule.prixJour * data.jours;
-    const assurance = assuranceCheckbox.checked ? PRIX_ASSURANCE_JOUR * data.jours : 0;
-    const total = sousTotal + assurance;
+    const prix = prixCourant();
+    if (!prix) return;
 
     container.textContent = "";
 
@@ -764,17 +792,84 @@ function initReservationPage() {
     vehicleBlock.appendChild(infoDiv);
     container.appendChild(vehicleBlock);
 
-    container.appendChild(summaryRow(`Location (${data.jours} × ${formatEUR(vehicule.prixJour)})`, formatEUR(sousTotal)));
-    container.appendChild(summaryRow("Assurance tous risques", assurance > 0 ? formatEUR(assurance) : "—"));
-    const totalRow = summaryRow("Total", formatEUR(total));
-    totalRow.classList.add("total");
-    container.appendChild(totalRow);
+    appendBreakdownRows(container, prix);
+
+    // Message de retour sur le code promo (succès/erreur), affiché sous le
+    // champ de saisie — reflète toujours l'état réellement pris en compte
+    // dans le total ci-dessus (jamais un état optimiste non calculé).
+    const promoMessage = document.getElementById("promo-message");
+    if (promoMessage) {
+      if (!data.codePromo) {
+        promoMessage.textContent = "";
+        promoMessage.classList.remove("is-success");
+      } else if (prix.codePromo) {
+        promoMessage.textContent = `Code "${prix.codePromo.code}" appliqué : ${prix.codePromo.description}.`;
+        promoMessage.classList.add("is-success");
+      } else {
+        promoMessage.textContent = "Code promo invalide ou expiré.";
+        promoMessage.classList.remove("is-success");
+      }
+    }
   }
 
   assuranceCheckbox.addEventListener("change", () => {
     data.assurance = assuranceCheckbox.checked;
+    writeReservationLocal(data);
     render();
   });
+
+  // Options supplémentaires : liste générée depuis le catalogue partagé
+  // (OPTIONS, js/data.js) — une seule source à mettre à jour pour ajouter/
+  // retirer une option du site entier.
+  const optionsList = document.getElementById("options-list");
+  if (optionsList) {
+    optionsList.textContent = "";
+    OPTIONS.forEach((opt) => {
+      const label = document.createElement("label");
+      label.className = "option-item";
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.id = `option-${opt.id}`;
+      checkbox.checked = data.options.includes(opt.id);
+
+      const texte = document.createElement("span");
+      const titre = document.createElement("span");
+      titre.className = "option-nom";
+      titre.textContent = opt.nom;
+      const desc = document.createElement("span");
+      desc.className = "option-desc";
+      desc.textContent = ` — ${opt.description} (${formatEUR(opt.prix)}${opt.type === "jour" ? " / jour" : ""})`;
+      texte.append(titre, desc);
+
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) {
+          if (!data.options.includes(opt.id)) data.options.push(opt.id);
+        } else {
+          data.options = data.options.filter((id) => id !== opt.id);
+        }
+        writeReservationLocal(data);
+        render();
+      });
+
+      label.append(checkbox, texte);
+      optionsList.appendChild(label);
+    });
+  }
+
+  // Code promo : saisie facultative, validée à l'affichage (voir render())
+  // — un code inconnu/expiré n'empêche jamais de continuer la réservation,
+  // il est simplement ignoré dans le calcul.
+  const promoInput = document.getElementById("promo-input");
+  const promoApply = document.getElementById("promo-apply");
+  if (promoInput) promoInput.value = data.codePromo || "";
+  if (promoApply) {
+    promoApply.addEventListener("click", () => {
+      data.codePromo = (promoInput.value || "").trim();
+      writeReservationLocal(data);
+      render();
+    });
+  }
 
   render();
 
@@ -902,7 +997,7 @@ function showPaymentUnavailableFallback(message) {
   formCard.parentNode.insertBefore(fallback, formCard.nextSibling);
 }
 
-function buildPaymentSummary(container, vehicule, data, sousTotal, assuranceMontant, total) {
+function buildPaymentSummary(container, vehicule, data, prix) {
   container.textContent = "";
   const vehicleBlock = document.createElement("div");
   vehicleBlock.className = "summary-vehicle";
@@ -922,11 +1017,7 @@ function buildPaymentSummary(container, vehicule, data, sousTotal, assuranceMont
   vehicleBlock.appendChild(infoDiv);
   container.appendChild(vehicleBlock);
 
-  container.appendChild(summaryRow(`Location (${data.jours} jours)`, formatEUR(sousTotal)));
-  container.appendChild(summaryRow("Assurance", assuranceMontant > 0 ? formatEUR(assuranceMontant) : "—"));
-  const totalRow = summaryRow("Total à régler", formatEUR(total));
-  totalRow.classList.add("total");
-  container.appendChild(totalRow);
+  appendBreakdownRows(container, prix);
 }
 
 function initPaiementPage() {
@@ -943,16 +1034,28 @@ function initPaiementPage() {
     window.location.href = "vehicules.html";
     return;
   }
+  // Compatibilité : réservations en cours démarrées avant l'ajout des
+  // options/code promo.
+  if (!Array.isArray(data.options)) data.options = [];
+  if (typeof data.codePromo !== "string") data.codePromo = "";
 
   // Affichage strictement indicatif : le montant qui fait foi est
   // recalculé côté serveur lors de la création du PaymentIntent (voir
   // netlify/functions/create-payment-intent.js). Le client n'envoie jamais
   // ce total au serveur.
   function renderSummary() {
-    const sousTotal = vehicule.prixJour * data.jours;
-    const assuranceMontant = data.assurance ? PRIX_ASSURANCE_JOUR * data.jours : 0;
-    const total = sousTotal + assuranceMontant;
-    buildPaymentSummary(summary, vehicule, data, sousTotal, assuranceMontant, total);
+    const prix = calculerPrixTotal({
+      vehiculeId: data.vehiculeId,
+      dateDebut: data.dateDebut,
+      heureDebut: data.heureDebut,
+      dateFin: data.dateFin,
+      heureFin: data.heureFin,
+      assurance: data.assurance,
+      options: data.options,
+      codePromo: data.codePromo
+    });
+    if (!prix) return;
+    buildPaymentSummary(summary, vehicule, data, prix);
   }
   renderSummary();
 
@@ -1051,6 +1154,8 @@ function initPaiementPage() {
           adressePrise: data.adressePrise,
           adresseRetour: data.adresseRetour,
           assurance: !!data.assurance,
+          options: data.options,
+          codePromo: data.codePromo,
           conducteur: data.conducteur,
           cglAccepted: true,
           cglVersion: CGL_VERSION,
@@ -1149,6 +1254,38 @@ function initConfirmationPage() {
     });
 }
 
+// Construit les lignes détaillées du prix (sous-total, remise durée,
+// assurance, options, code promo, total) à partir d'un objet retourné par
+// calculerPrixTotal() — ou de la vue publique équivalente renvoyée par
+// /.netlify/functions/reservation-status (voir renderConfirmationDetails).
+// Réutilisé sur reservation.html, paiement.html et confirmation.html pour
+// garantir un affichage cohérent du détail du prix sur tout le tunnel.
+function appendBreakdownRows(container, prix) {
+  container.appendChild(summaryRow(`Location (${prix.jours} jour${prix.jours > 1 ? "s" : ""})`, formatEUR(prix.sousTotalBrut)));
+
+  if (prix.reductionDuree) {
+    const row = summaryRow(`Remise durée (${prix.reductionDuree.libelle}, -${prix.reductionDuree.pourcentage}%)`, `− ${formatEUR(prix.reductionDuree.montant)}`);
+    row.classList.add("discount");
+    container.appendChild(row);
+  }
+
+  container.appendChild(summaryRow("Assurance tous risques", prix.assuranceMontant > 0 ? formatEUR(prix.assuranceMontant) : "—"));
+
+  (prix.optionsSelectionnees || []).forEach((opt) => {
+    container.appendChild(summaryRow(opt.nom, formatEUR(opt.montant)));
+  });
+
+  if (prix.codePromo) {
+    const row = summaryRow(`Code promo ${prix.codePromo.code} (-${prix.codePromo.pourcentage}%)`, `− ${formatEUR(prix.reductionPromoMontant)}`);
+    row.classList.add("discount");
+    container.appendChild(row);
+  }
+
+  const totalRow = summaryRow("Total", formatEUR(prix.total));
+  totalRow.classList.add("total");
+  container.appendChild(totalRow);
+}
+
 function summaryRow(label, value) {
   const row = document.createElement("div");
   row.className = "summary-row";
@@ -1188,10 +1325,20 @@ function renderConfirmationDetails(container, data) {
     container.appendChild(summaryRow("Conducteur", `${data.conducteur.prenom} ${data.conducteur.nom}`));
     container.appendChild(summaryRow("E-mail", data.conducteur.email));
   }
-  container.appendChild(summaryRow("Paiement", "Confirmé via Stripe"));
-  const totalRow = summaryRow("Montant réglé", formatEUR(data.total));
-  totalRow.classList.add("total");
-  container.appendChild(totalRow);
+
+  // La vue publique renvoyée par reservation-status.js expose les mêmes
+  // champs que calculerPrixTotal(), à l'exception d'"options" (au lieu
+  // d'"optionsSelectionnees") — réutilisation directe d'appendBreakdownRows.
+  if (typeof data.sousTotalBrut === "number") {
+    appendBreakdownRows(container, { ...data, optionsSelectionnees: data.options });
+  } else {
+    // Repli pour d'anciennes réservations enregistrées avant l'ajout du
+    // détail complet (sousTotalBrut/options/codePromo absents en base).
+    container.appendChild(summaryRow("Paiement", "Confirmé via Stripe"));
+    const totalRow = summaryRow("Montant réglé", formatEUR(data.total));
+    totalRow.classList.add("total");
+    container.appendChild(totalRow);
+  }
 }
 
 function renderConfirmationPendingOrError(container, status) {

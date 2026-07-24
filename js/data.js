@@ -45,6 +45,60 @@ const PRIX_ASSURANCE_JOUR = 8;
 // il ne garantit pas à lui seul la validité juridique du texte.
 const CGL_VERSION = "2026-07-22";
 
+// Réductions selon la durée de location. Valeurs d'exemple (placeholders) à
+// ajuster librement ici — c'est le seul endroit à modifier pour changer les
+// taux : le calcul, l'affichage véhicules/réservation/paiement et le
+// recalcul serveur s'appuient tous sur ce tableau. Triées du seuil le plus
+// élevé au plus bas pour que reductionDureeApplicable() retienne le
+// meilleur palier atteint.
+const REDUCTIONS_DUREE = [
+  { seuilJours: 30, pourcentage: 20, libelle: "1 mois ou plus" },
+  { seuilJours: 14, pourcentage: 15, libelle: "2 semaines ou plus" },
+  { seuilJours: 7, pourcentage: 10, libelle: "1 semaine ou plus" }
+];
+
+// Retourne le palier de réduction durée applicable (ou null si la location
+// est trop courte pour en bénéficier).
+function reductionDureeApplicable(jours) {
+  return REDUCTIONS_DUREE.find(r => jours >= r.seuilJours) || null;
+}
+
+// Codes promo — liste simple codée en dur (pas d'interface d'administration
+// pour l'instant). Codes insensibles à la casse/espaces (voir
+// getCodePromo). Valeurs d'exemple à ajuster ici.
+const CODES_PROMO = {
+  BIENVENUE10: { pourcentage: 10, description: "10 % de réduction bienvenue" },
+  ETE2026: { pourcentage: 15, description: "15 % de réduction spéciale été 2026" }
+};
+
+// Normalise et recherche un code promo. Retourne null si absent/invalide.
+function getCodePromo(code) {
+  if (!code) return null;
+  const normalise = String(code).trim().toUpperCase();
+  if (!normalise || !CODES_PROMO[normalise]) return null;
+  const promo = CODES_PROMO[normalise];
+  return { code: normalise, pourcentage: promo.pourcentage, description: promo.description };
+}
+
+// Catalogue des options proposées pendant la réservation (avant paiement).
+// type "jour" : prix multiplié par le nombre de jours facturables.
+// type "forfait" : montant fixe, quelle que soit la durée.
+// Prix d'exemple (placeholders) à ajuster ici.
+const OPTIONS = [
+  { id: "siege-auto", nom: "Siège auto bébé", description: "Siège auto homologué pour bébé (0-13 kg)", type: "jour", prix: 5 },
+  { id: "rehausseur", nom: "Réhausseur enfant", description: "Réhausseur homologué pour enfant (15-36 kg)", type: "jour", prix: 3 },
+  { id: "assurance-passagers", nom: "Assurance passagers / accident", description: "Couvre les dommages corporels des passagers en cas d'accident", type: "jour", prix: 6 },
+  { id: "second-conducteur", nom: "Deuxième conducteur", description: "Ajoute un second conducteur autorisé sur le contrat", type: "jour", prix: 7 },
+  { id: "plein-essence", nom: "Retour sans faire le plein", description: "Rendez le véhicule tel quel, on s'occupe de refaire le plein", type: "forfait", prix: 25 },
+  { id: "nettoyage", nom: "Nettoyage complet inclus", description: "Nettoyage intérieur et extérieur à la restitution", type: "forfait", prix: 20 },
+  { id: "km-supplementaire", nom: "Forfait kilométrage supplémentaire", description: "300 km supplémentaires inclus sur la durée de la location", type: "forfait", prix: 30 },
+  { id: "livraison-adresse", nom: "Livraison à l'adresse de votre choix", description: "Le véhicule vous est livré à l'adresse indiquée (Nice, Cannes, Antibes, Grasse, Monaco)", type: "forfait", prix: 15 }
+];
+
+function getOptionParId(id) {
+  return OPTIONS.find(o => o.id === id);
+}
+
 const VEHICULES = [
   {
     id: "opel-corsa",
@@ -177,16 +231,67 @@ function joursFacturablesDepuisHeures(dureeHeures) {
 // Recalcule le prix total d'une location à partir des seules données
 // métier (jamais d'un montant fourni par le client). Utilisé à la fois par
 // l'affichage côté navigateur et par le recalcul faisant foi côté serveur.
-function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFin, assurance }) {
+//
+// Pipeline (dans cet ordre) :
+//   1. sous-total brut = prix/jour du véhicule × jours facturables
+//   2. réduction durée (7/14/30 jours, voir REDUCTIONS_DUREE) appliquée sur
+//      ce sous-total
+//   3. + assurance tous risques (si cochée)
+//   4. + options sélectionnées (voir OPTIONS)
+//   5. − réduction du code promo (si valide), appliquée sur le total obtenu
+//      à l'étape précédente
+//
+// `options` est une liste d'identifiants (ex. ["siege-auto","nettoyage"]) ;
+// les identifiants inconnus sont ignorés ici (la validation stricte côté
+// serveur — qui rejette une requête contenant un identifiant inconnu — se
+// fait séparément dans validate-reservation-input.js).
+function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFin, assurance, options, codePromo }) {
   const vehicule = getVehiculeParId(vehiculeId);
   if (!vehicule) return null;
   const dureeHeures = dureeEnHeures(dateDebut, heureDebut, dateFin, heureFin);
   if (!isFinite(dureeHeures) || dureeHeures <= 0) return null;
   const jours = joursFacturablesDepuisHeures(dureeHeures);
-  const sousTotal = vehicule.prixJour * jours;
+
+  const sousTotalBrut = vehicule.prixJour * jours;
+  const palierReduction = reductionDureeApplicable(jours);
+  const reductionDureeMontant = palierReduction ? Math.round(sousTotalBrut * palierReduction.pourcentage) / 100 : 0;
+  const sousTotal = sousTotalBrut - reductionDureeMontant;
+
   const assuranceMontant = assurance ? PRIX_ASSURANCE_JOUR * jours : 0;
-  const total = sousTotal + assuranceMontant;
-  return { vehicule, jours, sousTotal, assuranceMontant, total, totalCentimes: Math.round(total * 100) };
+
+  const idsOptions = Array.isArray(options) ? [...new Set(options)] : [];
+  const optionsSelectionnees = idsOptions
+    .map(id => getOptionParId(id))
+    .filter(Boolean)
+    .map(opt => ({
+      id: opt.id,
+      nom: opt.nom,
+      type: opt.type,
+      montant: opt.type === "jour" ? opt.prix * jours : opt.prix
+    }));
+  const optionsMontant = optionsSelectionnees.reduce((somme, o) => somme + o.montant, 0);
+
+  const baseAvantPromo = sousTotal + assuranceMontant + optionsMontant;
+  const promo = getCodePromo(codePromo);
+  const reductionPromoMontant = promo ? Math.round(baseAvantPromo * promo.pourcentage) / 100 : 0;
+
+  const total = baseAvantPromo - reductionPromoMontant;
+
+  return {
+    vehicule,
+    jours,
+    sousTotalBrut,
+    reductionDuree: palierReduction ? { pourcentage: palierReduction.pourcentage, montant: reductionDureeMontant, libelle: palierReduction.libelle } : null,
+    sousTotal,
+    assuranceMontant,
+    optionsSelectionnees,
+    optionsMontant,
+    baseAvantPromo,
+    codePromo: promo,
+    reductionPromoMontant,
+    total,
+    totalCentimes: Math.round(total * 100)
+  };
 }
 
 // Export CommonJS gardé : ne s'exécute que côté Node (fonctions Netlify).
@@ -202,10 +307,16 @@ if (typeof module !== "undefined" && module.exports) {
     HEURE_OUVERTURE,
     HEURE_FERMETURE,
     PRIX_ASSURANCE_JOUR,
+    REDUCTIONS_DUREE,
+    CODES_PROMO,
+    OPTIONS,
     formatEUR,
     getVehiculeParId,
     dureeEnHeures,
     joursFacturablesDepuisHeures,
+    reductionDureeApplicable,
+    getCodePromo,
+    getOptionParId,
     calculerPrixTotal
   };
 }

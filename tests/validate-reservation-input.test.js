@@ -2,7 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { validateReservationInput } = require("../netlify/functions/lib/validate-reservation-input.js");
-const { CGL_VERSION, LIEU_LIVRAISON, VILLES_LIVRAISON } = require("../js/data.js");
+const { CGL_VERSION, LIEU_LIVRAISON, VILLES_LIVRAISON, OPTIONS } = require("../js/data.js");
 
 function basePayload(overrides = {}) {
   return {
@@ -154,4 +154,58 @@ test("rejette une ville de livraison renseignée alors que le lieu n'est pas \"L
   );
   assert.equal(valid, false);
   assert.ok(errors.some((e) => e.includes("Ville de livraison")));
+});
+
+/* ---------------------------------------------------------
+   Options et code promo
+--------------------------------------------------------- */
+
+test("accepte une liste d'options connues et la renvoie normalisée (dédupliquée)", () => {
+  const ids = OPTIONS.slice(0, 2).map((o) => o.id);
+  const { valid, options } = validateReservationInput(basePayload({ options: [...ids, ids[0]] }));
+  assert.equal(valid, true);
+  assert.deepEqual(options.sort(), [...ids].sort());
+});
+
+test("rejette un identifiant d'option inconnu", () => {
+  const { valid, errors } = validateReservationInput(basePayload({ options: ["option-qui-nexiste-pas"] }));
+  assert.equal(valid, false);
+  assert.ok(errors.includes("Option inconnue"));
+});
+
+test("rejette des options mal formées (pas un tableau, ou trop longues)", () => {
+  const nonTableau = validateReservationInput(basePayload({ options: "siege-auto" }));
+  assert.equal(nonTableau.valid, false);
+  assert.ok(nonTableau.errors.includes("Options invalides"));
+
+  const trop = validateReservationInput(basePayload({ options: Array(21).fill(OPTIONS[0].id) }));
+  assert.equal(trop.valid, false);
+  assert.ok(trop.errors.includes("Options invalides"));
+});
+
+test("accepte une absence d'options (facultatif)", () => {
+  const { valid, options } = validateReservationInput(basePayload());
+  assert.equal(valid, true);
+  assert.deepEqual(options, []);
+});
+
+test("accepte un code promo bien formé, même inconnu (la validité du taux est vérifiée au calcul, pas ici)", () => {
+  const { valid, codePromo } = validateReservationInput(basePayload({ codePromo: "BIENVENUE10" }));
+  assert.equal(valid, true);
+  assert.equal(codePromo, "BIENVENUE10");
+
+  const inconnu = validateReservationInput(basePayload({ codePromo: "CODE-BIDON-INEXISTANT" }));
+  assert.equal(inconnu.valid, true);
+});
+
+test("rejette un code promo excessivement long", () => {
+  const { valid, errors } = validateReservationInput(basePayload({ codePromo: "X".repeat(41) }));
+  assert.equal(valid, false);
+  assert.ok(errors.includes("Code promo invalide"));
+});
+
+test("accepte une absence de code promo (facultatif)", () => {
+  const { valid, codePromo } = validateReservationInput(basePayload());
+  assert.equal(valid, true);
+  assert.equal(codePromo, null);
 });

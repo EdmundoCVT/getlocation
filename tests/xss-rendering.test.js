@@ -76,7 +76,13 @@ test("buildPaymentSummary (paiement.html) échappe les données conducteur", () 
     jours: 2,
     conducteur: { prenom: XSS_PRENOM, nom: XSS_NOM, email: "test@example.com" }
   };
-  window.buildPaymentSummary(container, vehicule, data, 120, 0, 120);
+  const prix = window.calculerPrixTotal({
+    vehiculeId: "opel-corsa",
+    dateDebut: data.dateDebut, heureDebut: data.heureDebut,
+    dateFin: data.dateFin, heureFin: data.heureFin,
+    assurance: false, options: [], codePromo: ""
+  });
+  window.buildPaymentSummary(container, vehicule, data, prix);
   assertNoScriptInjection(container, [XSS_PRENOM, XSS_NOM]);
 });
 

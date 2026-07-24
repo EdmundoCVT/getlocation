@@ -67,6 +67,13 @@ function toSafePublicView(reservation) {
     adresseRetour: reservation.adresseRetour,
     assurance: !!reservation.assurance,
     jours: reservation.jours,
+    sousTotalBrut: reservation.sousTotalBrut,
+    reductionDuree: reservation.reductionDuree || null,
+    assuranceMontant: reservation.assuranceMontant,
+    options: Array.isArray(reservation.options) ? reservation.options : [],
+    optionsMontant: reservation.optionsMontant,
+    codePromo: reservation.codePromo || null,
+    reductionPromoMontant: reservation.reductionPromoMontant,
     total: reservation.total,
     conducteur: reservation.conducteur
       ? { prenom: reservation.conducteur.prenom, nom: reservation.conducteur.nom, email: reservation.conducteur.email }
