@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Réservation — GETLOCATION</title>
-<meta name="description" content="Finalisez votre réservation de véhicule GETLOCATION : renseignez vos informations conducteur et accédez au paiement sécurisé en quelques clics.">
+<meta name="description" content="Finalisez votre réservation GETLOCATION : ajoutez vos options, appliquez un code promo et consultez le prix final avant de passer au paiement.">
 <link rel="canonical" href="https://getlocation.fr/reservation">
 <meta name="robots" content="noindex, follow">
 <link rel="icon" href="/favicon.ico" sizes="any">
@@ -16,14 +16,14 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GETLOCATION">
 <meta property="og:title" content="Réservation — GETLOCATION">
-<meta property="og:description" content="Finalisez votre réservation de véhicule GETLOCATION : renseignez vos informations conducteur et accédez au paiement sécurisé en quelques clics.">
+<meta property="og:description" content="Finalisez votre réservation GETLOCATION : ajoutez vos options, appliquez un code promo et consultez le prix final avant de passer au paiement.">
 <meta property="og:url" content="https://getlocation.fr/reservation">
 <meta property="og:image" content="https://getlocation.fr/images/og-share.jpg">
 <meta property="og:locale" content="fr_FR">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Réservation — GETLOCATION">
-<meta name="twitter:description" content="Finalisez votre réservation de véhicule GETLOCATION : renseignez vos informations conducteur et accédez au paiement sécurisé en quelques clics.">
+<meta name="twitter:description" content="Finalisez votre réservation GETLOCATION : ajoutez vos options, appliquez un code promo et consultez le prix final avant de passer au paiement.">
 <meta name="twitter:image" content="https://getlocation.fr/images/og-share.jpg">
 
 <script type="application/ld+json">
@@ -163,61 +163,21 @@
 </div>
 
 <section class="section container">
-  <h1 class="sr-only">Réservation — Informations du conducteur</h1>
+  <h1 class="sr-only">Réservation — Options et prix final</h1>
   <div class="steps">
     <div class="step done"><span class="step-num">1</span> Véhicule</div>
     <div class="step-sep"></div>
-    <div class="step current"><span class="step-num">2</span> Conducteur</div>
+    <div class="step current"><span class="step-num">2</span> Options</div>
     <div class="step-sep"></div>
     <div class="step"><span class="step-num">3</span> Paiement</div>
   </div>
 
   <div class="booking-layout">
     <div class="card">
-      <h2>Informations du conducteur</h2>
-      <form id="driver-form" novalidate>
-        <div class="form-grid">
-          <div class="field">
-            <label for="nom">Nom</label>
-            <input type="text" id="nom" name="nom" required aria-describedby="err-nom" aria-invalid="false">
-            <div class="error-text" id="err-nom" aria-live="polite"></div>
-          </div>
-          <div class="field">
-            <label for="prenom">Prénom</label>
-            <input type="text" id="prenom" name="prenom" required aria-describedby="err-prenom" aria-invalid="false">
-            <div class="error-text" id="err-prenom" aria-live="polite"></div>
-          </div>
-          <div class="field">
-            <label for="email">E-mail</label>
-            <input type="email" id="email" name="email" required aria-describedby="err-email" aria-invalid="false">
-            <div class="error-text" id="err-email" aria-live="polite"></div>
-          </div>
-          <div class="field">
-            <label for="telephone">Téléphone</label>
-            <input type="tel" id="telephone" name="telephone" placeholder="+33 6 ..." required aria-describedby="err-telephone" aria-invalid="false">
-            <div class="error-text" id="err-telephone" aria-live="polite"></div>
-          </div>
-          <div class="field">
-            <label for="permis">N° de permis de conduire</label>
-            <input type="text" id="permis" name="permis" required aria-describedby="err-permis" aria-invalid="false">
-            <div class="error-text" id="err-permis" aria-live="polite"></div>
-          </div>
-          <div class="field">
-            <label for="age">Âge du conducteur</label>
-            <input type="number" id="age" name="age" min="18" max="99" required aria-describedby="err-age" aria-invalid="false">
-            <div class="error-text" id="err-age" aria-live="polite"></div>
-          </div>
-        </div>
-        <button type="submit" class="btn btn-primary btn-block" style="margin-top: 10px;">Continuer vers le paiement</button>
-      </form>
-    </div>
-
-    <div class="card">
-      <h2>Résumé de la réservation</h2>
-      <div id="reservation-summary" aria-live="polite"></div>
+      <h2>Personnalisez votre location</h2>
       <label class="badge-insurance">
         <input type="checkbox" id="assurance">
-        Ajouter l'assurance tous risques (8 € / jour) — franchise réduite à 0 €
+        Ajouter l'assurance tous risques (15 € / jour) — franchise réduite à 0 €
       </label>
 
       <h3 class="options-title">Options supplémentaires</h3>
@@ -229,6 +189,13 @@
         <button type="button" class="btn btn-secondary btn-sm" id="promo-apply">Appliquer</button>
       </div>
       <div class="error-text" id="promo-message" aria-live="polite"></div>
+    </div>
+
+    <div class="card">
+      <h2>Résumé de la réservation</h2>
+      <div id="reservation-summary" aria-live="polite"></div>
+      <button type="button" class="btn btn-primary btn-block" id="continue-to-payment" style="margin-top: 16px;">Continuer vers le paiement</button>
+      <p class="hint-text" style="text-align:center; margin-top:8px;">Vos coordonnées vous seront demandées à l'étape suivante.</p>
     </div>
   </div>
 </section>
@@ -268,6 +235,6 @@
 </footer>
 
 <script src="js/data.js"></script>
-<script src="js/app.js?v=8"></script>
+<script src="js/app.js?v=9"></script>
 </body>
 </html>

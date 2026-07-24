@@ -874,8 +874,8 @@ function initReservationPage() {
   render();
 
   // Barre de dates persistante : permet d'ajuster les dates directement
-  // depuis cette page (avant de renseigner ses informations conducteur)
-  // sans revenir en arrière — le résumé et le total se recalculent aussitôt.
+  // depuis cette page sans revenir en arrière — le résumé et le total se
+  // recalculent aussitôt.
   initDateBar({
     getData: () => ({ dateDebut: data.dateDebut, heureDebut: data.heureDebut, dateFin: data.dateFin, heureFin: data.heureFin, jours: data.jours }),
     onApply: (nouvellesDates) => {
@@ -888,32 +888,18 @@ function initReservationPage() {
     }
   });
 
-  const form = document.getElementById("driver-form");
-
-  // Retour arrière sans perte : si le conducteur avait déjà rempli ce
-  // formulaire (ex. retour depuis paiement.html via le bouton précédent du
-  // navigateur), on pré-remplit les champs plutôt que de les laisser vides.
-  if (data.conducteur) {
-    ["nom", "prenom", "email", "telephone", "permis", "age"].forEach((id) => {
-      const input = form.querySelector(`[name="${id}"]`);
-      if (input && data.conducteur[id] !== undefined) input.value = data.conducteur[id];
+  // Demande client : laisser le client ajouter toutes les options
+  // nécessaires et voir le prix final AVANT de demander ses coordonnées
+  // (nom/prénom/permis/etc.) — ces informations ne sont désormais saisies
+  // qu'à l'étape suivante (paiement.html). Chaque interaction ci-dessus
+  // (assurance/options/promo/dates) persiste déjà `data` immédiatement, il
+  // n'y a donc rien de plus à sauvegarder ici avant de continuer.
+  const continueButton = document.getElementById("continue-to-payment");
+  if (continueButton) {
+    continueButton.addEventListener("click", () => {
+      window.location.href = "paiement.html";
     });
   }
-
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    if (!validateDriverForm(form)) return;
-
-    const formData = new FormData(form);
-    const conducteur = Object.fromEntries(formData.entries());
-
-    writeReservationLocal({
-      ...data,
-      assurance: assuranceCheckbox.checked,
-      conducteur
-    });
-    window.location.href = "paiement.html";
-  });
 }
 
 function validateDriverForm(form) {
@@ -1007,13 +993,18 @@ function buildPaymentSummary(container, vehicule, data, prix) {
   const nameDiv = document.createElement("div");
   nameDiv.className = "vehicle-name";
   nameDiv.textContent = vehicule.nom;
-  const driverDiv = document.createElement("div");
-  driverDiv.className = "hint-text";
-  driverDiv.textContent = `${data.conducteur.prenom} ${data.conducteur.nom}`;
   const datesDiv = document.createElement("div");
   datesDiv.className = "hint-text";
   datesDiv.textContent = `${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)}`;
-  infoDiv.append(nameDiv, driverDiv, datesDiv);
+  infoDiv.append(nameDiv, datesDiv);
+  // Les coordonnées ne sont saisies que sur cette page (voir plus bas) :
+  // au premier rendu, `data.conducteur` n'existe pas encore.
+  if (data.conducteur) {
+    const driverDiv = document.createElement("div");
+    driverDiv.className = "hint-text";
+    driverDiv.textContent = `${data.conducteur.prenom} ${data.conducteur.nom}`;
+    infoDiv.insertBefore(driverDiv, datesDiv);
+  }
   vehicleBlock.appendChild(infoDiv);
   container.appendChild(vehicleBlock);
 
@@ -1025,10 +1016,14 @@ function initPaiementPage() {
   if (!summary) return;
 
   const data = readReservationLocal();
-  if (!data || !data.conducteur) {
+  if (!data) {
     window.location.href = "vehicules.html";
     return;
   }
+  // Demande client : les coordonnées (nom/prénom/permis/etc.) ne sont
+  // demandées qu'à cette dernière étape, une fois que le client a déjà vu
+  // le prix final avec ses options — `data.conducteur` n'existe donc pas
+  // forcément encore ici (voir le formulaire plus bas).
   const vehicule = getVehiculeParId(data.vehiculeId);
   if (!vehicule) {
     window.location.href = "vehicules.html";
@@ -1082,6 +1077,16 @@ function initPaiementPage() {
   const cardErrors = document.getElementById("stripe-card-errors");
   const banner = document.getElementById("info-banner");
 
+  // Retour arrière sans perte : si le conducteur avait déjà rempli ces
+  // champs (ex. retour depuis la page suivante via le bouton précédent du
+  // navigateur), on pré-remplit plutôt que de les laisser vides.
+  if (data.conducteur) {
+    ["nom", "prenom", "email", "telephone", "permis", "age"].forEach((id) => {
+      const input = form.querySelector(`[name="${id}"]`);
+      if (input && data.conducteur[id] !== undefined) input.value = data.conducteur[id];
+    });
+  }
+
   if (typeof Stripe === "undefined" || !window.STRIPE_PUBLISHABLE_KEY || window.STRIPE_PUBLISHABLE_KEY.includes("A_REMPLACER")) {
     showPaymentUnavailableFallback("Le paiement en ligne n'est pas encore configuré. Contactez-nous pour finaliser votre réservation :");
     return;
@@ -1112,6 +1117,14 @@ function initPaiementPage() {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     cardErrors.textContent = "";
+
+    // Coordonnées d'abord (haut du formulaire), puis carte, puis CGL — même
+    // ordre que l'affichage, pour que le focus posé sur le premier champ en
+    // erreur corresponde toujours à ce que le client voit.
+    if (!validateDriverForm(form)) return;
+    const formData = new FormData(form);
+    data.conducteur = Object.fromEntries(formData.entries());
+    writeReservationLocal(data);
 
     if (!cardName.value.trim() || cardName.value.trim().length < 2) {
       document.getElementById("err-card-name").textContent = "Nom du titulaire requis";

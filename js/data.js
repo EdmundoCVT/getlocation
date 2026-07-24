@@ -32,7 +32,7 @@ const HEURE_OUVERTURE = "08:00";
 const HEURE_FERMETURE = "19:00";
 
 // Prix de l'assurance tous risques optionnelle (par jour facturable).
-const PRIX_ASSURANCE_JOUR = 8;
+const PRIX_ASSURANCE_JOUR = 15;
 
 // Identifiant de version des conditions générales de location (CGL) et de
 // la politique de confidentialité actuellement en vigueur. Toute

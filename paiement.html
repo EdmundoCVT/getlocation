@@ -174,15 +174,49 @@
   <div class="steps">
     <div class="step done"><span class="step-num">1</span> Véhicule</div>
     <div class="step-sep"></div>
-    <div class="step done"><span class="step-num">2</span> Conducteur</div>
+    <div class="step done"><span class="step-num">2</span> Options</div>
     <div class="step-sep"></div>
     <div class="step current"><span class="step-num">3</span> Paiement</div>
   </div>
 
   <div class="booking-layout">
     <div class="card">
-      <h2>Paiement sécurisé</h2>
+      <h2>Vos coordonnées</h2>
       <form id="payment-form" novalidate>
+        <div class="form-grid">
+          <div class="field">
+            <label for="nom">Nom</label>
+            <input type="text" id="nom" name="nom" required aria-describedby="err-nom" aria-invalid="false">
+            <div class="error-text" id="err-nom" aria-live="polite"></div>
+          </div>
+          <div class="field">
+            <label for="prenom">Prénom</label>
+            <input type="text" id="prenom" name="prenom" required aria-describedby="err-prenom" aria-invalid="false">
+            <div class="error-text" id="err-prenom" aria-live="polite"></div>
+          </div>
+          <div class="field">
+            <label for="email">E-mail</label>
+            <input type="email" id="email" name="email" required aria-describedby="err-email" aria-invalid="false">
+            <div class="error-text" id="err-email" aria-live="polite"></div>
+          </div>
+          <div class="field">
+            <label for="telephone">Téléphone</label>
+            <input type="tel" id="telephone" name="telephone" placeholder="+33 6 ..." required aria-describedby="err-telephone" aria-invalid="false">
+            <div class="error-text" id="err-telephone" aria-live="polite"></div>
+          </div>
+          <div class="field">
+            <label for="permis">N° de permis de conduire</label>
+            <input type="text" id="permis" name="permis" required aria-describedby="err-permis" aria-invalid="false">
+            <div class="error-text" id="err-permis" aria-live="polite"></div>
+          </div>
+          <div class="field">
+            <label for="age">Âge du conducteur</label>
+            <input type="number" id="age" name="age" min="18" max="99" required aria-describedby="err-age" aria-invalid="false">
+            <div class="error-text" id="err-age" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <h2>Paiement sécurisé</h2>
         <div class="form-grid">
           <div class="field full">
             <label for="card-name">Nom du titulaire</label>
@@ -258,6 +292,6 @@
 <script src="https://js.stripe.com/v3/"></script>
 <script src="js/data.js"></script>
 <script src="js/stripe-config.js"></script>
-<script src="js/app.js?v=8"></script>
+<script src="js/app.js?v=9"></script>
 </body>
 </html>
