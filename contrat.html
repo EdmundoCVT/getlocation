@@ -216,7 +216,7 @@
 
         <div class="check-row">
           <input type="checkbox" id="second-conducteur-toggle">
-          <label for="second-conducteur-toggle">Ajouter un second conducteur</label>
+          <label for="second-conducteur-toggle">Ajouter un second conducteur <strong>(+10 €)</strong></label>
         </div>
         <div class="second-conducteur" id="secondConducteurBlock">
           <div class="grid">
@@ -323,10 +323,10 @@
 
 <script>
 const VEHICULES = [
-  { id:"opel-corsa", nom:"Opel Corsa Business 1.2T (2026)", prixJour:60, caution:500 },
-  { id:"peugeot-2008-hybrid", nom:"Peugeot 2008 Hybrid (2026)", prixJour:70, caution:500 },
-  { id:"peugeot-3008", nom:"Peugeot 3008 (2026)", prixJour:80, caution:500 },
-  { id:"toyota-proace-city", nom:"Toyota Proace City (2026)", prixJour:90, caution:500 }
+  { id:"opel-corsa", nom:"Opel Corsa Business 1.2T (2026)", prixJour:49, caution:500 },
+  { id:"peugeot-2008-hybrid", nom:"Peugeot 2008 Hybrid (2026)", prixJour:59, caution:500 },
+  { id:"peugeot-3008", nom:"Peugeot 3008 (2026)", prixJour:69, caution:500 },
+  { id:"toyota-proace-city", nom:"Toyota Proace City (2026)", prixJour:79, caution:500 }
 ];
 const LIEUX = [
   "Agence Grasse (siège)",
@@ -334,6 +334,7 @@ const LIEUX = [
   "Agence Antibes",
   "Aéroport Nice Côte d'Azur"
 ];
+const SUPPLEMENT_CONDUCTEUR = 10;
 
 function dureeHeures(a,b){
   var h = (new Date(b) - new Date(a)) / (1000*60*60);
@@ -437,12 +438,13 @@ function initOwnerView(){
     if(!v || !inputDepart.value || !inputRetour.value) return;
     var heures = dureeHeures(inputDepart.value, inputRetour.value);
     var total = calculTarif(v.prixJour, heures);
+    if(secondToggle.checked) total += SUPPLEMENT_CONDUCTEUR;
     document.getElementById('vehiculeRecap').innerHTML =
       '<span><strong>' + v.nom + '</strong> — ' + v.prixJour + ' €/jour</span>' +
       '<span>Caution : ' + formatEUR(v.caution) + '</span>';
     document.getElementById('dureeTxt').textContent = formatDuree(heures);
     document.getElementById('kmTxt').textContent = kmInclusPour(heures).toLocaleString('fr-FR') + ' km';
-    document.getElementById('totalTxt').textContent = formatEUR(total);
+    document.getElementById('totalTxt').textContent = formatEUR(total) + (secondToggle.checked ? ' (dont +10 € 2e conducteur)' : '');
   }
   document.getElementById('ownerForm').addEventListener('input', updateSummary);
   updateSummary();
@@ -494,6 +496,7 @@ function initClientView(data){
   if(!v) v = VEHICULES[0];
   var heures = dureeHeures(data.depart, data.retour);
   var total = calculTarif(v.prixJour, heures);
+  if(data.secondConducteur) total += SUPPLEMENT_CONDUCTEUR;
   var kmInclus = kmInclusPour(heures);
 
   document.getElementById('recapVehicule').innerHTML =
@@ -506,7 +509,7 @@ function initClientView(data){
 
   document.getElementById('c-dureeTxt').textContent = formatDuree(heures);
   document.getElementById('c-kmTxt').textContent = kmInclus.toLocaleString('fr-FR') + ' km';
-  document.getElementById('c-totalTxt').textContent = formatEUR(total);
+  document.getElementById('c-totalTxt').textContent = formatEUR(total) + (data.secondConducteur ? ' (dont +10 € 2e conducteur)' : '');
 
   var locataireHtml =
     '<div class="recap-row"><span>Locataire</span><span>' + data.nom + '</span></div>' +
