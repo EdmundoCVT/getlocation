@@ -268,8 +268,8 @@
 
       <div class="card">
         <h2>Lien à envoyer au client</h2>
-        <p class="lead" style="margin-bottom:10px;">Une fois les champs remplis, générez le lien : le client l'ouvrira, verra un récapitulatif en lecture seule, et n'aura plus qu'à cocher et signer.</p>
-        <button type="button" class="btn btn-primary" id="generateBtn">Générer le lien pour le client</button>
+        <p class="lead" style="margin-bottom:10px;">Le lien se met à jour automatiquement à chaque champ rempli : le client verra toujours les dernières informations, pas besoin de le régénérer.</p>
+        <p class="meta-line" id="linkHint">Complétez tous les champs obligatoires ci-dessus pour faire apparaître le lien.</p>
         <div class="link-box hidden" id="linkBox">
           <input type="text" id="linkOutput" readonly>
           <button type="button" class="btn" id="copyBtn">📋 Copier</button>
@@ -482,6 +482,7 @@ function initOwnerView(){
     cautionTabs.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
     btn.classList.add('active');
     modeCaution = btn.dataset.mode;
+    regenererLien();
   });
 
   secondToggle.addEventListener('change', function(){
@@ -508,14 +509,29 @@ function initOwnerView(){
     document.getElementById('kmTxt').textContent = kmInclusPour(heures).toLocaleString('fr-FR') + ' km';
     document.getElementById('totalTxt').textContent = formatEUR(total);
   }
-  document.getElementById('ownerForm').addEventListener('input', updateSummary);
+  document.getElementById('ownerForm').addEventListener('input', function(){
+    updateSummary();
+    regenererLien();
+  });
   updateSummary();
 
-  document.getElementById('generateBtn').addEventListener('click', function(){
+  function tousLesChampsRequisRemplis(){
     var required = document.querySelectorAll('#ownerForm [required]');
     for(var i=0;i<required.length;i++){
-      if(!required[i].value){ required[i].reportValidity(); return; }
+      if(!required[i].value) return false;
     }
+    return true;
+  }
+
+  function regenererLien(){
+    if(!tousLesChampsRequisRemplis()){
+      document.getElementById('linkBox').classList.add('hidden');
+      document.getElementById('shareActions').classList.add('hidden');
+      document.getElementById('linkHint').classList.remove('hidden');
+      return;
+    }
+    document.getElementById('linkHint').classList.add('hidden');
+
     var data = {
       vehiculeId: selectVehicule.value,
       immat: document.getElementById('immat').value,
@@ -542,9 +558,10 @@ function initOwnerView(){
     var url = window.location.origin + window.location.pathname + '?data=' + encodeData(data);
     var linkBox = document.getElementById('linkBox');
     var linkOutput = document.getElementById('linkOutput');
+    var lienAChange = linkOutput.value !== url;
     linkOutput.value = url;
     linkBox.classList.remove('hidden');
-    document.getElementById('copiedMsg').classList.add('hidden');
+    if(lienAChange) document.getElementById('copiedMsg').classList.add('hidden');
 
     var vehiculeChoisi = VEHICULES.find(function(v){ return v.id === selectVehicule.value; });
     var message = 'Bonjour ' + (data.nom || '') + ', voici le lien pour vérifier et signer votre contrat de location ' +
@@ -576,7 +593,8 @@ function initOwnerView(){
     } else {
       nativeShareBtn.classList.add('hidden');
     }
-  });
+  }
+  regenererLien();
 
   document.getElementById('copyBtn').addEventListener('click', function(){
     var linkOutput = document.getElementById('linkOutput');
