@@ -122,6 +122,8 @@
   .link-box{display:flex;gap:8px;margin-top:14px;}
   .link-box input{background:var(--gris-clair);font-size:13px;color:#6b6478;}
   .link-box .btn{flex:none;}
+  .share-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .share-btn{flex:1 1 auto;min-width:110px;text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;}
   .hidden{display:none !important;}
   @media print{
     .no-print{display:none!important;}
@@ -270,7 +272,14 @@
         <button type="button" class="btn btn-primary" id="generateBtn">Générer le lien pour le client</button>
         <div class="link-box hidden" id="linkBox">
           <input type="text" id="linkOutput" readonly>
-          <button type="button" class="btn" id="copyBtn">Copier</button>
+          <button type="button" class="btn" id="copyBtn">📋 Copier</button>
+        </div>
+        <div class="share-actions hidden" id="shareActions">
+          <a class="btn share-btn" id="whatsappBtn" target="_blank" rel="noopener">💬 WhatsApp</a>
+          <a class="btn share-btn" id="smsBtn">📱 SMS</a>
+          <a class="btn share-btn" id="emailBtn">✉️ E-mail</a>
+          <button type="button" class="btn share-btn" id="downloadBtn">⬇️ Télécharger</button>
+          <button type="button" class="btn share-btn hidden" id="nativeShareBtn">📤 Partager</button>
         </div>
         <p class="meta-line hidden" id="copiedMsg">Lien copié ✓</p>
       </div>
@@ -536,6 +545,37 @@ function initOwnerView(){
     linkOutput.value = url;
     linkBox.classList.remove('hidden');
     document.getElementById('copiedMsg').classList.add('hidden');
+
+    var vehiculeChoisi = VEHICULES.find(function(v){ return v.id === selectVehicule.value; });
+    var message = 'Bonjour ' + (data.nom || '') + ', voici le lien pour vérifier et signer votre contrat de location ' +
+      (vehiculeChoisi ? vehiculeChoisi.nom : '') + ' — GETLOCATION : ' + url;
+    var messageEnc = encodeURIComponent(message);
+
+    document.getElementById('shareActions').classList.remove('hidden');
+    document.getElementById('whatsappBtn').href = 'https://wa.me/?text=' + messageEnc;
+    document.getElementById('smsBtn').href = 'sms:?body=' + messageEnc;
+    document.getElementById('emailBtn').href = 'mailto:?subject=' +
+      encodeURIComponent('Votre contrat de location GETLOCATION') + '&body=' + messageEnc;
+
+    document.getElementById('downloadBtn').onclick = function(){
+      var blob = new Blob([message], { type: 'text/plain;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'lien-contrat-getlocation.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    };
+
+    var nativeShareBtn = document.getElementById('nativeShareBtn');
+    if(navigator.share){
+      nativeShareBtn.classList.remove('hidden');
+      nativeShareBtn.onclick = function(){
+        navigator.share({ title: 'Contrat de location GETLOCATION', text: message, url: url }).catch(function(){});
+      };
+    } else {
+      nativeShareBtn.classList.add('hidden');
+    }
   });
 
   document.getElementById('copyBtn').addEventListener('click', function(){
