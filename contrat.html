@@ -183,6 +183,26 @@
             <button type="button" class="tab-btn" data-mode="especes">Espèces</button>
           </div>
         </div>
+        <div class="check-row">
+          <input type="checkbox" id="livraison-toggle">
+          <label for="livraison-toggle">Livraison du véhicule à une adresse <strong>(+20 €)</strong></label>
+        </div>
+        <div class="second-conducteur" id="livraisonBlock">
+          <div class="grid">
+            <div class="field full">
+              <label for="livraisonRue">Adresse de livraison</label>
+              <input id="livraisonRue" type="text" placeholder="N° et nom de rue">
+            </div>
+            <div class="field">
+              <label for="livraisonCP">Code postal</label>
+              <input id="livraisonCP" type="text" inputmode="numeric" placeholder="06130" maxlength="5">
+            </div>
+            <div class="field">
+              <label for="livraisonVille">Ville</label>
+              <input id="livraisonVille" type="text" placeholder="Grasse">
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="card">
@@ -197,8 +217,16 @@
             <input id="naissance" type="date" required>
           </div>
           <div class="field full">
-            <label for="adresse">Adresse</label>
+            <label for="adresse">Adresse (n° et rue)</label>
             <input id="adresse" type="text" required>
+          </div>
+          <div class="field">
+            <label for="codePostal">Code postal</label>
+            <input id="codePostal" type="text" inputmode="numeric" placeholder="06130" maxlength="5" required>
+          </div>
+          <div class="field">
+            <label for="ville">Ville</label>
+            <input id="ville" type="text" required>
           </div>
           <div class="field">
             <label for="tel">Téléphone</label>
@@ -270,7 +298,7 @@
       <h2>Conditions de location</h2>
       <div class="contract-text" id="contractText">
         <h3>Article 1 — Objet</h3>
-        <p>GETLOCATION (TLST SAS) loue au locataire désigné ci-dessus le véhicule <span class="fill" data-fill="vehicule">…</span>, immatriculé <span class="fill" data-fill="immat">…</span>, du <span class="fill" data-fill="depart">…</span> au <span class="fill" data-fill="retour">…</span> (<span class="fill" data-fill="duree">…</span>), prise en charge à <span class="fill" data-fill="lieu">…</span>, pour un montant total de <span class="fill" data-fill="total">…</span>.</p>
+        <p>GETLOCATION (TLST SAS) loue au locataire désigné ci-dessus le véhicule <span class="fill" data-fill="vehicule">…</span>, immatriculé <span class="fill" data-fill="immat">…</span>, du <span class="fill" data-fill="depart">…</span> au <span class="fill" data-fill="retour">…</span> (<span class="fill" data-fill="duree">…</span>). Lieu : <span class="fill" data-fill="lieu">…</span>. Montant total de la location : <span class="fill" data-fill="total">…</span>.</p>
         <h3>Article 2 — Assurance et franchise</h3>
         <p>Le véhicule est couvert par une assurance responsabilité civile et les garanties complémentaires en vigueur. Une franchise reste à la charge du locataire en cas de sinistre responsable. Le locataire déclare être titulaire d'un permis valide et s'engage à respecter le code de la route.</p>
         <h3>Article 3 — Caution et état du véhicule</h3>
@@ -323,11 +351,12 @@
 
 <script>
 const VEHICULES = [
-  { id:"opel-corsa", nom:"Opel Corsa Business 1.2T (2026)", prixJour:49, caution:500 },
-  { id:"peugeot-2008-hybrid", nom:"Peugeot 2008 Hybrid (2026)", prixJour:59, caution:500 },
-  { id:"peugeot-3008", nom:"Peugeot 3008 (2026)", prixJour:69, caution:500 },
-  { id:"toyota-proace-city", nom:"Toyota Proace City (2026)", prixJour:79, caution:500 }
+  { id:"opel-corsa", nom:"Opel Corsa Business 1.2T (2026)", prixJour:49, caution:500, immat:"HJ-967-KQ" },
+  { id:"peugeot-2008-hybrid", nom:"Peugeot 2008 Hybrid (2026)", prixJour:59, caution:500, immat:"HK-493-ZN" },
+  { id:"peugeot-3008", nom:"Peugeot 3008 (2026)", prixJour:69, caution:500, immat:"HK-085-LQ" },
+  { id:"toyota-proace-city", nom:"Toyota Proace City (2026)", prixJour:79, caution:500, immat:"HK-619-XA" }
 ];
+const SUPPLEMENT_LIVRAISON = 20;
 const LIEUX = [
   "Agence Grasse (siège)",
   "Agence Cannes",
@@ -381,6 +410,7 @@ if(encoded){
 
 function initOwnerView(){
   var selectVehicule = document.getElementById('vehicule');
+  var inputImmat = document.getElementById('immat');
   var selectLieu = document.getElementById('lieu');
   var inputDepart = document.getElementById('depart');
   var inputRetour = document.getElementById('retour');
@@ -388,11 +418,32 @@ function initOwnerView(){
   var modeCaution = 'carte';
   var secondToggle = document.getElementById('second-conducteur-toggle');
   var secondBlock = document.getElementById('secondConducteurBlock');
+  var livraisonToggle = document.getElementById('livraison-toggle');
+  var livraisonBlock = document.getElementById('livraisonBlock');
 
   VEHICULES.forEach(function(v){
     selectVehicule.add(new Option(v.nom + ' — ' + v.prixJour + ' €/jour', v.id));
   });
   LIEUX.forEach(function(l){ selectLieu.add(new Option(l, l)); });
+
+  function appliquerPlaque(){
+    var v = VEHICULES.find(function(x){ return x.id === selectVehicule.value; });
+    if(v) inputImmat.value = v.immat;
+  }
+  selectVehicule.addEventListener('change', function(){
+    appliquerPlaque();
+    updateSummary();
+  });
+  appliquerPlaque();
+
+  livraisonToggle.addEventListener('change', function(){
+    var show = livraisonToggle.checked;
+    livraisonBlock.classList.toggle('show', show);
+    document.getElementById('livraisonRue').required = show;
+    document.getElementById('livraisonCP').required = show;
+    document.getElementById('livraisonVille').required = show;
+    updateSummary();
+  });
 
   function pad(n){ return String(n).padStart(2,'0'); }
   function toDatetimeLocal(d){
@@ -440,6 +491,7 @@ function initOwnerView(){
     var heures = dureeHeures(inputDepart.value, inputRetour.value);
     var total = calculTarif(v.prixJour, heures);
     if(secondToggle.checked) total += calculSupplementConducteur(heures);
+    if(livraisonToggle.checked) total += SUPPLEMENT_LIVRAISON;
     document.getElementById('vehiculeRecap').innerHTML =
       '<span><strong>' + v.nom + '</strong> — ' + v.prixJour + ' €/jour</span>' +
       '<span>Caution : ' + formatEUR(v.caution) + '</span>';
@@ -465,12 +517,18 @@ function initOwnerView(){
       nom: document.getElementById('nom').value,
       naissance: document.getElementById('naissance').value,
       adresse: document.getElementById('adresse').value,
+      codePostal: document.getElementById('codePostal').value,
+      ville: document.getElementById('ville').value,
       tel: document.getElementById('tel').value,
       email: document.getElementById('email').value,
       permis: document.getElementById('permis').value,
       secondConducteur: secondToggle.checked,
       nom2: document.getElementById('nom2').value,
-      permis2: document.getElementById('permis2').value
+      permis2: document.getElementById('permis2').value,
+      livraison: livraisonToggle.checked,
+      livraisonRue: document.getElementById('livraisonRue').value,
+      livraisonCP: document.getElementById('livraisonCP').value,
+      livraisonVille: document.getElementById('livraisonVille').value
     };
     var url = window.location.origin + window.location.pathname + '?data=' + encodeData(data);
     var linkBox = document.getElementById('linkBox');
@@ -498,12 +556,17 @@ function initClientView(data){
   var heures = dureeHeures(data.depart, data.retour);
   var total = calculTarif(v.prixJour, heures);
   if(data.secondConducteur) total += calculSupplementConducteur(heures);
+  if(data.livraison) total += SUPPLEMENT_LIVRAISON;
   var kmInclus = kmInclusPour(heures);
+  var adresseComplete = data.adresse + ', ' + data.codePostal + ' ' + data.ville;
+  var lieuAffiche = data.livraison
+    ? 'Livraison à ' + data.livraisonRue + ', ' + data.livraisonCP + ' ' + data.livraisonVille
+    : data.lieu;
 
   document.getElementById('recapVehicule').innerHTML =
     '<div class="recap-row"><span>Véhicule</span><span>' + v.nom + '</span></div>' +
     '<div class="recap-row"><span>Immatriculation</span><span>' + data.immat + '</span></div>' +
-    '<div class="recap-row"><span>Lieu de prise en charge</span><span>' + data.lieu + '</span></div>' +
+    '<div class="recap-row"><span>' + (data.livraison ? 'Livraison' : 'Lieu de prise en charge') + '</span><span>' + lieuAffiche + '</span></div>' +
     '<div class="recap-row"><span>Départ</span><span>' + formatDateHeureFR(data.depart) + '</span></div>' +
     '<div class="recap-row"><span>Retour</span><span>' + formatDateHeureFR(data.retour) + '</span></div>' +
     '<div class="recap-row"><span>Caution</span><span>' + formatEUR(v.caution) + ' (' + (data.modeCaution === 'carte' ? 'carte bancaire' : 'espèces') + ')</span></div>';
@@ -515,7 +578,7 @@ function initClientView(data){
   var locataireHtml =
     '<div class="recap-row"><span>Locataire</span><span>' + data.nom + '</span></div>' +
     '<div class="recap-row"><span>Date de naissance</span><span>' + data.naissance + '</span></div>' +
-    '<div class="recap-row"><span>Adresse</span><span>' + data.adresse + '</span></div>' +
+    '<div class="recap-row"><span>Adresse</span><span>' + adresseComplete + '</span></div>' +
     '<div class="recap-row"><span>Téléphone</span><span>' + data.tel + '</span></div>' +
     '<div class="recap-row"><span>E-mail</span><span>' + data.email + '</span></div>' +
     '<div class="recap-row"><span>N° de permis</span><span>' + data.permis + '</span></div>';
@@ -533,7 +596,7 @@ function initClientView(data){
   setFill('depart', formatDateHeureFR(data.depart));
   setFill('retour', formatDateHeureFR(data.retour));
   setFill('duree', formatDuree(heures));
-  setFill('lieu', data.lieu);
+  setFill('lieu', lieuAffiche);
   setFill('total', formatEUR(total));
   setFill('caution', formatEUR(v.caution));
   setFill('modeCaution', data.modeCaution === 'carte' ? 'carte bancaire' : 'espèces');
@@ -631,7 +694,8 @@ function initClientView(data){
       'form-name': 'contrat-signature',
       vehicule: v.nom,
       immatriculation: data.immat,
-      lieu: data.lieu,
+      lieu: lieuAffiche,
+      livraison: data.livraison ? 'Oui (+20 €)' : 'Non',
       depart: formatDateHeureFR(data.depart),
       retour: formatDateHeureFR(data.retour),
       duree: formatDuree(heures),
@@ -640,7 +704,7 @@ function initClientView(data){
       mode_reglement_caution: data.modeCaution === 'carte' ? 'Carte bancaire' : 'Espèces',
       locataire_nom: data.nom,
       locataire_naissance: data.naissance,
-      locataire_adresse: data.adresse,
+      locataire_adresse: adresseComplete,
       locataire_tel: data.tel,
       locataire_email: data.email,
       locataire_permis: data.permis,
