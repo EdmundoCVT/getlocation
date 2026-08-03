@@ -445,7 +445,7 @@ function initOwnerView(){
       '<span>Caution : ' + formatEUR(v.caution) + '</span>';
     document.getElementById('dureeTxt').textContent = formatDuree(heures);
     document.getElementById('kmTxt').textContent = kmInclusPour(heures).toLocaleString('fr-FR') + ' km';
-    document.getElementById('totalTxt').textContent = formatEUR(total) + (secondToggle.checked ? ' (dont ' + formatEUR(calculSupplementConducteur(heures)) + ' 2e conducteur)' : '');
+    document.getElementById('totalTxt').textContent = formatEUR(total);
   }
   document.getElementById('ownerForm').addEventListener('input', updateSummary);
   updateSummary();
@@ -510,7 +510,7 @@ function initClientView(data){
 
   document.getElementById('c-dureeTxt').textContent = formatDuree(heures);
   document.getElementById('c-kmTxt').textContent = kmInclus.toLocaleString('fr-FR') + ' km';
-  document.getElementById('c-totalTxt').textContent = formatEUR(total) + (data.secondConducteur ? ' (dont ' + formatEUR(calculSupplementConducteur(heures)) + ' 2e conducteur)' : '');
+  document.getElementById('c-totalTxt').textContent = formatEUR(total);
 
   var locataireHtml =
     '<div class="recap-row"><span>Locataire</span><span>' + data.nom + '</span></div>' +
