@@ -43,6 +43,7 @@ test("js/data.js exporte toutes les valeurs requises par le backend (netlify/fun
     REDUCTIONS_DUREE: "object",
     CODES_PROMO: "object",
     OPTIONS: "object",
+    CGL_VERSION: "string",
     formatEUR: "function",
     getVehiculeParId: "function",
     dureeEnHeures: "function",

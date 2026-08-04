@@ -310,6 +310,7 @@ if (typeof module !== "undefined" && module.exports) {
     REDUCTIONS_DUREE,
     CODES_PROMO,
     OPTIONS,
+    CGL_VERSION,
     formatEUR,
     getVehiculeParId,
     dureeEnHeures,
