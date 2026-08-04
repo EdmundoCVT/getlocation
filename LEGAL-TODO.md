@@ -38,6 +38,22 @@ change).
 | --- | --- | --- |
 | 162 | Durée de conservation des données [à préciser] | Durées précises (ex. durée légale de conservation comptable/fiscale applicable) |
 
+## Point à valider — adresse du siège social simplifiée (mentions-legales.html)
+
+Le 4 août 2026, à la demande du client, l'adresse complète du siège social
+(rue et numéro) a été retirée de tout le contenu public du site, y compris
+`mentions-legales.html` (ligne ~142, qui n'affiche plus que "Grasse
+(06130)" au lieu de l'adresse complète). Décision assumée par le client
+pour des raisons de confidentialité/sécurité.
+
+**À valider** : l'article 6-III de la LCEN impose en principe la
+publication de l'adresse du siège social dans les mentions légales d'un
+site professionnel. Publier uniquement la ville pourrait ne pas satisfaire
+cette obligation formelle. Ce fichier ne tranche pas la question — à faire
+vérifier par un avocat/expert-comptable si une conformité stricte est
+requise, faute de quoi la mention pourrait devoir être complétée par
+l'adresse exacte à nouveau.
+
 ## Mécanisme de contrôle mis en place (P0-8)
 
 Un mécanisme technique trace désormais, pour chaque réservation payée, la
