@@ -320,15 +320,27 @@
         <h3>Article 1 — Objet</h3>
         <p>GETLOCATION (TLST SAS) loue au locataire désigné ci-dessus le véhicule <span class="fill" data-fill="vehicule">…</span>, immatriculé <span class="fill" data-fill="immat">…</span>, du <span class="fill" data-fill="depart">…</span> au <span class="fill" data-fill="retour">…</span> (<span class="fill" data-fill="duree">…</span>). Lieu : <span class="fill" data-fill="lieu">…</span>. Montant total de la location : <span class="fill" data-fill="total">…</span>.</p>
         <h3>Article 2 — Assurance et franchise</h3>
-        <p>Le véhicule est couvert par une assurance responsabilité civile et les garanties complémentaires en vigueur. Une franchise reste à la charge du locataire en cas de sinistre responsable. Le locataire déclare être titulaire d'un permis valide et s'engage à respecter le code de la route.</p>
+        <p>Le véhicule est couvert par une assurance responsabilité civile et les garanties complémentaires en vigueur, souscrites auprès d'Allianz Assurance. Une franchise reste à la charge du locataire en cas de sinistre responsable ; son montant correspond à celui de la caution indiquée à l'article 3. Aucun frais de dossier ou frais administratif ne s'ajoute à cette franchise. Le locataire déclare être titulaire d'un permis valide et s'engage à respecter le code de la route.</p>
         <h3>Article 3 — Caution et état du véhicule</h3>
         <p>Une caution de <span class="fill" data-fill="caution">…</span> est prélevée avant remise des clés, réglée par <span class="fill" data-fill="modeCaution">…</span>. Un état des lieux (photos, kilométrage, niveau de carburant) est réalisé au départ et à la restitution. Toute dégradation non mentionnée au départ sera facturée sur devis.</p>
         <p id="secondConducteurClause" style="display:none;">Un second conducteur, <span class="fill" data-fill="nom2">…</span> (permis n° <span class="fill" data-fill="permis2">…</span>), est autorisé à conduire le véhicule dans les mêmes conditions que le locataire principal, qui reste seul responsable vis-à-vis du présent contrat.</p>
         <h3>Article 4 — Kilométrage et carburant</h3>
         <p>Le véhicule est loué avec un forfait de <strong>200 km inclus par jour de location</strong>, soit <span class="fill" data-fill="kmInclus">…</span> km au total pour la durée du contrat. Tout kilomètre parcouru au-delà de ce forfait est facturé <strong>0,25 € / km</strong>, prélevé sur la caution ou facturé séparément à la restitution. Le véhicule doit être restitué avec le même niveau de carburant qu'au départ.</p>
         <h3>Article 5 — Restitution et retard</h3>
-        <p>Le véhicule doit être restitué au lieu, à la date et à l'heure convenus. Tout retard non signalé au préalable entraîne une facturation complémentaire.</p>
-        <h3>Article 6 — Droit applicable</h3>
+        <p>Le véhicule doit être restitué au lieu, à la date et à l'heure convenus. Tout retard non signalé au préalable entraîne une facturation complémentaire. Une restitution en dehors des horaires habituels reste possible sur demande : il suffit d'appeler l'agence au <a href="tel:+33667485430">+33 6 67 48 54 30</a> pour convenir d'un rendez-vous adapté.</p>
+        <h3>Article 6 — Assistance et remorquage</h3>
+        <p>En cas de panne, d'accident ou de crevaison, le locataire contacte GETLOCATION au <a href="tel:+33667485430">+33 6 67 48 54 30</a> — le même numéro que pour toute autre demande. Si un remorquage est nécessaire, GETLOCATION se charge de contacter notre assureur (Allianz Assurance) pour organiser l'intervention au nom du locataire.</p>
+        <h3>Article 7 — Contraventions et péages</h3>
+        <p>Toute contravention (stationnement, vitesse, péage impayé, etc.) reçue pendant la durée de la location est à la charge du locataire, réglée directement par lui ou prélevée sur sa caution. Aucun frais de dossier n'est ajouté par GETLOCATION.</p>
+        <h3>Article 8 — Usage du véhicule : tabac et animaux</h3>
+        <p>Fumer et transporter des animaux dans le véhicule sont autorisés. Si le véhicule est restitué dans un état nécessitant un nettoyage supplémentaire (odeurs, salissures importantes, poils, etc.), un forfait de nettoyage de 50 € est facturé. En l'absence de dégradation constatée, aucun frais additionnel n'est appliqué.</p>
+        <h3>Article 9 — Territoire d'utilisation</h3>
+        <p>Le véhicule doit être utilisé exclusivement sur le territoire français pendant toute la durée de la location.</p>
+        <h3>Article 10 — Prolongation de la location</h3>
+        <p>Toute prolongation doit être demandée avant la fin de la période de location initiale, par téléphone auprès de GETLOCATION. Un accord oral suffit ; un lien de paiement sécurisé est ensuite envoyé au locataire pour régler le supplément correspondant aux jours additionnels.</p>
+        <h3>Article 11 — Non-présentation</h3>
+        <p>En cas de non-présentation du locataire à la date et à l'heure convenues, aucun frais supplémentaire n'est facturé en plus du montant déjà réglé. Les conditions de remboursement éventuel sont précisées dans les conditions générales de location.</p>
+        <h3>Article 12 — Droit applicable</h3>
         <p>Le présent contrat est soumis au droit français. Le locataire reconnaît avoir pris connaissance de l'ensemble des conditions ci-dessus avant signature.</p>
       </div>
 
@@ -369,31 +381,28 @@
 
 </div>
 
+<script src="js/data.js?v=2"></script>
 <script>
-const VEHICULES = [
-  { id:"opel-corsa", nom:"Opel Corsa Business 1.2T (2026)", prixJour:49, caution:500, immat:"HJ-967-KQ" },
-  { id:"peugeot-2008-hybrid", nom:"Peugeot 2008 Hybrid (2026)", prixJour:59, caution:500, immat:"HK-493-ZN" },
-  { id:"peugeot-3008", nom:"Peugeot 3008 (2026)", prixJour:69, caution:600, immat:"HK-085-LQ" },
-  { id:"toyota-proace-city", nom:"Toyota Proace City (2026)", prixJour:79, caution:800, immat:"HK-619-XA" }
-];
-const SUPPLEMENT_LIVRAISON = 20;
-const LIEUX = [
-  "Agence Grasse (siège)"
-];
-const SUPPLEMENT_CONDUCTEUR_JOUR = 10;
+// VEHICULES, formatEUR, joursFacturablesDepuisHeures, getVehiculeParId et
+// getOptionParId viennent de js/data.js (chargé juste avant ce script) —
+// source unique des tarifs/cautions/règles de calcul, jamais dupliqués ici
+// (cf. AUDIT.md, P0 : un contrat ne doit jamais pouvoir diverger du prix
+// affiché ailleurs sur le site).
+// LIEUX_CONTRAT (et non LIEUX, déjà déclaré par data.js dans ce même scope
+// de script global — une redéclaration ferait planter silencieusement tout
+// ce script) : un seul lieu de prise en charge physique pour l'instant ; la
+// livraison a sa propre UI dédiée ci-dessous (case à cocher + adresse),
+// distincte du mécanisme "lieu = livraison" de reservation.html.
+const LIEUX_CONTRAT = ["Agence Grasse"];
+const SUPPLEMENT_LIVRAISON = getOptionParId('livraison-adresse').prix;
+const SUPPLEMENT_CONDUCTEUR_JOUR = getOptionParId('second-conducteur').prix;
 function calculSupplementConducteur(jours){ return SUPPLEMENT_CONDUCTEUR_JOUR * jours; }
 
 function dureeHeures(a,b){
   var h = (new Date(b) - new Date(a)) / (1000*60*60);
   return Math.max(h, 1);
 }
-// Jours facturables : toute heure entamée au-delà d'un multiple de 24h
-// compte pour un jour complet (même règle que js/data.js sur le site).
-function joursFacturables(heures){
-  if(!isFinite(heures) || heures <= 0) return 1;
-  return Math.max(Math.ceil(heures / 24), 1);
-}
-function calculTarif(prixJour, heures){ return prixJour * joursFacturables(heures); }
+function calculTarif(prixJour, heures){ return prixJour * joursFacturablesDepuisHeures(heures); }
 function formatJoursFactures(jours){ return jours + ' jour' + (jours > 1 ? 's' : ''); }
 function formatDuree(heures){
   var total = Math.round(heures);
@@ -404,7 +413,6 @@ function formatDuree(heures){
   if(reste > 0 || jours === 0) parts.push(reste + ' heure' + (reste>1?'s':''));
   return parts.join(' ');
 }
-function formatEUR(m){ return m.toLocaleString('fr-FR', { style:'currency', currency:'EUR', maximumFractionDigits:0 }); }
 function formatDateHeureFR(v){
   if(!v) return '…';
   var d = new Date(v);
@@ -412,7 +420,7 @@ function formatDateHeureFR(v){
   var heure = d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
   return date + ' à ' + heure;
 }
-function kmInclusPour(heures){ return Math.max(Math.ceil(heures / 24), 1) * 200; }
+function kmInclusPour(heures){ return joursFacturablesDepuisHeures(heures) * 200; }
 function encodeData(obj){
   return btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
 }
@@ -448,11 +456,11 @@ function initOwnerView(){
   VEHICULES.forEach(function(v){
     selectVehicule.add(new Option(v.nom + ' — ' + v.prixJour + ' €/jour', v.id));
   });
-  LIEUX.forEach(function(l){ selectLieu.add(new Option(l, l)); });
+  LIEUX_CONTRAT.forEach(function(l){ selectLieu.add(new Option(l, l)); });
 
   function appliquerPlaque(){
-    var v = VEHICULES.find(function(x){ return x.id === selectVehicule.value; });
-    if(v) inputImmat.value = v.immat;
+    var v = getVehiculeParId(selectVehicule.value);
+    if(v) inputImmat.value = v.immatriculation;
   }
   selectVehicule.addEventListener('change', function(){
     appliquerPlaque();
@@ -509,13 +517,13 @@ function initOwnerView(){
     document.getElementById('naissance2').required = show;
   });
 
-  function currentVehicule(){ return VEHICULES.find(function(v){ return v.id === selectVehicule.value; }); }
+  function currentVehicule(){ return getVehiculeParId(selectVehicule.value); }
 
   function updateSummary(){
     var v = currentVehicule();
     if(!v || !inputDepart.value || !inputRetour.value) return;
     var heures = dureeHeures(inputDepart.value, inputRetour.value);
-    var jours = joursFacturables(heures);
+    var jours = joursFacturablesDepuisHeures(heures);
     var total = calculTarif(v.prixJour, heures);
     if(secondToggle.checked) total += calculSupplementConducteur(jours);
     if(livraisonToggle.checked) total += SUPPLEMENT_LIVRAISON;
@@ -582,7 +590,7 @@ function initOwnerView(){
     linkBox.classList.remove('hidden');
     if(lienAChange) document.getElementById('copiedMsg').classList.add('hidden');
 
-    var vehiculeChoisi = VEHICULES.find(function(v){ return v.id === selectVehicule.value; });
+    var vehiculeChoisi = getVehiculeParId(selectVehicule.value);
     var message = 'Bonjour ' + (data.prenom || '') + ', voici le lien pour vérifier et signer votre contrat de location ' +
       (vehiculeChoisi ? vehiculeChoisi.nom : '') + ' — GETLOCATION : ' + url;
     var messageEnc = encodeURIComponent(message);
@@ -628,10 +636,10 @@ function initOwnerView(){
 }
 
 function initClientView(data){
-  var v = VEHICULES.find(function(x){ return x.id === data.vehiculeId; });
+  var v = getVehiculeParId(data.vehiculeId);
   if(!v) v = VEHICULES[0];
   var heures = dureeHeures(data.depart, data.retour);
-  var jours = joursFacturables(heures);
+  var jours = joursFacturablesDepuisHeures(heures);
   var total = calculTarif(v.prixJour, heures);
   if(data.secondConducteur) total += calculSupplementConducteur(jours);
   if(data.livraison) total += SUPPLEMENT_LIVRAISON;
