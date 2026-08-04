@@ -118,13 +118,10 @@ test("initPaiementPage : la barre de dates recalcule le total à régler sans re
     `<div class="info-banner" id="info-banner"></div>
      <div id="payment-summary"></div>
      <form id="payment-form">
-       <input id="card-name">
-       <div id="stripe-card-element"></div>
-       <div id="stripe-card-errors"></div>
-       <div id="err-card-name"></div>
        <input type="checkbox" id="cgl-accept">
        <div id="err-cgl-accept"></div>
        <button id="pay-button">Payer</button>
+       <div id="payment-errors"></div>
      </form>
      ${dateBarHtml()}`,
     "https://getlocation.fr/paiement.html"
@@ -138,10 +135,11 @@ test("initPaiementPage : la barre de dates recalcule le total à régler sans re
     _savedAt: Date.now()
   }));
 
-  // Pas de Stripe chargé dans ce test (comme en environnement de dev sans
-  // clé configurée) : initPaiementPage bascule sur le repli téléphone/
-  // WhatsApp, mais la barre de dates doit déjà être initialisée à ce
-  // moment-là (voir l'ordre des opérations dans initPaiementPage).
+  // Avec Mollie, la disponibilité du paiement n'est connue qu'au moment de
+  // la soumission (pas de clé publique côté client à vérifier au
+  // chargement, contrairement à l'ancien flux Stripe) : la barre de dates
+  // doit donc déjà être initialisée dès initPaiementPage(), sans attendre
+  // une tentative de paiement.
   window.initPaiementPage();
 
   assert.match(window.document.getElementById("payment-summary").textContent, /138/); // 2 x 69 €

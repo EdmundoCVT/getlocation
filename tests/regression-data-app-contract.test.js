@@ -83,11 +83,11 @@ test("garde-fou anti-effacement silencieux : js/data.js et js/app.js ont une tai
   assert.ok(appJsLignes > 700, `js/app.js ne fait que ${appJsLignes} lignes (seuil : 700) — vérifier qu'aucune fonction n'a été supprimée par erreur`);
 });
 
-test("contrat front/API : le payload fetch() de create-payment-intent dans js/app.js correspond exactement à ce qu'attend validateReservationInput", () => {
+test("contrat front/API : le payload fetch() de create-payment dans js/app.js correspond exactement à ce qu'attend validateReservationInput", () => {
   // Extrait le nom des champs du littéral d'objet passé à JSON.stringify()
-  // juste avant l'appel fetch("/.netlify/functions/create-payment-intent").
-  const appelIndex = appJsSource.indexOf('fetch("/.netlify/functions/create-payment-intent"');
-  assert.ok(appelIndex !== -1, "js/app.js doit appeler /.netlify/functions/create-payment-intent");
+  // juste avant l'appel fetch("/.netlify/functions/create-payment").
+  const appelIndex = appJsSource.indexOf('fetch("/.netlify/functions/create-payment"');
+  assert.ok(appelIndex !== -1, "js/app.js doit appeler /.netlify/functions/create-payment");
 
   const stringifyIndex = appJsSource.indexOf("JSON.stringify({", appelIndex);
   assert.ok(stringifyIndex !== -1, "L'appel fetch doit envoyer un body JSON.stringify({...})");

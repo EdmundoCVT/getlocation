@@ -923,7 +923,7 @@ function validateDriverForm(form) {
 }
 
 /* ---------------------------------------------------------
-   PAGE : paiement.html — paiement réel via Stripe
+   PAGE : paiement.html — paiement réel via Mollie
 --------------------------------------------------------- */
 // Insère un repli honnête (téléphone / WhatsApp) quand le paiement en
 // ligne n'est pas disponible — jamais de fausse promesse de paiement
@@ -1023,8 +1023,8 @@ function initPaiementPage() {
   if (typeof data.codePromo !== "string") data.codePromo = "";
 
   // Affichage strictement indicatif : le montant qui fait foi est
-  // recalculé côté serveur lors de la création du PaymentIntent (voir
-  // netlify/functions/create-payment-intent.js). Le client n'envoie jamais
+  // recalculé côté serveur lors de la création du paiement (voir
+  // netlify/functions/create-payment.js). Le client n'envoie jamais
   // ce total au serveur.
   function renderSummary() {
     const prix = calculerPrixTotal({
@@ -1044,7 +1044,7 @@ function initPaiementPage() {
   // Barre de dates persistante : le client peut encore ajuster ses dates ici,
   // au moment où il voit le prix final — ex. rajouter un jour — sans revenir
   // en arrière. `data` (référencé par le formulaire de paiement plus bas au
-  // moment de l'envoi) est mis à jour en place, donc le PaymentIntent créé
+  // moment de l'envoi) est mis à jour en place, donc le paiement Mollie créé
   // au clic sur "Payer" utilisera toujours les dates les plus récentes.
   initDateBar({
     getData: () => ({ dateDebut: data.dateDebut, heureDebut: data.heureDebut, dateFin: data.dateFin, heureFin: data.heureFin, jours: data.jours }),
@@ -1058,11 +1058,9 @@ function initPaiementPage() {
     }
   });
 
-  const cardName = document.getElementById("card-name");
   const form = document.getElementById("payment-form");
   const payButton = document.getElementById("pay-button");
-  const cardErrors = document.getElementById("stripe-card-errors");
-  const banner = document.getElementById("info-banner");
+  const paymentErrors = document.getElementById("payment-errors");
 
   // Retour arrière sans perte : si le conducteur avait déjà rempli ces
   // champs (ex. retour depuis la page suivante via le bouton précédent du
@@ -1074,53 +1072,26 @@ function initPaiementPage() {
     });
   }
 
-  if (typeof Stripe === "undefined" || !window.STRIPE_PUBLISHABLE_KEY || window.STRIPE_PUBLISHABLE_KEY.includes("A_REMPLACER")) {
-    showPaymentUnavailableFallback("Le paiement en ligne n'est pas encore configuré. Contactez-nous pour finaliser votre réservation :");
-    return;
-  }
-
-  const stripe = Stripe(window.STRIPE_PUBLISHABLE_KEY);
-  const elements = stripe.elements();
-  const cardElement = elements.create("card", {
-    style: {
-      base: { fontSize: "16px", color: "#2a2438", "::placeholder": { color: "#8a969a" } },
-      invalid: { color: "#d64545" }
-    }
-  });
-  cardElement.mount("#stripe-card-element");
-  cardElement.on("change", (event) => {
-    cardErrors.textContent = event.error ? event.error.message : "";
-  });
-
   // Générée une seule fois par chargement de page et réutilisée sur toute
   // nouvelle tentative de soumission : permet au serveur (via l'option
-  // idempotencyKey transmise à Stripe) d'éviter de créer deux PaymentIntent
-  // distincts si l'utilisateur soumet plusieurs fois (double clic, retry
-  // réseau) sans avoir rechargé la page.
+  // idempotencyKey transmise à Mollie) d'éviter de créer un second paiement
+  // si l'utilisateur soumet plusieurs fois (double clic, retry réseau)
+  // sans avoir rechargé la page.
   const idempotencyKey = (window.crypto && typeof crypto.randomUUID === "function")
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    cardErrors.textContent = "";
+    if (paymentErrors) paymentErrors.textContent = "";
 
-    // Coordonnées d'abord (haut du formulaire), puis carte, puis CGL — même
-    // ordre que l'affichage, pour que le focus posé sur le premier champ en
-    // erreur corresponde toujours à ce que le client voit.
+    // Coordonnées d'abord (haut du formulaire), puis CGL — même ordre que
+    // l'affichage, pour que le focus posé sur le premier champ en erreur
+    // corresponde toujours à ce que le client voit.
     if (!validateDriverForm(form)) return;
     const formData = new FormData(form);
     data.conducteur = Object.fromEntries(formData.entries());
     writeReservationLocal(data);
-
-    if (!cardName.value.trim() || cardName.value.trim().length < 2) {
-      document.getElementById("err-card-name").textContent = "Nom du titulaire requis";
-      cardName.setAttribute("aria-invalid", "true");
-      cardName.focus();
-      return;
-    }
-    document.getElementById("err-card-name").textContent = "";
-    cardName.setAttribute("aria-invalid", "false");
 
     const cglCheckbox = document.getElementById("cgl-accept");
     const errCgl = document.getElementById("err-cgl-accept");
@@ -1137,7 +1108,7 @@ function initPaiementPage() {
     payButton.disabled = true;
 
     try {
-      const response = await fetch("/.netlify/functions/create-payment-intent", {
+      const response = await fetch("/.netlify/functions/create-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1163,7 +1134,7 @@ function initPaiementPage() {
       });
       const result = await response.json().catch(() => ({}));
 
-      if (response.status === 503 && result.code === "stripe_not_configured") {
+      if (response.status === 503 && result.code === "mollie_not_configured") {
         showPaymentUnavailableFallback("Le paiement en ligne n'est pas encore disponible. Contactez-nous pour finaliser votre réservation :");
         return;
       }
@@ -1173,33 +1144,21 @@ function initPaiementPage() {
       if (response.status === 429) {
         throw new Error("Trop de tentatives. Merci de patienter quelques instants avant de réessayer.");
       }
-      if (!response.ok || result.error || !result.clientSecret || !result.reservationId) {
+      if (!response.ok || result.error || !result.checkoutUrl || !result.reservationId) {
         throw new Error("Le paiement n'a pas pu être initialisé. Merci de réessayer.");
       }
 
-      const { paymentIntent, error } = await stripe.confirmCardPayment(result.clientSecret, {
-        payment_method: {
-          card: cardElement,
-          billing_details: { name: cardName.value.trim(), email: data.conducteur.email }
-        }
-      });
-
-      if (error) {
-        throw new Error(error.message || "Paiement refusé.");
-      }
-
-      if (paymentIntent && paymentIntent.status === "succeeded") {
-        // La confirmation qui fait foi vit désormais côté serveur
-        // (reservation-status, confirmée par le webhook Stripe signé) : la
-        // copie locale temporaire des données conducteur (dont le permis)
-        // n'est plus nécessaire dans ce navigateur, on l'efface donc.
-        clearJSON(STORAGE.reservation);
-        window.location.href = `confirmation.html?reservation=${encodeURIComponent(result.reservationId)}`;
-      } else {
-        throw new Error("Le paiement n'a pas abouti (statut : " + (paymentIntent && paymentIntent.status) + ").");
-      }
+      // La confirmation qui fait foi vit côté serveur (reservation-status,
+      // confirmée par mollie-webhook après revérification auprès de
+      // l'API Mollie) : la copie locale temporaire des données conducteur
+      // (dont le permis) n'est plus nécessaire dans ce navigateur.
+      clearJSON(STORAGE.reservation);
+      // Redirection vers la page de paiement hébergée par Mollie ; Mollie
+      // renvoie ensuite le client vers confirmation.html (redirectUrl fixée
+      // côté serveur lors de la création du paiement).
+      window.location.href = result.checkoutUrl;
     } catch (err) {
-      cardErrors.textContent = err.message;
+      if (paymentErrors) paymentErrors.textContent = err.message;
       payButton.classList.remove("loading");
       payButton.disabled = false;
     }
@@ -1213,8 +1172,10 @@ function initPaiementPage() {
 // serveur (endpoint /.netlify/functions/reservation-status), jamais sur la
 // seule base de ce que le navigateur a stocké en localStorage (qui peut
 // être absent, périmé, ou modifié). L'identifiant de réservation arrive
-// via le paramètre d'URL ?reservation=res_xxx, positionné par paiement.html
-// après création du PaymentIntent (voir initPaiementPage).
+// via le paramètre d'URL ?reservation=res_xxx, fixé côté serveur dans le
+// `redirectUrl` transmis à Mollie lors de la création du paiement (voir
+// netlify/functions/create-payment.js) — Mollie y renvoie le client une
+// fois le paiement terminé.
 //
 // Rendu construit exclusivement via createElement/textContent (jamais
 // innerHTML) pour les valeurs issues du conducteur (nom/prénom/e-mail) ou
@@ -1331,7 +1292,7 @@ function renderConfirmationDetails(container, data) {
   } else {
     // Repli pour d'anciennes réservations enregistrées avant l'ajout du
     // détail complet (sousTotalBrut/options/codePromo absents en base).
-    container.appendChild(summaryRow("Paiement", "Confirmé via Stripe"));
+    container.appendChild(summaryRow("Paiement", "Confirmé via Mollie"));
     const totalRow = summaryRow("Montant réglé", formatEUR(data.total));
     totalRow.classList.add("total");
     container.appendChild(totalRow);

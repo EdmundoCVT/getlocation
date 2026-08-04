@@ -1,16 +1,16 @@
-// tests/create-payment-intent.test.js
+// tests/create-payment.test.js
 //
 // Teste tous les chemins de la fonction qui ne nécessitent PAS un appel
-// réseau réel à Stripe (validation, CORS, rate limiting, disponibilité,
-// configuration manquante). Le chemin "Stripe configuré + succès" ne peut
-// pas être testé ici sans clé Stripe réelle ni accès réseau sortant — il
-// devra être vérifié manuellement en mode test Stripe avant mise en
+// réseau réel à Mollie (validation, CORS, rate limiting, disponibilité,
+// configuration manquante). Le chemin "Mollie configuré + succès" ne peut
+// pas être testé ici sans clé Mollie réelle ni accès réseau sortant — il
+// devra être vérifié manuellement en mode test Mollie avant mise en
 // production (cf. procédure de test dans la livraison finale).
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { handler } = require("../netlify/functions/create-payment-intent.js");
+const { handler } = require("../netlify/functions/create-payment.js");
 const { createReservation } = require("../netlify/functions/lib/reservation-store.js");
 const { CGL_VERSION } = require("../js/data.js");
 
@@ -94,8 +94,8 @@ test("rejette une tentative de paiement sans acceptation des CGL", async () => {
 });
 
 test("ignore un montant/currency fourni par le client (jamais utilisé)", async () => {
-  // Comme aucune clé Stripe n'est configurée dans cet environnement de
-  // test, la requête s'arrête à la vérification stripe_not_configured —
+  // Comme aucune clé Mollie n'est configurée dans cet environnement de
+  // test, la requête s'arrête à la vérification mollie_not_configured —
   // ce qui suffit à prouver qu'elle a passé la validation métier et le
   // recalcul serveur du prix sans jamais lire amount/currency du payload.
   const res = await handler(
@@ -103,15 +103,15 @@ test("ignore un montant/currency fourni par le client (jamais utilisé)", async 
   );
   assert.equal(res.statusCode, 503);
   const json = JSON.parse(res.body);
-  assert.equal(json.code, "stripe_not_configured");
+  assert.equal(json.code, "mollie_not_configured");
 });
 
-test("répond stripe_not_configured (503) quand STRIPE_SECRET_KEY est absente", async () => {
-  assert.equal(process.env.STRIPE_SECRET_KEY, undefined);
+test("répond mollie_not_configured (503) quand MOLLIE_API_KEY est absente", async () => {
+  assert.equal(process.env.MOLLIE_API_KEY, undefined);
   const res = await handler(makeEvent({ body: validPayload() }));
   assert.equal(res.statusCode, 503);
   const json = JSON.parse(res.body);
-  assert.equal(json.code, "stripe_not_configured");
+  assert.equal(json.code, "mollie_not_configured");
 });
 
 test("détecte l'indisponibilité (409) sur un chevauchement de dates pour le même véhicule", async () => {
@@ -128,10 +128,10 @@ test("détecte l'indisponibilité (409) sur un chevauchement de dates pour le m�
   });
 
   // La vérification de disponibilité n'est atteinte qu'après la vérification
-  // de configuration Stripe : on fixe temporairement une clé factice pour
+  // de configuration Mollie : on fixe temporairement une clé factice pour
   // dépasser cette étape sans jamais atteindre le véritable appel réseau à
-  // Stripe (la fonction retourne 409 avant d'y arriver).
-  process.env.STRIPE_SECRET_KEY = "sk_test_dummy_for_unit_tests";
+  // Mollie (la fonction retourne 409 avant d'y arriver).
+  process.env.MOLLIE_API_KEY = "test_dummy_for_unit_tests";
   let res;
   try {
     res = await handler(
@@ -146,7 +146,7 @@ test("détecte l'indisponibilité (409) sur un chevauchement de dates pour le m�
       })
     );
   } finally {
-    delete process.env.STRIPE_SECRET_KEY;
+    delete process.env.MOLLIE_API_KEY;
   }
   assert.equal(res.statusCode, 409);
   const json = JSON.parse(res.body);

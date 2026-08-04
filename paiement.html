@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paiement — GETLOCATION</title>
-<meta name="description" content="Paiement sécurisé par Stripe pour votre location de véhicule GETLOCATION sur la Côte d'Azur.">
+<meta name="description" content="Paiement sécurisé par Mollie pour votre location de véhicule GETLOCATION sur la Côte d'Azur.">
 <link rel="canonical" href="https://getlocation.fr/paiement">
 <meta name="robots" content="noindex, follow">
 <link rel="icon" href="/favicon.ico" sizes="any">
@@ -16,14 +16,14 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GETLOCATION">
 <meta property="og:title" content="Paiement — GETLOCATION">
-<meta property="og:description" content="Paiement sécurisé par Stripe pour votre location de véhicule GETLOCATION sur la Côte d'Azur.">
+<meta property="og:description" content="Paiement sécurisé par Mollie pour votre location de véhicule GETLOCATION sur la Côte d'Azur.">
 <meta property="og:url" content="https://getlocation.fr/paiement">
 <meta property="og:image" content="https://getlocation.fr/images/og-share.jpg">
 <meta property="og:locale" content="fr_FR">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Paiement — GETLOCATION">
-<meta name="twitter:description" content="Paiement sécurisé par Stripe pour votre location de véhicule GETLOCATION sur la Côte d'Azur.">
+<meta name="twitter:description" content="Paiement sécurisé par Mollie pour votre location de véhicule GETLOCATION sur la Côte d'Azur.">
 <meta name="twitter:image" content="https://getlocation.fr/images/og-share.jpg">
 
 <script type="application/ld+json">
@@ -118,7 +118,7 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=12">
+<link rel="stylesheet" href="css/style.css?v=13">
 </head>
 <body>
 
@@ -217,18 +217,7 @@
         </div>
 
         <h2>Paiement sécurisé</h2>
-        <div class="form-grid">
-          <div class="field full">
-            <label for="card-name">Nom du titulaire</label>
-            <input type="text" id="card-name" required aria-describedby="err-card-name" aria-invalid="false">
-            <div class="error-text" id="err-card-name" aria-live="polite"></div>
-          </div>
-          <div class="field full">
-            <label for="stripe-card-element">Carte bancaire</label>
-            <div id="stripe-card-element"></div>
-            <div class="error-text" id="stripe-card-errors" aria-live="polite"></div>
-          </div>
-        </div>
+        <p class="hint-text">Vous allez être redirigé(e) vers notre prestataire de paiement sécurisé <strong>Mollie</strong> (carte bancaire, Apple Pay, etc.) pour finaliser le règlement, puis renvoyé(e) automatiquement ici.</p>
         <label class="badge-insurance" for="cgl-accept" style="align-items:flex-start;">
           <input type="checkbox" id="cgl-accept" required aria-describedby="err-cgl-accept" aria-invalid="false">
           <span>
@@ -243,7 +232,8 @@
           <span class="spinner"></span>
           <span class="btn-label">Payer maintenant</span>
         </button>
-        <div class="pay-lock">🔒 Paiement chiffré de bout en bout par Stripe — GETLOCATION ne stocke aucune donnée bancaire.</div>
+        <div class="error-text" id="payment-errors" aria-live="polite"></div>
+        <div class="pay-lock">🔒 Paiement chiffré de bout en bout par Mollie — GETLOCATION ne stocke aucune donnée bancaire.</div>
         <div class="hint-text" style="text-align:center; margin-top:6px;">Retrait de la caution sur place à l'agence, selon le véhicule choisi.</div>
       </form>
     </div>
@@ -289,9 +279,7 @@
   <div class="footer-bottom">© <span id="footer-year"></span> GETLOCATION — TLST SAS · SIRET 932 098 908 00019 · <a href="mentions-legales.html">Mentions légales</a></div>
 </footer>
 
-<script src="https://js.stripe.com/v3/"></script>
 <script src="js/data.js?v=2"></script>
-<script src="js/stripe-config.js"></script>
-<script src="js/app.js?v=9"></script>
+<script src="js/app.js?v=10"></script>
 </body>
 </html>

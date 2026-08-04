@@ -20,7 +20,7 @@
 // Aucun identifiant/API key de base de données n'est inventé ici : si un
 // jour un backend différent de Netlify Blobs est requis, il suffit
 // d'implémenter la même interface (createReservation/getReservation/
-// updateReservationStatus/findReservationByPaymentIntent) et de documenter
+// updateReservationStatus/findReservationByPaymentId) et de documenter
 // les variables d'environnement nécessaires — voir README section
 // "Configuration production".
 //
@@ -47,7 +47,7 @@ function generateReservationId() {
 
 // --- Repli mémoire (dev/tests uniquement, non persistant) ------------------
 const memoryStore = new Map(); // id -> record
-const memoryPaymentIntentIndex = new Map(); // paymentIntentId -> id
+const memoryPaymentIndex = new Map(); // paymentId -> id
 
 function memoryWarnOnce() {
   if (!warnedMemoryFallback) {
@@ -99,7 +99,7 @@ async function createReservation(data) {
     createdAt: now,
     updatedAt: now,
     expiresAt: new Date(Date.now() + RESERVATION_TTL_MS).toISOString(),
-    paymentIntentId: data.paymentIntentId || null
+    paymentId: data.paymentId || null
   };
 
   await withStore(
@@ -125,7 +125,7 @@ async function getReservation(id) {
 }
 
 // extra peut contenir n'importe quel champ métier à fusionner (ex.
-// paymentIntentId, cglVersion, cglAcceptedAt, failureReason...). Les champs
+// paymentId, cglVersion, cglAcceptedAt, failureReason...). Les champs
 // id/createdAt ne sont jamais écrasables.
 async function updateReservationStatus(id, status, extra = {}) {
   const record = await getReservation(id);
@@ -142,25 +142,25 @@ async function updateReservationStatus(id, status, extra = {}) {
   await withStore(
     async (store) => {
       await store.setJSON(id, updated);
-      if (updated.paymentIntentId) {
-        await store.set(`pi_${updated.paymentIntentId}`, id);
+      if (updated.paymentId) {
+        await store.set(`pay_${updated.paymentId}`, id);
       }
     },
     () => {
       memoryStore.set(id, updated);
-      if (updated.paymentIntentId) {
-        memoryPaymentIntentIndex.set(updated.paymentIntentId, id);
+      if (updated.paymentId) {
+        memoryPaymentIndex.set(updated.paymentId, id);
       }
     }
   );
   return updated;
 }
 
-async function findReservationByPaymentIntent(paymentIntentId) {
-  if (!paymentIntentId) return null;
+async function findReservationByPaymentId(paymentId) {
+  if (!paymentId) return null;
   const id = await withStore(
-    async (store) => store.get(`pi_${paymentIntentId}`),
-    () => memoryPaymentIntentIndex.get(paymentIntentId) || null
+    async (store) => store.get(`pay_${paymentId}`),
+    () => memoryPaymentIndex.get(paymentId) || null
   );
   if (!id) return null;
   return getReservation(id);
@@ -176,7 +176,7 @@ async function listActiveReservationsForVehicule(vehiculeId) {
       const records = [];
       const { blobs } = await store.list();
       for (const blob of blobs) {
-        if (blob.key.startsWith("pi_")) continue; // index secondaire, pas une réservation
+        if (blob.key.startsWith("pay_")) continue; // index secondaire, pas une réservation
         const record = await store.get(blob.key, { type: "json" });
         if (record) records.push(record);
       }
@@ -225,7 +225,7 @@ module.exports = {
   createReservation,
   getReservation,
   updateReservationStatus,
-  findReservationByPaymentIntent,
+  findReservationByPaymentId,
   hasOverlappingReservation,
   generateReservationId
 };

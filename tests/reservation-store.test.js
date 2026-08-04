@@ -12,7 +12,7 @@ const {
   createReservation,
   getReservation,
   updateReservationStatus,
-  findReservationByPaymentIntent,
+  findReservationByPaymentId,
   hasOverlappingReservation,
   generateReservationId
 } = require("../netlify/functions/lib/reservation-store.js");
@@ -47,14 +47,14 @@ test("getReservation : introuvable renvoie null, id invalide renvoie null", asyn
 test("updateReservationStatus : transition + fusion de champs, createdAt/id protégés", async () => {
   const record = await createReservation({ vehiculeId: "opel-corsa" });
   const updated = await updateReservationStatus(record.id, "paid", {
-    paymentIntentId: "pi_test_123",
+    paymentId: "tr_test_123",
     id: "autre-id",
     createdAt: "falsifie"
   });
   assert.equal(updated.status, "paid");
   assert.equal(updated.id, record.id);
   assert.equal(updated.createdAt, record.createdAt);
-  assert.equal(updated.paymentIntentId, "pi_test_123");
+  assert.equal(updated.paymentId, "tr_test_123");
 
   const reread = await getReservation(record.id);
   assert.equal(reread.status, "paid");
@@ -65,17 +65,17 @@ test("updateReservationStatus : réservation inexistante renvoie null (pas de cr
   assert.equal(result, null);
 });
 
-test("findReservationByPaymentIntent : retrouve la bonne réservation", async () => {
+test("findReservationByPaymentId : retrouve la bonne réservation", async () => {
   const record = await createReservation({ vehiculeId: "toyota-proace-city" });
   await updateReservationStatus(record.id, "pending_payment", {
-    paymentIntentId: "pi_unique_456"
+    paymentId: "tr_unique_456"
   });
-  const found = await findReservationByPaymentIntent("pi_unique_456");
+  const found = await findReservationByPaymentId("tr_unique_456");
   assert.ok(found);
   assert.equal(found.id, record.id);
 
-  assert.equal(await findReservationByPaymentIntent("pi_absent"), null);
-  assert.equal(await findReservationByPaymentIntent(""), null);
+  assert.equal(await findReservationByPaymentId("tr_absent"), null);
+  assert.equal(await findReservationByPaymentId(""), null);
 });
 
 test("hasOverlappingReservation : détecte un chevauchement sur le même véhicule", async () => {

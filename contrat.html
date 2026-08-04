@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, follow">
 <title>Contrat de location — GETLOCATION</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
@@ -212,7 +213,11 @@
         <h2>Locataire</h2>
         <div class="grid">
           <div class="field">
-            <label for="nom">Nom et prénom</label>
+            <label for="prenom">Prénom</label>
+            <input id="prenom" type="text" required>
+          </div>
+          <div class="field">
+            <label for="nom">Nom</label>
             <input id="nom" type="text" required>
           </div>
           <div class="field">
@@ -252,7 +257,11 @@
         <div class="second-conducteur" id="secondConducteurBlock">
           <div class="grid">
             <div class="field">
-              <label for="nom2">Nom et prénom (2<sup>e</sup> conducteur)</label>
+              <label for="prenom2">Prénom (2<sup>e</sup> conducteur)</label>
+              <input id="prenom2" type="text">
+            </div>
+            <div class="field">
+              <label for="nom2">Nom (2<sup>e</sup> conducteur)</label>
               <input id="nom2" type="text">
             </div>
             <div class="field">
@@ -494,6 +503,7 @@ function initOwnerView(){
   secondToggle.addEventListener('change', function(){
     var show = secondToggle.checked;
     secondBlock.classList.toggle('show', show);
+    document.getElementById('prenom2').required = show;
     document.getElementById('nom2').required = show;
     document.getElementById('permis2').required = show;
     document.getElementById('naissance2').required = show;
@@ -546,6 +556,7 @@ function initOwnerView(){
       depart: inputDepart.value,
       retour: inputRetour.value,
       modeCaution: modeCaution,
+      prenom: document.getElementById('prenom').value,
       nom: document.getElementById('nom').value,
       naissance: document.getElementById('naissance').value,
       adresse: document.getElementById('adresse').value,
@@ -555,6 +566,7 @@ function initOwnerView(){
       email: document.getElementById('email').value,
       permis: document.getElementById('permis').value,
       secondConducteur: secondToggle.checked,
+      prenom2: document.getElementById('prenom2').value,
       nom2: document.getElementById('nom2').value,
       permis2: document.getElementById('permis2').value,
       livraison: livraisonToggle.checked,
@@ -571,7 +583,7 @@ function initOwnerView(){
     if(lienAChange) document.getElementById('copiedMsg').classList.add('hidden');
 
     var vehiculeChoisi = VEHICULES.find(function(v){ return v.id === selectVehicule.value; });
-    var message = 'Bonjour ' + (data.nom || '') + ', voici le lien pour vérifier et signer votre contrat de location ' +
+    var message = 'Bonjour ' + (data.prenom || '') + ', voici le lien pour vérifier et signer votre contrat de location ' +
       (vehiculeChoisi ? vehiculeChoisi.nom : '') + ' — GETLOCATION : ' + url;
     var messageEnc = encodeURIComponent(message);
 
@@ -642,6 +654,7 @@ function initClientView(data){
       total: formatEUR(total),
       caution: formatEUR(v.caution),
       mode_reglement_caution: data.modeCaution === 'carte' ? 'Carte bancaire' : 'Espèces',
+      locataire_prenom: data.prenom,
       locataire_nom: data.nom,
       locataire_naissance: data.naissance,
       locataire_adresse: adresseComplete,
@@ -649,6 +662,7 @@ function initClientView(data){
       locataire_email: data.email,
       locataire_permis: data.permis,
       second_conducteur: data.secondConducteur ? 'Oui' : 'Non',
+      second_conducteur_prenom: data.prenom2 || '',
       second_conducteur_nom: data.nom2 || '',
       second_conducteur_permis: data.permis2 || '',
       horodatage_signature: stamp || '',
@@ -715,14 +729,14 @@ function initClientView(data){
     sautDePageSiBesoin(90);
     doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(45,27,78);
     doc.text('Locataire', margin, y); y += 16;
-    ligne('Nom', payload.locataire_nom);
+    ligne('Nom', payload.locataire_prenom + ' ' + payload.locataire_nom);
     ligne('Naissance', payload.locataire_naissance);
     ligne('Adresse', payload.locataire_adresse);
     ligne('Téléphone', payload.locataire_tel);
     ligne('E-mail', payload.locataire_email);
     ligne('Permis', payload.locataire_permis);
     if(payload.second_conducteur === 'Oui'){
-      ligne('2e conducteur', payload.second_conducteur_nom + ' (permis ' + payload.second_conducteur_permis + ')');
+      ligne('2e conducteur', payload.second_conducteur_prenom + ' ' + payload.second_conducteur_nom + ' (permis ' + payload.second_conducteur_permis + ')');
     }
     y += 8;
 
@@ -777,14 +791,14 @@ function initClientView(data){
   document.getElementById('c-totalTxt').textContent = formatEUR(total);
 
   var locataireHtml =
-    '<div class="recap-row"><span>Locataire</span><span>' + data.nom + '</span></div>' +
+    '<div class="recap-row"><span>Locataire</span><span>' + data.prenom + ' ' + data.nom + '</span></div>' +
     '<div class="recap-row"><span>Date de naissance</span><span>' + data.naissance + '</span></div>' +
     '<div class="recap-row"><span>Adresse</span><span>' + adresseComplete + '</span></div>' +
     '<div class="recap-row"><span>Téléphone</span><span>' + data.tel + '</span></div>' +
     '<div class="recap-row"><span>E-mail</span><span>' + data.email + '</span></div>' +
     '<div class="recap-row"><span>N° de permis</span><span>' + data.permis + '</span></div>';
   if(data.secondConducteur){
-    locataireHtml += '<div class="recap-row"><span>Second conducteur</span><span>' + data.nom2 + ' (permis ' + data.permis2 + ')</span></div>';
+    locataireHtml += '<div class="recap-row"><span>Second conducteur</span><span>' + data.prenom2 + ' ' + data.nom2 + ' (permis ' + data.permis2 + ')</span></div>';
   }
   document.getElementById('recapLocataire').innerHTML = locataireHtml;
 
@@ -803,7 +817,7 @@ function initClientView(data){
   setFill('modeCaution', data.modeCaution === 'carte' ? 'carte bancaire' : 'espèces');
   setFill('kmInclus', kmInclus.toLocaleString('fr-FR'));
   if(data.secondConducteur){
-    setFill('nom2', data.nom2);
+    setFill('nom2', data.prenom2 + ' ' + data.nom2);
     setFill('permis2', data.permis2);
     document.getElementById('secondConducteurClause').style.display = '';
   }

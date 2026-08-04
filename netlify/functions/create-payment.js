@@ -1,6 +1,6 @@
-// netlify/functions/create-payment-intent.js
+// netlify/functions/create-payment.js
 //
-// Crée un PaymentIntent Stripe pour une réservation.
+// Crée un paiement Mollie pour une réservation.
 //
 // RÈGLE DE SÉCURITÉ CENTRALE : le montant facturé n'est JAMAIS accepté
 // depuis le client. Le client envoie uniquement des paramètres métier
@@ -9,10 +9,16 @@
 // js/data.js — la même fonction qui sert à l'affichage côté navigateur,
 // afin qu'aucune divergence de prix ne soit possible (cf. AUDIT.md, P0).
 //
-// La clé secrète Stripe (STRIPE_SECRET_KEY) doit être configurée dans
+// La clé API Mollie (MOLLIE_API_KEY) doit être configurée dans
 // Netlify > Site configuration > Environment variables. Elle n'est jamais
 // exposée au navigateur : seule cette fonction, exécutée côté serveur,
 // l'utilise.
+//
+// Modèle Mollie (différent de Stripe) : pas de formulaire carte embarqué.
+// Le client est redirigé vers une page de paiement hébergée par Mollie
+// (_links.checkout.href), puis Mollie le renvoie vers `redirectUrl` à la
+// fin. La confirmation qui fait foi arrive séparément via `mollie-webhook`
+// (voir ce fichier pour le détail du modèle de vérification).
 //
 // Limite connue (documentée, non résolue ici) : la vérification de
 // disponibilité puis la création de la réservation ne sont pas atomiques.
@@ -58,6 +64,16 @@ function corsHeaders(event) {
   return headers;
 }
 
+// Origine utilisée pour construire redirectUrl/webhookUrl : celle de la
+// requête si elle est autorisée (cross-origin connu), sinon la valeur
+// injectée par Netlify (déploiement courant) — jamais une valeur inventée.
+function siteOrigin(event) {
+  const allowed = getAllowedOrigins();
+  const originHeader = event.headers && (event.headers.origin || event.headers.Origin);
+  if (originHeader && allowed.has(originHeader)) return originHeader;
+  return process.env.URL || process.env.DEPLOY_PRIME_URL || "https://getlocation.fr";
+}
+
 function clientIp(event) {
   const h = event.headers || {};
   return (
@@ -84,7 +100,7 @@ exports.handler = async (event) => {
 
   // Protection anti-abus basique (best effort, cf. lib/rate-limiter.js —
   // limites documentées dans ce fichier).
-  const rate = await checkRateLimit(`create-payment-intent:${clientIp(event)}`, {
+  const rate = await checkRateLimit(`create-payment:${clientIp(event)}`, {
     windowMs: 60000,
     maxRequests: 8
   });
@@ -118,16 +134,16 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "Impossible de calculer le prix pour cette demande" }) };
   }
 
-  // Stripe non configuré : réponse honnête (code dédié) plutôt qu'une
+  // Mollie non configuré : réponse honnête (code dédié) plutôt qu'une
   // fausse promesse de paiement en ligne opérationnel. Le client (P0-6)
   // doit alors proposer un repli téléphone/WhatsApp.
-  if (!process.env.STRIPE_SECRET_KEY) {
+  if (!process.env.MOLLIE_API_KEY) {
     return {
       statusCode: 503,
       headers,
       body: JSON.stringify({
         error: "Le paiement en ligne n'est pas encore configuré.",
-        code: "stripe_not_configured"
+        code: "mollie_not_configured"
       })
     };
   }
@@ -180,48 +196,48 @@ exports.handler = async (event) => {
   });
 
   try {
-    const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+    const { createMollieClient } = require("@mollie/api-client");
+    const mollieClient = createMollieClient({ apiKey: process.env.MOLLIE_API_KEY });
 
-    const requestOptions = {};
-    if (payload.idempotencyKey) {
-      // Préfixé pour éviter toute collision avec d'autres appels Stripe
-      // utilisant potentiellement la même valeur brute pour un autre usage.
-      requestOptions.idempotencyKey = `create-payment-intent_${payload.idempotencyKey}`;
-    }
+    const origin = siteOrigin(event);
 
-    const paymentIntent = await stripe.paymentIntents.create(
-      {
-        amount: prix.totalCentimes,
-        currency: "eur", // toujours EUR — jamais une valeur fournie par le client
-        description: `Location ${vehicule.nom} — ${prix.jours} jour(s) — réservation ${reservation.id}`,
-        receipt_email: reservation.conducteur.email,
-        automatic_payment_methods: { enabled: true },
-        metadata: {
-          reservationId: reservation.id,
-          vehiculeId: vehicule.id,
-          jours: String(prix.jours),
-          options: prix.optionsSelectionnees.map((o) => o.id).join(",") || "aucune",
-          codePromo: prix.codePromo ? prix.codePromo.code : "aucun"
-        }
+    const payment = await mollieClient.payments.create({
+      amount: {
+        currency: "EUR", // toujours EUR — jamais une valeur fournie par le client
+        value: (prix.totalCentimes / 100).toFixed(2)
       },
-      requestOptions
-    );
+      description: `Location ${vehicule.nom} — ${prix.jours} jour(s) — réservation ${reservation.id}`,
+      redirectUrl: `${origin}/confirmation.html?reservation=${encodeURIComponent(reservation.id)}`,
+      webhookUrl: `${origin}/.netlify/functions/mollie-webhook`,
+      // Réutilise la clé générée une fois côté client (voir js/app.js,
+      // initPaiementPage) : un double-clic/retry réseau avec la même clé
+      // renvoie la réponse déjà enregistrée par Mollie au lieu de créer un
+      // second paiement (cf. https://docs.mollie.com/reference/api-idempotency).
+      idempotencyKey: payload.idempotencyKey,
+      metadata: {
+        reservationId: reservation.id,
+        vehiculeId: vehicule.id,
+        jours: String(prix.jours),
+        options: prix.optionsSelectionnees.map((o) => o.id).join(",") || "aucune",
+        codePromo: prix.codePromo ? prix.codePromo.code : "aucun"
+      }
+    });
 
     await updateReservationStatus(reservation.id, "pending_payment", {
-      paymentIntentId: paymentIntent.id
+      paymentId: payment.id
     });
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ clientSecret: paymentIntent.client_secret, reservationId: reservation.id })
+      body: JSON.stringify({ checkoutUrl: payment._links.checkout.href, reservationId: reservation.id })
     };
   } catch (err) {
     // Ne jamais renvoyer err.message brut au client (peut contenir des
-    // détails internes) : on journalise côté serveur uniquement le type et
-    // le code d'erreur Stripe (jamais de données personnelles).
-    console.error("[create-payment-intent] Erreur Stripe :", err && err.type, err && err.code);
-    await updateReservationStatus(reservation.id, "cancelled", { failureReason: "stripe_error" });
+    // détails internes) : on journalise côté serveur uniquement de quoi
+    // diagnostiquer (jamais de données personnelles).
+    console.error("[create-payment] Erreur Mollie :", err && err.message);
+    await updateReservationStatus(reservation.id, "cancelled", { failureReason: "mollie_error" });
     return {
       statusCode: 500,
       headers,

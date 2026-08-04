@@ -35,7 +35,8 @@ function driverFormHtml() {
 }
 
 // paiement.html : les mêmes champs conducteur vivent désormais dans
-// #payment-form, aux côtés des champs carte/CGL.
+// #payment-form, aux côtés de la case CGL (le paiement carte lui-même se
+// fait sur une page hébergée par Mollie, pas dans ce formulaire).
 function paiementFormHtml() {
   return `<!DOCTYPE html><body>
     <div class="info-banner" id="info-banner"></div>
@@ -47,13 +48,10 @@ function paiementFormHtml() {
       <input name="telephone" id="telephone" aria-describedby="err-telephone" aria-invalid="false"><div id="err-telephone"></div>
       <input name="permis" id="permis" aria-describedby="err-permis" aria-invalid="false"><div id="err-permis"></div>
       <input name="age" id="age" aria-describedby="err-age" aria-invalid="false"><div id="err-age"></div>
-      <input id="card-name">
-      <div id="stripe-card-element"></div>
-      <div id="stripe-card-errors"></div>
-      <div id="err-card-name"></div>
       <input type="checkbox" id="cgl-accept">
       <div id="err-cgl-accept"></div>
       <button id="pay-button"><span class="btn-label">Payer</span></button>
+      <div id="payment-errors"></div>
     </form>
   </body>`;
 }
