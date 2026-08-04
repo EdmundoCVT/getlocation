@@ -8,11 +8,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
-    --bleu-nuit:#2d1b4e;
-    --bleu-ocean:#6c3fd1;
-    --turquoise:#7c4dff;
-    --sable:#c9a8f5;
-    --sable-clair:#f3eefc;
+    /* Charte GETLOCATION : orange + bleu (logo). Noms de variables historiques
+       conservés (bleu-nuit/bleu-ocean/turquoise/sable), seules les valeurs
+       changent — voir css/style.css pour la même logique sur le reste du site. */
+    --bleu-nuit:#1a2f52;
+    --bleu-ocean:#f2760c;
+    --turquoise:#1d6fe0;
+    --sable:#fbd9b0;
+    --sable-clair:#fef3e7;
     --gris-fonce:#2a2438;
     --gris-clair:#f6f4fb;
     --blanc:#ffffff;
@@ -213,12 +216,12 @@
         <h2>Locataire</h2>
         <div class="grid">
           <div class="field">
-            <label for="prenom">Prénom</label>
-            <input id="prenom" type="text" required>
-          </div>
-          <div class="field">
             <label for="nom">Nom</label>
             <input id="nom" type="text" required>
+          </div>
+          <div class="field">
+            <label for="prenom">Prénom</label>
+            <input id="prenom" type="text" required>
           </div>
           <div class="field">
             <label for="naissance">Date de naissance</label>
@@ -257,12 +260,12 @@
         <div class="second-conducteur" id="secondConducteurBlock">
           <div class="grid">
             <div class="field">
-              <label for="prenom2">Prénom (2<sup>e</sup> conducteur)</label>
-              <input id="prenom2" type="text">
-            </div>
-            <div class="field">
               <label for="nom2">Nom (2<sup>e</sup> conducteur)</label>
               <input id="nom2" type="text">
+            </div>
+            <div class="field">
+              <label for="prenom2">Prénom (2<sup>e</sup> conducteur)</label>
+              <input id="prenom2" type="text">
             </div>
             <div class="field">
               <label for="naissance2">Date de naissance</label>
@@ -697,19 +700,19 @@ function initClientView(data){
       if(y + hauteur > pageHeight - margin){ doc.addPage(); y = margin; }
     }
 
-    doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(45,27,78);
+    doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(26,47,82);
     doc.text('GETLOCATION', margin, y); y += 16;
     doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(107,100,120);
     doc.text('TLST SAS — Location de véhicules — Grasse, Alpes-Maritimes', margin, y); y += 18;
 
     if(estApercu){
-      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(190,90,20);
+      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(242,118,12);
       doc.text('APERÇU — document non contractuel, en attente de signature du client', margin, y); y += 16;
     }
 
     doc.setDrawColor(227,232,234); doc.line(margin, y, pageWidth - margin, y); y += 20;
 
-    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(45,27,78);
+    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(26,47,82);
     doc.text('Contrat de location — Récapitulatif', margin, y); y += 20;
 
     function ligne(label, valeur){
@@ -735,7 +738,7 @@ function initClientView(data){
     y += 6;
 
     sautDePageSiBesoin(90);
-    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(45,27,78);
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(26,47,82);
     doc.text('Locataire', margin, y); y += 16;
     ligne('Nom', payload.locataire_prenom + ' ' + payload.locataire_nom);
     ligne('Naissance', payload.locataire_naissance);
@@ -749,7 +752,7 @@ function initClientView(data){
     y += 8;
 
     sautDePageSiBesoin(60);
-    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(45,27,78);
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(26,47,82);
     doc.text('Conditions de location', margin, y); y += 16;
     doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(80,74,94);
     var texteContrat = document.getElementById('contractText').innerText;
@@ -762,7 +765,7 @@ function initClientView(data){
 
     y += 14;
     sautDePageSiBesoin(120);
-    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(45,27,78);
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(26,47,82);
     doc.text('Signature électronique', margin, y); y += 10;
     if(payload.signature_image){
       try{ doc.addImage(payload.signature_image, 'PNG', margin, y, 170, 65); } catch(e){}
@@ -771,7 +774,7 @@ function initClientView(data){
       doc.text('Signé électroniquement le ' + payload.horodatage_signature, margin, y); y += 12;
       doc.text('Identifiant de signature : ' + payload.signatureId + ' — GETLOCATION (TLST SAS)', margin, y);
     } else {
-      doc.setFont('helvetica','italic'); doc.setFontSize(9.5); doc.setTextColor(190,90,20);
+      doc.setFont('helvetica','italic'); doc.setFontSize(9.5); doc.setTextColor(242,118,12);
       doc.text('En attente de signature du client.', margin, y);
     }
 

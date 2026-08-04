@@ -11,15 +11,17 @@
 }
 
 :root {
-  /* Identité GETLOCATION : blanc dominant, violet moderne, gris très clair */
-  --violet: #6c3bff;
-  --violet-dark: #5427e0;
-  --violet-light: #ede7ff;
+  /* Identité GETLOCATION : blanc dominant, orange + bleu (charte du logo), gris très clair.
+     Noms de variables historiques (--violet, --bleu-ocean, --turquoise, --sable) conservés
+     pour ne pas casser les ~40 usages existants dans ce fichier — seules les valeurs changent. */
+  --violet: #f2760c;         /* orange de marque (ex-violet) */
+  --violet-dark: #d9640a;
+  --violet-light: #fde7d2;
   --bleu-nuit: #12101a;      /* noir/texte fort (nom conservé pour compat) */
-  --bleu-ocean: #6c3bff;     /* alias violet (nom conservé pour compat) */
-  --turquoise: #6c3bff;      /* alias violet (nom conservé pour compat) */
-  --sable: #d9ccff;
-  --sable-clair: #f4f1ff;
+  --bleu-ocean: #1d6fe0;     /* bleu de marque (accent secondaire, logo) */
+  --turquoise: #1d6fe0;      /* alias bleu de marque (nom conservé pour compat) */
+  --sable: #f8cfa0;
+  --sable-clair: #fef3e7;
   --gris-fonce: #1a1a1f;
   --gris-clair: #f7f7f9;
   --blanc: #ffffff;
@@ -104,7 +106,7 @@ textarea:focus-visible,
   width: 38px;
   height: 38px;
   border-radius: 11px;
-  background: linear-gradient(135deg, var(--violet), var(--violet-dark));
+  background: linear-gradient(135deg, var(--violet), var(--bleu-ocean));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -284,7 +286,7 @@ textarea:focus-visible,
 }
 
 .hero .btn-primary:hover {
-  background: #f3f0ff;
+  background: var(--violet-light);
   box-shadow: 0 12px 28px rgba(18, 16, 26, 0.22);
 }
 
@@ -625,10 +627,10 @@ textarea:focus-visible,
 .btn-primary {
   background: var(--violet);
   color: white;
-  box-shadow: 0 10px 24px rgba(108, 59, 255, 0.28);
+  box-shadow: 0 10px 24px rgba(242, 118, 12, 0.28);
 }
 
-.btn-primary:hover { background: var(--violet-dark); box-shadow: 0 12px 28px rgba(108, 59, 255, 0.36); }
+.btn-primary:hover { background: var(--violet-dark); box-shadow: 0 12px 28px rgba(242, 118, 12, 0.36); }
 
 .btn-secondary {
   background: var(--blanc);
@@ -960,7 +962,7 @@ textarea:focus-visible,
   box-shadow: none;
 }
 
-.cta-buttons .btn-primary:hover { background: #f3f0ff; }
+.cta-buttons .btn-primary:hover { background: var(--violet-light); }
 
 /* Vehicle grid */
 .vehicle-grid {
