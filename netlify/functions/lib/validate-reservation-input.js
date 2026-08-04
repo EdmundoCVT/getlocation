@@ -54,7 +54,6 @@ function validateReservationInput(payload) {
     lieuRetour,
     adressePrise,
     adresseRetour,
-    assurance,
     options,
     codePromo,
     conducteur,
@@ -104,8 +103,6 @@ function validateReservationInput(payload) {
       errors.push("Ville de livraison (restitution) invalide");
     }
   }
-
-  if (typeof assurance !== "boolean") errors.push("Champ assurance invalide");
 
   // Options : liste facultative d'identifiants — chacun doit correspondre à
   // une option connue du catalogue (js/data.js). Un identifiant inconnu est

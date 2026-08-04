@@ -50,7 +50,6 @@ function applyNewDates(window, { dateDebut, heureDebut, dateFin, heureFin }) {
 test("initReservationPage : la barre de dates affiche les dates courantes et recalcule le total quand on les change", () => {
   const window = newWindow(
     `<div id="reservation-summary"></div>
-     <input type="checkbox" id="assurance">
      <form id="driver-form">
        <input name="nom" id="nom"><input name="prenom" id="prenom"><input name="email" id="email">
        <input name="telephone" id="telephone"><input name="permis" id="permis"><input name="age" id="age">
@@ -60,23 +59,23 @@ test("initReservationPage : la barre de dates affiche les dates courantes et rec
     "https://getlocation.fr/reservation.html"
   );
   window.localStorage.setItem("gl_reservation", JSON.stringify({
-    vehiculeId: "opel-corsa", // 60 €/jour
+    vehiculeId: "opel-corsa", // 49 €/jour
     dateDebut: "2026-08-10", heureDebut: "10:00",
     dateFin: "2026-08-12", heureFin: "10:00",
-    jours: 2, assurance: false,
+    jours: 2,
     _savedAt: Date.now()
   }));
 
   window.initReservationPage();
 
-  // Résumé initial : 2 jours x 60 € = 120 €.
-  assert.match(window.document.getElementById("reservation-summary").textContent, /120/);
+  // Résumé initial : 2 jours x 49 € = 98 €.
+  assert.match(window.document.getElementById("reservation-summary").textContent, /98/);
   assert.match(window.document.getElementById("date-bar-text").textContent, /2 jours/);
 
-  // Le client rajoute un jour (10 -> 13 août au lieu de 10 -> 12) : 3 jours x 60 € = 180 €.
+  // Le client rajoute un jour (10 -> 13 août au lieu de 10 -> 12) : 3 jours x 49 € = 147 €.
   applyNewDates(window, { dateDebut: "2026-08-10", heureDebut: "10:00", dateFin: "2026-08-13", heureFin: "10:00" });
 
-  assert.match(window.document.getElementById("reservation-summary").textContent, /180/);
+  assert.match(window.document.getElementById("reservation-summary").textContent, /147/);
   assert.match(window.document.getElementById("date-bar-text").textContent, /3 jours/);
 
   // La nouvelle durée est bien persistée (survit à un rafraîchissement de page).
@@ -88,7 +87,6 @@ test("initReservationPage : la barre de dates affiche les dates courantes et rec
 test("initReservationPage : la barre de dates refuse une date de retour avant le départ", () => {
   const window = newWindow(
     `<div id="reservation-summary"></div>
-     <input type="checkbox" id="assurance">
      <form id="driver-form">
        <input name="nom" id="nom"><input name="prenom" id="prenom"><input name="email" id="email">
        <input name="telephone" id="telephone"><input name="permis" id="permis"><input name="age" id="age">
@@ -101,7 +99,7 @@ test("initReservationPage : la barre de dates refuse une date de retour avant le
     vehiculeId: "opel-corsa",
     dateDebut: "2026-08-10", heureDebut: "10:00",
     dateFin: "2026-08-12", heureFin: "10:00",
-    jours: 2, assurance: false,
+    jours: 2,
     _savedAt: Date.now()
   }));
 
@@ -109,8 +107,8 @@ test("initReservationPage : la barre de dates refuse une date de retour avant le
   applyNewDates(window, { dateDebut: "2026-08-10", heureDebut: "10:00", dateFin: "2026-08-09", heureFin: "10:00" });
 
   assert.notEqual(window.document.getElementById("date-bar-error").textContent, "");
-  // Le total ne doit pas avoir changé (toujours 2 jours x 60 € = 120 €).
-  assert.match(window.document.getElementById("reservation-summary").textContent, /120/);
+  // Le total ne doit pas avoir changé (toujours 2 jours x 49 € = 98 €).
+  assert.match(window.document.getElementById("reservation-summary").textContent, /98/);
   const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
   assert.equal(persisted.dateFin, "2026-08-12");
 });
@@ -132,10 +130,10 @@ test("initPaiementPage : la barre de dates recalcule le total à régler sans re
     "https://getlocation.fr/paiement.html"
   );
   window.localStorage.setItem("gl_reservation", JSON.stringify({
-    vehiculeId: "peugeot-3008", // 80 €/jour
+    vehiculeId: "peugeot-3008", // 69 €/jour
     dateDebut: "2026-08-10", heureDebut: "10:00",
     dateFin: "2026-08-12", heureFin: "10:00",
-    jours: 2, assurance: false,
+    jours: 2,
     conducteur: { nom: "Dupont", prenom: "Jean", email: "jean@example.com", telephone: "0601020304", permis: "123456", age: 30 },
     _savedAt: Date.now()
   }));
@@ -146,11 +144,11 @@ test("initPaiementPage : la barre de dates recalcule le total à régler sans re
   // moment-là (voir l'ordre des opérations dans initPaiementPage).
   window.initPaiementPage();
 
-  assert.match(window.document.getElementById("payment-summary").textContent, /160/); // 2 x 80 €
+  assert.match(window.document.getElementById("payment-summary").textContent, /138/); // 2 x 69 €
 
   applyNewDates(window, { dateDebut: "2026-08-10", heureDebut: "10:00", dateFin: "2026-08-14", heureFin: "10:00" });
 
-  assert.match(window.document.getElementById("payment-summary").textContent, /320/); // 4 x 80 €
+  assert.match(window.document.getElementById("payment-summary").textContent, /276/); // 4 x 69 €
   const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
   assert.equal(persisted.jours, 4);
 });

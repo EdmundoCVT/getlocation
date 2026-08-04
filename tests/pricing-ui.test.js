@@ -25,7 +25,6 @@ const { OPTIONS, getCodePromo } = require("../js/data.js");
 function reservationPageHtml() {
   return `
     <div id="reservation-summary"></div>
-    <input type="checkbox" id="assurance">
     <h3>Options supplémentaires</h3>
     <div id="options-list"></div>
     <input type="text" id="promo-input">
@@ -47,10 +46,10 @@ function newWindow(bodyHtml) {
 
 function baseReservation(overrides = {}) {
   return {
-    vehiculeId: "opel-corsa", // 60 €/jour
+    vehiculeId: "opel-corsa", // 49 €/jour
     dateDebut: "2026-08-10", heureDebut: "10:00",
     dateFin: "2026-08-12", heureFin: "10:00", // 2 jours, pas de remise durée
-    jours: 2, assurance: false,
+    jours: 2,
     _savedAt: Date.now(),
     ...overrides
   };
@@ -73,15 +72,15 @@ test("initReservationPage : cocher une option recalcule le total et le persiste"
   window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
   window.initReservationPage();
 
-  // 2 jours x 60 € = 120 € avant option.
-  assert.match(window.document.getElementById("reservation-summary").textContent, /120/);
+  // 2 jours x 49 € = 98 € avant option.
+  assert.match(window.document.getElementById("reservation-summary").textContent, /98/);
 
   const siegeAuto = window.getOptionParId("siege-auto"); // type "jour", 5 €/jour
   const checkbox = window.document.getElementById("option-siege-auto");
   checkbox.checked = true;
   checkbox.dispatchEvent(new window.Event("change", { bubbles: true }));
 
-  const totalAttendu = 120 + siegeAuto.prix * 2;
+  const totalAttendu = 98 + siegeAuto.prix * 2;
   assert.match(window.document.getElementById("reservation-summary").textContent, new RegExp(String(totalAttendu)));
 
   const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
@@ -90,7 +89,7 @@ test("initReservationPage : cocher une option recalcule le total et le persiste"
   // Décocher revient au total initial.
   checkbox.checked = false;
   checkbox.dispatchEvent(new window.Event("change", { bubbles: true }));
-  assert.match(window.document.getElementById("reservation-summary").textContent, /120/);
+  assert.match(window.document.getElementById("reservation-summary").textContent, /98/);
   const persistedApres = JSON.parse(window.localStorage.getItem("gl_reservation"));
   assert.deepEqual(persistedApres.options, []);
 });
@@ -104,7 +103,7 @@ test("initReservationPage : applique un code promo valide et affiche un message 
   window.document.getElementById("promo-apply").dispatchEvent(new window.Event("click", { bubbles: true }));
 
   const promo = getCodePromo("BIENVENUE10");
-  const totalAttendu = Math.round((120 - 120 * promo.pourcentage / 100) * 100) / 100;
+  const totalAttendu = Math.round(98 - 98 * promo.pourcentage / 100); // formatEUR arrondit à l'euro
   assert.match(window.document.getElementById("reservation-summary").textContent, new RegExp(String(totalAttendu)));
   assert.match(window.document.getElementById("promo-message").textContent, /appliqué/);
 
@@ -122,7 +121,7 @@ test("initReservationPage : un code promo invalide affiche une erreur et ne chan
   window.document.getElementById("promo-input").value = "CODE-BIDON";
   window.document.getElementById("promo-apply").dispatchEvent(new window.Event("click", { bubbles: true }));
 
-  assert.match(window.document.getElementById("reservation-summary").textContent, /120/);
+  assert.match(window.document.getElementById("reservation-summary").textContent, /98/);
   assert.match(window.document.getElementById("promo-message").textContent, /invalide/);
 });
 

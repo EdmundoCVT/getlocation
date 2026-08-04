@@ -27,12 +27,11 @@ const VILLES_LIVRAISON = ["Nice", "Cannes", "Antibes", "Grasse", "Monaco"];
 
 const CATEGORIES = ["Citadine", "SUV", "Utilitaire"];
 
-// Horaires d'ouverture pour la prise en charge / restitution des véhicules.
-const HEURE_OUVERTURE = "08:00";
-const HEURE_FERMETURE = "19:00";
-
-// Prix de l'assurance tous risques optionnelle (par jour facturable).
-const PRIX_ASSURANCE_JOUR = 15;
+// Horaires de prise en charge / restitution : disponible 24h/24 sur
+// rendez-vous (évolution prévue vers un système de déverrouillage par
+// smartphone, sans horaires fixes à terme).
+const HEURE_OUVERTURE = "00:00";
+const HEURE_FERMETURE = "23:30";
 
 // Identifiant de version des conditions générales de location (CGL) et de
 // la politique de confidentialité actuellement en vigueur. Toute
@@ -52,9 +51,9 @@ const CGL_VERSION = "2026-07-22";
 // élevé au plus bas pour que reductionDureeApplicable() retienne le
 // meilleur palier atteint.
 const REDUCTIONS_DUREE = [
-  { seuilJours: 30, pourcentage: 20, libelle: "1 mois ou plus" },
-  { seuilJours: 14, pourcentage: 15, libelle: "2 semaines ou plus" },
-  { seuilJours: 7, pourcentage: 10, libelle: "1 semaine ou plus" }
+  { seuilJours: 30, pourcentage: 15, libelle: "1 mois ou plus" },
+  { seuilJours: 14, pourcentage: 10, libelle: "2 semaines ou plus" },
+  { seuilJours: 7, pourcentage: 5, libelle: "1 semaine ou plus" }
 ];
 
 // Retourne le palier de réduction durée applicable (ou null si la location
@@ -88,11 +87,11 @@ const OPTIONS = [
   { id: "siege-auto", nom: "Siège auto bébé", description: "Siège auto homologué pour bébé (0-13 kg)", type: "jour", prix: 5 },
   { id: "rehausseur", nom: "Réhausseur enfant", description: "Réhausseur homologué pour enfant (15-36 kg)", type: "jour", prix: 3 },
   { id: "assurance-passagers", nom: "Assurance passagers / accident", description: "Couvre les dommages corporels des passagers en cas d'accident", type: "jour", prix: 6 },
-  { id: "second-conducteur", nom: "Deuxième conducteur", description: "Ajoute un second conducteur autorisé sur le contrat", type: "jour", prix: 7 },
+  { id: "second-conducteur", nom: "Deuxième conducteur", description: "Ajoute un second conducteur autorisé sur le contrat", type: "jour", prix: 10 },
   { id: "plein-essence", nom: "Retour sans faire le plein", description: "Rendez le véhicule tel quel, on s'occupe de refaire le plein", type: "forfait", prix: 25 },
   { id: "nettoyage", nom: "Nettoyage complet inclus", description: "Nettoyage intérieur et extérieur à la restitution", type: "forfait", prix: 20 },
   { id: "km-supplementaire", nom: "Forfait kilométrage supplémentaire", description: "300 km supplémentaires inclus sur la durée de la location", type: "forfait", prix: 30 },
-  { id: "livraison-adresse", nom: "Livraison à l'adresse de votre choix", description: "Le véhicule vous est livré à l'adresse indiquée (Nice, Cannes, Antibes, Grasse, Monaco)", type: "forfait", prix: 15 }
+  { id: "livraison-adresse", nom: "Livraison à l'adresse de votre choix", description: "Le véhicule vous est livré à l'adresse indiquée (Nice, Cannes, Antibes, Grasse, Monaco)", type: "forfait", prix: 20 }
 ];
 
 function getOptionParId(id) {
@@ -122,8 +121,8 @@ const VEHICULES = [
     transmission: "Manuelle",
     clim: true,
     hybride: false,
-    prixJour: 60,
-    caution: 300,
+    prixJour: 49,
+    caution: 500,
     description: "Compacte et économique, parfaite pour vos déplacements pro entre Cannes, Antibes et Grasse."
   },
   {
@@ -148,7 +147,7 @@ const VEHICULES = [
     transmission: "Automatique",
     clim: true,
     hybride: true,
-    prixJour: 70,
+    prixJour: 59,
     caution: 500,
     description: "SUV compact hybride, confortable et sobre pour rayonner sur toute la Côte d'Azur."
   },
@@ -174,7 +173,7 @@ const VEHICULES = [
     transmission: "Automatique",
     clim: true,
     hybride: true,
-    prixJour: 80,
+    prixJour: 69,
     caution: 600,
     description: "SUV familial haut de gamme, idéal pour vos trajets entre Nice, Cannes et l'arrière-pays."
   },
@@ -199,8 +198,8 @@ const VEHICULES = [
     transmission: "Manuelle",
     clim: true,
     hybride: false,
-    prixJour: 90,
-    caution: 450,
+    prixJour: 79,
+    caution: 800,
     description: "Ludospace polyvalent au grand volume de chargement, idéal bagages, matériel ou déménagement."
   }
 ];
@@ -236,16 +235,21 @@ function joursFacturablesDepuisHeures(dureeHeures) {
 //   1. sous-total brut = prix/jour du véhicule × jours facturables
 //   2. réduction durée (7/14/30 jours, voir REDUCTIONS_DUREE) appliquée sur
 //      ce sous-total
-//   3. + assurance tous risques (si cochée)
-//   4. + options sélectionnées (voir OPTIONS)
-//   5. − réduction du code promo (si valide), appliquée sur le total obtenu
+//   3. + options sélectionnées (voir OPTIONS)
+//   4. − réduction du code promo (si valide), appliquée sur le total obtenu
 //      à l'étape précédente
+//
+// Pas d'assurance tous risques optionnelle pour l'instant (retirée le
+// 4 août 2026) : seule l'assurance responsabilité civile obligatoire,
+// incluse dans le prix, s'applique. La franchise en cas de sinistre
+// responsable est égale au montant de la caution du véhicule loué (voir
+// VEHICULES[].caution) — aucun montant de franchise séparé à définir.
 //
 // `options` est une liste d'identifiants (ex. ["siege-auto","nettoyage"]) ;
 // les identifiants inconnus sont ignorés ici (la validation stricte côté
 // serveur — qui rejette une requête contenant un identifiant inconnu — se
 // fait séparément dans validate-reservation-input.js).
-function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFin, assurance, options, codePromo }) {
+function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFin, options, codePromo }) {
   const vehicule = getVehiculeParId(vehiculeId);
   if (!vehicule) return null;
   const dureeHeures = dureeEnHeures(dateDebut, heureDebut, dateFin, heureFin);
@@ -256,8 +260,6 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
   const palierReduction = reductionDureeApplicable(jours);
   const reductionDureeMontant = palierReduction ? Math.round(sousTotalBrut * palierReduction.pourcentage) / 100 : 0;
   const sousTotal = sousTotalBrut - reductionDureeMontant;
-
-  const assuranceMontant = assurance ? PRIX_ASSURANCE_JOUR * jours : 0;
 
   const idsOptions = Array.isArray(options) ? [...new Set(options)] : [];
   const optionsSelectionnees = idsOptions
@@ -271,7 +273,7 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
     }));
   const optionsMontant = optionsSelectionnees.reduce((somme, o) => somme + o.montant, 0);
 
-  const baseAvantPromo = sousTotal + assuranceMontant + optionsMontant;
+  const baseAvantPromo = sousTotal + optionsMontant;
   const promo = getCodePromo(codePromo);
   const reductionPromoMontant = promo ? Math.round(baseAvantPromo * promo.pourcentage) / 100 : 0;
 
@@ -283,7 +285,6 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
     sousTotalBrut,
     reductionDuree: palierReduction ? { pourcentage: palierReduction.pourcentage, montant: reductionDureeMontant, libelle: palierReduction.libelle } : null,
     sousTotal,
-    assuranceMontant,
     optionsSelectionnees,
     optionsMontant,
     baseAvantPromo,
@@ -306,7 +307,6 @@ if (typeof module !== "undefined" && module.exports) {
     VEHICULES,
     HEURE_OUVERTURE,
     HEURE_FERMETURE,
-    PRIX_ASSURANCE_JOUR,
     REDUCTIONS_DUREE,
     CODES_PROMO,
     OPTIONS,

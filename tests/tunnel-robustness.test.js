@@ -22,7 +22,6 @@ const APP_SRC = fs.readFileSync(path.join(__dirname, "..", "js", "app.js"), "utf
 function driverFormHtml() {
   return `<!DOCTYPE html><body>
     <div id="reservation-summary"></div>
-    <input type="checkbox" id="assurance">
     <form id="driver-form">
       <input name="nom" id="nom" aria-describedby="err-nom" aria-invalid="false"><div id="err-nom"></div>
       <input name="prenom" id="prenom" aria-describedby="err-prenom" aria-invalid="false"><div id="err-prenom"></div>
@@ -71,7 +70,7 @@ test("initPaiementPage : pré-remplit le formulaire si le conducteur avait déj�
     vehiculeId: "opel-corsa",
     dateDebut: "2026-08-10", heureDebut: "10:00",
     dateFin: "2026-08-12", heureFin: "10:00",
-    jours: 2, assurance: false,
+    jours: 2,
     conducteur: { nom: "Dupont", prenom: "Jean", email: "jean@example.com", telephone: "0601020304", permis: "123456", age: 30 },
     _savedAt: Date.now()
   }));
@@ -92,7 +91,7 @@ test("initPaiementPage : ne pré-remplit rien pour une première visite (pas de 
     vehiculeId: "opel-corsa",
     dateDebut: "2026-08-10", heureDebut: "10:00",
     dateFin: "2026-08-12", heureFin: "10:00",
-    jours: 2, assurance: false,
+    jours: 2,
     _savedAt: Date.now()
   }));
 
@@ -103,7 +102,6 @@ test("initPaiementPage : ne pré-remplit rien pour une première visite (pas de 
 test("initReservationPage : n'exige plus de coordonnées conducteur (options avant paiement)", () => {
   const window = newWindow(`<!DOCTYPE html><body>
     <div id="reservation-summary"></div>
-    <input type="checkbox" id="assurance">
     <div id="options-list"></div>
     <input type="text" id="promo-input">
     <button type="button" id="promo-apply"></button>
@@ -114,14 +112,14 @@ test("initReservationPage : n'exige plus de coordonnées conducteur (options ava
     vehiculeId: "opel-corsa",
     dateDebut: "2026-08-10", heureDebut: "10:00",
     dateFin: "2026-08-12", heureFin: "10:00",
-    jours: 2, assurance: false,
+    jours: 2,
     _savedAt: Date.now()
   }));
 
   // Ne doit pas planter en l'absence de tout formulaire conducteur sur
   // cette page (il a été déplacé vers paiement.html).
   assert.doesNotThrow(() => window.initReservationPage());
-  assert.match(window.document.getElementById("reservation-summary").textContent, /120/);
+  assert.match(window.document.getElementById("reservation-summary").textContent, /98/);
 });
 
 test("validateDriverForm : marque aria-invalid et place le focus sur le premier champ en erreur", () => {

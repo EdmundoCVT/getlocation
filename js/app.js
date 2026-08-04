@@ -486,8 +486,7 @@ function initVehiculesPage() {
         dateDebut: recherche.dateDebut,
         heureDebut: recherche.heureDebut,
         dateFin: recherche.dateFin,
-        heureFin: recherche.heureFin,
-        assurance: false
+        heureFin: recherche.heureFin
       });
       const total = prixInfo ? prixInfo.total : v.prixJour * jours;
       const remise = prixInfo && prixInfo.reductionDuree ? prixInfo.reductionDuree : null;
@@ -521,8 +520,7 @@ function initVehiculesPage() {
         writeReservationLocal({
           vehiculeId: v.id,
           ...recherche,
-          jours,
-          assurance: false
+          jours
         });
         window.location.href = "reservation.html";
       });
@@ -749,9 +747,6 @@ function initReservationPage() {
   if (!Array.isArray(data.options)) data.options = [];
   if (typeof data.codePromo !== "string") data.codePromo = "";
 
-  const assuranceCheckbox = document.getElementById("assurance");
-  assuranceCheckbox.checked = !!data.assurance;
-
   function prixCourant() {
     return calculerPrixTotal({
       vehiculeId: data.vehiculeId,
@@ -759,7 +754,6 @@ function initReservationPage() {
       heureDebut: data.heureDebut,
       dateFin: data.dateFin,
       heureFin: data.heureFin,
-      assurance: assuranceCheckbox.checked,
       options: data.options,
       codePromo: data.codePromo
     });
@@ -811,12 +805,6 @@ function initReservationPage() {
       }
     }
   }
-
-  assuranceCheckbox.addEventListener("change", () => {
-    data.assurance = assuranceCheckbox.checked;
-    writeReservationLocal(data);
-    render();
-  });
 
   // Options supplémentaires : liste générée depuis le catalogue partagé
   // (OPTIONS, js/data.js) — une seule source à mettre à jour pour ajouter/
@@ -1045,7 +1033,6 @@ function initPaiementPage() {
       heureDebut: data.heureDebut,
       dateFin: data.dateFin,
       heureFin: data.heureFin,
-      assurance: data.assurance,
       options: data.options,
       codePromo: data.codePromo
     });
@@ -1166,7 +1153,6 @@ function initPaiementPage() {
           lieuRetour: data.lieuRetour,
           adressePrise: data.adressePrise,
           adresseRetour: data.adresseRetour,
-          assurance: !!data.assurance,
           options: data.options,
           codePromo: data.codePromo,
           conducteur: data.conducteur,
@@ -1281,8 +1267,6 @@ function appendBreakdownRows(container, prix) {
     row.classList.add("discount");
     container.appendChild(row);
   }
-
-  container.appendChild(summaryRow("Assurance tous risques", prix.assuranceMontant > 0 ? formatEUR(prix.assuranceMontant) : "—"));
 
   (prix.optionsSelectionnees || []).forEach((opt) => {
     container.appendChild(summaryRow(opt.nom, formatEUR(opt.montant)));

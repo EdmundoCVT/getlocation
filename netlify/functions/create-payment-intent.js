@@ -4,7 +4,7 @@
 //
 // RÈGLE DE SÉCURITÉ CENTRALE : le montant facturé n'est JAMAIS accepté
 // depuis le client. Le client envoie uniquement des paramètres métier
-// (véhicule, dates/heures, lieux, assurance, coordonnées du conducteur) ;
+// (véhicule, dates/heures, lieux, options, coordonnées du conducteur) ;
 // le prix qui fait foi est recalculé ici via calculerPrixTotal() de
 // js/data.js — la même fonction qui sert à l'affichage côté navigateur,
 // afin qu'aucune divergence de prix ne soit possible (cf. AUDIT.md, P0).
@@ -159,11 +159,9 @@ exports.handler = async (event) => {
     lieuRetour: payload.lieuRetour || null,
     adressePrise: payload.adressePrise || null,
     adresseRetour: payload.adresseRetour || null,
-    assurance: !!payload.assurance,
     jours: prix.jours,
     sousTotalBrut: prix.sousTotalBrut,
     reductionDuree: prix.reductionDuree,
-    assuranceMontant: prix.assuranceMontant,
     options: prix.optionsSelectionnees,
     optionsMontant: prix.optionsMontant,
     codePromo: prix.codePromo,
@@ -202,7 +200,6 @@ exports.handler = async (event) => {
           reservationId: reservation.id,
           vehiculeId: vehicule.id,
           jours: String(prix.jours),
-          assurance: String(!!payload.assurance),
           options: prix.optionsSelectionnees.map((o) => o.id).join(",") || "aucune",
           codePromo: prix.codePromo ? prix.codePromo.code : "aucun"
         }
