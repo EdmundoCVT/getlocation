@@ -364,24 +364,28 @@
 const VEHICULES = [
   { id:"opel-corsa", nom:"Opel Corsa Business 1.2T (2026)", prixJour:49, caution:500, immat:"HJ-967-KQ" },
   { id:"peugeot-2008-hybrid", nom:"Peugeot 2008 Hybrid (2026)", prixJour:59, caution:500, immat:"HK-493-ZN" },
-  { id:"peugeot-3008", nom:"Peugeot 3008 (2026)", prixJour:69, caution:500, immat:"HK-085-LQ" },
-  { id:"toyota-proace-city", nom:"Toyota Proace City (2026)", prixJour:79, caution:500, immat:"HK-619-XA" }
+  { id:"peugeot-3008", nom:"Peugeot 3008 (2026)", prixJour:69, caution:600, immat:"HK-085-LQ" },
+  { id:"toyota-proace-city", nom:"Toyota Proace City (2026)", prixJour:79, caution:800, immat:"HK-619-XA" }
 ];
 const SUPPLEMENT_LIVRAISON = 20;
 const LIEUX = [
-  "Agence Grasse (siège)",
-  "Agence Cannes",
-  "Agence Antibes",
-  "Aéroport Nice Côte d'Azur"
+  "Agence Grasse (siège)"
 ];
 const SUPPLEMENT_CONDUCTEUR_JOUR = 10;
-function calculSupplementConducteur(heures){ return Math.round(heures * (SUPPLEMENT_CONDUCTEUR_JOUR/24)); }
+function calculSupplementConducteur(jours){ return SUPPLEMENT_CONDUCTEUR_JOUR * jours; }
 
 function dureeHeures(a,b){
   var h = (new Date(b) - new Date(a)) / (1000*60*60);
   return Math.max(h, 1);
 }
-function calculTarif(prixJour, heures){ return Math.round(heures * (prixJour/24)); }
+// Jours facturables : toute heure entamée au-delà d'un multiple de 24h
+// compte pour un jour complet (même règle que js/data.js sur le site).
+function joursFacturables(heures){
+  if(!isFinite(heures) || heures <= 0) return 1;
+  return Math.max(Math.ceil(heures / 24), 1);
+}
+function calculTarif(prixJour, heures){ return prixJour * joursFacturables(heures); }
+function formatJoursFactures(jours){ return jours + ' jour' + (jours > 1 ? 's' : ''); }
 function formatDuree(heures){
   var total = Math.round(heures);
   var jours = Math.floor(total/24);
@@ -501,13 +505,14 @@ function initOwnerView(){
     var v = currentVehicule();
     if(!v || !inputDepart.value || !inputRetour.value) return;
     var heures = dureeHeures(inputDepart.value, inputRetour.value);
+    var jours = joursFacturables(heures);
     var total = calculTarif(v.prixJour, heures);
-    if(secondToggle.checked) total += calculSupplementConducteur(heures);
+    if(secondToggle.checked) total += calculSupplementConducteur(jours);
     if(livraisonToggle.checked) total += SUPPLEMENT_LIVRAISON;
     document.getElementById('vehiculeRecap').innerHTML =
       '<span><strong>' + v.nom + '</strong> — ' + v.prixJour + ' €/jour</span>' +
       '<span>Caution : ' + formatEUR(v.caution) + '</span>';
-    document.getElementById('dureeTxt').textContent = formatDuree(heures);
+    document.getElementById('dureeTxt').textContent = formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours);
     document.getElementById('kmTxt').textContent = kmInclusPour(heures).toLocaleString('fr-FR') + ' km';
     document.getElementById('totalTxt').textContent = formatEUR(total);
   }
@@ -614,8 +619,9 @@ function initClientView(data){
   var v = VEHICULES.find(function(x){ return x.id === data.vehiculeId; });
   if(!v) v = VEHICULES[0];
   var heures = dureeHeures(data.depart, data.retour);
+  var jours = joursFacturables(heures);
   var total = calculTarif(v.prixJour, heures);
-  if(data.secondConducteur) total += calculSupplementConducteur(heures);
+  if(data.secondConducteur) total += calculSupplementConducteur(jours);
   if(data.livraison) total += SUPPLEMENT_LIVRAISON;
   var kmInclus = kmInclusPour(heures);
   var adresseComplete = data.adresse + ', ' + data.codePostal + ' ' + data.ville;
@@ -632,7 +638,7 @@ function initClientView(data){
       livraison: data.livraison ? 'Oui (+20 €)' : 'Non',
       depart: formatDateHeureFR(data.depart),
       retour: formatDateHeureFR(data.retour),
-      duree: formatDuree(heures),
+      duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
       total: formatEUR(total),
       caution: formatEUR(v.caution),
       mode_reglement_caution: data.modeCaution === 'carte' ? 'Carte bancaire' : 'Espèces',
@@ -766,7 +772,7 @@ function initClientView(data){
     '<div class="recap-row"><span>Retour</span><span>' + formatDateHeureFR(data.retour) + '</span></div>' +
     '<div class="recap-row"><span>Caution</span><span>' + formatEUR(v.caution) + ' (' + (data.modeCaution === 'carte' ? 'carte bancaire' : 'espèces') + ')</span></div>';
 
-  document.getElementById('c-dureeTxt').textContent = formatDuree(heures);
+  document.getElementById('c-dureeTxt').textContent = formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours);
   document.getElementById('c-kmTxt').textContent = kmInclus.toLocaleString('fr-FR') + ' km';
   document.getElementById('c-totalTxt').textContent = formatEUR(total);
 
@@ -790,7 +796,7 @@ function initClientView(data){
   setFill('immat', data.immat);
   setFill('depart', formatDateHeureFR(data.depart));
   setFill('retour', formatDateHeureFR(data.retour));
-  setFill('duree', formatDuree(heures));
+  setFill('duree', formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours));
   setFill('lieu', lieuAffiche);
   setFill('total', formatEUR(total));
   setFill('caution', formatEUR(v.caution));
