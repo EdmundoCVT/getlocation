@@ -88,6 +88,31 @@
 
 <div class="container">
   <form id="search-form" class="search-card">
+    <div class="field field-full">
+      <label id="vehicle-type-label">Quel type de véhicule ?</label>
+      <div class="vehicle-type-toggle" id="vehicle-type-toggle" role="group" aria-labelledby="vehicle-type-label">
+        <button type="button" class="vt-option active" data-type="voiture" aria-pressed="true">
+          <span class="vt-icon" aria-hidden="true">🚗</span> Voiture
+        </button>
+        <button type="button" class="vt-option" data-type="utilitaire" aria-pressed="false">
+          <span class="vt-icon" aria-hidden="true">🚐</span> Utilitaire
+        </button>
+      </div>
+    </div>
+    <div class="field">
+      <label for="date-debut">Date et heure de départ</label>
+      <div class="datetime-group">
+        <input type="date" id="date-debut" required>
+        <select id="heure-debut" required></select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="date-fin">Date et heure de retour</label>
+      <div class="datetime-group">
+        <input type="date" id="date-fin" required>
+        <select id="heure-fin" required></select>
+      </div>
+    </div>
     <div class="field">
       <label for="lieu-prise">Lieu de prise en charge</label>
       <select id="lieu-prise" required></select>
@@ -109,20 +134,6 @@
     <div class="field" id="adresse-retour-field" style="display:none;">
       <label for="adresse-retour">Ville de livraison (restitution)</label>
       <select id="adresse-retour"></select>
-    </div>
-    <div class="field">
-      <label for="date-debut">Date et heure de départ</label>
-      <div class="datetime-group">
-        <input type="date" id="date-debut" required>
-        <select id="heure-debut" required></select>
-      </div>
-    </div>
-    <div class="field">
-      <label for="date-fin">Date et heure de retour</label>
-      <div class="datetime-group">
-        <input type="date" id="date-fin" required>
-        <select id="heure-fin" required></select>
-      </div>
     </div>
     <button type="submit" class="btn btn-primary">Rechercher</button>
   </form>
@@ -497,6 +508,6 @@
 </footer>
 
 <script src="js/data.js?v=2"></script>
-<script src="js/app.js?v=10"></script>
+<script src="js/app.js?v=11"></script>
 </body>
 </html>

@@ -283,6 +283,25 @@ function initSearchForm() {
   const selectAdressePrise = document.getElementById("adresse-prise");
   const champAdresseRetour = document.getElementById("adresse-retour-field");
   const selectAdresseRetour = document.getElementById("adresse-retour");
+  const toggleTypeVehicule = document.getElementById("vehicle-type-toggle");
+
+  // Sélecteur "Voiture / Utilitaire" : choix exclusif, "voiture" par défaut
+  // (regroupe Citadine + SUV). Pré-filtre la catégorie affichée sur
+  // vehicules.html (voir initVehiculesPage) sans dupliquer le catalogue.
+  let typeVehicule = "voiture";
+  if (toggleTypeVehicule) {
+    const optionsType = toggleTypeVehicule.querySelectorAll(".vt-option");
+    optionsType.forEach(btn => {
+      btn.addEventListener("click", () => {
+        typeVehicule = btn.dataset.type;
+        optionsType.forEach(b => {
+          const actif = b === btn;
+          b.classList.toggle("active", actif);
+          b.setAttribute("aria-pressed", String(actif));
+        });
+      });
+    });
+  }
 
   LIEUX.forEach(lieu => {
     selectPrise.add(new Option(lieu, lieu));
@@ -400,7 +419,8 @@ function initSearchForm() {
       dateDebut: inputDebut.value,
       dateFin: inputFin.value,
       heureDebut: selectHeureDebut ? selectHeureDebut.value : "10:00",
-      heureFin: selectHeureFin ? selectHeureFin.value : "10:00"
+      heureFin: selectHeureFin ? selectHeureFin.value : "10:00",
+      typeVehicule
     });
     window.location.href = "vehicules.html";
   });
@@ -453,7 +473,11 @@ function initVehiculesPage() {
   updateInfoBar();
 
   const filterBar = document.getElementById("filter-bar");
-  let activeCategorie = "Toutes";
+  // Pré-sélectionne la catégorie "Utilitaire" si c'est le choix fait dans le
+  // sélecteur "Voiture / Utilitaire" de la page de recherche (voir
+  // initSearchForm) ; sinon on part de "Toutes" comme avant, le client garde
+  // la main via les puces de filtre ci-dessous.
+  let activeCategorie = recherche.typeVehicule === "utilitaire" ? "Utilitaire" : "Toutes";
 
   function renderChips() {
     filterBar.innerHTML = "";
