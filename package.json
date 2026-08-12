@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@mollie/api-client": "^4.6.0",
-    "@netlify/blobs": "^10.7.9"
+    "@netlify/blobs": "^10.7.9",
+    "nodemailer": "^9.0.5"
   },
   "devDependencies": {
     "jsdom": "^29.1.1"

@@ -23,6 +23,8 @@ Le paiement fonctionne par **redirection** : le client est envoyé vers une page
 | `MOLLIE_API_KEY` | Oui, pour activer le paiement en ligne | Jeton d'accès Mollie (`test_...` ou `live_...`). Sans elle, le paiement en ligne répond honnêtement "indisponible" et affiche un repli téléphone/WhatsApp — le site reste utilisable. Aucun secret de signature de webhook séparé n'est nécessaire : le modèle de sécurité Mollie repose sur la revérification du statut via l'API (voir `netlify/functions/mollie-webhook.js`), pas sur une signature HMAC comme Stripe. |
 | `ALLOWED_ORIGINS` | Optionnel | Liste d'origines CORS supplémentaires autorisées à appeler les fonctions (séparées par des virgules). Par défaut, seuls le domaine de production et l'URL de déploiement Netlify sont autorisés. |
 | `URL` / `DEPLOY_PRIME_URL` | Auto | Injectées automatiquement par Netlify, pas besoin de les définir. |
+| `GMAIL_USER` | Optionnel, pour l'email de confirmation | Adresse Gmail expéditrice de l'email de confirmation envoyé au client à chaque paiement confirmé (`getlocation.fr@gmail.com`). Reçoit aussi une copie cachée (BCC) de chaque confirmation envoyée. |
+| `GMAIL_APP_PASSWORD` | Optionnel, pour l'email de confirmation | Mot de passe d'application Google associé à `GMAIL_USER` (16 caractères, généré sur https://myaccount.google.com/apppasswords — nécessite la validation en 2 étapes activée sur ce compte Google). Sans ces deux variables, la réservation est quand même confirmée normalement, seul l'email n'est pas envoyé (voir `netlify/functions/lib/send-confirmation-email.js`). |
 
 Netlify Blobs (stockage des réservations et du rate-limiting) ne nécessite aucune variable d'environnement sur Netlify — c'est automatique une fois le site déployé sur cette plateforme.
 
