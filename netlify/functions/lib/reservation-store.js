@@ -4,11 +4,15 @@
 // serveur (netlify/functions) — ne jamais importer ce fichier depuis le
 // navigateur.
 //
-// Backend de production : Netlify Blobs (@netlify/blobs). Ce service est
-// fourni automatiquement par l'environnement d'exécution Netlify Functions :
-// aucun identifiant à créer ni à stocker, le contexte (site, jeton) est
-// injecté par Netlify au moment de l'exécution. Voir
-// https://docs.netlify.com/blobs/overview/
+// Backend de production : Netlify Blobs (@netlify/blobs). En théorie, ce
+// service est fourni automatiquement par l'environnement d'exécution
+// Netlify Functions, sans configuration. En pratique, sur ce projet, la
+// configuration automatique échoue systématiquement en production
+// (MissingBlobsEnvironmentError — cause exacte inconnue côté Netlify, voir
+// DEPLOIEMENT.md), donc une configuration manuelle explicite est utilisée
+// à la place : variables d'environnement NETLIFY_BLOBS_SITE_ID et
+// NETLIFY_BLOBS_TOKEN (jeton d'accès personnel Netlify). Voir
+// https://docs.netlify.com/blobs/overview/#manual-configuration
 //
 // Repli développement/tests : si Netlify Blobs n'est pas disponible (code
 // exécuté hors runtime Netlify, ex. `node --test` en local), on bascule
@@ -67,6 +71,14 @@ function getBlobsStore() {
     // production une fois la dépendance ajoutée à package.json, mais reste
     // sûr pour les environnements de test).
     const { getStore } = require("@netlify/blobs");
+    const siteID = process.env.NETLIFY_BLOBS_SITE_ID;
+    const token = process.env.NETLIFY_BLOBS_TOKEN;
+    if (siteID && token) {
+      return getStore({ name: STORE_NAME, siteID, token });
+    }
+    // Repli sur la configuration automatique (utile en local avec `netlify
+    // dev`, où elle fonctionne correctement) si les variables manuelles ne
+    // sont pas définies.
     return getStore(STORE_NAME);
   } catch (err) {
     console.error("[reservation-store] getStore() a levé une exception :", err && (err.stack || err.message));

@@ -4,10 +4,9 @@
 // sensibles (ex. création de PaymentIntent). Compteur par clé (typiquement
 // IP + nom de fonction) sur une fenêtre glissante simplifiée (fenêtre fixe).
 //
-// Backend : Netlify Blobs (même mécanisme que reservation-store.js), avec
-// repli mémoire en dev/tests. Comme documenté dans reservation-store.js,
-// n'invente aucun credential : Netlify Blobs est fourni automatiquement par
-// le runtime Netlify Functions.
+// Backend : Netlify Blobs (même mécanisme et même configuration manuelle
+// que reservation-store.js — voir ce fichier pour le détail), avec repli
+// mémoire en dev/tests.
 //
 // IMPORTANT — limites connues de cette protection :
 // - Elle protège contre un abus applicatif simple (ex. un script qui
@@ -36,8 +35,14 @@ function memoryWarnOnce() {
 function getBlobsStore() {
   try {
     const { getStore } = require("@netlify/blobs");
+    const siteID = process.env.NETLIFY_BLOBS_SITE_ID;
+    const token = process.env.NETLIFY_BLOBS_TOKEN;
+    if (siteID && token) {
+      return getStore({ name: "getlocation-rate-limits", siteID, token });
+    }
     return getStore("getlocation-rate-limits");
   } catch (err) {
+    console.error("[rate-limiter] getStore() a levé une exception :", err && (err.stack || err.message));
     return null;
   }
 }
@@ -48,6 +53,7 @@ async function withStore(fn, fallbackFn) {
     try {
       return await fn(store);
     } catch (err) {
+      console.error("[rate-limiter] Échec d'accès à Netlify Blobs :", err && (err.stack || err.message));
       memoryWarnOnce();
       return fallbackFn();
     }
