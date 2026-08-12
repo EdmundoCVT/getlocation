@@ -27,8 +27,7 @@ function driverFormHtml() {
       <input name="prenom" id="prenom" aria-describedby="err-prenom" aria-invalid="false"><div id="err-prenom"></div>
       <input name="email" id="email" aria-describedby="err-email" aria-invalid="false"><div id="err-email"></div>
       <input name="telephone" id="telephone" aria-describedby="err-telephone" aria-invalid="false"><div id="err-telephone"></div>
-      <input name="permis" id="permis" aria-describedby="err-permis" aria-invalid="false"><div id="err-permis"></div>
-      <input name="age" id="age" aria-describedby="err-age" aria-invalid="false"><div id="err-age"></div>
+      <input name="naissance" id="naissance" aria-describedby="err-naissance" aria-invalid="false"><div id="err-naissance"></div>
       <button type="submit">Continuer</button>
     </form>
   </body>`;
@@ -46,8 +45,7 @@ function paiementFormHtml() {
       <input name="prenom" id="prenom" aria-describedby="err-prenom" aria-invalid="false"><div id="err-prenom"></div>
       <input name="email" id="email" aria-describedby="err-email" aria-invalid="false"><div id="err-email"></div>
       <input name="telephone" id="telephone" aria-describedby="err-telephone" aria-invalid="false"><div id="err-telephone"></div>
-      <input name="permis" id="permis" aria-describedby="err-permis" aria-invalid="false"><div id="err-permis"></div>
-      <input name="age" id="age" aria-describedby="err-age" aria-invalid="false"><div id="err-age"></div>
+      <input name="naissance" id="naissance" aria-describedby="err-naissance" aria-invalid="false"><div id="err-naissance"></div>
       <input type="checkbox" id="cgl-accept">
       <div id="err-cgl-accept"></div>
       <button id="pay-button"><span class="btn-label">Payer</span></button>
@@ -69,7 +67,7 @@ test("initPaiementPage : pré-remplit le formulaire si le conducteur avait déj�
     dateDebut: "2026-08-10", heureDebut: "10:00",
     dateFin: "2026-08-12", heureFin: "10:00",
     jours: 2,
-    conducteur: { nom: "Dupont", prenom: "Jean", email: "jean@example.com", telephone: "0601020304", permis: "123456", age: 30 },
+    conducteur: { nom: "Dupont", prenom: "Jean", email: "jean@example.com", telephone: "0601020304", naissance: "1995-06-15" },
     _savedAt: Date.now()
   }));
 
@@ -79,8 +77,7 @@ test("initPaiementPage : pré-remplit le formulaire si le conducteur avait déj�
   assert.equal(window.document.getElementById("prenom").value, "Jean");
   assert.equal(window.document.getElementById("email").value, "jean@example.com");
   assert.equal(window.document.getElementById("telephone").value, "0601020304");
-  assert.equal(window.document.getElementById("permis").value, "123456");
-  assert.equal(window.document.getElementById("age").value, "30");
+  assert.equal(window.document.getElementById("naissance").value, "1995-06-15");
 });
 
 test("initPaiementPage : ne pré-remplit rien pour une première visite (pas de conducteur enregistré)", () => {
@@ -127,8 +124,7 @@ test("validateDriverForm : marque aria-invalid et place le focus sur le premier 
   window.document.getElementById("prenom").value = "";
   window.document.getElementById("email").value = "pas-un-email";
   window.document.getElementById("telephone").value = "0601020304";
-  window.document.getElementById("permis").value = "123456";
-  window.document.getElementById("age").value = "30";
+  window.document.getElementById("naissance").value = "1995-06-15";
 
   const valid = window.validateDriverForm(form);
 
@@ -147,8 +143,7 @@ test("validateDriverForm : accepte un formulaire valide et efface les messages d
   window.document.getElementById("prenom").value = "Jean";
   window.document.getElementById("email").value = "jean@example.com";
   window.document.getElementById("telephone").value = "0601020304";
-  window.document.getElementById("permis").value = "123456";
-  window.document.getElementById("age").value = "30";
+  window.document.getElementById("naissance").value = "1995-06-15";
 
   const valid = window.validateDriverForm(form);
   assert.equal(valid, true);

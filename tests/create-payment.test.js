@@ -32,12 +32,26 @@ function makeEvent({ method = "POST", body = {}, origin = "https://getlocation.f
   };
 }
 
+// Dates calculées par rapport à aujourd'hui (plutôt que codées en dur) pour
+// que ces tests restent valides indéfiniment : le validateur rejette toute
+// date de début dans le passé, donc une date fixe finit toujours par casser
+// les tests qui doivent réussir.
+function futureDate(joursDepuisAujourdhui) {
+  const d = new Date();
+  d.setDate(d.getDate() + joursDepuisAujourdhui);
+  return d.toISOString().slice(0, 10);
+}
+
+function futureDateTimeISO(joursDepuisAujourdhui, heure = "10:00:00") {
+  return `${futureDate(joursDepuisAujourdhui)}T${heure}.000Z`;
+}
+
 function validPayload(overrides = {}) {
   return {
     vehiculeId: "opel-corsa",
-    dateDebut: "2026-08-10",
+    dateDebut: futureDate(30),
     heureDebut: "10:00",
-    dateFin: "2026-08-12",
+    dateFin: futureDate(32),
     heureFin: "10:00",
     lieuPrise: "Agence Grasse",
     lieuRetour: "Agence Grasse",
@@ -47,8 +61,7 @@ function validPayload(overrides = {}) {
       prenom: "Alice",
       email: "alice.martin@example.com",
       telephone: "0601020304",
-      permis: "987654321",
-      age: 28
+      naissance: "1998-03-20"
     },
     cglAccepted: true,
     cglVersion: CGL_VERSION,
@@ -123,8 +136,8 @@ test("détecte l'indisponibilité (409) sur un chevauchement de dates pour le m�
   // double demande simultanée sur le même véhicule.
   await createReservation({
     vehiculeId,
-    periodeDebut: "2026-09-10T10:00:00.000Z",
-    periodeFin: "2026-09-15T10:00:00.000Z"
+    periodeDebut: futureDateTimeISO(60),
+    periodeFin: futureDateTimeISO(65)
   });
 
   // La vérification de disponibilité n'est atteinte qu'après la vérification
@@ -138,9 +151,9 @@ test("détecte l'indisponibilité (409) sur un chevauchement de dates pour le m�
       makeEvent({
         body: validPayload({
           vehiculeId,
-          dateDebut: "2026-09-12",
+          dateDebut: futureDate(62),
           heureDebut: "10:00",
-          dateFin: "2026-09-13",
+          dateFin: futureDate(63),
           heureFin: "10:00"
         })
       })

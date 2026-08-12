@@ -32,7 +32,7 @@ function reservationPageHtml() {
     <div id="promo-message"></div>
     <form id="driver-form">
       <input name="nom" id="nom"><input name="prenom" id="prenom"><input name="email" id="email">
-      <input name="telephone" id="telephone"><input name="permis" id="permis"><input name="age" id="age">
+      <input name="telephone" id="telephone"><input name="naissance" id="naissance">
       <button type="submit">Continuer</button>
     </form>
   `;

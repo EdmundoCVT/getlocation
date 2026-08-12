@@ -33,7 +33,7 @@ test("renvoie 404 pour une réservation inexistante", async () => {
   assert.equal(res.statusCode, 404);
 });
 
-test("renvoie une vue publique sûre (sans permis/téléphone/âge) pour une réservation existante", async () => {
+test("renvoie une vue publique sûre (sans naissance/téléphone) pour une réservation existante", async () => {
   const reservation = await createReservation({
     vehiculeId: "peugeot-3008",
     dateDebut: "2026-08-01",
@@ -48,8 +48,7 @@ test("renvoie une vue publique sûre (sans permis/téléphone/âge) pour une ré
       prenom: "Jean",
       email: "jean@example.com",
       telephone: "0601020304",
-      permis: "SECRET-PERMIS-123",
-      age: 30
+      naissance: "1996-03-14"
     }
   });
   await updateReservationStatus(reservation.id, "paid", { paidAt: new Date().toISOString() });
@@ -66,10 +65,9 @@ test("renvoie une vue publique sûre (sans permis/téléphone/âge) pour une ré
   assert.equal(json.conducteur.email, "jean@example.com");
 
   // Champs sensibles jamais exposés par cet endpoint public.
-  assert.equal(json.conducteur.permis, undefined);
   assert.equal(json.conducteur.telephone, undefined);
-  assert.equal(json.conducteur.age, undefined);
-  assert.equal(JSON.stringify(json).includes("SECRET-PERMIS-123"), false);
+  assert.equal(json.conducteur.naissance, undefined);
+  assert.equal(JSON.stringify(json).includes("1996-03-14"), false);
 });
 
 test("en-tête Cache-Control: no-store présent (donnée sensible/dynamique)", async () => {

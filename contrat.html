@@ -551,10 +551,11 @@ function initOwnerView(prefill){
 
   // Pré-remplissage depuis une réservation payée (voir ?prefill= plus haut) :
   // n'écrase que les champs connus au moment de la réservation (véhicule,
-  // dates, coordonnées du locataire, options). Les champs jamais collectés
-  // pendant la réservation (naissance, adresse postale, second conducteur
-  // détaillé) restent vides — l'agence les complète avant d'envoyer le lien
-  // au client, exactement comme pour un contrat rempli à la main.
+  // dates, coordonnées et date de naissance du locataire, options). Les
+  // champs jamais collectés pendant la réservation (numéro de permis,
+  // adresse postale, second conducteur détaillé) restent vides — l'agence
+  // les complète avant d'envoyer le lien au client, exactement comme pour
+  // un contrat rempli à la main.
   if(prefill){
     if(prefill.vehiculeId){ selectVehicule.value = prefill.vehiculeId; appliquerPlaque(); }
     if(prefill.lieu) selectLieu.value = prefill.lieu;
@@ -562,9 +563,9 @@ function initOwnerView(prefill){
     if(prefill.retour) inputRetour.value = prefill.retour;
     document.getElementById('prenom').value = prefill.prenom || '';
     document.getElementById('nom').value = prefill.nom || '';
+    document.getElementById('naissance').value = prefill.naissance || '';
     document.getElementById('tel').value = prefill.tel || '';
     document.getElementById('email').value = prefill.email || '';
-    document.getElementById('permis').value = prefill.permis || '';
     if(prefill.secondConducteur){
       secondToggle.checked = true;
       secondBlock.classList.add('show');

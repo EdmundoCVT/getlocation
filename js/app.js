@@ -58,7 +58,7 @@ function clearJSON(key) {
 }
 
 // Durée de vie maximale des données de réservation en cours (dont les
-// coordonnées du conducteur et le numéro de permis) conservées dans ce
+// coordonnées et la date de naissance du conducteur) conservées dans ce
 // navigateur : passé ce délai, un panier abandonné est purgé
 // automatiquement à la prochaine visite d'une page du tunnel de
 // réservation. Ces données sont de toute façon systématiquement effacées
@@ -902,7 +902,7 @@ function initReservationPage() {
 
   // Demande client : laisser le client ajouter toutes les options
   // nécessaires et voir le prix final AVANT de demander ses coordonnées
-  // (nom/prénom/permis/etc.) — ces informations ne sont désormais saisies
+  // (nom/prénom/date de naissance/etc.) — ces informations ne sont désormais saisies
   // qu'à l'étape suivante (paiement.html). Chaque interaction ci-dessus
   // (assurance/options/promo/dates) persiste déjà `data` immédiatement, il
   // n'y a donc rien de plus à sauvegarder ici avant de continuer.
@@ -914,6 +914,22 @@ function initReservationPage() {
   }
 }
 
+// Calcule l'âge (en années révolues) à partir d'une date de naissance
+// "YYYY-MM-DD" (format natif d'un <input type="date">). Réutilisé côté
+// serveur avec la même logique (voir calculerAge() dans
+// validate-reservation-input.js) — l'âge n'est jamais transmis tel quel par
+// le client, uniquement recalculé à partir de la date, ici comme côté
+// serveur.
+function calculerAgeDepuisNaissance(dateStr) {
+  const naissance = new Date(`${dateStr}T00:00:00Z`);
+  if (!isFinite(naissance.getTime())) return null;
+  const aujourdHui = new Date();
+  let age = aujourdHui.getUTCFullYear() - naissance.getUTCFullYear();
+  const moisDiff = aujourdHui.getUTCMonth() - naissance.getUTCMonth();
+  if (moisDiff < 0 || (moisDiff === 0 && aujourdHui.getUTCDate() < naissance.getUTCDate())) age--;
+  return age;
+}
+
 function validateDriverForm(form) {
   let valid = true;
   let firstInvalid = null;
@@ -922,8 +938,14 @@ function validateDriverForm(form) {
     { id: "prenom", test: v => v.trim().length >= 2, msg: "Prénom requis" },
     { id: "email", test: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), msg: "Adresse e-mail invalide" },
     { id: "telephone", test: v => v.replace(/\D/g, "").length >= 8, msg: "Numéro de téléphone invalide" },
-    { id: "permis", test: v => v.trim().length >= 4, msg: "Numéro de permis requis" },
-    { id: "age", test: v => Number(v) >= 21, msg: "Le conducteur doit avoir 21 ans ou plus" }
+    {
+      id: "naissance",
+      test: v => {
+        const age = calculerAgeDepuisNaissance(v);
+        return age !== null && age >= 21 && age <= 99;
+      },
+      msg: "Le conducteur doit avoir entre 21 et 99 ans"
+    }
   ];
 
   champs.forEach(({ id, test, msg }) => {
@@ -1032,7 +1054,7 @@ function initPaiementPage() {
     window.location.href = "vehicules.html";
     return;
   }
-  // Demande client : les coordonnées (nom/prénom/permis/etc.) ne sont
+  // Demande client : les coordonnées (nom/prénom/date de naissance/etc.) ne sont
   // demandées qu'à cette dernière étape, une fois que le client a déjà vu
   // le prix final avec ses options — `data.conducteur` n'existe donc pas
   // forcément encore ici (voir le formulaire plus bas).
@@ -1090,7 +1112,7 @@ function initPaiementPage() {
   // champs (ex. retour depuis la page suivante via le bouton précédent du
   // navigateur), on pré-remplit plutôt que de les laisser vides.
   if (data.conducteur) {
-    ["nom", "prenom", "email", "telephone", "permis", "age"].forEach((id) => {
+    ["nom", "prenom", "email", "telephone", "naissance"].forEach((id) => {
       const input = form.querySelector(`[name="${id}"]`);
       if (input && data.conducteur[id] !== undefined) input.value = data.conducteur[id];
     });
@@ -1175,7 +1197,7 @@ function initPaiementPage() {
       // La confirmation qui fait foi vit côté serveur (reservation-status,
       // confirmée par mollie-webhook après revérification auprès de
       // l'API Mollie) : la copie locale temporaire des données conducteur
-      // (dont le permis) n'est plus nécessaire dans ce navigateur.
+      // (dont la date de naissance) n'est plus nécessaire dans ce navigateur.
       clearJSON(STORAGE.reservation);
       // Redirection vers la page de paiement hébergée par Mollie ; Mollie
       // renvoie ensuite le client vers confirmation.html (redirectUrl fixée

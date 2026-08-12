@@ -34,7 +34,7 @@ function makeReservation(overrides = {}) {
     adressePrise: null,
     adresseRetour: null,
     options: [],
-    conducteur: { prenom: "Camille", nom: "Martin", email: "camille@example.com", telephone: "0601020304", permis: "123456789" },
+    conducteur: { prenom: "Camille", nom: "Martin", email: "camille@example.com", telephone: "0601020304", naissance: "1995-04-12" },
     ...overrides
   };
 }
@@ -47,13 +47,14 @@ test("buildContractPrefillData : reprend les champs connus de la réservation, l
   assert.equal(data.retour, "2026-09-12T11:30");
   assert.equal(data.prenom, "Camille");
   assert.equal(data.nom, "Martin");
+  assert.equal(data.naissance, "1995-04-12");
   assert.equal(data.tel, "0601020304");
   assert.equal(data.email, "camille@example.com");
-  assert.equal(data.permis, "123456789");
   assert.equal(data.secondConducteur, false);
   assert.equal(data.livraison, false);
-  // Jamais collectés pendant la réservation : absents de l'objet
-  assert.equal("naissance" in data, false);
+  // Jamais collecté pendant la réservation (demandé par email après coup) :
+  // absent de l'objet
+  assert.equal("permis" in data, false);
   assert.equal("adresse" in data, false);
 });
 

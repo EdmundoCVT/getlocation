@@ -93,7 +93,7 @@ test("initReservationPage (reservation.html) échappe une adresse de livraison s
     <input type="checkbox" id="assurance">
     <form id="driver-form">
       <input name="nom"><input name="prenom"><input name="email">
-      <input name="telephone"><input name="permis"><input name="age">
+      <input name="telephone"><input name="naissance">
     </form>
   `;
   window.localStorage.setItem("gl_reservation", JSON.stringify({

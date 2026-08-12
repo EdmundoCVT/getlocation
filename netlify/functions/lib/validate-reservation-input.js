@@ -12,7 +12,6 @@ const MAX_LEN = {
   prenom: 100,
   email: 254,
   telephone: 30,
-  permis: 50,
   codePromo: 40
 };
 
@@ -32,6 +31,21 @@ function isValidHeure(v) {
 
 function isValidEmail(v) {
   return typeof v === "string" && v.length <= MAX_LEN.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+
+// Âge en années révolues à partir d'une date de naissance "YYYY-MM-DD" —
+// jamais fait confiance à un âge fourni directement par le client (voir
+// l'équivalent côté navigateur, calculerAgeDepuisNaissance() dans
+// js/app.js, qui ne sert qu'à l'affichage immédiat, jamais à la
+// validation qui fait foi).
+function calculerAge(dateNaissanceISO) {
+  const naissance = new Date(`${dateNaissanceISO}T00:00:00Z`);
+  if (!isFinite(naissance.getTime())) return null;
+  const aujourdHui = new Date();
+  let age = aujourdHui.getUTCFullYear() - naissance.getUTCFullYear();
+  const moisDiff = aujourdHui.getUTCMonth() - naissance.getUTCMonth();
+  if (moisDiff < 0 || (moisDiff === 0 && aujourdHui.getUTCDate() < naissance.getUTCDate())) age--;
+  return age;
 }
 
 // Tolérance pour compenser une légère dérive d'horloge côté client / le
@@ -145,9 +159,12 @@ function validateReservationInput(payload) {
     if (!isNonEmptyString(conducteur.telephone, MAX_LEN.telephone) || telephoneDigits.length < 8) {
       errors.push("Téléphone invalide");
     }
-    if (!isNonEmptyString(conducteur.permis, MAX_LEN.permis, 4)) errors.push("Numéro de permis invalide");
-    const age = Number(conducteur.age);
-    if (!Number.isFinite(age) || age < 21 || age > 99) errors.push("Âge du conducteur invalide (21 à 99 ans)");
+    if (!isValidDate(conducteur.naissance)) {
+      errors.push("Date de naissance invalide");
+    } else {
+      const age = calculerAge(conducteur.naissance);
+      if (age === null || age < 21 || age > 99) errors.push("Le conducteur doit avoir entre 21 et 99 ans");
+    }
   }
 
   if (idempotencyKey !== undefined && !(typeof idempotencyKey === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(idempotencyKey))) {

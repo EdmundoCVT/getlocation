@@ -215,8 +215,7 @@ exports.handler = async (event) => {
       prenom: payload.conducteur.prenom.trim(),
       email: payload.conducteur.email.trim(),
       telephone: payload.conducteur.telephone.trim(),
-      permis: payload.conducteur.permis.trim(),
-      age: Number(payload.conducteur.age)
+      naissance: payload.conducteur.naissance
     }
   });
 

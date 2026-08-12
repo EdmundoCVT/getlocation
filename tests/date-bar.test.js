@@ -52,7 +52,7 @@ test("initReservationPage : la barre de dates affiche les dates courantes et rec
     `<div id="reservation-summary"></div>
      <form id="driver-form">
        <input name="nom" id="nom"><input name="prenom" id="prenom"><input name="email" id="email">
-       <input name="telephone" id="telephone"><input name="permis" id="permis"><input name="age" id="age">
+       <input name="telephone" id="telephone"><input name="naissance" id="naissance">
        <button type="submit">Continuer</button>
      </form>
      ${dateBarHtml()}`,
@@ -89,7 +89,7 @@ test("initReservationPage : la barre de dates refuse une date de retour avant le
     `<div id="reservation-summary"></div>
      <form id="driver-form">
        <input name="nom" id="nom"><input name="prenom" id="prenom"><input name="email" id="email">
-       <input name="telephone" id="telephone"><input name="permis" id="permis"><input name="age" id="age">
+       <input name="telephone" id="telephone"><input name="naissance" id="naissance">
        <button type="submit">Continuer</button>
      </form>
      ${dateBarHtml()}`,
@@ -131,7 +131,7 @@ test("initPaiementPage : la barre de dates recalcule le total à régler sans re
     dateDebut: "2026-08-10", heureDebut: "10:00",
     dateFin: "2026-08-12", heureFin: "10:00",
     jours: 2,
-    conducteur: { nom: "Dupont", prenom: "Jean", email: "jean@example.com", telephone: "0601020304", permis: "123456", age: 30 },
+    conducteur: { nom: "Dupont", prenom: "Jean", email: "jean@example.com", telephone: "0601020304", naissance: "1995-06-15" },
     _savedAt: Date.now()
   }));
 

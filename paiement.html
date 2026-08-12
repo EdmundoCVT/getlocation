@@ -204,16 +204,12 @@
             <div class="error-text" id="err-telephone" aria-live="polite"></div>
           </div>
           <div class="field">
-            <label for="permis">N° de permis de conduire</label>
-            <input type="text" id="permis" name="permis" required aria-describedby="err-permis" aria-invalid="false">
-            <div class="error-text" id="err-permis" aria-live="polite"></div>
-          </div>
-          <div class="field">
-            <label for="age">Âge du conducteur</label>
-            <input type="number" id="age" name="age" min="18" max="99" required aria-describedby="err-age" aria-invalid="false">
-            <div class="error-text" id="err-age" aria-live="polite"></div>
+            <label for="naissance">Date de naissance</label>
+            <input type="date" id="naissance" name="naissance" required aria-describedby="err-naissance" aria-invalid="false">
+            <div class="error-text" id="err-naissance" aria-live="polite"></div>
           </div>
         </div>
+        <p class="hint-text">Le permis de conduire et une pièce d'identité vous seront demandés par e-mail après la réservation.</p>
 
         <h2>Paiement sécurisé</h2>
         <p class="hint-text">Vous allez être redirigé(e) vers notre prestataire de paiement sécurisé <strong>Mollie</strong> (carte bancaire, Apple Pay, etc.) pour finaliser le règlement, puis renvoyé(e) automatiquement ici.</p>
@@ -279,6 +275,6 @@
 </footer>
 
 <script src="js/data.js?v=4"></script>
-<script src="js/app.js?v=11"></script>
+<script src="js/app.js?v=12"></script>
 </body>
 </html>

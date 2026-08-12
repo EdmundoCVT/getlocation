@@ -4,12 +4,22 @@ const assert = require("node:assert/strict");
 const { validateReservationInput } = require("../netlify/functions/lib/validate-reservation-input.js");
 const { CGL_VERSION, LIEU_LIVRAISON, VILLES_LIVRAISON, OPTIONS } = require("../js/data.js");
 
+// Dates calculées par rapport à aujourd'hui (plutôt que codées en dur) pour
+// que ces tests restent valides indéfiniment : le validateur rejette toute
+// date de début dans le passé, donc une date fixe finit toujours par casser
+// les tests qui doivent réussir.
+function futureDate(joursDepuisAujourdhui) {
+  const d = new Date();
+  d.setDate(d.getDate() + joursDepuisAujourdhui);
+  return d.toISOString().slice(0, 10);
+}
+
 function basePayload(overrides = {}) {
   return {
     vehiculeId: "peugeot-3008",
-    dateDebut: "2026-08-10",
+    dateDebut: futureDate(30),
     heureDebut: "10:00",
-    dateFin: "2026-08-13",
+    dateFin: futureDate(33),
     heureFin: "10:00",
     lieuPrise: "Agence Grasse",
     lieuRetour: "Agence Grasse",
@@ -19,8 +29,7 @@ function basePayload(overrides = {}) {
       prenom: "Jean",
       email: "jean.dupont@example.com",
       telephone: "0601020304",
-      permis: "123456789",
-      age: 30
+      naissance: "1995-06-15"
     },
     cglAccepted: true,
     cglVersion: CGL_VERSION,
@@ -48,8 +57,9 @@ test("rejette une date de début dans le passé", () => {
 });
 
 test("rejette une date de fin antérieure ou égale à la date de début", () => {
+  const meme = futureDate(30);
   const { valid, errors } = validateReservationInput(
-    basePayload({ dateDebut: "2026-08-10", heureDebut: "10:00", dateFin: "2026-08-10", heureFin: "10:00" })
+    basePayload({ dateDebut: meme, heureDebut: "10:00", dateFin: meme, heureFin: "10:00" })
   );
   assert.equal(valid, false);
   assert.ok(errors.some((e) => e.includes("postérieure")));
@@ -70,15 +80,30 @@ test("rejette un lieu hors liste", () => {
 
 test("rejette des informations conducteur incomplètes ou invalides", () => {
   const { valid, errors } = validateReservationInput(
-    basePayload({ conducteur: { nom: "D", prenom: "", email: "pas-un-email", telephone: "12", permis: "", age: 15 } })
+    basePayload({ conducteur: { nom: "D", prenom: "", email: "pas-un-email", telephone: "12", naissance: "2015-01-01" } })
   );
   assert.equal(valid, false);
   assert.ok(errors.includes("Nom invalide"));
   assert.ok(errors.includes("Prénom invalide"));
   assert.ok(errors.includes("E-mail invalide"));
   assert.ok(errors.includes("Téléphone invalide"));
-  assert.ok(errors.includes("Numéro de permis invalide"));
-  assert.ok(errors.some((e) => e.includes("Âge")));
+  assert.ok(errors.some((e) => e.includes("21") && e.includes("99")));
+});
+
+test("rejette une date de naissance mal formée", () => {
+  const { valid, errors } = validateReservationInput(
+    basePayload({ conducteur: { nom: "Dupont", prenom: "Jean", email: "jean@example.com", telephone: "0601020304", naissance: "15/01/2000" } })
+  );
+  assert.equal(valid, false);
+  assert.ok(errors.includes("Date de naissance invalide"));
+});
+
+test("rejette un conducteur trop âgé (plus de 99 ans)", () => {
+  const { valid, errors } = validateReservationInput(
+    basePayload({ conducteur: { nom: "Dupont", prenom: "Jean", email: "jean@example.com", telephone: "0601020304", naissance: "1900-01-01" } })
+  );
+  assert.equal(valid, false);
+  assert.ok(errors.some((e) => e.includes("21") && e.includes("99")));
 });
 
 test("rejette une tentative d'injection de montant/prix (champs ignorés silencieusement)", () => {

@@ -4,11 +4,11 @@
 // contrat.html pré-rempli avec les informations déjà connues de la
 // réservation payée — voir l'appel dans mollie-webhook.js, juste après
 // send-confirmation-email.js. L'agence peut ouvrir ce lien, compléter les
-// champs non collectés pendant la réservation (date de naissance, adresse
+// champs non collectés pendant la réservation (numéro de permis, adresse
 // postale, éventuel second conducteur), puis utiliser les boutons de
 // partage déjà présents sur contrat.html (WhatsApp/SMS/e-mail) pour envoyer
 // le contrat définitif au client et lui demander les documents
-// complémentaires.
+// complémentaires (permis de conduire, pièce d'identité).
 //
 // Best effort volontaire, comme send-confirmation-email.js : un échec
 // d'envoi ne remet jamais en cause la confirmation du paiement.
@@ -35,10 +35,11 @@ function encodeContractData(data) {
 
 // Construit l'objet attendu par le formulaire AGENCE de contrat.html
 // (voir regenererLien() dans ce fichier) à partir des seuls champs connus
-// au moment de la réservation. Les champs jamais collectés pendant la
-// réservation (naissance, adresse postale du locataire, détails d'un
-// éventuel second conducteur) sont volontairement absents : contrat.html
-// les affiche alors vides, à compléter par l'agence avant envoi au client.
+// au moment de la réservation. Le numéro de permis et l'adresse postale du
+// locataire, ainsi que les détails d'un éventuel second conducteur, ne sont
+// jamais collectés pendant la réservation en ligne (demandés séparément par
+// e-mail après paiement) : volontairement absents ici, contrat.html les
+// affiche alors vides, à compléter par l'agence avant envoi au client.
 function buildContractPrefillData(reservation) {
   const options = Array.isArray(reservation.options) ? reservation.options : [];
   const aOption = (id) => options.some((o) => o.id === id);
@@ -50,9 +51,9 @@ function buildContractPrefillData(reservation) {
     retour: reservation.dateFin && reservation.heureFin ? `${reservation.dateFin}T${reservation.heureFin}` : "",
     prenom: reservation.conducteur.prenom || "",
     nom: reservation.conducteur.nom || "",
+    naissance: reservation.conducteur.naissance || "",
     tel: reservation.conducteur.telephone || "",
     email: reservation.conducteur.email || "",
-    permis: reservation.conducteur.permis || "",
     secondConducteur: aOption("second-conducteur"),
     livraison: aOption("livraison-adresse"),
     livraisonRue: reservation.adressePrise || reservation.adresseRetour || ""
@@ -82,16 +83,17 @@ async function sendContractEmail(reservation) {
     "",
     `Contrat pré-rempli à compléter et envoyer au client : ${contratUrl}`,
     "",
-    "Les champs déjà connus (véhicule, dates, coordonnées) sont pré-remplis.",
-    "Complétez la date de naissance, l'adresse postale et le reste avant d'envoyer",
-    "le lien au client (boutons WhatsApp/SMS/e-mail en bas du formulaire) pour",
-    "lui demander les documents complémentaires.",
+    "Les champs déjà connus (véhicule, dates, coordonnées, date de naissance)",
+    "sont pré-remplis. Complétez le numéro de permis, l'adresse postale et le",
+    "reste avant d'envoyer le lien au client (boutons WhatsApp/SMS/e-mail en",
+    "bas du formulaire) pour lui demander les documents complémentaires",
+    "(permis de conduire, pièce d'identité).",
     "",
     `Référence de réservation : ${reservation.id}`
   ].join("\n");
   const html = `<p>Nouvelle réservation payée : <strong>${reservation.conducteur.prenom} ${reservation.conducteur.nom}</strong>, ${vehiculeNom}.</p>
 <p><a href="${contratUrl}">Ouvrir le contrat pré-rempli</a></p>
-<p>Les champs déjà connus (véhicule, dates, coordonnées) sont pré-remplis. Complétez la date de naissance, l'adresse postale et le reste avant d'envoyer le lien au client (boutons WhatsApp/SMS/e-mail en bas du formulaire) pour lui demander les documents complémentaires.</p>
+<p>Les champs déjà connus (véhicule, dates, coordonnées, date de naissance) sont pré-remplis. Complétez le numéro de permis, l'adresse postale et le reste avant d'envoyer le lien au client (boutons WhatsApp/SMS/e-mail en bas du formulaire) pour lui demander les documents complémentaires (permis de conduire, pièce d'identité).</p>
 <p>Référence de réservation : ${reservation.id}</p>`;
 
   try {
