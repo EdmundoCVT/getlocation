@@ -131,7 +131,7 @@ test("initPaiementPage : la barre de dates recalcule le total à régler sans re
     dateDebut: "2026-08-10", heureDebut: "10:00",
     dateFin: "2026-08-12", heureFin: "10:00",
     jours: 2,
-    conducteur: { nom: "Dupont", prenom: "Jean", email: "jean@example.com", telephone: "0601020304", naissance: "1995-06-15" },
+    conducteur: { nom: "Dupont", prenom: "Jean", email: "jean@example.com", telephone: "0601020304", naissance: "15/06/1995" },
     _savedAt: Date.now()
   }));
 

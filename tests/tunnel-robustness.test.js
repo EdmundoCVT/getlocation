@@ -67,7 +67,7 @@ test("initPaiementPage : pré-remplit le formulaire si le conducteur avait déj�
     dateDebut: "2026-08-10", heureDebut: "10:00",
     dateFin: "2026-08-12", heureFin: "10:00",
     jours: 2,
-    conducteur: { nom: "Dupont", prenom: "Jean", email: "jean@example.com", telephone: "0601020304", naissance: "1995-06-15" },
+    conducteur: { nom: "Dupont", prenom: "Jean", email: "jean@example.com", telephone: "0601020304", naissance: "15/06/1995" },
     _savedAt: Date.now()
   }));
 
@@ -77,7 +77,7 @@ test("initPaiementPage : pré-remplit le formulaire si le conducteur avait déj�
   assert.equal(window.document.getElementById("prenom").value, "Jean");
   assert.equal(window.document.getElementById("email").value, "jean@example.com");
   assert.equal(window.document.getElementById("telephone").value, "0601020304");
-  assert.equal(window.document.getElementById("naissance").value, "1995-06-15");
+  assert.equal(window.document.getElementById("naissance").value, "15/06/1995");
 });
 
 test("initPaiementPage : ne pré-remplit rien pour une première visite (pas de conducteur enregistré)", () => {
@@ -124,7 +124,7 @@ test("validateDriverForm : marque aria-invalid et place le focus sur le premier 
   window.document.getElementById("prenom").value = "";
   window.document.getElementById("email").value = "pas-un-email";
   window.document.getElementById("telephone").value = "0601020304";
-  window.document.getElementById("naissance").value = "1995-06-15";
+  window.document.getElementById("naissance").value = "15/06/1995";
 
   const valid = window.validateDriverForm(form);
 
@@ -143,10 +143,55 @@ test("validateDriverForm : accepte un formulaire valide et efface les messages d
   window.document.getElementById("prenom").value = "Jean";
   window.document.getElementById("email").value = "jean@example.com";
   window.document.getElementById("telephone").value = "0601020304";
-  window.document.getElementById("naissance").value = "1995-06-15";
+  window.document.getElementById("naissance").value = "15/06/1995";
 
   const valid = window.validateDriverForm(form);
   assert.equal(valid, true);
   assert.equal(window.document.getElementById("nom").getAttribute("aria-invalid"), "false");
   assert.equal(window.document.getElementById("err-nom").textContent, "");
+});
+
+test("naissanceFrVersISO : convertit JJ/MM/AAAA en YYYY-MM-DD, rejette un format ou une date inexistante", () => {
+  const window = newWindow(driverFormHtml());
+  assert.equal(window.naissanceFrVersISO("15/06/1995"), "1995-06-15");
+  assert.equal(window.naissanceFrVersISO("01/01/2000"), "2000-01-01");
+  // Format ISO ou incomplet : rejeté (seul JJ/MM/AAAA est accepté).
+  assert.equal(window.naissanceFrVersISO("1995-06-15"), null);
+  assert.equal(window.naissanceFrVersISO("15/6/1995"), null);
+  // Date qui n'existe pas : new Date() la « roulerait » silencieusement sur
+  // mars sans cette vérification explicite des composants.
+  assert.equal(window.naissanceFrVersISO("31/02/2000"), null);
+  assert.equal(window.naissanceFrVersISO(""), null);
+  assert.equal(window.naissanceFrVersISO(undefined), null);
+});
+
+test("initPaiementPage : insère automatiquement les \"/\" pendant la saisie de la date de naissance", () => {
+  const window = newWindow(paiementFormHtml(), "https://getlocation.fr/paiement.html");
+  window.localStorage.setItem("gl_reservation", JSON.stringify({
+    vehiculeId: "opel-corsa",
+    dateDebut: "2026-08-10", heureDebut: "10:00",
+    dateFin: "2026-08-12", heureFin: "10:00",
+    jours: 2,
+    _savedAt: Date.now()
+  }));
+  window.initPaiementPage();
+
+  const input = window.document.getElementById("naissance");
+  function taper(valeurBrute) {
+    input.value = valeurBrute;
+    input.dispatchEvent(new window.Event("input", { bubbles: true }));
+  }
+
+  taper("1");
+  assert.equal(input.value, "1");
+  taper("15");
+  assert.equal(input.value, "15");
+  taper("156");
+  assert.equal(input.value, "15/6");
+  taper("15061995");
+  assert.equal(input.value, "15/06/1995");
+  // Les caractères non numériques déjà insérés (ex. l'utilisateur tape lui-
+  // même un "/") ne doivent pas produire de doublon ou de format cassé.
+  taper("15/06/1995");
+  assert.equal(input.value, "15/06/1995");
 });

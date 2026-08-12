@@ -914,14 +914,29 @@ function initReservationPage() {
   }
 }
 
+// Convertit une saisie "JJ/MM/AAAA" (format du champ #naissance sur
+// paiement.html) en "YYYY-MM-DD" — format utilisé partout ailleurs (envoi
+// au serveur, validate-reservation-input.js, contrat.html). Renvoie null si
+// la saisie n'est pas une date réelle (ex. "31/02/2000"), pas seulement mal
+// formée : new Date() accepterait silencieusement un jour hors plage en
+// "roulant" sur le mois suivant, d'où la revérification des composants.
+function naissanceFrVersISO(v) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((v || "").trim());
+  if (!m) return null;
+  const [, jj, mm, aaaa] = m;
+  const iso = `${aaaa}-${mm}-${jj}`;
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (!isFinite(d.getTime()) || d.getUTCDate() !== Number(jj) || d.getUTCMonth() + 1 !== Number(mm)) return null;
+  return iso;
+}
+
 // Calcule l'âge (en années révolues) à partir d'une date de naissance
-// "YYYY-MM-DD" (format natif d'un <input type="date">). Réutilisé côté
-// serveur avec la même logique (voir calculerAge() dans
-// validate-reservation-input.js) — l'âge n'est jamais transmis tel quel par
-// le client, uniquement recalculé à partir de la date, ici comme côté
-// serveur.
-function calculerAgeDepuisNaissance(dateStr) {
-  const naissance = new Date(`${dateStr}T00:00:00Z`);
+// "YYYY-MM-DD". Réutilisé côté serveur avec la même logique (voir
+// calculerAge() dans validate-reservation-input.js) — l'âge n'est jamais
+// transmis tel quel par le client, uniquement recalculé à partir de la
+// date, ici comme côté serveur.
+function calculerAgeDepuisNaissance(dateISO) {
+  const naissance = new Date(`${dateISO}T00:00:00Z`);
   if (!isFinite(naissance.getTime())) return null;
   const aujourdHui = new Date();
   let age = aujourdHui.getUTCFullYear() - naissance.getUTCFullYear();
@@ -941,10 +956,12 @@ function validateDriverForm(form) {
     {
       id: "naissance",
       test: v => {
-        const age = calculerAgeDepuisNaissance(v);
+        const iso = naissanceFrVersISO(v);
+        if (!iso) return false;
+        const age = calculerAgeDepuisNaissance(iso);
         return age !== null && age >= 21 && age <= 99;
       },
-      msg: "Le conducteur doit avoir entre 21 et 99 ans"
+      msg: "Date de naissance invalide (JJ/MM/AAAA) — le conducteur doit avoir entre 21 et 99 ans"
     }
   ];
 
@@ -1108,6 +1125,21 @@ function initPaiementPage() {
   const payButton = document.getElementById("pay-button");
   const paymentErrors = document.getElementById("payment-errors");
 
+  // Insère automatiquement les "/" pendant la saisie (JJ/MM/AAAA) : évite
+  // de faire reposer la frappe manuelle des séparateurs sur l'utilisateur,
+  // sans dépendre d'un composant de calendrier natif (dont le rendu — menu
+  // déroulant, molette — varie trop d'un navigateur à l'autre).
+  const naissanceInput = form.querySelector('[name="naissance"]');
+  if (naissanceInput) {
+    naissanceInput.addEventListener("input", () => {
+      const chiffres = naissanceInput.value.replace(/\D/g, "").slice(0, 8);
+      let formate = chiffres.slice(0, 2);
+      if (chiffres.length > 2) formate += "/" + chiffres.slice(2, 4);
+      if (chiffres.length > 4) formate += "/" + chiffres.slice(4, 8);
+      naissanceInput.value = formate;
+    });
+  }
+
   // Retour arrière sans perte : si le conducteur avait déjà rempli ces
   // champs (ex. retour depuis la page suivante via le bouton précédent du
   // navigateur), on pré-remplit plutôt que de les laisser vides.
@@ -1172,7 +1204,13 @@ function initPaiementPage() {
           adresseRetour: data.adresseRetour,
           options: data.options,
           codePromo: data.codePromo,
-          conducteur: data.conducteur,
+          // Le champ "naissance" est saisi et persisté localement au format
+          // JJ/MM/AAAA (affichage) ; le serveur (et la clé du même nom
+          // stockée dans la réservation) attend systématiquement le format
+          // ISO YYYY-MM-DD — seule cette copie envoyée au réseau est
+          // convertie, jamais `data.conducteur` lui-même (qui doit rester
+          // au format du champ pour un pré-remplissage correct au retour).
+          conducteur: { ...data.conducteur, naissance: naissanceFrVersISO(data.conducteur.naissance) },
           cglAccepted: true,
           cglVersion: CGL_VERSION,
           idempotencyKey

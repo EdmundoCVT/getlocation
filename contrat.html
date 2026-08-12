@@ -280,6 +280,12 @@
       </div>
 
       <div class="card">
+        <h2>Aperçu PDF</h2>
+        <p class="lead" style="margin-bottom:10px;">Téléchargez un aperçu du contrat à tout moment, avec les informations déjà saisies ci-dessus — pas besoin d'attendre que le client ait ouvert le lien ni qu'il ait signé.</p>
+        <button type="button" class="btn btn-primary" id="downloadPdfBtn">📄 Télécharger le PDF</button>
+      </div>
+
+      <div class="card">
         <h2>Lien à envoyer au client</h2>
         <p class="lead" style="margin-bottom:10px;">Le lien se met à jour automatiquement à chaque champ rempli : le client verra toujours les dernières informations, pas besoin de le régénérer.</p>
         <p class="meta-line" id="linkHint">Complétez tous les champs obligatoires ci-dessus pour faire apparaître le lien.</p>
@@ -429,6 +435,165 @@ function encodeData(obj){
 }
 function decodeData(str){
   return JSON.parse(decodeURIComponent(escape(atob(str))));
+}
+
+// Lit le texte des conditions de location via textContent (pas innerText) :
+// #contractText vit dans #clientView, qui reste dans le DOM mais passe en
+// display:none quand la vue AGENCE est affichée — innerText renvoie alors
+// une chaîne vide sur un élément non rendu (comportement standard, pas un
+// bug), alors que textContent reste fiable quel que soit l'affichage.
+// Reconstruit les sauts de paragraphe (perdus par textContent) en joignant
+// chaque titre/paragraphe séparément.
+function texteConditionsLocation(){
+  var el = document.getElementById('contractText');
+  if(!el) return '';
+  var parties = [];
+  el.querySelectorAll('h3, p').forEach(function(node){ parties.push(node.textContent.trim()); });
+  return parties.join('\n\n');
+}
+
+// Construit le payload attendu par genererPDF()/la soumission de signature
+// à partir d'un objet `data` (même forme que celui produit par
+// regenererLien() côté AGENCE ou reçu via ?data= côté CLIENT) — fonction
+// partagée par les deux vues, pour que le PDF téléchargeable depuis
+// l'agence (à tout moment, avant même l'envoi du lien) soit identique à
+// celui que verrait le client.
+function construirePayload(data, sigData, stamp){
+  var v = getVehiculeParId(data.vehiculeId) || VEHICULES[0];
+  var heures = dureeHeures(data.depart, data.retour);
+  var jours = joursFacturablesDepuisHeures(heures);
+  var total = calculTarif(v.prixJour, heures);
+  if(data.secondConducteur) total += calculSupplementConducteur(jours);
+  if(data.livraison) total += SUPPLEMENT_LIVRAISON;
+  var adresseComplete = [data.adresse, [data.codePostal, data.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  var lieuAffiche = data.livraison
+    ? 'Livraison à ' + (data.livraisonRue || '') + ', ' + (data.livraisonCP || '') + ' ' + (data.livraisonVille || '')
+    : data.lieu;
+
+  return {
+    'form-name': 'contrat-signature',
+    vehicule: v.nom,
+    immatriculation: data.immat,
+    lieu: lieuAffiche,
+    livraison: data.livraison ? 'Oui (+20 €)' : 'Non',
+    depart: formatDateHeureFR(data.depart),
+    retour: formatDateHeureFR(data.retour),
+    duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
+    total: formatEUR(total),
+    caution: formatEUR(v.caution),
+    mode_reglement_caution: data.modeCaution === 'carte' ? 'Carte bancaire' : 'Espèces',
+    locataire_prenom: data.prenom,
+    locataire_nom: data.nom,
+    locataire_naissance: data.naissance,
+    locataire_adresse: adresseComplete,
+    locataire_tel: data.tel,
+    locataire_email: data.email,
+    locataire_permis: data.permis,
+    second_conducteur: data.secondConducteur ? 'Oui' : 'Non',
+    second_conducteur_prenom: data.prenom2 || '',
+    second_conducteur_nom: data.nom2 || '',
+    second_conducteur_permis: data.permis2 || '',
+    horodatage_signature: stamp || '',
+    signature_image: sigData || ''
+  };
+}
+
+function genererPDF(payload, estApercu){
+  var jsPDF = window.jspdf && window.jspdf.jsPDF;
+  if(!jsPDF){ alert("Le générateur de PDF n'a pas pu se charger. Vérifiez votre connexion et réessayez."); return; }
+
+  var doc = new jsPDF({ unit:'pt', format:'a4' });
+  var margin = 42;
+  var pageWidth = doc.internal.pageSize.getWidth();
+  var pageHeight = doc.internal.pageSize.getHeight();
+  var maxWidth = pageWidth - margin*2;
+  var y = margin;
+
+  function sautDePageSiBesoin(hauteur){
+    if(y + hauteur > pageHeight - margin){ doc.addPage(); y = margin; }
+  }
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(26,47,82);
+  doc.text('GETLOCATION', margin, y); y += 16;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(107,100,120);
+  doc.text('TLST SAS — Location de véhicules — Grasse, Alpes-Maritimes', margin, y); y += 18;
+
+  if(estApercu){
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(242,118,12);
+    doc.text('APERÇU — document non contractuel, en attente de signature du client', margin, y); y += 16;
+  }
+
+  doc.setDrawColor(227,232,234); doc.line(margin, y, pageWidth - margin, y); y += 20;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(26,47,82);
+  doc.text('Contrat de location — Récapitulatif', margin, y); y += 20;
+
+  function ligne(label, valeur){
+    valeur = valeur || '—';
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(107,100,120);
+    doc.text(label, margin, y);
+    doc.setFont('helvetica','normal'); doc.setTextColor(42,36,56);
+    var lignes = doc.splitTextToSize(String(valeur), maxWidth - 130);
+    doc.text(lignes, margin + 130, y);
+    y += 13 * lignes.length + 2;
+    sautDePageSiBesoin(40);
+  }
+
+  ligne('Véhicule', payload.vehicule);
+  ligne('Immatriculation', payload.immatriculation);
+  ligne(payload.livraison.indexOf('Oui') === 0 ? 'Livraison' : 'Lieu de prise en charge', payload.lieu);
+  ligne('Départ', payload.depart);
+  ligne('Retour', payload.retour);
+  ligne('Durée', payload.duree);
+  ligne('Livraison à domicile', payload.livraison);
+  ligne('Total', payload.total);
+  ligne('Caution', payload.caution + ' — réglée par ' + payload.mode_reglement_caution);
+  y += 6;
+
+  sautDePageSiBesoin(90);
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(26,47,82);
+  doc.text('Locataire', margin, y); y += 16;
+  ligne('Nom', payload.locataire_prenom + ' ' + payload.locataire_nom);
+  ligne('Naissance', payload.locataire_naissance);
+  ligne('Adresse', payload.locataire_adresse);
+  ligne('Téléphone', payload.locataire_tel);
+  ligne('E-mail', payload.locataire_email);
+  ligne('Permis', payload.locataire_permis);
+  if(payload.second_conducteur === 'Oui'){
+    ligne('2e conducteur', payload.second_conducteur_prenom + ' ' + payload.second_conducteur_nom + ' (permis ' + payload.second_conducteur_permis + ')');
+  }
+  y += 8;
+
+  sautDePageSiBesoin(60);
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(26,47,82);
+  doc.text('Conditions de location', margin, y); y += 16;
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(80,74,94);
+  var texteContrat = texteConditionsLocation();
+  var lignesContrat = doc.splitTextToSize(texteContrat, maxWidth);
+  lignesContrat.forEach(function(l){
+    sautDePageSiBesoin(12);
+    doc.text(l, margin, y);
+    y += 11;
+  });
+
+  y += 14;
+  sautDePageSiBesoin(120);
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(26,47,82);
+  doc.text('Signature électronique', margin, y); y += 10;
+  if(payload.signature_image){
+    try{ doc.addImage(payload.signature_image, 'PNG', margin, y, 170, 65); } catch(e){}
+    y += 78;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(107,100,120);
+    doc.text('Signé électroniquement le ' + payload.horodatage_signature, margin, y); y += 12;
+    doc.text('Identifiant de signature : ' + payload.signatureId + ' — GETLOCATION (TLST SAS)', margin, y);
+  } else {
+    doc.setFont('helvetica','italic'); doc.setFontSize(9.5); doc.setTextColor(242,118,12);
+    doc.text('En attente de signature du client.', margin, y);
+  }
+
+  var suffixe = payload.signature_image ? '' : '-apercu';
+  var nomFichier = 'contrat-getlocation-' + (payload.locataire_nom || 'client').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-') + suffixe + '.pdf';
+  doc.save(nomFichier);
 }
 
 var params = new URLSearchParams(window.location.search);
@@ -594,16 +759,12 @@ function initOwnerView(prefill){
     return true;
   }
 
-  function regenererLien(){
-    if(!tousLesChampsRequisRemplis()){
-      document.getElementById('linkBox').classList.add('hidden');
-      document.getElementById('shareActions').classList.add('hidden');
-      document.getElementById('linkHint').classList.remove('hidden');
-      return;
-    }
-    document.getElementById('linkHint').classList.add('hidden');
-
-    var data = {
+  // Lit l'état courant du formulaire AGENCE — utilisé à la fois pour le
+  // lien client (regenererLien, seulement une fois tous les champs requis
+  // remplis) et pour le téléchargement PDF à tout moment (données
+  // partielles acceptées : voir #downloadPdfBtn plus bas).
+  function lireDonneesFormulaire(){
+    return {
       vehiculeId: selectVehicule.value,
       immat: document.getElementById('immat').value,
       lieu: selectLieu.value,
@@ -628,6 +789,22 @@ function initOwnerView(prefill){
       livraisonCP: document.getElementById('livraisonCP').value,
       livraisonVille: document.getElementById('livraisonVille').value
     };
+  }
+
+  document.getElementById('downloadPdfBtn').addEventListener('click', function(){
+    genererPDF(construirePayload(lireDonneesFormulaire(), null, null), true);
+  });
+
+  function regenererLien(){
+    if(!tousLesChampsRequisRemplis()){
+      document.getElementById('linkBox').classList.add('hidden');
+      document.getElementById('shareActions').classList.add('hidden');
+      document.getElementById('linkHint').classList.remove('hidden');
+      return;
+    }
+    document.getElementById('linkHint').classList.add('hidden');
+
+    var data = lireDonneesFormulaire();
     var url = window.location.origin + window.location.pathname + '?data=' + encodeData(data);
     var linkBox = document.getElementById('linkBox');
     var linkOutput = document.getElementById('linkOutput');
@@ -695,139 +872,12 @@ function initClientView(data){
     ? 'Livraison à ' + data.livraisonRue + ', ' + data.livraisonCP + ' ' + data.livraisonVille
     : data.lieu;
 
-  function construirePayload(sigData, stamp){
-    return {
-      'form-name': 'contrat-signature',
-      vehicule: v.nom,
-      immatriculation: data.immat,
-      lieu: lieuAffiche,
-      livraison: data.livraison ? 'Oui (+20 €)' : 'Non',
-      depart: formatDateHeureFR(data.depart),
-      retour: formatDateHeureFR(data.retour),
-      duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
-      total: formatEUR(total),
-      caution: formatEUR(v.caution),
-      mode_reglement_caution: data.modeCaution === 'carte' ? 'Carte bancaire' : 'Espèces',
-      locataire_prenom: data.prenom,
-      locataire_nom: data.nom,
-      locataire_naissance: data.naissance,
-      locataire_adresse: adresseComplete,
-      locataire_tel: data.tel,
-      locataire_email: data.email,
-      locataire_permis: data.permis,
-      second_conducteur: data.secondConducteur ? 'Oui' : 'Non',
-      second_conducteur_prenom: data.prenom2 || '',
-      second_conducteur_nom: data.nom2 || '',
-      second_conducteur_permis: data.permis2 || '',
-      horodatage_signature: stamp || '',
-      signature_image: sigData || ''
-    };
-  }
-
   function genererIdentifiantSignature(){
     return Math.random().toString(36).slice(2,10).toUpperCase();
   }
 
-  function genererPDF(payload, estApercu){
-    var jsPDF = window.jspdf && window.jspdf.jsPDF;
-    if(!jsPDF){ alert("Le générateur de PDF n'a pas pu se charger. Vérifiez votre connexion et réessayez."); return; }
-
-    var doc = new jsPDF({ unit:'pt', format:'a4' });
-    var margin = 42;
-    var pageWidth = doc.internal.pageSize.getWidth();
-    var pageHeight = doc.internal.pageSize.getHeight();
-    var maxWidth = pageWidth - margin*2;
-    var y = margin;
-
-    function sautDePageSiBesoin(hauteur){
-      if(y + hauteur > pageHeight - margin){ doc.addPage(); y = margin; }
-    }
-
-    doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(26,47,82);
-    doc.text('GETLOCATION', margin, y); y += 16;
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(107,100,120);
-    doc.text('TLST SAS — Location de véhicules — Grasse, Alpes-Maritimes', margin, y); y += 18;
-
-    if(estApercu){
-      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(242,118,12);
-      doc.text('APERÇU — document non contractuel, en attente de signature du client', margin, y); y += 16;
-    }
-
-    doc.setDrawColor(227,232,234); doc.line(margin, y, pageWidth - margin, y); y += 20;
-
-    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(26,47,82);
-    doc.text('Contrat de location — Récapitulatif', margin, y); y += 20;
-
-    function ligne(label, valeur){
-      valeur = valeur || '—';
-      doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(107,100,120);
-      doc.text(label, margin, y);
-      doc.setFont('helvetica','normal'); doc.setTextColor(42,36,56);
-      var lignes = doc.splitTextToSize(String(valeur), maxWidth - 130);
-      doc.text(lignes, margin + 130, y);
-      y += 13 * lignes.length + 2;
-      sautDePageSiBesoin(40);
-    }
-
-    ligne('Véhicule', payload.vehicule);
-    ligne('Immatriculation', payload.immatriculation);
-    ligne(payload.livraison.indexOf('Oui') === 0 ? 'Livraison' : 'Lieu de prise en charge', payload.lieu);
-    ligne('Départ', payload.depart);
-    ligne('Retour', payload.retour);
-    ligne('Durée', payload.duree);
-    ligne('Livraison à domicile', payload.livraison);
-    ligne('Total', payload.total);
-    ligne('Caution', payload.caution + ' — réglée par ' + payload.mode_reglement_caution);
-    y += 6;
-
-    sautDePageSiBesoin(90);
-    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(26,47,82);
-    doc.text('Locataire', margin, y); y += 16;
-    ligne('Nom', payload.locataire_prenom + ' ' + payload.locataire_nom);
-    ligne('Naissance', payload.locataire_naissance);
-    ligne('Adresse', payload.locataire_adresse);
-    ligne('Téléphone', payload.locataire_tel);
-    ligne('E-mail', payload.locataire_email);
-    ligne('Permis', payload.locataire_permis);
-    if(payload.second_conducteur === 'Oui'){
-      ligne('2e conducteur', payload.second_conducteur_prenom + ' ' + payload.second_conducteur_nom + ' (permis ' + payload.second_conducteur_permis + ')');
-    }
-    y += 8;
-
-    sautDePageSiBesoin(60);
-    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(26,47,82);
-    doc.text('Conditions de location', margin, y); y += 16;
-    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(80,74,94);
-    var texteContrat = document.getElementById('contractText').innerText;
-    var lignesContrat = doc.splitTextToSize(texteContrat, maxWidth);
-    lignesContrat.forEach(function(l){
-      sautDePageSiBesoin(12);
-      doc.text(l, margin, y);
-      y += 11;
-    });
-
-    y += 14;
-    sautDePageSiBesoin(120);
-    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(26,47,82);
-    doc.text('Signature électronique', margin, y); y += 10;
-    if(payload.signature_image){
-      try{ doc.addImage(payload.signature_image, 'PNG', margin, y, 170, 65); } catch(e){}
-      y += 78;
-      doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(107,100,120);
-      doc.text('Signé électroniquement le ' + payload.horodatage_signature, margin, y); y += 12;
-      doc.text('Identifiant de signature : ' + payload.signatureId + ' — GETLOCATION (TLST SAS)', margin, y);
-    } else {
-      doc.setFont('helvetica','italic'); doc.setFontSize(9.5); doc.setTextColor(242,118,12);
-      doc.text('En attente de signature du client.', margin, y);
-    }
-
-    var suffixe = payload.signature_image ? '' : '-apercu';
-    var nomFichier = 'contrat-getlocation-' + (payload.locataire_nom || 'client').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-') + suffixe + '.pdf';
-    doc.save(nomFichier);
-  }
-
   document.getElementById('previewPdfBtn').addEventListener('click', function(){
-    genererPDF(construirePayload(null, null), true);
+    genererPDF(construirePayload(data, null, null), true);
   });
 
   var form = document.getElementById('contractForm');
@@ -958,7 +1008,7 @@ function initClientView(data){
       }).join('&');
     }
 
-    var payload = construirePayload(sigData, stamp);
+    var payload = construirePayload(data, sigData, stamp);
 
     function afficherConfirmation(envoye){
       accept.disabled = true;
