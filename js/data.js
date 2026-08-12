@@ -104,8 +104,6 @@ const OPTIONS = [
   { id: "rehausseur", nom: "Réhausseur enfant", description: "Réhausseur homologué pour enfant (15-36 kg)", type: "jour", prix: 3 },
   { id: "assurance-passagers", nom: "Assurance passagers / accident", description: "Couvre les dommages corporels des passagers en cas d'accident", type: "jour", prix: 6 },
   { id: "second-conducteur", nom: "Deuxième conducteur", description: "Ajoute un second conducteur autorisé sur le contrat", type: "jour", prix: 10 },
-  { id: "plein-essence", nom: "Retour sans faire le plein", description: "Rendez le véhicule tel quel, on s'occupe de refaire le plein", type: "forfait", prix: 25 },
-  { id: "nettoyage", nom: "Nettoyage complet inclus", description: "Nettoyage intérieur et extérieur à la restitution", type: "forfait", prix: 20 },
   { id: "km-supplementaire", nom: "Forfait kilométrage supplémentaire", description: "300 km supplémentaires inclus sur la durée de la location", type: "forfait", prix: 30 },
   { id: "livraison-adresse", nom: "Livraison à l'adresse de votre choix", description: "Le véhicule vous est livré à l'adresse indiquée (Nice, Cannes, Antibes, Grasse, Monaco)", type: "forfait", prix: 20 }
 ];
@@ -261,7 +259,7 @@ function joursFacturablesDepuisHeures(dureeHeures) {
 // responsable est égale au montant de la caution du véhicule loué (voir
 // VEHICULES[].caution) — aucun montant de franchise séparé à définir.
 //
-// `options` est une liste d'identifiants (ex. ["siege-auto","nettoyage"]) ;
+// `options` est une liste d'identifiants (ex. ["siege-auto","livraison-adresse"]) ;
 // les identifiants inconnus sont ignorés ici (la validation stricte côté
 // serveur — qui rejette une requête contenant un identifiant inconnu — se
 // fait séparément dans validate-reservation-input.js).

@@ -219,19 +219,19 @@ test("OPTIONS : chaque option a un id, un prix positif et un type valide", () =>
 test("calculerPrixTotal : une option type \"jour\" est multipliée par le nombre de jours, une option \"forfait\" ne l'est pas", () => {
   const vehicule = getVehiculeParId("opel-corsa");
   const siegeAuto = getOptionParId("siege-auto"); // type "jour"
-  const nettoyage = getOptionParId("nettoyage"); // type "forfait"
+  const livraison = getOptionParId("livraison-adresse"); // type "forfait"
   const result = calculerPrixTotal({
     vehiculeId: "opel-corsa",
     dateDebut: "2026-08-01", heureDebut: "10:00",
     dateFin: "2026-08-04", heureFin: "10:00", // 3 jours
-    options: ["siege-auto", "nettoyage"]
+    options: ["siege-auto", "livraison-adresse"]
   });
   assert.equal(result.jours, 3);
   const optSiege = result.optionsSelectionnees.find(o => o.id === "siege-auto");
-  const optNettoyage = result.optionsSelectionnees.find(o => o.id === "nettoyage");
+  const optLivraison = result.optionsSelectionnees.find(o => o.id === "livraison-adresse");
   assert.equal(optSiege.montant, siegeAuto.prix * 3);
-  assert.equal(optNettoyage.montant, nettoyage.prix);
-  assert.equal(result.optionsMontant, optSiege.montant + optNettoyage.montant);
+  assert.equal(optLivraison.montant, livraison.prix);
+  assert.equal(result.optionsMontant, optSiege.montant + optLivraison.montant);
   assert.equal(result.total, vehicule.prixJour * 3 + result.optionsMontant);
 });
 
