@@ -99,10 +99,10 @@ test("initReservationPage : applique un code promo valide et affiche un message 
   window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
   window.initReservationPage();
 
-  window.document.getElementById("promo-input").value = "bienvenue10"; // insensible à la casse
+  window.document.getElementById("promo-input").value = "getloc10"; // insensible à la casse
   window.document.getElementById("promo-apply").dispatchEvent(new window.Event("click", { bubbles: true }));
 
-  const promo = getCodePromo("BIENVENUE10");
+  const promo = getCodePromo("GETLOC10");
   const totalAttendu = Math.round(98 - 98 * promo.pourcentage / 100); // formatEUR arrondit à l'euro
   assert.match(window.document.getElementById("reservation-summary").textContent, new RegExp(String(totalAttendu)));
   assert.match(window.document.getElementById("promo-message").textContent, /appliqué/);
@@ -110,7 +110,7 @@ test("initReservationPage : applique un code promo valide et affiche un message 
   // La saisie brute est conservée telle quelle en local (la normalisation —
   // casse/espaces — n'a lieu que dans le calcul via getCodePromo()).
   const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
-  assert.equal(persisted.codePromo, "bienvenue10");
+  assert.equal(persisted.codePromo, "getloc10");
 });
 
 test("initReservationPage : un code promo invalide affiche une erreur et ne change pas le total", () => {

@@ -66,8 +66,24 @@ function reductionDureeApplicable(jours) {
 // pour l'instant). Codes insensibles à la casse/espaces (voir
 // getCodePromo). Valeurs d'exemple à ajuster ici.
 const CODES_PROMO = {
-  BIENVENUE10: { pourcentage: 10, description: "10 % de réduction bienvenue" },
-  ETE2026: { pourcentage: 15, description: "15 % de réduction spéciale été 2026" }
+  GETLOC90: { pourcentage: 90, description: "90 % de réduction" },
+  GETLOC85: { pourcentage: 85, description: "85 % de réduction" },
+  GETLOC80: { pourcentage: 80, description: "80 % de réduction" },
+  GETLOC75: { pourcentage: 75, description: "75 % de réduction" },
+  GETLOC70: { pourcentage: 70, description: "70 % de réduction" },
+  GETLOC65: { pourcentage: 65, description: "65 % de réduction" },
+  GETLOC60: { pourcentage: 60, description: "60 % de réduction" },
+  GETLOC55: { pourcentage: 55, description: "55 % de réduction" },
+  GETLOC50: { pourcentage: 50, description: "50 % de réduction" },
+  GETLOC45: { pourcentage: 45, description: "45 % de réduction" },
+  GETLOC40: { pourcentage: 40, description: "40 % de réduction" },
+  GETLOC35: { pourcentage: 35, description: "35 % de réduction" },
+  GETLOC30: { pourcentage: 30, description: "30 % de réduction" },
+  GETLOC25: { pourcentage: 25, description: "25 % de réduction" },
+  GETLOC20: { pourcentage: 20, description: "20 % de réduction" },
+  GETLOC15: { pourcentage: 15, description: "15 % de réduction" },
+  GETLOC10: { pourcentage: 10, description: "10 % de réduction" },
+  GETLOC5: { pourcentage: 5, description: "5 % de réduction" }
 };
 
 // Normalise et recherche un code promo. Retourne null si absent/invalide.

@@ -164,8 +164,8 @@ test("calculerPrixTotal : sans palier atteint, aucune remise durée n'est appliq
 --------------------------------------------------------- */
 
 test("getCodePromo : normalise la casse et les espaces, rejette un code inconnu", () => {
-  assert.equal(getCodePromo("  bienvenue10  ").code, "BIENVENUE10");
-  assert.equal(getCodePromo("BIENVENUE10").pourcentage > 0, true);
+  assert.equal(getCodePromo("  getloc10  ").code, "GETLOC10");
+  assert.equal(getCodePromo("GETLOC10").pourcentage > 0, true);
   assert.equal(getCodePromo("CODE-INEXISTANT"), null);
   assert.equal(getCodePromo(""), null);
   assert.equal(getCodePromo(null), null);
@@ -174,17 +174,17 @@ test("getCodePromo : normalise la casse et les espaces, rejette un code inconnu"
 
 test("calculerPrixTotal : applique un code promo valide sur le total (options incluses)", () => {
   const vehicule = getVehiculeParId("opel-corsa");
-  const promo = getCodePromo("BIENVENUE10");
+  const promo = getCodePromo("GETLOC10");
   const result = calculerPrixTotal({
     vehiculeId: "opel-corsa",
     dateDebut: "2026-08-01", heureDebut: "10:00",
     dateFin: "2026-08-04", heureFin: "10:00", // 3 jours, pas de remise durée
-    codePromo: "bienvenue10"
+    codePromo: "getloc10"
   });
   const baseAvantPromo = vehicule.prixJour * 3;
   assert.equal(result.baseAvantPromo, baseAvantPromo);
   assert.ok(result.codePromo);
-  assert.equal(result.codePromo.code, "BIENVENUE10");
+  assert.equal(result.codePromo.code, "GETLOC10");
   assert.equal(result.reductionPromoMontant, Math.round(baseAvantPromo * promo.pourcentage) / 100);
   assert.equal(result.total, baseAvantPromo - result.reductionPromoMontant);
 });
@@ -249,7 +249,7 @@ test("calculerPrixTotal : ignore un identifiant d'option inconnu et déduplique 
 test("calculerPrixTotal : pipeline complet — remise durée + options − code promo", () => {
   const vehicule = getVehiculeParId("peugeot-3008");
   const palier14 = REDUCTIONS_DUREE.find(r => r.seuilJours === 14);
-  const promo = getCodePromo("ETE2026");
+  const promo = getCodePromo("GETLOC15");
   const siegeAuto = getOptionParId("siege-auto");
   const livraison = getOptionParId("livraison-adresse");
 
@@ -258,7 +258,7 @@ test("calculerPrixTotal : pipeline complet — remise durée + options − code 
     dateDebut: "2026-08-01", heureDebut: "10:00",
     dateFin: "2026-08-15", heureFin: "10:00", // 14 jours
     options: ["siege-auto", "livraison-adresse"],
-    codePromo: "ETE2026"
+    codePromo: "GETLOC15"
   });
 
   const sousTotalBrut = vehicule.prixJour * 14;
