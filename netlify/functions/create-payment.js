@@ -84,6 +84,25 @@ function clientIp(event) {
   );
 }
 
+// Code de test interne (jamais présent dans js/data.js, donc jamais exposé
+// au navigateur ni visible dans le code source public) : si le code promo
+// saisi correspond exactement à TEST_DISCOUNT_CODE (secret configuré côté
+// Netlify, jamais commité), le montant facturé est ramené à 0,99 € au lieu
+// du tarif normal. Sert à valider en conditions réelles (Mollie live) le
+// parcours complet paiement + email de confirmation sans payer le plein
+// tarif à chaque test. Sans TEST_DISCOUNT_CODE configurée, cette fonction
+// est un no-op strict : le montant normal est toujours renvoyé tel quel.
+// Le détail du prix (sous-total, options, réduction promo classique...)
+// enregistré dans la réservation reste celui du calcul normal — seul le
+// montant effectivement facturé est réduit.
+const TEST_DISCOUNT_CENTIMES = 99; // 0,99 €
+function resolverMontantFacture(prix, codePromoBrut, testDiscountCode) {
+  if (testDiscountCode && codePromoBrut && codePromoBrut.trim().toUpperCase() === testDiscountCode.trim().toUpperCase()) {
+    return { totalCentimesFacture: TEST_DISCOUNT_CENTIMES, totalFacture: TEST_DISCOUNT_CENTIMES / 100 };
+  }
+  return { totalCentimesFacture: prix.totalCentimes, totalFacture: prix.total };
+}
+
 exports.handler = async (event) => {
   const headers = corsHeaders(event);
 
@@ -134,6 +153,12 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "Impossible de calculer le prix pour cette demande" }) };
   }
 
+  // Code de test interne (voir resolverMontantFacture ci-dessous) : permet
+  // de valider en conditions réelles (Mollie live) le parcours complet
+  // paiement + email de confirmation pour un montant minime, plutôt que le
+  // tarif réel du véhicule.
+  const { totalCentimesFacture, totalFacture } = resolverMontantFacture(prix, codePromo, process.env.TEST_DISCOUNT_CODE);
+
   // Mollie non configuré : réponse honnête (code dédié) plutôt qu'une
   // fausse promesse de paiement en ligne opérationnel. Le client (P0-6)
   // doit alors proposer un repli téléphone/WhatsApp.
@@ -182,7 +207,7 @@ exports.handler = async (event) => {
     optionsMontant: prix.optionsMontant,
     codePromo: prix.codePromo,
     reductionPromoMontant: prix.reductionPromoMontant,
-    total: prix.total,
+    total: totalFacture,
     cglVersion: payload.cglVersion,
     cglAcceptedAt: new Date().toISOString(),
     conducteur: {
@@ -204,7 +229,7 @@ exports.handler = async (event) => {
     const payment = await mollieClient.payments.create({
       amount: {
         currency: "EUR", // toujours EUR — jamais une valeur fournie par le client
-        value: (prix.totalCentimes / 100).toFixed(2)
+        value: (totalCentimesFacture / 100).toFixed(2)
       },
       description: `Location ${vehicule.nom} — ${prix.jours} jour(s) — réservation ${reservation.id}`,
       redirectUrl: `${origin}/confirmation.html?reservation=${encodeURIComponent(reservation.id)}`,
@@ -245,3 +270,7 @@ exports.handler = async (event) => {
     };
   }
 };
+
+// Exporté pour les tests unitaires (calcul du montant facturé sans passer
+// par l'appel HTTP complet ni par Mollie).
+exports.resolverMontantFacture = resolverMontantFacture;

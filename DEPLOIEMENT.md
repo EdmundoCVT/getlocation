@@ -25,6 +25,7 @@ Le paiement fonctionne par **redirection** : le client est envoyé vers une page
 | `URL` / `DEPLOY_PRIME_URL` | Auto | Injectées automatiquement par Netlify, pas besoin de les définir. |
 | `GMAIL_USER` | Optionnel, pour l'email de confirmation | Adresse Gmail expéditrice de l'email de confirmation envoyé au client à chaque paiement confirmé (`getlocation.fr@gmail.com`). Reçoit aussi une copie cachée (BCC) de chaque confirmation envoyée. |
 | `GMAIL_APP_PASSWORD` | Optionnel, pour l'email de confirmation | Mot de passe d'application Google associé à `GMAIL_USER` (16 caractères, généré sur https://myaccount.google.com/apppasswords — nécessite la validation en 2 étapes activée sur ce compte Google). Sans ces deux variables, la réservation est quand même confirmée normalement, seul l'email n'est pas envoyé (voir `netlify/functions/lib/send-confirmation-email.js`). |
+| `TEST_DISCOUNT_CODE` | Optionnel, usage interne uniquement | Code secret de votre choix (ex. un mot de passe généré aléatoirement) qui, saisi dans le champ "code promo" lors d'une réservation réelle, ramène le montant facturé à 0,99 € au lieu du tarif normal. Sert à valider le parcours complet (paiement Mollie live + email de confirmation) sans payer le plein tarif à chaque test. **Ne jamais communiquer ce code publiquement** : contrairement aux codes promo classiques (`js/data.js`), il n'apparaît dans aucun fichier du dépôt — connaître le code suffit à l'utiliser, donc gardez-le aussi confidentiel qu'un mot de passe. Sans cette variable, saisir n'importe quoi dans le champ code promo n'a aucun effet particulier. |
 
 Netlify Blobs (stockage des réservations et du rate-limiting) ne nécessite aucune variable d'environnement sur Netlify — c'est automatique une fois le site déployé sur cette plateforme.
 
@@ -47,6 +48,7 @@ Aucune configuration manuelle de webhook n'est nécessaire côté Mollie : `crea
 3. Vérifier dans les logs Netlify Functions que `mollie-webhook` est bien appelé et que le statut est correctement revérifié auprès de l'API Mollie.
 4. Tester un paiement refusé/annulé côté Mollie : la réservation doit rester en attente/échec, jamais confirmée.
 5. Repasser sur un jeton **Live** uniquement après ces tests en mode test.
+6. Pour un test en conditions réelles (vrai paiement live, montant minime) : définir `TEST_DISCOUNT_CODE` dans Netlify, puis saisir cette valeur dans le champ "code promo" lors d'une réservation — le montant facturé passe à 0,99 € au lieu du tarif normal (voir `netlify/functions/create-payment.js`). Permet de vérifier bout en bout un vrai paiement Mollie live et l'email de confirmation reçu par le client, sans payer 49 € à chaque test.
 
 ## 5. Ce qui reste juridiquement à fournir (non inventé, volontairement laissé en placeholder)
 
