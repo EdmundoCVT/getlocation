@@ -23,9 +23,10 @@
 //   - MOLLIE_API_KEY (déjà utilisée par create-payment.js)
 //   - GMAIL_USER / GMAIL_APP_PASSWORD (envoi de l'email de confirmation au
 //     client avec copie cachée à cette même adresse — voir
-//     lib/send-confirmation-email.js ; tant qu'elles ne sont pas définies,
-//     la confirmation de paiement fonctionne quand même, seul l'email n'est
-//     pas envoyé)
+//     lib/send-confirmation-email.js — et de l'email agence contenant le
+//     contrat pré-rempli — voir lib/send-contract-email.js ; tant qu'elles
+//     ne sont pas définies, la confirmation de paiement fonctionne quand
+//     même, seuls ces emails ne sont pas envoyés)
 //
 // À FAIRE avant mise en production : ce endpoint est déjà transmis comme
 // `webhookUrl` à chaque création de paiement (voir create-payment.js), donc
@@ -42,6 +43,7 @@ const {
   findReservationByPaymentId
 } = require("./lib/reservation-store.js");
 const { sendConfirmationEmail } = require("./lib/send-confirmation-email.js");
+const { sendContractEmail } = require("./lib/send-contract-email.js");
 
 async function resolveReservation(payment) {
   const reservationId = payment.metadata && payment.metadata.reservationId;
@@ -66,10 +68,11 @@ async function handlePaid(payment) {
     paymentId: payment.id,
     paidAt: new Date().toISOString()
   });
-  // Best effort (voir send-confirmation-email.js) : un échec d'envoi ne
-  // remet jamais en cause la confirmation du paiement ci-dessus, déjà
-  // enregistrée.
+  // Best effort (voir send-confirmation-email.js / send-contract-email.js) :
+  // un échec d'envoi ne remet jamais en cause la confirmation du paiement
+  // ci-dessus, déjà enregistrée.
   await sendConfirmationEmail(updated);
+  await sendContractEmail(updated);
 }
 
 async function handleFailedOrCanceled(payment) {

@@ -433,6 +433,12 @@ function decodeData(str){
 
 var params = new URLSearchParams(window.location.search);
 var encoded = params.get('data');
+// `prefill` (distinct de `data`) : pré-remplit le formulaire AGENCE (toujours
+// modifiable), généré automatiquement après paiement d'une réservation (voir
+// netlify/functions/lib/send-contract-email.js) — contrairement à `data`,
+// qui affiche la vue CLIENT (lecture + signature). Un lien reçu par email
+// avec `?prefill=` ouvre donc bien le formulaire éditable, pas la signature.
+var prefillEncoded = params.get('prefill');
 
 if(encoded){
   document.getElementById('ownerView').classList.add('hidden');
@@ -440,10 +446,10 @@ if(encoded){
   initClientView(decodeData(encoded));
 } else {
   document.getElementById('ownerView').classList.remove('hidden');
-  initOwnerView();
+  initOwnerView(prefillEncoded ? decodeData(prefillEncoded) : null);
 }
 
-function initOwnerView(){
+function initOwnerView(prefill){
   var selectVehicule = document.getElementById('vehicule');
   var inputImmat = document.getElementById('immat');
   var selectLieu = document.getElementById('lieu');
@@ -542,6 +548,42 @@ function initOwnerView(){
     regenererLien();
   });
   updateSummary();
+
+  // Pré-remplissage depuis une réservation payée (voir ?prefill= plus haut) :
+  // n'écrase que les champs connus au moment de la réservation (véhicule,
+  // dates, coordonnées du locataire, options). Les champs jamais collectés
+  // pendant la réservation (naissance, adresse postale, second conducteur
+  // détaillé) restent vides — l'agence les complète avant d'envoyer le lien
+  // au client, exactement comme pour un contrat rempli à la main.
+  if(prefill){
+    if(prefill.vehiculeId){ selectVehicule.value = prefill.vehiculeId; appliquerPlaque(); }
+    if(prefill.lieu) selectLieu.value = prefill.lieu;
+    if(prefill.depart) inputDepart.value = prefill.depart;
+    if(prefill.retour) inputRetour.value = prefill.retour;
+    document.getElementById('prenom').value = prefill.prenom || '';
+    document.getElementById('nom').value = prefill.nom || '';
+    document.getElementById('tel').value = prefill.tel || '';
+    document.getElementById('email').value = prefill.email || '';
+    document.getElementById('permis').value = prefill.permis || '';
+    if(prefill.secondConducteur){
+      secondToggle.checked = true;
+      secondBlock.classList.add('show');
+      document.getElementById('prenom2').required = true;
+      document.getElementById('nom2').required = true;
+      document.getElementById('permis2').required = true;
+      document.getElementById('naissance2').required = true;
+    }
+    if(prefill.livraison){
+      livraisonToggle.checked = true;
+      livraisonBlock.classList.add('show');
+      document.getElementById('livraisonRue').value = prefill.livraisonRue || '';
+      document.getElementById('livraisonRue').required = true;
+      document.getElementById('livraisonCP').required = true;
+      document.getElementById('livraisonVille').required = true;
+    }
+    updateSummary();
+    regenererLien();
+  }
 
   function tousLesChampsRequisRemplis(){
     var required = document.querySelectorAll('#ownerForm [required]');
