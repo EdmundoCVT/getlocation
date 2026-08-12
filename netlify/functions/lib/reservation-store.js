@@ -69,6 +69,7 @@ function getBlobsStore() {
     const { getStore } = require("@netlify/blobs");
     return getStore(STORE_NAME);
   } catch (err) {
+    console.error("[reservation-store] getStore() a levé une exception :", err && (err.stack || err.message));
     return null;
   }
 }
@@ -81,6 +82,7 @@ async function withStore(fn, fallbackFn) {
     } catch (err) {
       // Blobs déclaré mais mal configuré (ex. hors contexte Netlify) :
       // on retombe sur la mémoire plutôt que de faire planter la fonction.
+      console.error("[reservation-store] Échec d'accès à Netlify Blobs :", err && (err.stack || err.message));
       memoryWarnOnce();
       return fallbackFn();
     }
