@@ -66,6 +66,7 @@ function reductionDureeApplicable(jours) {
 // pour l'instant). Codes insensibles à la casse/espaces (voir
 // getCodePromo). Valeurs d'exemple à ajuster ici.
 const CODES_PROMO = {
+  GETLOC95: { pourcentage: 95, description: "95 % de réduction" },
   GETLOC90: { pourcentage: 90, description: "90 % de réduction" },
   GETLOC85: { pourcentage: 85, description: "85 % de réduction" },
   GETLOC80: { pourcentage: 80, description: "80 % de réduction" },
