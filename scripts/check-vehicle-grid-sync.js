@@ -29,7 +29,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { VEHICULES } = require("../js/data.js");
+const { VEHICULES, prixJourMinimum } = require("../js/data.js");
 
 const ROOT = path.join(__dirname, "..");
 
@@ -44,13 +44,16 @@ const FILES_TO_CHECK = [
 ];
 
 // La catégorie affichée ajoute "Hybride" au nom de catégorie brut de
-// data.js quand le véhicule est hybride (ex. "SUV" -> "SUV Hybride").
+// data.js quand le véhicule est hybride (ex. "SUV" -> "SUV Hybride"). Le
+// prix affiché en dur est le tarif « à partir de » (prixJour minoré de la
+// meilleure remise durée, voir prixJourMinimum() dans js/data.js), pas le
+// tarif plein.
 function expectedFor(vehicule) {
   return {
     id: vehicule.id,
     nom: vehicule.nom,
     categorie: vehicule.categorie + (vehicule.hybride ? " Hybride" : ""),
-    prix: `${vehicule.prixJour} €`,
+    prix: `${prixJourMinimum(vehicule)} €`,
     places: `${vehicule.places} places`,
     transmission: vehicule.transmission
   };

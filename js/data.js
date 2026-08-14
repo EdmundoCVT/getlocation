@@ -63,6 +63,16 @@ function reductionDureeApplicable(jours) {
   return REDUCTIONS_DUREE.find(r => jours >= r.seuilJours) || null;
 }
 
+// Prix/jour le plus bas atteignable pour un véhicule, en supposant la
+// meilleure remise durée possible (voir REDUCTIONS_DUREE). Utilisé pour
+// l'affichage « à partir de X €/jour » sur les cartes véhicules : le
+// client voit d'emblée le tarif le plus avantageux, pas seulement le tarif
+// plein.
+function prixJourMinimum(vehicule) {
+  const meilleureRemiseParJour = REDUCTIONS_DUREE.reduce((max, r) => Math.max(max, r.montantParJour), 0);
+  return vehicule.prixJour - meilleureRemiseParJour;
+}
+
 // Codes promo — liste simple codée en dur (pas d'interface d'administration
 // pour l'instant). Codes insensibles à la casse/espaces (voir
 // getCodePromo). Valeurs d'exemple à ajuster ici.
@@ -332,6 +342,7 @@ if (typeof module !== "undefined" && module.exports) {
     dureeEnHeures,
     joursFacturablesDepuisHeures,
     reductionDureeApplicable,
+    prixJourMinimum,
     getCodePromo,
     getOptionParId,
     calculerPrixTotal

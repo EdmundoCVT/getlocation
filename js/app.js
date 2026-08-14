@@ -534,7 +534,7 @@ function initVehiculesPage() {
           </div>
           <p class="hint-text">${v.description}</p>
           <div class="vehicle-footer">
-            <div class="price"><span class="price-from">À partir de</span>${formatEUR(v.prixJour)}<small> / jour</small></div>
+            <div class="price"><span class="price-from">À partir de</span>${formatEUR(prixJourMinimum(v))}<small> / jour</small></div>
             <button class="btn btn-primary btn-sm" data-id="${v.id}">Réserver</button>
           </div>
           <div class="hint-text">Total pour ${jours} jour${jours > 1 ? "s" : ""} : ${formatEUR(total)}${remise ? ` <span class="badge-remise">-${formatEUR(remise.montantParJour)}/jour dès ${remise.libelle.toLowerCase()}</span>` : ""}</div>
