@@ -10,7 +10,14 @@
   // sur ce Worker — voir plan de migration Cloudflare, B.1.
   "main": "./dist/worker/index.js",
   "assets": {
-    "directory": "."
+    "directory": ".",
+    // Par défaut, Cloudflare sert les assets statiques AVANT le Worker et
+    // répond 404 direct pour tout chemin sans fichier correspondant — le
+    // Worker n'est jamais invoqué pour /api/* sans ce réglage explicite
+    // (constaté en déploiement réel : /api/reservation-status renvoyait un
+    // 404 "assets", jamais atteint par functions/api/reservation-status.js).
+    // Voir https://developers.cloudflare.com/workers/static-assets/binding/.
+    "run_worker_first": ["/api/*"]
   },
   // Placeholders pour le développement local (`wrangler dev`, KV simulé
   // localement). PAS DES VRAIS NAMESPACES — à remplacer par les id réels
