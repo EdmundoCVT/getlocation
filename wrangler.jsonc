@@ -1,7 +1,23 @@
 {
   "name": "getlocation",
   "compatibility_date": "2026-08-14",
+  // main : Worker compilé à partir de functions/api/*.js par la commande
+  // de build `npx wrangler pages functions build --outdir=./dist/worker/`
+  // (voir Cloudflare Workers Builds, build_command du trigger) — nécessaire
+  // car contrairement à l'ancien Cloudflare Pages, le nouveau modèle
+  // Workers ne compile plus /functions automatiquement. Un chemin qui ne
+  // correspond à aucun fichier statique (ex. /api/create-payment) retombe
+  // sur ce Worker — voir plan de migration Cloudflare, B.1.
+  "main": "./dist/worker/index.js",
   "assets": {
     "directory": "."
-  }
+  },
+  // Placeholders pour le développement local (`wrangler dev`, KV simulé
+  // localement). PAS DES VRAIS NAMESPACES — à remplacer par les id réels
+  // une fois créés côté Cloudflare (voir plan de migration, B.5) avant tout
+  // déploiement réel s'appuyant sur ces bindings.
+  "kv_namespaces": [
+    { "binding": "RESERVATIONS_KV", "id": "local-dev-placeholder-reservations" },
+    { "binding": "RATE_LIMITS_KV", "id": "local-dev-placeholder-rate-limits" }
+  ]
 }

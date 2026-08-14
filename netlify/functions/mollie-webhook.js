@@ -37,76 +37,22 @@
 // tests/mollie-webhook.test.js).
 
 const { molliePaymentsGet } = require("../../lib/server/mollie-client.js");
-const {
-  updateReservationStatus,
-  getReservation,
-  findReservationByPaymentId
-} = require("../../lib/server/reservation-store.js");
+const reservationStore = require("../../lib/server/reservation-store.js");
 const { sendConfirmationEmail } = require("../../lib/server/send-confirmation-email.js");
 const { sendContractEmail } = require("../../lib/server/send-contract-email.js");
+const { processPaymentStatus: processPaymentStatusShared } = require("../../lib/server/process-payment-status.js");
 
-async function resolveReservation(payment) {
-  const reservationId = payment.metadata && payment.metadata.reservationId;
-  if (reservationId) {
-    const byId = await getReservation(reservationId);
-    if (byId) return byId;
-  }
-  // Repli : recherche par index paymentId, au cas (rare) où le webhook
-  // serait traité avant que create-payment.js n'ait fini de lier l'id à la
-  // réservation.
-  return findReservationByPaymentId(payment.id);
-}
+// Logique métier (resolveReservation/handlePaid/handleFailedOrCanceled/
+// processPaymentStatus) déplacée dans lib/server/process-payment-status.js
+// — partagée avec le futur adaptateur Cloudflare functions/api/
+// mollie-webhook.js (voir plan de migration, B.1/B.3), qui utilisera un
+// store Cloudflare KV à la place de reservationStore (Netlify Blobs) ici.
+const deps = { store: reservationStore, sendConfirmationEmail, sendContractEmail };
 
-async function handlePaid(payment) {
-  const reservation = await resolveReservation(payment);
-  if (!reservation) {
-    console.error("[mollie-webhook] Aucune réservation trouvée pour le paiement (paid).");
-    return;
-  }
-  if (reservation.status === "paid") return; // déjà traité : idempotent
-  const updated = await updateReservationStatus(reservation.id, "paid", {
-    paymentId: payment.id,
-    paidAt: new Date().toISOString()
-  });
-  // Best effort (voir send-confirmation-email.js / send-contract-email.js) :
-  // un échec d'envoi ne remet jamais en cause la confirmation du paiement
-  // ci-dessus, déjà enregistrée.
-  await sendConfirmationEmail(updated);
-  await sendContractEmail(updated);
-}
-
-async function handleFailedOrCanceled(payment) {
-  const reservation = await resolveReservation(payment);
-  if (!reservation) {
-    console.error("[mollie-webhook] Aucune réservation trouvée pour le paiement (échec/annulation/expiration).");
-    return;
-  }
-  // Ne jamais écraser un état final déjà atteint (idempotence + on ne
-  // "dé-paie" jamais une réservation payée à cause d'un événement tardif).
-  if (reservation.status === "paid" || reservation.status === "cancelled") return;
-  await updateReservationStatus(reservation.id, "cancelled", {
-    paymentId: payment.id,
-    failureReason: payment.status
-  });
-}
-
-// Statuts Mollie possibles : open, pending, authorized, paid, canceled,
-// expired, failed. Seuls paid/canceled/expired/failed sont des états
-// finaux ; les autres n'entraînent aucune action ici (rien à confirmer ni
-// à annuler tant que l'issue n'est pas connue).
-async function processPaymentStatus(payment) {
-  switch (payment.status) {
-    case "paid":
-      await handlePaid(payment);
-      break;
-    case "canceled":
-    case "expired":
-    case "failed":
-      await handleFailedOrCanceled(payment);
-      break;
-    default:
-      break;
-  }
+// Conserve la signature à un seul argument utilisée par
+// tests/mollie-webhook.test.js et par le handler ci-dessous.
+function processPaymentStatus(payment) {
+  return processPaymentStatusShared(deps, payment);
 }
 
 exports.handler = async (event) => {

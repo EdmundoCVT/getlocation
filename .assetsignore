@@ -10,6 +10,8 @@ node_modules
 tests
 netlify
 lib
+functions
+dist
 package.json
 package-lock.json
 deployer.command
