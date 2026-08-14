@@ -9,17 +9,18 @@
 # Aucun domaine tiers requis pour le paiement : Mollie se fait par
 # redirection de page complète, pas par un script/iframe embarqué.
 #
-# connect-src : si les appels fetch() vers /.netlify/functions/* sont faits
-# en cross-origin explicite pendant la Phase A (voir _redirects et le plan
-# de migration), il faudra ajouter ici le domaine Netlify à connect-src, sous
-# peine de blocage silencieux côté navigateur malgré un CORS serveur correct.
+# connect-src : le proxy externe via _redirects n'étant pas supporté par
+# Cloudflare (voir plan de migration, A.3), js/app.js appelle désormais les
+# fonctions Netlify en cross-origin explicite (NETLIFY_FUNCTIONS_BASE) — le
+# domaine Netlify doit donc être autorisé ici, sous peine de blocage
+# silencieux côté navigateur malgré un CORS serveur correct.
 /*
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://shiny-caramel-1ba9fc.netlify.app; font-src 'self'; object-src 'none'; base-uri 'self'
 
 /images/*
   Cache-Control: public, max-age=3600, must-revalidate
