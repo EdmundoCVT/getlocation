@@ -1,5 +1,5 @@
-# Exclut ces dossiers/fichiers du déploiement Cloudflare Pages (Phase A =
-# site statique uniquement, voir plan de migration). Sans ce fichier,
+# Exclut ces dossiers/fichiers du déploiement Cloudflare (assets statiques
+# servis par le binding ASSETS, voir wrangler.jsonc). Sans ce fichier,
 # Cloudflare tente d'envoyer tout le contenu du dépôt comme "assets"
 # statiques, y compris node_modules (dont un binaire interne à wrangler de
 # 144 Mo, au-dessus de la limite de 25 Mo par fichier) — cause de l'échec
@@ -13,3 +13,10 @@ package.json
 package-lock.json
 deployer.command
 .DS_Store
+# src/ contient le code serveur du Worker (paiement, webhook Mollie...),
+# bundlé séparément via `main` dans wrangler.jsonc — il ne doit jamais être
+# servi comme fichier statique public (voir Phase B de la migration
+# Cloudflare, DEPLOIEMENT.md). Sans cette ligne, le code source des
+# fonctions serveur serait téléchargeable publiquement (ex.
+# https://getlocation.fr/src/api/create-payment.js).
+src

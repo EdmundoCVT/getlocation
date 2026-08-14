@@ -29,7 +29,7 @@ const path = require("node:path");
 
 const dataJs = require("../js/data.js");
 const appJsSource = fs.readFileSync(path.join(__dirname, "..", "js", "app.js"), "utf8");
-const { validateReservationInput } = require("../netlify/functions/lib/validate-reservation-input.js");
+const { validateReservationInput } = require("../src/lib/validate-reservation-input.js");
 
 test("js/data.js exporte toutes les valeurs requises par le backend (netlify/functions)", () => {
   const exportsAttendus = {
@@ -86,11 +86,12 @@ test("garde-fou anti-effacement silencieux : js/data.js et js/app.js ont une tai
 
 test("contrat front/API : le payload fetch() de create-payment dans js/app.js correspond exactement à ce qu'attend validateReservationInput", () => {
   // Extrait le nom des champs du littéral d'objet passé à JSON.stringify()
-  // juste avant l'appel fetch(...create-payment). Depuis la Phase A de la
-  // migration Cloudflare, cet appel est cross-origin explicite (préfixé par
-  // NETLIFY_FUNCTIONS_BASE) plutôt qu'un chemin relatif — voir js/app.js.
-  const appelIndex = appJsSource.indexOf("/.netlify/functions/create-payment`, {");
-  assert.ok(appelIndex !== -1, "js/app.js doit appeler .../.netlify/functions/create-payment");
+  // juste avant l'appel fetch(...create-payment). Depuis la Phase B de la
+  // migration Cloudflare, le site et les fonctions serveur sont servis par
+  // le même Worker : cet appel est redevenu un chemin relatif same-origin
+  // (voir js/app.js et src/api/create-payment.js).
+  const appelIndex = appJsSource.indexOf("fetch(`/api/create-payment`, {");
+  assert.ok(appelIndex !== -1, "js/app.js doit appeler /api/create-payment");
 
   const stringifyIndex = appJsSource.indexOf("JSON.stringify({", appelIndex);
   assert.ok(stringifyIndex !== -1, "L'appel fetch doit envoyer un body JSON.stringify({...})");

@@ -1,7 +1,8 @@
 // GETLOCATION — logique du site (catalogue, réservation, paiement, galerie).
 // Stockage local (localStorage) : uniquement pour le confort du parcours
 // (pré-remplissage, résumé). La confirmation de paiement et le prix qui fait
-// foi viennent toujours du serveur (netlify/functions) — voir P0 (AUDIT.md).
+// foi viennent toujours du serveur (endpoints /api/*, voir src/api/ et
+// DEPLOIEMENT.md) — voir P0 (AUDIT.md).
 //
 // HEURE_OUVERTURE, HEURE_FERMETURE, PRIX_ASSURANCE_JOUR, dureeEnHeures,
 // joursFacturablesDepuisHeures et calculerPrixTotal vivent désormais dans
@@ -16,14 +17,6 @@ const STORAGE = {
   selection: "gl_selection",
   reservation: "gl_reservation"
 };
-
-// Phase A de la migration Cloudflare : le site statique est servi par
-// Cloudflare, mais les fonctions serverless (paiement, statut réservation)
-// restent sur Netlify. Un proxy _redirects vers un domaine externe n'étant
-// pas supporté par Cloudflare (Workers Static Assets), les appels aux
-// fonctions passent en cross-origin explicite vers l'URL Netlify — voir
-// ALLOWED_ORIGINS côté Netlify et connect-src dans _headers/netlify.toml.
-const NETLIFY_FUNCTIONS_BASE = "https://shiny-caramel-1ba9fc.netlify.app";
 
 function todayISO(offsetDays = 0) {
   const d = new Date();
@@ -1194,7 +1187,7 @@ function initPaiementPage() {
     payButton.disabled = true;
 
     try {
-      const response = await fetch(`${NETLIFY_FUNCTIONS_BASE}/.netlify/functions/create-payment`, {
+      const response = await fetch(`/api/create-payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1287,7 +1280,7 @@ function initConfirmationPage() {
 
   container.textContent = "Chargement de votre confirmation…";
 
-  fetch(`${NETLIFY_FUNCTIONS_BASE}/.netlify/functions/reservation-status?id=${encodeURIComponent(reservationId)}`)
+  fetch(`/api/reservation-status?id=${encodeURIComponent(reservationId)}`)
     .then((response) => {
       if (!response.ok) throw new Error("reservation_status_error");
       return response.json();

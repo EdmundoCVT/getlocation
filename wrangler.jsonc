@@ -1,7 +1,34 @@
 {
   "name": "getlocation",
   "compatibility_date": "2026-08-14",
+  // Point d'entrée Worker (Phase B de la migration Cloudflare, voir
+  // DEPLOIEMENT.md) : route /api/* vers src/api/*, sert le reste via le
+  // binding ASSETS ci-dessous. Sans lui, ce fichier ne déclarait que des
+  // assets statiques (Phase A) — les fonctions serveur restaient sur
+  // Netlify.
+  "main": "src/worker.js",
   "assets": {
-    "directory": "."
-  }
+    "directory": ".",
+    // Binding utilisé par src/worker.js (env.ASSETS.fetch(request)) pour
+    // servir les fichiers statiques une fois qu'un `main` Worker est
+    // déclaré.
+    "binding": "ASSETS",
+    // Équivalent Cloudflare du `pretty_urls = true` de netlify.toml : sert
+    // /vehicules depuis vehicules.html sans redirection. Déclaré
+    // explicitement (comportement par défaut de toute façon) pour la même
+    // raison que dans netlify.toml : garantir ce comportement par la
+    // configuration versionnée plutôt que par un réglage implicite.
+    "html_handling": "auto-trailing-slash"
+  },
+  // Espaces de noms Cloudflare KV (remplacent Netlify Blobs, voir
+  // DEPLOIEMENT.md) : RESERVATIONS_KV stocke les réservations,
+  // RATE_LIMITS_KV les compteurs anti-abus. Les "id" ci-dessous sont des
+  // PLACEHOLDERS — le déploiement échoue tant qu'ils n'ont pas été
+  // remplacés par de vrais identifiants (`wrangler kv namespace create ...`,
+  // voir DEPLOIEMENT.md, Phase B) : c'est volontaire, pour ne jamais
+  // déployer silencieusement contre un espace de noms inexistant.
+  "kv_namespaces": [
+    { "binding": "RESERVATIONS_KV", "id": "REMPLACER_PAR_UN_VRAI_KV_NAMESPACE_ID" },
+    { "binding": "RATE_LIMITS_KV", "id": "REMPLACER_PAR_UN_VRAI_KV_NAMESPACE_ID" }
+  ]
 }
