@@ -1,13 +1,17 @@
 {
   "name": "getlocation",
   "compatibility_date": "2026-08-14",
-  // main : Worker compilé à partir de functions/api/*.js par la commande
-  // de build `npx wrangler pages functions build --outdir=./dist/worker/`
-  // (voir Cloudflare Workers Builds, build_command du trigger) — nécessaire
-  // car contrairement à l'ancien Cloudflare Pages, le nouveau modèle
-  // Workers ne compile plus /functions automatiquement. Un chemin qui ne
-  // correspond à aucun fichier statique (ex. /api/create-payment) retombe
-  // sur ce Worker — voir plan de migration Cloudflare, B.1.
+  // main : Worker compilé à partir de functions/api/*.js (npm run
+  // build:worker, ou `npx wrangler pages functions build
+  // --outdir=./dist/worker/`) — nécessaire car contrairement à l'ancien
+  // Cloudflare Pages, le nouveau modèle Workers ne compile plus /functions
+  // automatiquement. dist/worker/index.js est commité volontairement (voir
+  // .gitignore) : le build_command du déclencheur Cloudflare Workers
+  // Builds pour les branches non-production ne s'exécute pas en pratique
+  // (seul celui de `main` le fait, malgré un réglage identique dans le
+  // dashboard — limite du produit constatée le 2026-08-14, pas un choix).
+  // À CHAQUE MODIFICATION de functions/api/*.js ou lib/server/*.js :
+  // relancer `npm run build:worker` et commiter dist/worker/index.js.
   "main": "./dist/worker/index.js",
   "assets": {
     "directory": ".",

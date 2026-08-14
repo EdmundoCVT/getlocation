@@ -2,4 +2,8 @@ node_modules/
 .DS_Store
 deployer.command
 .wrangler/
-dist/
+# dist/worker/index.js EST commité volontairement (voir wrangler.jsonc et
+# lib/server/README-BUILD.md) : le déclencheur Cloudflare Workers Builds
+# pour les branches non-production n'exécute pas build_command (constaté en
+# pratique, contrairement au déclencheur main) — le Worker compilé est donc
+# versionné pour ne pas dépendre de cette étape manquante.
