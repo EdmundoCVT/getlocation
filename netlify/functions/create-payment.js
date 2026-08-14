@@ -84,11 +84,18 @@ function siteOrigin(event) {
 // Netlify une fois le DNS basculé : utiliser siteOrigin(event) ici
 // pointerait le webhook vers un domaine qui ne l'héberge plus (404 pour
 // Mollie, confirmation de paiement jamais reçue — même classe de panne
-// silencieuse que l'incident Netlify Blobs du 12/08/2026). webhookUrl doit
-// donc toujours cibler ce déploiement Netlify lui-même, jamais l'origine
-// de la requête.
+// silencieuse que l'incident Netlify Blobs du 12/08/2026).
+//
+// process.env.URL/DEPLOY_PRIME_URL ne suffisent PAS ici : chez Netlify, ces
+// variables reflètent le domaine personnalisé configuré dans les
+// paramètres du site (getlocation.fr), pas la résolution DNS réelle —
+// Netlify continue de les renvoyer même après que le DNS a basculé
+// ailleurs. webhookUrl doit donc cibler explicitement le sous-domaine
+// Netlify natif (jamais affecté par une bascule DNS externe), en miroir de
+// NETLIFY_FUNCTIONS_BASE côté client (js/app.js).
+const NETLIFY_NATIVE_SUBDOMAIN = "https://shiny-caramel-1ba9fc.netlify.app";
 function netlifyFunctionsOrigin() {
-  return process.env.URL || process.env.DEPLOY_PRIME_URL || "https://getlocation.fr";
+  return NETLIFY_NATIVE_SUBDOMAIN;
 }
 
 function clientIp(event) {
