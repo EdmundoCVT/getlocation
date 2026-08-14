@@ -122,8 +122,11 @@ exports.handler = async (event) => {
 
   // Mollie envoie application/x-www-form-urlencoded (`id=tr_xxx`), jamais
   // du JSON — voir https://docs.mollie.com/reference/webhooks.
+  // atob()/TextDecoder (Web-standard) plutôt que Buffer.from (API Node
+  // "legacy") : disponibles nativement en Node, navigateurs et Cloudflare
+  // Workers — voir plan de migration Cloudflare, B.2.
   const rawBody = event.isBase64Encoded
-    ? Buffer.from(event.body || "", "base64").toString("utf8")
+    ? new TextDecoder().decode(Uint8Array.from(atob(event.body || ""), (c) => c.charCodeAt(0)))
     : (event.body || "");
   const paymentId = new URLSearchParams(rawBody).get("id");
   if (!paymentId) {
