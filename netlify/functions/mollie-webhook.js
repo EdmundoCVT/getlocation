@@ -41,9 +41,9 @@ const {
   updateReservationStatus,
   getReservation,
   findReservationByPaymentId
-} = require("./lib/reservation-store.js");
-const { sendConfirmationEmail } = require("./lib/send-confirmation-email.js");
-const { sendContractEmail } = require("./lib/send-contract-email.js");
+} = require("../../lib/server/reservation-store.js");
+const { sendConfirmationEmail } = require("../../lib/server/send-confirmation-email.js");
+const { sendContractEmail } = require("../../lib/server/send-contract-email.js");
 
 async function resolveReservation(payment) {
   const reservationId = payment.metadata && payment.metadata.reservationId;

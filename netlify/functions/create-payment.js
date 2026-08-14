@@ -29,13 +29,13 @@
 // distribué) si le volume de réservations augmente significativement.
 
 const { calculerPrixTotal } = require("../../js/data.js");
-const { validateReservationInput } = require("./lib/validate-reservation-input.js");
+const { validateReservationInput } = require("../../lib/server/validate-reservation-input.js");
 const {
   createReservation,
   updateReservationStatus,
   hasOverlappingReservation
-} = require("./lib/reservation-store.js");
-const { checkRateLimit } = require("./lib/rate-limiter.js");
+} = require("../../lib/server/reservation-store.js");
+const { checkRateLimit } = require("../../lib/server/rate-limiter.js");
 
 // Domaines autorisés à appeler cette fonction en cross-origin.
 // - Production : toujours autorisée (getlocation.fr / www.getlocation.fr).

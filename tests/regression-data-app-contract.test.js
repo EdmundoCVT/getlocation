@@ -29,7 +29,7 @@ const path = require("node:path");
 
 const dataJs = require("../js/data.js");
 const appJsSource = fs.readFileSync(path.join(__dirname, "..", "js", "app.js"), "utf8");
-const { validateReservationInput } = require("../netlify/functions/lib/validate-reservation-input.js");
+const { validateReservationInput } = require("../lib/server/validate-reservation-input.js");
 
 test("js/data.js exporte toutes les valeurs requises par le backend (netlify/functions)", () => {
   const exportsAttendus = {

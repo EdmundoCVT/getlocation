@@ -1,7 +1,7 @@
 // tests/rate-limiter.test.js
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { checkRateLimit } = require("../netlify/functions/lib/rate-limiter.js");
+const { checkRateLimit } = require("../lib/server/rate-limiter.js");
 
 test("checkRateLimit : autorise jusqu'à la limite puis bloque", async () => {
   const key = `test-key-${Date.now()}-${Math.random()}`;

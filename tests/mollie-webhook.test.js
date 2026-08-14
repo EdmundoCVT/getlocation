@@ -16,7 +16,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { handler, processPaymentStatus } = require("../netlify/functions/mollie-webhook.js");
-const { createReservation, getReservation, updateReservationStatus } = require("../netlify/functions/lib/reservation-store.js");
+const { createReservation, getReservation, updateReservationStatus } = require("../lib/server/reservation-store.js");
 
 function makePayment(status, overrides = {}) {
   return {

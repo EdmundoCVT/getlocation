@@ -11,7 +11,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { handler } = require("../netlify/functions/create-payment.js");
-const { createReservation } = require("../netlify/functions/lib/reservation-store.js");
+const { createReservation } = require("../lib/server/reservation-store.js");
 const { CGL_VERSION } = require("../js/data.js");
 
 let ipCounter = 0;

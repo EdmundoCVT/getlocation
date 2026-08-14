@@ -1,7 +1,7 @@
 // tests/validate-reservation-input.test.js
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { validateReservationInput } = require("../netlify/functions/lib/validate-reservation-input.js");
+const { validateReservationInput } = require("../lib/server/validate-reservation-input.js");
 const { CGL_VERSION, LIEU_LIVRAISON, VILLES_LIVRAISON, OPTIONS } = require("../js/data.js");
 
 // Dates calculées par rapport à aujourd'hui (plutôt que codées en dur) pour

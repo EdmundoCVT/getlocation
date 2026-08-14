@@ -15,7 +15,7 @@ const {
   findReservationByPaymentId,
   hasOverlappingReservation,
   generateReservationId
-} = require("../netlify/functions/lib/reservation-store.js");
+} = require("../lib/server/reservation-store.js");
 
 test("generateReservationId : format non devinable", () => {
   const id = generateReservationId();

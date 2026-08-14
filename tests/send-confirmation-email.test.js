@@ -13,7 +13,7 @@ const assert = require("node:assert/strict");
 const {
   sendConfirmationEmail,
   buildConfirmationEmailContent
-} = require("../netlify/functions/lib/send-confirmation-email.js");
+} = require("../lib/server/send-confirmation-email.js");
 
 function makeReservation(overrides = {}) {
   return {

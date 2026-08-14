@@ -19,7 +19,7 @@ const {
   sendContractEmail,
   buildContractPrefillData,
   encodeContractData
-} = require("../netlify/functions/lib/send-contract-email.js");
+} = require("../lib/server/send-contract-email.js");
 
 function makeReservation(overrides = {}) {
   return {

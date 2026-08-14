@@ -3,7 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { handler } = require("../netlify/functions/reservation-status.js");
-const { createReservation, updateReservationStatus } = require("../netlify/functions/lib/reservation-store.js");
+const { createReservation, updateReservationStatus } = require("../lib/server/reservation-store.js");
 
 let ipCounter = 0;
 function makeEvent(query = {}, headers = {}) {

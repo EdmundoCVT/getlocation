@@ -16,8 +16,8 @@
 // e-mail, montant, statut).
 
 const { getVehiculeParId } = require("../../js/data.js");
-const { getReservation } = require("./lib/reservation-store.js");
-const { checkRateLimit } = require("./lib/rate-limiter.js");
+const { getReservation } = require("../../lib/server/reservation-store.js");
+const { checkRateLimit } = require("../../lib/server/rate-limiter.js");
 
 function getAllowedOrigins() {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr"]);
