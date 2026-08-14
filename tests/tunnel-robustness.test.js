@@ -114,7 +114,7 @@ test("initReservationPage : n'exige plus de coordonnées conducteur (options ava
   // Ne doit pas planter en l'absence de tout formulaire conducteur sur
   // cette page (il a été déplacé vers paiement.html).
   assert.doesNotThrow(() => window.initReservationPage());
-  assert.match(window.document.getElementById("reservation-summary").textContent, /98/);
+  assert.match(window.document.getElementById("reservation-summary").textContent, /118/);
 });
 
 test("validateDriverForm : marque aria-invalid et place le focus sur le premier champ en erreur", () => {

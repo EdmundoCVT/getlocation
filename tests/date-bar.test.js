@@ -59,7 +59,7 @@ test("initReservationPage : la barre de dates affiche les dates courantes et rec
     "https://getlocation.fr/reservation.html"
   );
   window.localStorage.setItem("gl_reservation", JSON.stringify({
-    vehiculeId: "opel-corsa", // 49 €/jour
+    vehiculeId: "opel-corsa", // 59 €/jour
     dateDebut: "2026-08-10", heureDebut: "10:00",
     dateFin: "2026-08-12", heureFin: "10:00",
     jours: 2,
@@ -68,14 +68,14 @@ test("initReservationPage : la barre de dates affiche les dates courantes et rec
 
   window.initReservationPage();
 
-  // Résumé initial : 2 jours x 49 € = 98 €.
-  assert.match(window.document.getElementById("reservation-summary").textContent, /98/);
+  // Résumé initial : 2 jours x 59 € = 118 €.
+  assert.match(window.document.getElementById("reservation-summary").textContent, /118/);
   assert.match(window.document.getElementById("date-bar-text").textContent, /2 jours/);
 
-  // Le client rajoute un jour (10 -> 13 août au lieu de 10 -> 12) : 3 jours x 49 € = 147 €.
+  // Le client rajoute un jour (10 -> 13 août au lieu de 10 -> 12) : 3 jours x 59 € = 177 €.
   applyNewDates(window, { dateDebut: "2026-08-10", heureDebut: "10:00", dateFin: "2026-08-13", heureFin: "10:00" });
 
-  assert.match(window.document.getElementById("reservation-summary").textContent, /147/);
+  assert.match(window.document.getElementById("reservation-summary").textContent, /177/);
   assert.match(window.document.getElementById("date-bar-text").textContent, /3 jours/);
 
   // La nouvelle durée est bien persistée (survit à un rafraîchissement de page).
@@ -107,8 +107,8 @@ test("initReservationPage : la barre de dates refuse une date de retour avant le
   applyNewDates(window, { dateDebut: "2026-08-10", heureDebut: "10:00", dateFin: "2026-08-09", heureFin: "10:00" });
 
   assert.notEqual(window.document.getElementById("date-bar-error").textContent, "");
-  // Le total ne doit pas avoir changé (toujours 2 jours x 49 € = 98 €).
-  assert.match(window.document.getElementById("reservation-summary").textContent, /98/);
+  // Le total ne doit pas avoir changé (toujours 2 jours x 59 € = 118 €).
+  assert.match(window.document.getElementById("reservation-summary").textContent, /118/);
   const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
   assert.equal(persisted.dateFin, "2026-08-12");
 });
@@ -127,7 +127,7 @@ test("initPaiementPage : la barre de dates recalcule le total à régler sans re
     "https://getlocation.fr/paiement.html"
   );
   window.localStorage.setItem("gl_reservation", JSON.stringify({
-    vehiculeId: "peugeot-3008", // 69 €/jour
+    vehiculeId: "peugeot-3008", // 79 €/jour
     dateDebut: "2026-08-10", heureDebut: "10:00",
     dateFin: "2026-08-12", heureFin: "10:00",
     jours: 2,
@@ -142,11 +142,11 @@ test("initPaiementPage : la barre de dates recalcule le total à régler sans re
   // une tentative de paiement.
   window.initPaiementPage();
 
-  assert.match(window.document.getElementById("payment-summary").textContent, /138/); // 2 x 69 €
+  assert.match(window.document.getElementById("payment-summary").textContent, /158/); // 2 x 79 €
 
   applyNewDates(window, { dateDebut: "2026-08-10", heureDebut: "10:00", dateFin: "2026-08-14", heureFin: "10:00" });
 
-  assert.match(window.document.getElementById("payment-summary").textContent, /276/); // 4 x 69 €
+  assert.match(window.document.getElementById("payment-summary").textContent, /316/); // 4 x 79 €
   const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
   assert.equal(persisted.jours, 4);
 });

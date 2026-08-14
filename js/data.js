@@ -44,16 +44,17 @@ const HEURE_FERMETURE = "23:30";
 // il ne garantit pas à lui seul la validité juridique du texte.
 const CGL_VERSION = "2026-07-22";
 
-// Réductions selon la durée de location. Valeurs d'exemple (placeholders) à
+// Réduction selon la durée de location : aucun tarif dégressif en dessous
+// de 5 jours consécutifs ; à partir de 5 jours, réduction fixe de
+// `montantParJour` € par jour (appliquée à la totalité du séjour, pas
+// seulement aux jours au-delà du seuil). Valeurs d'exemple (placeholders) à
 // ajuster librement ici — c'est le seul endroit à modifier pour changer les
 // taux : le calcul, l'affichage véhicules/réservation/paiement et le
 // recalcul serveur s'appuient tous sur ce tableau. Triées du seuil le plus
 // élevé au plus bas pour que reductionDureeApplicable() retienne le
 // meilleur palier atteint.
 const REDUCTIONS_DUREE = [
-  { seuilJours: 30, pourcentage: 15, libelle: "1 mois ou plus" },
-  { seuilJours: 14, pourcentage: 10, libelle: "2 semaines ou plus" },
-  { seuilJours: 7, pourcentage: 5, libelle: "1 semaine ou plus" }
+  { seuilJours: 5, montantParJour: 10, libelle: "5 jours ou plus" }
 ];
 
 // Retourne le palier de réduction durée applicable (ou null si la location
@@ -136,7 +137,7 @@ const VEHICULES = [
     transmission: "Manuelle",
     clim: true,
     hybride: false,
-    prixJour: 49,
+    prixJour: 59,
     caution: 500,
     description: "Compacte et économique, parfaite pour vos déplacements pro entre Cannes, Antibes et Grasse."
   },
@@ -162,7 +163,7 @@ const VEHICULES = [
     transmission: "Automatique",
     clim: true,
     hybride: true,
-    prixJour: 59,
+    prixJour: 69,
     caution: 500,
     description: "SUV compact hybride, confortable et sobre pour rayonner sur toute la Côte d'Azur."
   },
@@ -188,7 +189,7 @@ const VEHICULES = [
     transmission: "Automatique",
     clim: true,
     hybride: true,
-    prixJour: 69,
+    prixJour: 79,
     caution: 600,
     description: "SUV familial haut de gamme, idéal pour vos trajets entre Nice, Cannes et l'arrière-pays."
   },
@@ -213,7 +214,7 @@ const VEHICULES = [
     transmission: "Manuelle",
     clim: true,
     hybride: false,
-    prixJour: 79,
+    prixJour: 99,
     caution: 800,
     description: "Ludospace polyvalent au grand volume de chargement, idéal bagages, matériel ou déménagement."
   }
@@ -248,8 +249,8 @@ function joursFacturablesDepuisHeures(dureeHeures) {
 //
 // Pipeline (dans cet ordre) :
 //   1. sous-total brut = prix/jour du véhicule × jours facturables
-//   2. réduction durée (7/14/30 jours, voir REDUCTIONS_DUREE) appliquée sur
-//      ce sous-total
+//   2. réduction durée (5 jours ou plus, voir REDUCTIONS_DUREE) appliquée
+//      sur ce sous-total
 //   3. + options sélectionnées (voir OPTIONS)
 //   4. − réduction du code promo (si valide), appliquée sur le total obtenu
 //      à l'étape précédente
@@ -273,7 +274,7 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
 
   const sousTotalBrut = vehicule.prixJour * jours;
   const palierReduction = reductionDureeApplicable(jours);
-  const reductionDureeMontant = palierReduction ? Math.round(sousTotalBrut * palierReduction.pourcentage) / 100 : 0;
+  const reductionDureeMontant = palierReduction ? palierReduction.montantParJour * jours : 0;
   const sousTotal = sousTotalBrut - reductionDureeMontant;
 
   const idsOptions = Array.isArray(options) ? [...new Set(options)] : [];
@@ -298,7 +299,7 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
     vehicule,
     jours,
     sousTotalBrut,
-    reductionDuree: palierReduction ? { pourcentage: palierReduction.pourcentage, montant: reductionDureeMontant, libelle: palierReduction.libelle } : null,
+    reductionDuree: palierReduction ? { montantParJour: palierReduction.montantParJour, montant: reductionDureeMontant, libelle: palierReduction.libelle } : null,
     sousTotal,
     optionsSelectionnees,
     optionsMontant,

@@ -114,41 +114,39 @@ test("calculerPrixTotal : totalCentimes est cohérent avec total (pas d'erreur d
 });
 
 /* ---------------------------------------------------------
-   Réductions durée (7 / 14 / 30 jours)
+   Réduction durée (5 jours consécutifs ou plus)
 --------------------------------------------------------- */
 
-test("reductionDureeApplicable : aucun palier en dessous de 7 jours", () => {
+test("reductionDureeApplicable : aucun palier en dessous de 5 jours", () => {
   assert.equal(reductionDureeApplicable(1), null);
-  assert.equal(reductionDureeApplicable(6), null);
+  assert.equal(reductionDureeApplicable(3), null);
+  assert.equal(reductionDureeApplicable(4), null);
 });
 
-test("reductionDureeApplicable : retient le meilleur palier atteint", () => {
-  assert.equal(reductionDureeApplicable(7).seuilJours, 7);
-  assert.equal(reductionDureeApplicable(13).seuilJours, 7);
-  assert.equal(reductionDureeApplicable(14).seuilJours, 14);
-  assert.equal(reductionDureeApplicable(29).seuilJours, 14);
-  assert.equal(reductionDureeApplicable(30).seuilJours, 30);
-  assert.equal(reductionDureeApplicable(90).seuilJours, 30);
+test("reductionDureeApplicable : palier atteint à partir de 5 jours", () => {
+  assert.equal(reductionDureeApplicable(5).seuilJours, 5);
+  assert.equal(reductionDureeApplicable(6).seuilJours, 5);
+  assert.equal(reductionDureeApplicable(90).seuilJours, 5);
 });
 
-test("calculerPrixTotal : applique la remise durée au palier 7 jours sur le sous-total", () => {
+test("calculerPrixTotal : applique la remise de 10 €/jour à partir de 5 jours sur le sous-total", () => {
   const vehicule = getVehiculeParId("opel-corsa");
-  const palier7 = REDUCTIONS_DUREE.find(r => r.seuilJours === 7);
+  const palier5 = REDUCTIONS_DUREE.find(r => r.seuilJours === 5);
   const result = calculerPrixTotal({
     vehiculeId: "opel-corsa",
     dateDebut: "2026-08-01", heureDebut: "10:00",
-    dateFin: "2026-08-08", heureFin: "10:00" // 7 jours pile
+    dateFin: "2026-08-06", heureFin: "10:00" // 5 jours pile
   });
-  assert.equal(result.jours, 7);
-  assert.equal(result.sousTotalBrut, vehicule.prixJour * 7);
+  assert.equal(result.jours, 5);
+  assert.equal(result.sousTotalBrut, vehicule.prixJour * 5);
   assert.ok(result.reductionDuree);
-  assert.equal(result.reductionDuree.pourcentage, palier7.pourcentage);
-  assert.equal(result.reductionDuree.montant, Math.round(vehicule.prixJour * 7 * palier7.pourcentage) / 100);
+  assert.equal(result.reductionDuree.montantParJour, palier5.montantParJour);
+  assert.equal(result.reductionDuree.montant, palier5.montantParJour * 5);
   assert.equal(result.sousTotal, result.sousTotalBrut - result.reductionDuree.montant);
   assert.equal(result.total, result.sousTotal);
 });
 
-test("calculerPrixTotal : sans palier atteint, aucune remise durée n'est appliquée", () => {
+test("calculerPrixTotal : sans palier atteint (moins de 5 jours), aucune remise durée n'est appliquée", () => {
   const vehicule = getVehiculeParId("opel-corsa");
   const result = calculerPrixTotal({
     vehiculeId: "opel-corsa",
@@ -248,7 +246,7 @@ test("calculerPrixTotal : ignore un identifiant d'option inconnu et déduplique 
 
 test("calculerPrixTotal : pipeline complet — remise durée + options − code promo", () => {
   const vehicule = getVehiculeParId("peugeot-3008");
-  const palier14 = REDUCTIONS_DUREE.find(r => r.seuilJours === 14);
+  const palier5 = REDUCTIONS_DUREE.find(r => r.seuilJours === 5);
   const promo = getCodePromo("GETLOC15");
   const siegeAuto = getOptionParId("siege-auto");
   const livraison = getOptionParId("livraison-adresse");
@@ -262,7 +260,7 @@ test("calculerPrixTotal : pipeline complet — remise durée + options − code 
   });
 
   const sousTotalBrut = vehicule.prixJour * 14;
-  const reductionDureeMontant = Math.round(sousTotalBrut * palier14.pourcentage) / 100;
+  const reductionDureeMontant = palier5.montantParJour * 14;
   const sousTotal = sousTotalBrut - reductionDureeMontant;
   const optionsMontant = siegeAuto.prix * 14 + livraison.prix;
   const baseAvantPromo = sousTotal + optionsMontant;

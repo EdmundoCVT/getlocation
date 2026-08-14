@@ -502,9 +502,9 @@ function initVehiculesPage() {
       return;
     }
     liste.forEach(v => {
-      // Le total affiché tient compte de la réduction durée (7/14/30 jours,
-      // voir REDUCTIONS_DUREE dans js/data.js) dès la page catalogue : le
-      // client voit l'avantage avant même de choisir son véhicule.
+      // Le total affiché tient compte de la réduction durée (5 jours ou
+      // plus, voir REDUCTIONS_DUREE dans js/data.js) dès la page catalogue :
+      // le client voit l'avantage avant même de choisir son véhicule.
       const prixInfo = calculerPrixTotal({
         vehiculeId: v.id,
         dateDebut: recherche.dateDebut,
@@ -537,7 +537,7 @@ function initVehiculesPage() {
             <div class="price"><span class="price-from">À partir de</span>${formatEUR(v.prixJour)}<small> / jour</small></div>
             <button class="btn btn-primary btn-sm" data-id="${v.id}">Réserver</button>
           </div>
-          <div class="hint-text">Total pour ${jours} jour${jours > 1 ? "s" : ""} : ${formatEUR(total)}${remise ? ` <span class="badge-remise">-${remise.pourcentage}% dès ${remise.libelle.toLowerCase()}</span>` : ""}</div>
+          <div class="hint-text">Total pour ${jours} jour${jours > 1 ? "s" : ""} : ${formatEUR(total)}${remise ? ` <span class="badge-remise">-${formatEUR(remise.montantParJour)}/jour dès ${remise.libelle.toLowerCase()}</span>` : ""}</div>
         </div>
       `;
       card.querySelector("button").addEventListener("click", () => {
@@ -1308,7 +1308,7 @@ function appendBreakdownRows(container, prix) {
   container.appendChild(summaryRow(`Location (${prix.jours} jour${prix.jours > 1 ? "s" : ""})`, formatEUR(prix.sousTotalBrut)));
 
   if (prix.reductionDuree) {
-    const row = summaryRow(`Remise durée (${prix.reductionDuree.libelle}, -${prix.reductionDuree.pourcentage}%)`, `− ${formatEUR(prix.reductionDuree.montant)}`);
+    const row = summaryRow(`Remise durée (${prix.reductionDuree.libelle}, -${formatEUR(prix.reductionDuree.montantParJour)}/jour)`, `− ${formatEUR(prix.reductionDuree.montant)}`);
     row.classList.add("discount");
     container.appendChild(row);
   }
