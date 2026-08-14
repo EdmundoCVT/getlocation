@@ -1,0 +1,36 @@
+# Équivalent Cloudflare Pages des blocs [[headers]] de netlify.toml.
+# Netlify lit aussi ce fichier nativement (voir netlify.toml) : tant que le
+# site tourne encore sur Netlify (Phase A de la migration Cloudflare — voir
+# DEPLOIEMENT.md / plan de migration), vérifier qu'aucun doublon d'en-tête
+# n'apparaît en pratique avant la bascule DNS.
+#
+# cdnjs.cloudflare.com : jsPDF, chargé par contrat.html pour générer le PDF
+# du contrat signé (aperçu agence + copie téléchargeable client).
+# Aucun domaine tiers requis pour le paiement : Mollie se fait par
+# redirection de page complète, pas par un script/iframe embarqué.
+#
+# connect-src : si les appels fetch() vers /.netlify/functions/* sont faits
+# en cross-origin explicite pendant la Phase A (voir _redirects et le plan
+# de migration), il faudra ajouter ici le domaine Netlify à connect-src, sous
+# peine de blocage silencieux côté navigateur malgré un CORS serveur correct.
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'
+
+/images/*
+  Cache-Control: public, max-age=3600, must-revalidate
+
+# css/style.css et js/app.js (+ js/data.js) sont chargés avec un paramètre de
+# version (?v=N, incrémenté manuellement à chaque changement fonctionnel —
+# voir netlify.toml pour le rappel complet). Un cache long et "immutable" est
+# sûr ici puisqu'un changement de contenu s'accompagne toujours d'un nouveau
+# ?v=, jamais vu auparavant.
+/css/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/js/*
+  Cache-Control: public, max-age=31536000, immutable

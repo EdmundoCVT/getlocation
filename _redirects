@@ -1,0 +1,14 @@
+# Proxy temporaire vers les fonctions Netlify pendant la Phase A de la
+# migration Cloudflare (voir plan de migration / DEPLOIEMENT.md) : le site
+# statique passe sur Cloudflare Pages, mais les fonctions serverless
+# (paiement Mollie, emails, réservations) restent sur Netlify tant que la
+# Phase B n'est pas validée. js/app.js appelle en dur des chemins relatifs
+# /.netlify/functions/*, donc on les fait proxier ici vers le site Netlify
+# d'origine plutôt que de modifier js/app.js.
+#
+# Comportement à vérifier en pratique sur le déploiement preview *.pages.dev
+# (POST/JSON, en-têtes, statut 200) avant d'en dépendre pour la bascule DNS —
+# voir A.3/A.4 du plan. Si ça ne fonctionne pas comme attendu, option de
+# repli : fetch() cross-origin explicite dans js/app.js + ALLOWED_ORIGINS
+# côté Netlify + connect-src dans _headers.
+/.netlify/functions/*  https://shiny-caramel-1ba9fc.netlify.app/.netlify/functions/:splat  200
