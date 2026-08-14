@@ -23,12 +23,12 @@
     // Voir https://developers.cloudflare.com/workers/static-assets/binding/.
     "run_worker_first": ["/api/*"]
   },
-  // Placeholders pour le développement local (`wrangler dev`, KV simulé
-  // localement). PAS DES VRAIS NAMESPACES — à remplacer par les id réels
-  // une fois créés côté Cloudflare (voir plan de migration, B.5) avant tout
-  // déploiement réel s'appuyant sur ces bindings.
+  // Namespaces KV réels (créés 2026-08-14, voir plan de migration B.5).
+  // `wrangler dev` (sans --remote) simule toujours ces bindings localement
+  // (fichier local, ne touche jamais les vraies données) — mêmes id
+  // utilisables en local et en déploiement réel.
   "kv_namespaces": [
-    { "binding": "RESERVATIONS_KV", "id": "local-dev-placeholder-reservations" },
-    { "binding": "RATE_LIMITS_KV", "id": "local-dev-placeholder-rate-limits" }
+    { "binding": "RESERVATIONS_KV", "id": "90e45680639746b29a2db6a18d1c33d9" },
+    { "binding": "RATE_LIMITS_KV", "id": "b75c0b04ece84a4e84d5e19c936950e2" }
   ]
 }

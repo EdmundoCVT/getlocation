@@ -20,7 +20,7 @@ var __commonJS = (cb, mod) => function __require() {
 // ../js/data.js
 var require_data = __commonJS({
   "../js/data.js"(exports, module) {
-    init_functionsRoutes_0_5221053579021873();
+    init_functionsRoutes_0_5592969785692792();
     var LIEU_LIVRAISON = "Livraison \xE0 l'adresse de votre choix";
     var LIEUX = [
       "Agence Grasse",
@@ -276,7 +276,7 @@ var require_data = __commonJS({
 // ../lib/server/validate-reservation-input.js
 var require_validate_reservation_input = __commonJS({
   "../lib/server/validate-reservation-input.js"(exports, module) {
-    init_functionsRoutes_0_5221053579021873();
+    init_functionsRoutes_0_5592969785692792();
     var { getVehiculeParId: getVehiculeParId2, LIEUX, LIEU_LIVRAISON, VILLES_LIVRAISON, CGL_VERSION, OPTIONS } = require_data();
     var MAX_LEN = {
       nom: 100,
@@ -425,7 +425,7 @@ var require_validate_reservation_input = __commonJS({
 // ../lib/server/reservation-store-kv.js
 var require_reservation_store_kv = __commonJS({
   "../lib/server/reservation-store-kv.js"(exports, module) {
-    init_functionsRoutes_0_5221053579021873();
+    init_functionsRoutes_0_5592969785692792();
     var RESERVATION_TTL_SECONDS = 60 * 60 * 24 * 7;
     var RESERVATION_HOLD_MS = 1e3 * 60 * 30;
     function generateReservationId() {
@@ -548,7 +548,7 @@ var require_reservation_store_kv = __commonJS({
 // ../lib/server/rate-limiter-kv.js
 var require_rate_limiter_kv = __commonJS({
   "../lib/server/rate-limiter-kv.js"(exports, module) {
-    init_functionsRoutes_0_5221053579021873();
+    init_functionsRoutes_0_5592969785692792();
     function createRateLimiter3(kv) {
       if (!kv) {
         throw new Error(
@@ -582,7 +582,7 @@ var require_rate_limiter_kv = __commonJS({
 // ../lib/server/mollie-client.js
 var require_mollie_client = __commonJS({
   "../lib/server/mollie-client.js"(exports, module) {
-    init_functionsRoutes_0_5221053579021873();
+    init_functionsRoutes_0_5592969785692792();
     var MOLLIE_API_BASE = "https://api.mollie.com/v2";
     function mollieError(status, data) {
       const message = data && (data.detail || data.title) || `Erreur API Mollie (HTTP ${status})`;
@@ -624,7 +624,7 @@ var require_mollie_client = __commonJS({
 // ../lib/server/http-cors.js
 var require_http_cors = __commonJS({
   "../lib/server/http-cors.js"(exports, module) {
-    init_functionsRoutes_0_5221053579021873();
+    init_functionsRoutes_0_5592969785692792();
     function getAllowedOrigins(env) {
       const origins = /* @__PURE__ */ new Set(["https://getlocation.fr", "https://www.getlocation.fr"]);
       if (env && env.ALLOWED_ORIGINS) {
@@ -791,7 +791,7 @@ async function onRequestPost({ request, env }) {
 var calculerPrixTotal, validateReservationInput, createReservationStore, createRateLimiter, molliePaymentsCreate, corsHeaders, TEST_DISCOUNT_CENTIMES;
 var init_create_payment = __esm({
   "api/create-payment.js"() {
-    init_functionsRoutes_0_5221053579021873();
+    init_functionsRoutes_0_5592969785692792();
     ({ calculerPrixTotal } = require_data());
     ({ validateReservationInput } = require_validate_reservation_input());
     ({ createReservationStore } = require_reservation_store_kv());
@@ -809,7 +809,7 @@ var init_create_payment = __esm({
 // ../lib/server/process-payment-status.js
 var require_process_payment_status = __commonJS({
   "../lib/server/process-payment-status.js"(exports, module) {
-    init_functionsRoutes_0_5221053579021873();
+    init_functionsRoutes_0_5592969785692792();
     async function resolveReservation(deps, payment) {
       const reservationId = payment.metadata && payment.metadata.reservationId;
       if (reservationId) {
@@ -908,7 +908,7 @@ async function onRequestPost2({ request, env }) {
 var molliePaymentsGet, createReservationStore2, processPaymentStatus;
 var init_mollie_webhook = __esm({
   "api/mollie-webhook.js"() {
-    init_functionsRoutes_0_5221053579021873();
+    init_functionsRoutes_0_5592969785692792();
     __name(sendConfirmationEmailStub, "sendConfirmationEmailStub");
     __name(sendContractEmailStub, "sendContractEmailStub");
     ({ molliePaymentsGet } = require_mollie_client());
@@ -992,7 +992,7 @@ async function onRequestGet({ request, env }) {
 var getVehiculeParId, createReservationStore3, createRateLimiter2, corsHeaders2;
 var init_reservation_status = __esm({
   "api/reservation-status.js"() {
-    init_functionsRoutes_0_5221053579021873();
+    init_functionsRoutes_0_5592969785692792();
     ({ getVehiculeParId } = require_data());
     ({ createReservationStore: createReservationStore3 } = require_reservation_store_kv());
     ({ createRateLimiter: createRateLimiter2 } = require_rate_limiter_kv());
@@ -1004,10 +1004,10 @@ var init_reservation_status = __esm({
   }
 });
 
-// ../.wrangler/tmp/pages-Ln9Vk9/functionsRoutes-0.5221053579021873.mjs
+// ../.wrangler/tmp/pages-VN7dmn/functionsRoutes-0.5592969785692792.mjs
 var routes;
-var init_functionsRoutes_0_5221053579021873 = __esm({
-  "../.wrangler/tmp/pages-Ln9Vk9/functionsRoutes-0.5221053579021873.mjs"() {
+var init_functionsRoutes_0_5592969785692792 = __esm({
+  "../.wrangler/tmp/pages-VN7dmn/functionsRoutes-0.5592969785692792.mjs"() {
     init_create_payment();
     init_create_payment();
     init_mollie_webhook();
@@ -1054,10 +1054,10 @@ var init_functionsRoutes_0_5221053579021873 = __esm({
 });
 
 // ../../../../../.npm/_npx/32026684e21afda6/node_modules/wrangler/templates/pages-template-worker.ts
-init_functionsRoutes_0_5221053579021873();
+init_functionsRoutes_0_5592969785692792();
 
 // ../../../../../.npm/_npx/32026684e21afda6/node_modules/path-to-regexp/dist.es2015/index.js
-init_functionsRoutes_0_5221053579021873();
+init_functionsRoutes_0_5592969785692792();
 function lexer(str) {
   var tokens = [];
   var i = 0;

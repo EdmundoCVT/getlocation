@@ -7,7 +7,7 @@
     "test": "node --test tests/*.test.js",
     "check:legal": "node scripts/check-legal-placeholders.js",
     "check:vehicle-grid": "node scripts/check-vehicle-grid-sync.js",
-    "build:worker": "wrangler pages functions build --outdir=./dist/worker/"
+    "build:worker": "npx wrangler pages functions build --outdir=./dist/worker/"
   },
   "dependencies": {
     "@netlify/blobs": "^10.7.9",
