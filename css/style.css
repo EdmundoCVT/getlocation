@@ -430,7 +430,17 @@ textarea:focus-visible,
   position: relative;
   z-index: 5;
   display: grid;
-  grid-template-columns: repeat(4, 1fr) auto;
+  /* auto-fit calcule lui-même le nombre de colonnes de 220px minimum qui
+     tient dans la largeur disponible : avec les 4 champs affichés par
+     défaut, ça reproduit le rendu "4 colonnes + bouton" d'origine sur un
+     grand écran. Mais quand des champs supplémentaires apparaissent
+     (ville de livraison, lieu de restitution — voir js/app.js) ou que la
+     fenêtre est plus étroite (ordinateur portable, fenêtre non
+     maximisée), les champs en trop passent proprement à la ligne
+     suivante au lieu de tasser tout le monde ou de faire déborder la
+     page horizontalement (voir aussi min-width: 0 sur .field ci-dessous,
+     nécessaire pour que les <select> à texte long puissent rétrécir). */
+  grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
   gap: 18px;
   align-items: end;
 }
@@ -439,6 +449,12 @@ textarea:focus-visible,
   display: flex;
   flex-direction: column;
   gap: 7px;
+  /* Sans ça, une colonne de grille ne peut pas rétrécir sous la largeur
+     intrinsèque de son contenu (ex. un <select> avec une longue option
+     comme "Livraison à l'adresse de votre choix") : le formulaire de
+     recherche déborde alors horizontalement sur les écrans plus étroits
+     qu'un desktop large, au lieu de se réduire proprement. */
+  min-width: 0;
 }
 
 .field label {
@@ -451,6 +467,8 @@ textarea:focus-visible,
 
 .field select,
 .field input {
+  width: 100%;
+  min-width: 0;
   padding: 12px 14px;
   border: 1px solid #e4e4e9;
   border-radius: var(--radius-sm);
@@ -1674,7 +1692,7 @@ textarea:focus-visible,
 }
 
 @media (max-width: 900px) {
-  .search-card { grid-template-columns: 1fr 1fr; margin: 16px 0 28px; }
+  .search-card { margin: 16px 0 28px; }
   .booking-layout { grid-template-columns: 1fr; }
   .footer-grid { grid-template-columns: 1fr 1fr; }
   .hero-inner { flex-direction: column; text-align: center; }
