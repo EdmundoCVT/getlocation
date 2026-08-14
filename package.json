@@ -9,7 +9,6 @@
     "check:vehicle-grid": "node scripts/check-vehicle-grid-sync.js"
   },
   "dependencies": {
-    "@mollie/api-client": "^4.6.0",
     "@netlify/blobs": "^10.7.9",
     "nodemailer": "^9.0.5"
   },

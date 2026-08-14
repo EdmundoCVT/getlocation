@@ -36,6 +36,7 @@ const {
   hasOverlappingReservation
 } = require("../../lib/server/reservation-store.js");
 const { checkRateLimit } = require("../../lib/server/rate-limiter.js");
+const { molliePaymentsCreate } = require("../../lib/server/mollie-client.js");
 
 // Domaines autorisés à appeler cette fonction en cross-origin.
 // - Production : toujours autorisée (getlocation.fr / www.getlocation.fr).
@@ -244,32 +245,34 @@ exports.handler = async (event) => {
   });
 
   try {
-    const { createMollieClient } = require("@mollie/api-client");
-    const mollieClient = createMollieClient({ apiKey: process.env.MOLLIE_API_KEY });
-
     const origin = siteOrigin(event);
 
-    const payment = await mollieClient.payments.create({
-      amount: {
-        currency: "EUR", // toujours EUR — jamais une valeur fournie par le client
-        value: (totalCentimesFacture / 100).toFixed(2)
+    // Réutilise la clé générée une fois côté client (voir js/app.js,
+    // initPaiementPage) : un double-clic/retry réseau avec la même clé
+    // renvoie la réponse déjà enregistrée par Mollie au lieu de créer un
+    // second paiement. Passée en header HTTP Idempotency-Key (pas un champ
+    // du body) — voir https://docs.mollie.com/reference/api-idempotency et
+    // lib/server/mollie-client.js.
+    const payment = await molliePaymentsCreate(
+      process.env.MOLLIE_API_KEY,
+      {
+        amount: {
+          currency: "EUR", // toujours EUR — jamais une valeur fournie par le client
+          value: (totalCentimesFacture / 100).toFixed(2)
+        },
+        description: `Location ${vehicule.nom} — ${prix.jours} jour(s) — réservation ${reservation.id}`,
+        redirectUrl: `${origin}/confirmation.html?reservation=${encodeURIComponent(reservation.id)}`,
+        webhookUrl: `${netlifyFunctionsOrigin()}/.netlify/functions/mollie-webhook`,
+        metadata: {
+          reservationId: reservation.id,
+          vehiculeId: vehicule.id,
+          jours: String(prix.jours),
+          options: prix.optionsSelectionnees.map((o) => o.id).join(",") || "aucune",
+          codePromo: prix.codePromo ? prix.codePromo.code : "aucun"
+        }
       },
-      description: `Location ${vehicule.nom} — ${prix.jours} jour(s) — réservation ${reservation.id}`,
-      redirectUrl: `${origin}/confirmation.html?reservation=${encodeURIComponent(reservation.id)}`,
-      webhookUrl: `${netlifyFunctionsOrigin()}/.netlify/functions/mollie-webhook`,
-      // Réutilise la clé générée une fois côté client (voir js/app.js,
-      // initPaiementPage) : un double-clic/retry réseau avec la même clé
-      // renvoie la réponse déjà enregistrée par Mollie au lieu de créer un
-      // second paiement (cf. https://docs.mollie.com/reference/api-idempotency).
-      idempotencyKey: payload.idempotencyKey,
-      metadata: {
-        reservationId: reservation.id,
-        vehiculeId: vehicule.id,
-        jours: String(prix.jours),
-        options: prix.optionsSelectionnees.map((o) => o.id).join(",") || "aucune",
-        codePromo: prix.codePromo ? prix.codePromo.code : "aucun"
-      }
-    });
+      payload.idempotencyKey
+    );
 
     await updateReservationStatus(reservation.id, "pending_payment", {
       paymentId: payment.id

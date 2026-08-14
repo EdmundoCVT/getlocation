@@ -36,7 +36,7 @@
 // logique interne est couverte par des tests unitaires (cf.
 // tests/mollie-webhook.test.js).
 
-const { createMollieClient } = require("@mollie/api-client");
+const { molliePaymentsGet } = require("../../lib/server/mollie-client.js");
 const {
   updateReservationStatus,
   getReservation,
@@ -134,14 +134,13 @@ exports.handler = async (event) => {
   }
 
   try {
-    const mollieClient = createMollieClient({ apiKey });
     // Ne jamais faire confiance au corps du webhook : on revérifie toujours
     // le statut réel directement auprès de l'API Mollie avec cet id.
-    const payment = await mollieClient.payments.get(paymentId);
+    const payment = await molliePaymentsGet(apiKey, paymentId);
     await processPaymentStatus(payment);
     return { statusCode: 200, body: JSON.stringify({ received: true }) };
   } catch (err) {
-    if (err && err.statusCode === 404) {
+    if (err && err.status === 404) {
       // id inconnu de Mollie : ne pas faire échouer le webhook (évite des
       // retentatives inutiles pendant ~26h) ni révéler d'information —
       // voir https://docs.mollie.com/reference/webhooks.
