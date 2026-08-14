@@ -67,9 +67,11 @@ async function handlePaid(env, payment) {
   });
   // Best effort (voir send-confirmation-email.js / send-contract-email.js) :
   // un échec d'envoi ne remet jamais en cause la confirmation du paiement
-  // ci-dessus, déjà enregistrée.
-  await sendConfirmationEmail(env, updated);
-  await sendContractEmail(env, updated);
+  // ci-dessus, déjà enregistrée. Les deux envois sont indépendants (aucun ne
+  // dépend du résultat de l'autre) et n'échouent jamais vers l'appelant
+  // (try/catch interne à chacun) : les lancer en parallèle évite de doubler
+  // inutilement la latence du webhook.
+  await Promise.all([sendConfirmationEmail(env, updated), sendContractEmail(env, updated)]);
 }
 
 async function handleFailedOrCanceled(env, payment) {
