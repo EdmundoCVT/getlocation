@@ -1,0 +1,15 @@
+# Exclut ces dossiers/fichiers du déploiement Cloudflare Pages (Phase A =
+# site statique uniquement, voir plan de migration). Sans ce fichier,
+# Cloudflare tente d'envoyer tout le contenu du dépôt comme "assets"
+# statiques, y compris node_modules (dont un binaire interne à wrangler de
+# 144 Mo, au-dessus de la limite de 25 Mo par fichier) — cause de l'échec
+# de build du 2026-08-14.
+node_modules
+.git
+.wrangler
+tests
+netlify
+package.json
+package-lock.json
+deployer.command
+.DS_Store

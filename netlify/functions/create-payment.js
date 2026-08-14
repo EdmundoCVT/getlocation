@@ -64,14 +64,38 @@ function corsHeaders(event) {
   return headers;
 }
 
-// Origine utilisée pour construire redirectUrl/webhookUrl : celle de la
-// requête si elle est autorisée (cross-origin connu), sinon la valeur
-// injectée par Netlify (déploiement courant) — jamais une valeur inventée.
+// Origine utilisée pour construire redirectUrl (le navigateur du client y
+// est renvoyé après paiement) : celle de la requête si elle est autorisée
+// (cross-origin connu), sinon la valeur injectée par Netlify (déploiement
+// courant) — jamais une valeur inventée.
 function siteOrigin(event) {
   const allowed = getAllowedOrigins();
   const originHeader = event.headers && (event.headers.origin || event.headers.Origin);
   if (originHeader && allowed.has(originHeader)) return originHeader;
   return process.env.URL || process.env.DEPLOY_PRIME_URL || "https://getlocation.fr";
+}
+
+// Origine utilisée pour webhookUrl UNIQUEMENT : contrairement à
+// redirectUrl (navigateur du client), Mollie appelle ce endpoint
+// serveur-à-serveur, sans passer par le front. Depuis la Phase A de la
+// migration Cloudflare (site statique sur Cloudflare, fonctions toujours
+// sur Netlify — voir plan de migration), l'origine de la requête peut être
+// https://getlocation.fr alors que ce domaine ne sert plus aucune fonction
+// Netlify une fois le DNS basculé : utiliser siteOrigin(event) ici
+// pointerait le webhook vers un domaine qui ne l'héberge plus (404 pour
+// Mollie, confirmation de paiement jamais reçue — même classe de panne
+// silencieuse que l'incident Netlify Blobs du 12/08/2026).
+//
+// process.env.URL/DEPLOY_PRIME_URL ne suffisent PAS ici : chez Netlify, ces
+// variables reflètent le domaine personnalisé configuré dans les
+// paramètres du site (getlocation.fr), pas la résolution DNS réelle —
+// Netlify continue de les renvoyer même après que le DNS a basculé
+// ailleurs. webhookUrl doit donc cibler explicitement le sous-domaine
+// Netlify natif (jamais affecté par une bascule DNS externe), en miroir de
+// NETLIFY_FUNCTIONS_BASE côté client (js/app.js).
+const NETLIFY_NATIVE_SUBDOMAIN = "https://shiny-caramel-1ba9fc.netlify.app";
+function netlifyFunctionsOrigin() {
+  return NETLIFY_NATIVE_SUBDOMAIN;
 }
 
 function clientIp(event) {
@@ -232,7 +256,7 @@ exports.handler = async (event) => {
       },
       description: `Location ${vehicule.nom} — ${prix.jours} jour(s) — réservation ${reservation.id}`,
       redirectUrl: `${origin}/confirmation.html?reservation=${encodeURIComponent(reservation.id)}`,
-      webhookUrl: `${origin}/.netlify/functions/mollie-webhook`,
+      webhookUrl: `${netlifyFunctionsOrigin()}/.netlify/functions/mollie-webhook`,
       // Réutilise la clé générée une fois côté client (voir js/app.js,
       // initPaiementPage) : un double-clic/retry réseau avec la même clé
       // renvoie la réponse déjà enregistrée par Mollie au lieu de créer un

@@ -86,9 +86,11 @@ test("garde-fou anti-effacement silencieux : js/data.js et js/app.js ont une tai
 
 test("contrat front/API : le payload fetch() de create-payment dans js/app.js correspond exactement à ce qu'attend validateReservationInput", () => {
   // Extrait le nom des champs du littéral d'objet passé à JSON.stringify()
-  // juste avant l'appel fetch("/.netlify/functions/create-payment").
-  const appelIndex = appJsSource.indexOf('fetch("/.netlify/functions/create-payment"');
-  assert.ok(appelIndex !== -1, "js/app.js doit appeler /.netlify/functions/create-payment");
+  // juste avant l'appel fetch(...create-payment). Depuis la Phase A de la
+  // migration Cloudflare, cet appel est cross-origin explicite (préfixé par
+  // NETLIFY_FUNCTIONS_BASE) plutôt qu'un chemin relatif — voir js/app.js.
+  const appelIndex = appJsSource.indexOf("/.netlify/functions/create-payment`, {");
+  assert.ok(appelIndex !== -1, "js/app.js doit appeler .../.netlify/functions/create-payment");
 
   const stringifyIndex = appJsSource.indexOf("JSON.stringify({", appelIndex);
   assert.ok(stringifyIndex !== -1, "L'appel fetch doit envoyer un body JSON.stringify({...})");
