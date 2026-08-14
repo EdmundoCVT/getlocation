@@ -37,7 +37,17 @@
     # l'ancien flux Stripe Elements.
     # cdnjs.cloudflare.com : jsPDF, chargé par contrat.html pour générer le
     # PDF du contrat signé (aperçu agence + copie téléchargeable client).
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'"
+    # connect-src https://shiny-caramel-1ba9fc.netlify.app : depuis la
+    # bascule DNS de getlocation.fr vers Cloudflare (Phase A de la
+    # migration, fonctions toujours sur Netlify), js/app.js appelle
+    # create-payment/reservation-status en cross-origin explicite vers ce
+    # domaine (NETLIFY_FUNCTIONS_BASE) — sans cette entrée, la CSP bloque
+    # silencieusement ces appels malgré un CORS serveur correct, cassant le
+    # tunnel de paiement pour tout visiteur arrivant sur getlocation.fr.
+    # Ce fichier (netlify.toml) prime sur _headers pour ce header sur
+    # Netlify : les deux doivent rester synchronisés tant que _headers
+    # existe (voir plan de migration, risque documenté).
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://shiny-caramel-1ba9fc.netlify.app; font-src 'self'; object-src 'none'; base-uri 'self'"
 
 [[headers]]
   for = "/images/*"
