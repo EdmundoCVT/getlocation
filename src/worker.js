@@ -21,6 +21,8 @@ const { handleDocumentsAccess } = require("./api/documents-access.js");
 const { handleDocumentsSubmit } = require("./api/documents-submit.js");
 const { handleAgencyDocumentsAccess } = require("./api/agency-documents-access.js");
 const { handleAgencyDocumentFile } = require("./api/agency-document-file.js");
+const { handleContractDossierAgency } = require("./api/contract-dossier-agency.js");
+const { handleContractDossierClient } = require("./api/contract-dossier-client.js");
 const { runScheduledTasks } = require("./lib/scheduled-tasks.js");
 
 const ROUTES = {
@@ -31,7 +33,9 @@ const ROUTES = {
   "/api/documents-access": handleDocumentsAccess,
   "/api/documents-submit": handleDocumentsSubmit,
   "/api/agency-documents-access": handleAgencyDocumentsAccess,
-  "/api/agency-document-file": handleAgencyDocumentFile
+  "/api/agency-document-file": handleAgencyDocumentFile,
+  "/api/contract-dossier-agency": handleContractDossierAgency,
+  "/api/contract-dossier-client": handleContractDossierClient
 };
 
 export default {

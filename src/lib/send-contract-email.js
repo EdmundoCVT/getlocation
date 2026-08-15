@@ -77,8 +77,21 @@ async function sendContractEmail(env, reservation) {
   const vehicule = getVehiculeParId(reservation.vehiculeId);
   const vehiculeNom = vehicule ? vehicule.nom : reservation.vehiculeId;
   const origin = env.SITE_URL || "https://getlocation.fr";
+  // Lien sécurisé (jeton agence, dossier associé à la réservation — voir
+  // contract-dossier-token.js) quand disponible ; repli sur l'ancien lien
+  // ?prefill= en base64 (jamais associé à la réservation, non sécurisé)
+  // uniquement si DOCUMENT_TOKEN_PEPPER n'est pas configuré — voir
+  // mollie-webhook.js. Les anciens liens ?prefill= déjà envoyés avant ce
+  // changement continuent de fonctionner (contrat.html les gère toujours).
+  //
+  // Jeton en FRAGMENT d'URL (#agencyToken=, jamais ?agencyToken=) : comme
+  // pour le lien documentaire (voir send-confirmation-email.js), un
+  // fragment n'est jamais transmis au serveur par le navigateur — contraire
+  // à un paramètre de requête, qui apparaîtrait dans les journaux d'accès.
   const prefillData = buildContractPrefillData(reservation);
-  const contratUrl = `${origin}/contrat.html?prefill=${encodeURIComponent(encodeContractData(prefillData))}`;
+  const contratUrl = reservation.contractDossierToken
+    ? `${origin}/contrat.html#agencyToken=${encodeURIComponent(reservation.contractDossierToken)}`
+    : `${origin}/contrat.html?prefill=${encodeURIComponent(encodeContractData(prefillData))}`;
 
   const subject = `Contrat à préparer — ${reservation.conducteur.prenom} ${reservation.conducteur.nom} (${vehiculeNom})`;
   const text = [
