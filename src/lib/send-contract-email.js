@@ -18,7 +18,7 @@
 //     pour que cet email parte — sans elle, non envoyé, avertissement en log)
 //   - RESEND_FROM (optionnel), voir send-confirmation-email.js
 
-const { getVehiculeParId } = require("../../js/data.js");
+const { getVehiculeParId, LIEU_LIVRAISON } = require("../../js/data.js");
 const { sendEmail } = require("./resend-client.js");
 
 // Même encodage que encodeData() côté navigateur (contrat.html) : base64
@@ -48,7 +48,7 @@ function buildContractPrefillData(reservation) {
 
   return {
     vehiculeId: reservation.vehiculeId,
-    lieu: "Agence Grasse",
+    lieu: reservation.adressePrise || reservation.lieuPrise || LIEU_LIVRAISON,
     depart: reservation.dateDebut && reservation.heureDebut ? `${reservation.dateDebut}T${reservation.heureDebut}` : "",
     retour: reservation.dateFin && reservation.heureFin ? `${reservation.dateFin}T${reservation.heureFin}` : "",
     prenom: reservation.conducteur.prenom || "",
@@ -57,8 +57,11 @@ function buildContractPrefillData(reservation) {
     tel: reservation.conducteur.telephone || "",
     email: reservation.conducteur.email || "",
     secondConducteur: aOption("second-conducteur"),
-    livraison: aOption("livraison-adresse"),
-    livraisonRue: reservation.adressePrise || reservation.adresseRetour || ""
+    livraison: aOption("livraison-adresse") || reservation.lieuPrise === LIEU_LIVRAISON,
+    // La zone choisie avant paiement n'est pas une adresse postale. Celle-ci
+    // reste vide jusqu'à sa saisie dans le dossier documentaire sécurisé.
+    livraisonRue: "",
+    livraisonVille: reservation.adressePrise || ""
   };
 }
 

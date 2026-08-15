@@ -17,7 +17,7 @@
 // confirmation client) — aucune variable d'environnement supplémentaire.
 
 const nodemailer = require("nodemailer");
-const { getVehiculeParId } = require("../../../js/data.js");
+const { getVehiculeParId, LIEU_LIVRAISON } = require("../../../js/data.js");
 
 function createTransport() {
   const user = process.env.GMAIL_USER;
@@ -46,7 +46,7 @@ function buildContractPrefillData(reservation) {
 
   return {
     vehiculeId: reservation.vehiculeId,
-    lieu: "Agence Grasse",
+    lieu: reservation.adressePrise || reservation.lieuPrise || LIEU_LIVRAISON,
     depart: reservation.dateDebut && reservation.heureDebut ? `${reservation.dateDebut}T${reservation.heureDebut}` : "",
     retour: reservation.dateFin && reservation.heureFin ? `${reservation.dateFin}T${reservation.heureFin}` : "",
     prenom: reservation.conducteur.prenom || "",
@@ -55,8 +55,9 @@ function buildContractPrefillData(reservation) {
     tel: reservation.conducteur.telephone || "",
     email: reservation.conducteur.email || "",
     secondConducteur: aOption("second-conducteur"),
-    livraison: aOption("livraison-adresse"),
-    livraisonRue: reservation.adressePrise || reservation.adresseRetour || ""
+    livraison: aOption("livraison-adresse") || reservation.lieuPrise === LIEU_LIVRAISON,
+    livraisonRue: "",
+    livraisonVille: reservation.adressePrise || ""
   };
 }
 

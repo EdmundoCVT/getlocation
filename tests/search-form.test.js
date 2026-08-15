@@ -15,7 +15,7 @@ const { JSDOM } = require("jsdom");
 // du script, mais ne deviennent PAS des propriétés de l'objet window (au
 // contraire des déclarations de fonction, ex. window.initSearchForm plus
 // bas) — voir tests/tunnel-robustness.test.js pour le même contournement.
-const { LIEU_LIVRAISON, VILLES_LIVRAISON } = require("../js/data.js");
+const { LIEU_LIVRAISON, LIEUX, VILLES_LIVRAISON } = require("../js/data.js");
 
 const DATA_SRC = fs.readFileSync(path.join(__dirname, "..", "js", "data.js"), "utf8");
 const APP_SRC = fs.readFileSync(path.join(__dirname, "..", "js", "app.js"), "utf8");
@@ -68,6 +68,13 @@ function newWindow() {
   return dom.window;
 }
 
+test("GETLOCATION ne propose plus d'agence physique et couvre les principales villes et gares", () => {
+  assert.deepEqual(LIEUX, [LIEU_LIVRAISON]);
+  for (const lieu of ["Grasse", "Cannes", "Cannes-la-Bocca", "Antibes", "Nice", "Gare SNCF de Saint-Laurent-du-Var", "Gare de Nice-Ville"]) {
+    assert.ok(VILLES_LIVRAISON.includes(lieu), `${lieu} doit être proposé`);
+  }
+});
+
 test("le lieu de restitution est masqué par défaut, le bouton pour le révéler est visible", () => {
   // On vérifie style.display (pas la propriété hidden, qui ne reflète que la
   // présence de l'attribut HTML et pas le rendu visuel réel une fois la
@@ -93,7 +100,8 @@ test("cliquer sur le bouton révèle le lieu de restitution et masque le bouton"
   const window = newWindow();
   const document = window.document;
   document.getElementById("toggle-retour").dispatchEvent(new window.Event("click", { bubbles: true }));
-  assert.equal(document.getElementById("retour-field").style.display, "");
+  assert.equal(document.getElementById("retour-field").style.display, "none");
+  assert.equal(document.getElementById("adresse-retour-field").style.display, "");
   assert.equal(document.getElementById("toggle-retour").style.display, "none");
 });
 
@@ -132,15 +140,16 @@ test("restitution indépendante : le lieu et la ville de retour choisis sont res
 
   const selectRetour = document.getElementById("lieu-retour");
   const selectAdresseRetour = document.getElementById("adresse-retour");
-  selectRetour.value = "Agence Grasse";
+  selectRetour.value = LIEU_LIVRAISON;
   selectRetour.dispatchEvent(new window.Event("change", { bubbles: true }));
+  selectAdresseRetour.value = "Gare de Nice-Ville";
 
   document.getElementById("search-form").dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
 
   const recherche = JSON.parse(window.localStorage.getItem("gl_recherche"));
   assert.equal(recherche.lieuPrise, LIEU_LIVRAISON);
   assert.equal(recherche.adressePrise, "Nice");
-  assert.equal(recherche.lieuRetour, "Agence Grasse");
-  assert.equal(recherche.adresseRetour, "");
+  assert.equal(recherche.lieuRetour, LIEU_LIVRAISON);
+  assert.equal(recherche.adresseRetour, "Gare de Nice-Ville");
   assert.notEqual(selectAdresseRetour, null);
 });

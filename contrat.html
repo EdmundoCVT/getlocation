@@ -588,7 +588,7 @@
 
 </div>
 
-<script src="js/data.js?v=7"></script>
+<script src="js/data.js?v=8"></script>
 <script>
 // VEHICULES, formatEUR, joursFacturablesDepuisHeures, getVehiculeParId et
 // getOptionParId viennent de js/data.js (chargé juste avant ce script) —
@@ -597,10 +597,9 @@
 // affiché ailleurs sur le site).
 // LIEUX_CONTRAT (et non LIEUX, déjà déclaré par data.js dans ce même scope
 // de script global — une redéclaration ferait planter silencieusement tout
-// ce script) : un seul lieu de prise en charge physique pour l'instant ; la
-// livraison a sa propre UI dédiée ci-dessous (case à cocher + adresse),
-// distincte du mécanisme "lieu = livraison" de reservation.html.
-const LIEUX_CONTRAT = ["Agence Grasse"];
+// ce script). Le contrat utilise le même modèle de livraison que le parcours
+// de réservation ; l'adresse exacte est complétée dans le dossier sécurisé.
+const LIEUX_CONTRAT = ["Livraison à l'adresse de votre choix"];
 const SUPPLEMENT_LIVRAISON = getOptionParId('livraison-adresse').prix;
 const SUPPLEMENT_CONDUCTEUR_JOUR = getOptionParId('second-conducteur').prix;
 function calculSupplementConducteur(jours){ return SUPPLEMENT_CONDUCTEUR_JOUR * jours; }
@@ -1172,11 +1171,13 @@ function initDossierAgencyView(token){
     document.querySelectorAll('#dfCautionTabs .tab-btn').forEach(function(b){
       b.classList.toggle('active', b.dataset.mode === (f.modeCaution || 'carte'));
     });
-    document.getElementById('df-livraison-toggle').checked = !!f.livraison;
-    document.getElementById('dfLivraisonBlock').classList.toggle('show', !!f.livraison);
-    document.getElementById('df-livraisonRue').value = f.livraisonRue || '';
-    document.getElementById('df-livraisonCP').value = f.livraisonCP || '';
-    document.getElementById('df-livraisonVille').value = f.livraisonVille || '';
+    var livraisonReservation = r.lieuPrise === "Livraison à l'adresse de votre choix" || (r.options || []).some(function(o){ return o && o.id === 'livraison-adresse'; });
+    var livraisonActive = f.livraison !== undefined ? !!f.livraison : livraisonReservation;
+    document.getElementById('df-livraison-toggle').checked = livraisonActive;
+    document.getElementById('dfLivraisonBlock').classList.toggle('show', livraisonActive);
+    document.getElementById('df-livraisonRue').value = val('livraisonRue');
+    document.getElementById('df-livraisonCP').value = val('livraisonCP');
+    document.getElementById('df-livraisonVille').value = val('livraisonVille') || r.adressePrise || '';
     document.getElementById('df-second-toggle').checked = !!f.secondConducteur;
     document.getElementById('dfSecondBlock').classList.toggle('show', !!f.secondConducteur);
     document.getElementById('df-secondNom').value = val('secondConducteurNom');
@@ -1695,6 +1696,7 @@ function initOwnerView(prefill){
       livraisonToggle.checked = true;
       livraisonBlock.classList.add('show');
       document.getElementById('livraisonRue').value = prefill.livraisonRue || '';
+      document.getElementById('livraisonVille').value = prefill.livraisonVille || '';
       document.getElementById('livraisonRue').required = true;
       document.getElementById('livraisonCP').required = true;
       document.getElementById('livraisonVille').required = true;

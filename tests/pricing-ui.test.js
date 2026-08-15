@@ -61,10 +61,28 @@ test("initReservationPage : la liste d'options est générée depuis le catalogu
   window.initReservationPage();
 
   const items = window.document.querySelectorAll("#options-list .option-item");
-  assert.equal(items.length, OPTIONS.length);
-  OPTIONS.forEach((opt) => {
+  const optionsFacultatives = OPTIONS.filter((opt) => opt.id !== "livraison-adresse");
+  assert.equal(items.length, optionsFacultatives.length);
+  optionsFacultatives.forEach((opt) => {
     assert.ok(window.document.getElementById(`option-${opt.id}`), `checkbox manquante pour ${opt.id}`);
   });
+  assert.equal(window.document.getElementById("option-livraison-adresse"), null, "la livraison obligatoire ne doit pas être décochable");
+});
+
+test("initReservationPage : la livraison est ajoutée et facturée sans case à cocher", () => {
+  const window = newWindow(reservationPageHtml());
+  window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation({
+    lieuPrise: "Livraison à l'adresse de votre choix",
+    lieuRetour: "Livraison à l'adresse de votre choix",
+    adressePrise: "Nice",
+    adresseRetour: "Nice",
+    options: []
+  })));
+  window.initReservationPage();
+
+  const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
+  assert.ok(persisted.options.includes("livraison-adresse"));
+  assert.match(window.document.getElementById("reservation-summary").textContent, /138/); // 118 € + 20 € livraison
 });
 
 test("initReservationPage : cocher une option recalcule le total et le persiste", () => {

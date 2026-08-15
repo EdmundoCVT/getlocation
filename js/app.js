@@ -310,10 +310,23 @@ function initSearchForm() {
   });
   [selectAdressePrise, selectAdresseRetour].forEach(select => {
     if (!select) return;
-    select.add(new Option("Choisissez une ville", "", true, true));
+    select.add(new Option("Choisissez un lieu de livraison", "", true, true));
     select.options[0].disabled = true;
     VILLES_LIVRAISON.forEach(ville => select.add(new Option(ville, ville)));
   });
+
+  // GETLOCATION fonctionne désormais uniquement en livraison : le sélecteur
+  // technique de mode n'a donc plus d'intérêt visuel. On conserve sa valeur
+  // dans le modèle de données pour la compatibilité des réservations et des
+  // API existantes, mais le client voit directement le choix utile (ville,
+  // gare ou aéroport).
+  const livraisonUniquement = LIEUX.length === 1 && LIEUX[0] === LIEU_LIVRAISON;
+  if (livraisonUniquement) {
+    selectPrise.value = LIEU_LIVRAISON;
+    if (selectRetour) selectRetour.value = LIEU_LIVRAISON;
+    const champModePrise = selectPrise.closest(".field");
+    if (champModePrise) champModePrise.style.display = "none";
+  }
 
   // Lieu de restitution : masqué par défaut et synchronisé sur le lieu de
   // prise en charge (motif Sixt/Europcar — la plupart des locations se
@@ -330,10 +343,10 @@ function initSearchForm() {
     champRetour.style.display = "none";
     boutonToggleRetour.addEventListener("click", () => {
       retourIndependant = true;
-      champRetour.style.display = "";
+      champRetour.style.display = livraisonUniquement ? "none" : "";
       boutonToggleRetour.style.display = "none";
       majChampAdresse(selectRetour, champAdresseRetour, selectAdresseRetour);
-      selectRetour.focus();
+      (livraisonUniquement ? selectAdresseRetour : selectRetour).focus();
     });
   }
 
@@ -770,6 +783,13 @@ function initReservationPage() {
   // Compatibilité : réservations en cours démarrées avant l'ajout des
   // options/code promo (localStorage déjà rempli sans ces champs).
   if (!Array.isArray(data.options)) data.options = [];
+  // La livraison est le mode normal de GETLOCATION, plus une option que le
+  // client pourrait décocher. Le serveur applique la même règle pour que le
+  // prix ne dépende jamais de cette seule mise à jour navigateur.
+  if ((data.lieuPrise === LIEU_LIVRAISON || data.lieuRetour === LIEU_LIVRAISON) && !data.options.includes("livraison-adresse")) {
+    data.options.push("livraison-adresse");
+    writeReservationLocal(data);
+  }
   if (typeof data.codePromo !== "string") data.codePromo = "";
 
   function prixCourant() {
@@ -850,6 +870,7 @@ function initReservationPage() {
   if (optionsList) {
     optionsList.textContent = "";
     OPTIONS.forEach((opt) => {
+      if (opt.id === "livraison-adresse") return;
       const label = document.createElement("label");
       label.className = "option-item";
 
@@ -1161,6 +1182,10 @@ function initPaiementPage() {
   // Compatibilité : réservations en cours démarrées avant l'ajout des
   // options/code promo.
   if (!Array.isArray(data.options)) data.options = [];
+  if ((data.lieuPrise === LIEU_LIVRAISON || data.lieuRetour === LIEU_LIVRAISON) && !data.options.includes("livraison-adresse")) {
+    data.options.push("livraison-adresse");
+    writeReservationLocal(data);
+  }
   if (typeof data.codePromo !== "string") data.codePromo = "";
 
   // Affichage strictement indicatif : le montant qui fait foi est
