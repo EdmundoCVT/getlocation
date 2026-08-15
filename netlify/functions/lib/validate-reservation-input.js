@@ -16,6 +16,7 @@ const MAX_LEN = {
 };
 
 const OPTION_IDS = new Set(OPTIONS.map(o => o.id));
+const LIEUX_HISTORIQUES = new Set(["Agence Grasse"]);
 
 function isNonEmptyString(v, max, min = 1) {
   return typeof v === "string" && v.trim().length >= min && v.length <= max;
@@ -96,10 +97,10 @@ function validateReservationInput(payload) {
     if (fin.getTime() <= debut.getTime()) errors.push("La date de fin doit être postérieure à la date de début");
   }
 
-  if (lieuPrise !== undefined && lieuPrise !== null && !LIEUX.includes(lieuPrise)) {
+  if (lieuPrise !== undefined && lieuPrise !== null && !LIEUX.includes(lieuPrise) && !LIEUX_HISTORIQUES.has(lieuPrise)) {
     errors.push("Lieu de prise en charge invalide");
   }
-  if (lieuRetour !== undefined && lieuRetour !== null && !LIEUX.includes(lieuRetour)) {
+  if (lieuRetour !== undefined && lieuRetour !== null && !LIEUX.includes(lieuRetour) && !LIEUX_HISTORIQUES.has(lieuRetour)) {
     errors.push("Lieu de restitution invalide");
   }
   // Depuis le passage à un choix de ville (plutôt qu'une adresse libre), la
@@ -107,15 +108,15 @@ function validateReservationInput(payload) {
   // une saisie arbitraire. La contrainte n'est appliquée que si le lieu
   // correspondant est bien "Livraison" (sinon adressePrise/adresseRetour
   // doivent être vides).
-  if (adressePrise !== undefined && adressePrise !== null && adressePrise !== "") {
-    if (lieuPrise !== LIEU_LIVRAISON || !VILLES_LIVRAISON.includes(adressePrise)) {
-      errors.push("Ville de livraison (prise en charge) invalide");
-    }
+  if (lieuPrise === LIEU_LIVRAISON) {
+    if (!VILLES_LIVRAISON.includes(adressePrise)) errors.push("Lieu de livraison (prise en charge) invalide");
+  } else if (adressePrise !== undefined && adressePrise !== null && adressePrise !== "") {
+    errors.push("Lieu de livraison (prise en charge) invalide");
   }
-  if (adresseRetour !== undefined && adresseRetour !== null && adresseRetour !== "") {
-    if (lieuRetour !== LIEU_LIVRAISON || !VILLES_LIVRAISON.includes(adresseRetour)) {
-      errors.push("Ville de livraison (restitution) invalide");
-    }
+  if (lieuRetour === LIEU_LIVRAISON) {
+    if (!VILLES_LIVRAISON.includes(adresseRetour)) errors.push("Lieu de livraison (restitution) invalide");
+  } else if (adresseRetour !== undefined && adresseRetour !== null && adresseRetour !== "") {
+    errors.push("Lieu de livraison (restitution) invalide");
   }
 
   // Options : liste facultative d'identifiants — chacun doit correspondre à
@@ -134,6 +135,9 @@ function validateReservationInput(payload) {
         optionsNormalisees = [...new Set(options)];
       }
     }
+  }
+  if ((lieuPrise === LIEU_LIVRAISON || lieuRetour === LIEU_LIVRAISON) && !optionsNormalisees.includes("livraison-adresse")) {
+    optionsNormalisees.push("livraison-adresse");
   }
 
   // Code promo : facultatif, simple chaîne bornée (la validité du code lui-

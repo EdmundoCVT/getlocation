@@ -62,14 +62,15 @@ test("buildContractPrefillData : reprend les champs connus de la réservation, l
   assert.equal("adresse" in data, false);
 });
 
-test("buildContractPrefillData : détecte les options second conducteur / livraison et reprend l'adresse connue", () => {
+test("buildContractPrefillData : détecte la livraison et préremplit sa zone sans inventer l'adresse exacte", () => {
   const data = buildContractPrefillData(makeReservation({
     options: [{ id: "second-conducteur" }, { id: "livraison-adresse" }],
-    adressePrise: "12 rue de la Paix, Nice"
+    adressePrise: "Nice"
   }));
   assert.equal(data.secondConducteur, true);
   assert.equal(data.livraison, true);
-  assert.equal(data.livraisonRue, "12 rue de la Paix, Nice");
+  assert.equal(data.livraisonRue, "");
+  assert.equal(data.livraisonVille, "Nice");
 });
 
 test("encodeContractData : produit un base64 décodable par decodeData() de contrat.html (round-trip navigateur réel)", () => {

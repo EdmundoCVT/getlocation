@@ -121,6 +121,8 @@ function buildDossierView(reservation) {
         adresse: documentsData.postalAddress || "",
         permisNumero: documentsData.permitNumber || "",
         permisDate: documentsData.permitDate || "",
+        livraisonRue: documentsData.deliveryAddress || "",
+        livraisonVille: reservation.adressePrise || "",
         secondConducteurNom: documentsData.secondDriver ? documentsData.secondDriver.lastName || "" : "",
         secondConducteurPrenom: documentsData.secondDriver ? documentsData.secondDriver.firstName || "" : "",
         secondConducteurPermisNumero: documentsData.secondDriver ? documentsData.secondDriver.permitNumber || "" : ""

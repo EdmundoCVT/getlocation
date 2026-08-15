@@ -165,12 +165,34 @@ test("accepte une ville de livraison valide (Côte d'Azur) quand le lieu est \"L
   }
 });
 
+test("impose un lieu précis dans la liste lorsque la livraison est choisie", () => {
+  const { valid, errors } = validateReservationInput(
+    basePayload({ lieuPrise: LIEU_LIVRAISON, lieuRetour: LIEU_LIVRAISON, adressePrise: "", adresseRetour: "" })
+  );
+  assert.equal(valid, false);
+  assert.ok(errors.some((e) => e.includes("prise en charge")));
+  assert.ok(errors.some((e) => e.includes("restitution")));
+});
+
+test("ajoute toujours le supplément livraison côté serveur, même si le navigateur l'omet", () => {
+  const ville = VILLES_LIVRAISON[0];
+  const { valid, options } = validateReservationInput(basePayload({
+    lieuPrise: LIEU_LIVRAISON,
+    lieuRetour: LIEU_LIVRAISON,
+    adressePrise: ville,
+    adresseRetour: ville,
+    options: []
+  }));
+  assert.equal(valid, true);
+  assert.ok(options.includes("livraison-adresse"));
+});
+
 test("rejette une adresse libre (texte arbitraire) à la place d'une ville de livraison", () => {
   const { valid, errors } = validateReservationInput(
     basePayload({ lieuPrise: LIEU_LIVRAISON, adressePrise: "12 rue du Test, Nice" })
   );
   assert.equal(valid, false);
-  assert.ok(errors.some((e) => e.includes("Ville de livraison")));
+  assert.ok(errors.some((e) => e.includes("Lieu de livraison")));
 });
 
 test("rejette une ville de livraison renseignée alors que le lieu n'est pas \"Livraison\"", () => {
@@ -178,7 +200,7 @@ test("rejette une ville de livraison renseignée alors que le lieu n'est pas \"L
     basePayload({ lieuPrise: "Agence Grasse", adressePrise: "Nice" })
   );
   assert.equal(valid, false);
-  assert.ok(errors.some((e) => e.includes("Ville de livraison")));
+  assert.ok(errors.some((e) => e.includes("Lieu de livraison")));
 });
 
 /* ---------------------------------------------------------

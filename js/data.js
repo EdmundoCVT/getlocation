@@ -13,17 +13,40 @@
 const LIEU_LIVRAISON = "Livraison à l'adresse de votre choix";
 
 const LIEUX = [
-  "Agence Grasse",
   LIEU_LIVRAISON
 ];
 
 // Zones de livraison proposées à la recherche : uniquement des villes de la
 // Côte d'Azur (cohérent avec les pages location-voiture-*.html et le
 // areaServed du balisage Schema.org). Remplace la saisie libre d'une adresse
-// complète par un choix simple parmi ces villes, plus rapide et sans risque
-// de faute de frappe. L'adresse précise de livraison reste à convenir avec
-// l'agence (téléphone/WhatsApp) une fois la réservation initiée.
-const VILLES_LIVRAISON = ["Nice", "Cannes", "Antibes", "Grasse", "Monaco"];
+// complète par un choix simple parmi ces villes et points de rendez-vous,
+// plus rapide et sans risque de faute de frappe. L'adresse exacte ou le
+// point de rencontre détaillé est demandé dans le dossier sécurisé après
+// paiement, jamais dans l'URL de réservation.
+const VILLES_LIVRAISON = [
+  "Grasse",
+  "Cannes",
+  "Cannes-la-Bocca",
+  "Le Cannet",
+  "Mougins",
+  "Antibes",
+  "Juan-les-Pins",
+  "Biot",
+  "Villeneuve-Loubet",
+  "Cagnes-sur-Mer",
+  "Saint-Laurent-du-Var",
+  "Nice",
+  "Monaco",
+  "Gare SNCF de Grasse",
+  "Gare SNCF de Cannes",
+  "Gare SNCF de Cannes-la-Bocca",
+  "Gare SNCF d'Antibes",
+  "Gare SNCF de Cagnes-sur-Mer",
+  "Gare SNCF de Saint-Laurent-du-Var",
+  "Gare de Nice-Ville",
+  "Gare de Nice-Saint-Augustin",
+  "Aéroport Nice Côte d'Azur"
+];
 
 const CATEGORIES = ["Citadine", "SUV", "Utilitaire"];
 
@@ -117,7 +140,7 @@ const OPTIONS = [
   { id: "assurance-passagers", nom: "Assurance passagers / accident", description: "Couvre les dommages corporels des passagers en cas d'accident", type: "jour", prix: 6 },
   { id: "second-conducteur", nom: "Deuxième conducteur", description: "Ajoute un second conducteur autorisé sur le contrat", type: "jour", prix: 10 },
   { id: "km-supplementaire", nom: "Forfait kilométrage supplémentaire", description: "300 km supplémentaires inclus sur la durée de la location", type: "forfait", prix: 30 },
-  { id: "livraison-adresse", nom: "Livraison à l'adresse de votre choix", description: "Le véhicule vous est livré à l'adresse indiquée (Nice, Cannes, Antibes, Grasse, Monaco)", type: "forfait", prix: 20 }
+  { id: "livraison-adresse", nom: "Livraison du véhicule", description: "Livraison à l'adresse ou au point de rendez-vous choisi sur la Côte d'Azur", type: "forfait", prix: 20 }
 ];
 
 function getOptionParId(id) {
