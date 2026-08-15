@@ -976,12 +976,28 @@ function initReservationPage() {
   }
 }
 
-// Convertit une saisie "JJ/MM/AAAA" (format du champ #naissance sur
-// paiement.html) en "YYYY-MM-DD" — format utilisé partout ailleurs (envoi
-// au serveur, validate-reservation-input.js, contrat.html). Renvoie null si
-// la saisie n'est pas une date réelle (ex. "31/02/2000"), pas seulement mal
-// formée : new Date() accepterait silencieusement un jour hors plage en
-// "roulant" sur le mois suivant, d'où la revérification des composants.
+// Insère automatiquement les "/" pendant la saisie d'un champ date au
+// format JJ/MM/AAAA (naissance sur paiement.html, dates de permis/naissance
+// sur documents.html) : évite de faire reposer la frappe manuelle des
+// séparateurs sur l'utilisateur, sans dépendre d'un composant de calendrier
+// natif (rendu — menu déroulant, molette — ET format d'affichage selon la
+// langue du système, trop inconsistants d'un navigateur à l'autre pour
+// garantir JJ/MM/AAAA).
+function insererSlashesDateFr(input) {
+  const chiffres = input.value.replace(/\D/g, "").slice(0, 8);
+  let formate = chiffres.slice(0, 2);
+  if (chiffres.length > 2) formate += "/" + chiffres.slice(2, 4);
+  if (chiffres.length > 4) formate += "/" + chiffres.slice(4, 8);
+  input.value = formate;
+}
+
+// Convertit une saisie "JJ/MM/AAAA" (champ #naissance sur paiement.html,
+// dates de permis/naissance sur documents.html) en "YYYY-MM-DD" — format
+// utilisé partout ailleurs (envoi au serveur, validate-reservation-input.js,
+// validate-document-upload.js, contrat.html). Renvoie null si la saisie
+// n'est pas une date réelle (ex. "31/02/2000"), pas seulement mal formée :
+// new Date() accepterait silencieusement un jour hors plage en "roulant"
+// sur le mois suivant, d'où la revérification des composants.
 function naissanceFrVersISO(v) {
   const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((v || "").trim());
   if (!m) return null;
@@ -1193,13 +1209,7 @@ function initPaiementPage() {
   // déroulant, molette — varie trop d'un navigateur à l'autre).
   const naissanceInput = form.querySelector('[name="naissance"]');
   if (naissanceInput) {
-    naissanceInput.addEventListener("input", () => {
-      const chiffres = naissanceInput.value.replace(/\D/g, "").slice(0, 8);
-      let formate = chiffres.slice(0, 2);
-      if (chiffres.length > 2) formate += "/" + chiffres.slice(2, 4);
-      if (chiffres.length > 4) formate += "/" + chiffres.slice(4, 8);
-      naissanceInput.value = formate;
-    });
+    naissanceInput.addEventListener("input", () => insererSlashesDateFr(naissanceInput));
   }
 
   // Retour arrière sans perte : si le conducteur avait déjà rempli ces
@@ -1473,6 +1483,15 @@ function initDocumentsPage() {
   const submitError = document.getElementById("documents-submit-error");
   const submitButton = document.getElementById("documents-submit");
 
+  // Champs date saisis au format JJ/MM/AAAA (voir insererSlashesDateFr) :
+  // convertis en YYYY-MM-DD avant envoi juste avant la soumission (voir plus
+  // bas), format attendu par le serveur (validate-document-upload.js).
+  const DATE_FIELDS_JJMMAAAA = ["birthDate", "permitDate", "secondDriverPermitDate"];
+  DATE_FIELDS_JJMMAAAA.forEach((name) => {
+    const input = form.querySelector(`[name="${name}"]`);
+    if (input) input.addEventListener("input", () => insererSlashesDateFr(input));
+  });
+
   const fragment = new URLSearchParams(window.location.hash.slice(1));
   const token = fragment.get("token") || "";
   // Retire immédiatement le secret de la barre d'adresse et de l'historique.
@@ -1514,6 +1533,24 @@ function initDocumentsPage() {
     event.preventDefault();
     submitError.textContent = "";
     if (!form.reportValidity()) return;
+
+    // Convertit chaque date JJ/MM/AAAA saisie en YYYY-MM-DD (voir
+    // DATE_FIELDS_JJMMAAAA plus haut) — champ ignoré s'il est vide et non
+    // requis (ex. secondDriverPermitDate sans second conducteur).
+    const datesISO = {};
+    for (const name of DATE_FIELDS_JJMMAAAA) {
+      const input = form.querySelector(`[name="${name}"]`);
+      if (!input || (!input.value.trim() && !input.required)) continue;
+      const iso = naissanceFrVersISO(input.value);
+      if (!iso) {
+        const label = document.querySelector(`label[for="${name}"]`);
+        submitError.textContent = `Date invalide (JJ/MM/AAAA attendu) : ${label ? label.textContent : name}.`;
+        input.focus();
+        return;
+      }
+      datesISO[name] = iso;
+    }
+
     const files = [...form.querySelectorAll('input[type="file"]')]
       .filter((input) => input.required || input.files.length)
       .flatMap((input) => [...input.files]);
@@ -1524,10 +1561,12 @@ function initDocumentsPage() {
     submitButton.disabled = true;
     submitButton.textContent = "Envoi en cours…";
     try {
+      const formData = new FormData(form);
+      Object.entries(datesISO).forEach(([name, iso]) => formData.set(name, iso));
       const response = await fetch("/api/documents-submit", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body: new FormData(form)
+        body: formData
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || "L'envoi a échoué");
