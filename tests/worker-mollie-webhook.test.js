@@ -22,7 +22,11 @@ const { handleMollieWebhook, processPaymentStatus } = require("../src/api/mollie
 const { createReservation, getReservation, updateReservationStatus } = require("../src/lib/reservation-store.js");
 
 function makeEnv(overrides = {}) {
-  return { RESERVATIONS_KV: createFakeKv(), ...overrides };
+  return {
+    RESERVATIONS_KV: createFakeKv(),
+    DOCUMENT_TOKEN_PEPPER: "pepper-de-test-ne-jamais-utiliser-en-production",
+    ...overrides
+  };
 }
 
 function makePayment(status, overrides = {}) {
@@ -68,6 +72,10 @@ test("accepte un paiement payé et confirme la réservation liée", async () => 
   const updated = await getReservation(env, reservation.id);
   assert.equal(updated.status, "paid");
   assert.ok(updated.paidAt);
+  assert.equal(updated.documentsStatus, "pending");
+  assert.match(updated.documentAccess.tokenHash, /^[a-f0-9]{64}$/);
+  assert.equal(updated.documentAccess.revokedAt, null);
+  assert.equal("documentsAccessToken" in updated, false);
 });
 
 test("idempotence : rejouer le même statut paid ne change rien de plus", async () => {
@@ -110,6 +118,32 @@ test("un paiement expiré/annulé/échoué annule la réservation, sans écraser
   await processPaymentStatus(env, makePayment("expired", { id: paymentId, metadata: { reservationId: reservation.id } }));
   updated = await getReservation(env, reservation.id);
   assert.equal(updated.status, "paid");
+});
+
+test("le statut documentaire ne remplace jamais paid et la réservation continue de bloquer les dates", async () => {
+  const env = makeEnv();
+  const vehiculeId = "opel-corsa";
+  const reservation = await createReservation(env, {
+    vehiculeId,
+    periodeDebut: "2027-01-20T10:00:00.000Z",
+    periodeFin: "2027-01-21T10:00:00.000Z",
+    dateDebut: "2027-01-20",
+    heureDebut: "10:00",
+    dateFin: "2027-01-21",
+    heureFin: "10:00"
+  });
+  const payment = makePayment("paid", { metadata: { reservationId: reservation.id } });
+
+  await processPaymentStatus(env, payment);
+
+  const updated = await getReservation(env, reservation.id);
+  assert.equal(updated.status, "paid");
+  assert.equal(updated.documentsStatus, "pending");
+  const { hasOverlappingReservation } = require("../src/lib/reservation-store.js");
+  assert.equal(
+    await hasOverlappingReservation(env, vehiculeId, "2027-01-20T12:00:00.000Z", "2027-01-20T18:00:00.000Z"),
+    true
+  );
 });
 
 test("paiement sans réservation correspondante : ignoré sans erreur", async () => {

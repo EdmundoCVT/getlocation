@@ -49,6 +49,7 @@ Le code est complet et testé (`npm test`), mais **rien de tout cela n'est dépl
 | `TEST_DISCOUNT_CODE` | Optionnel, usage interne uniquement | Identique à l'ancienne variable Netlify (section 2, point détaillé) — ramène le montant facturé à 0,99 € pour un code promo secret de votre choix. |
 | `ALLOWED_ORIGINS` | Optionnel | Liste d'origines CORS supplémentaires (séparées par des virgules). Moins utile qu'avant : site et API étant désormais same-origin, aucune valeur n'est nécessaire en usage normal — l'origine de chaque requête est de toute façon toujours auto-autorisée (voir `src/api/create-payment.js`). |
 | `SITE_URL` | Optionnel | Utilisé uniquement par `send-contract-email.js` pour construire le lien vers `contrat.html`. Par défaut `https://getlocation.fr`. |
+| `DOCUMENT_TOKEN_PEPPER` | Requis avant d'activer le parcours documentaire | Secret aléatoire long utilisé pour calculer l'empreinte HMAC des jetons d'accès aux documents. Le jeton brut n'est jamais stocké. |
 
 Aucune de ces variables ne doit être ajoutée à `wrangler.jsonc` (fichier commité) : toutes se configurent via `wrangler secret put NOM` (ou dans le dashboard Cloudflare → Workers & Pages → getlocation → Settings → Variables), jamais en clair dans le dépôt.
 

@@ -15,7 +15,8 @@ const {
   updateReservationStatus,
   findReservationByPaymentId,
   hasOverlappingReservation,
-  generateReservationId
+  generateReservationId,
+  reservationTtlSeconds
 } = require("../src/lib/reservation-store.js");
 
 function makeEnv() {
@@ -158,4 +159,11 @@ test("expirationTtl respecte la contrainte minimale de Cloudflare KV (>= 60s)", 
   // doivent donc jamais rejeter pour cette raison.
   const record = await createReservation(env, { vehiculeId: "opel-corsa" });
   await assert.doesNotReject(updateReservationStatus(env, record.id, "paid", { paymentId: "tr_ttl_check" }));
+});
+
+test("une réservation payée future reste en KV jusqu'après son retour", () => {
+  const inNinetyDays = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+  const ttl = reservationTtlSeconds({ status: "paid", periodeFin: inNinetyDays });
+  assert.ok(ttl > 90 * 24 * 60 * 60);
+  assert.equal(reservationTtlSeconds({ status: "pending_payment", periodeFin: inNinetyDays }), 7 * 24 * 60 * 60);
 });

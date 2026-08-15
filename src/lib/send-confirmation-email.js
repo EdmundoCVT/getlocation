@@ -71,6 +71,12 @@ function buildWhatsappUrl(reservationId) {
   return `https://wa.me/${AGENCY_WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 }
 
+function buildDocumentsUrl(reservation, siteUrl) {
+  if (!reservation || !reservation.documentsAccessToken) return null;
+  const origin = String(siteUrl || "https://getlocation.fr").replace(/\/+$/, "");
+  return `${origin}/documents.html#token=${encodeURIComponent(reservation.documentsAccessToken)}`;
+}
+
 // Checklist des documents à préparer avant la prise en charge. Ne prétend
 // jamais qu'un document a déjà été reçu ou validé (aucun système de
 // collecte de documents n'existe encore, cf. AUDIT.md/CLAUDE.md) — se
@@ -87,7 +93,7 @@ function buildChecklistLignes(reservation) {
   return lignes;
 }
 
-function buildConfirmationEmailContent(reservation) {
+function buildConfirmationEmailContent(reservation, siteUrl) {
   const vehicule = getVehiculeParId(reservation.vehiculeId);
   const vehiculeNom = vehicule ? vehicule.nom : reservation.vehiculeId;
   const prise = formatDateHeure(reservation.dateDebut, reservation.heureDebut);
@@ -97,6 +103,7 @@ function buildConfirmationEmailContent(reservation) {
   const prenom = reservation.conducteur ? reservation.conducteur.prenom : "";
   const checklistLignes = buildChecklistLignes(reservation);
   const whatsappUrl = buildWhatsappUrl(reservation.id);
+  const documentsUrl = buildDocumentsUrl(reservation, siteUrl);
 
   const subject = `Confirmation de votre réservation GET LOCATION — ${vehiculeNom}`;
 
@@ -115,6 +122,7 @@ function buildConfirmationEmailContent(reservation) {
     "",
     "Documents à préparer pour la prise en charge du véhicule :",
     ...checklistLignes.map((l) => `- ${l}`),
+    ...(documentsUrl ? ["", "Complétez votre dossier en ligne :", documentsUrl] : []),
     "",
     "Prochaines étapes : notre équipe reprend contact avec vous avant la prise en charge pour finaliser les derniers détails. Vous pouvez dès maintenant nous écrire sur WhatsApp en mentionnant votre référence de réservation :",
     whatsappUrl,
@@ -127,6 +135,9 @@ function buildConfirmationEmailContent(reservation) {
   const text = lignes.join("\n");
 
   const checklistHtml = checklistLignes.map((l) => `<li>${escapeHtml(l)}</li>`).join("");
+  const documentsHtml = documentsUrl
+    ? `<p><a href="${escapeHtml(documentsUrl)}" style="display:inline-block;padding:10px 18px;background:#f2760c;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;">Compléter mon dossier</a></p>`
+    : "";
 
   const html = `<p>Bonjour ${escapeHtml(prenom)},</p>
 <p>Votre réservation est confirmée. Voici son récapitulatif :</p>
@@ -141,6 +152,7 @@ function buildConfirmationEmailContent(reservation) {
 </ul>
 <p><strong>Documents à préparer pour la prise en charge du véhicule :</strong></p>
 <ul>${checklistHtml}</ul>
+${documentsHtml}
 <p>Notre équipe reprend contact avec vous avant la prise en charge pour finaliser les derniers détails. Vous pouvez dès maintenant nous écrire sur WhatsApp en mentionnant votre référence de réservation :</p>
 <p><a href="${escapeHtml(whatsappUrl)}" style="display:inline-block;padding:10px 18px;background:#25D366;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;">💬 Contacter l'agence sur WhatsApp</a></p>
 <p>Pour toute question, répondez simplement à cet email.</p>
@@ -157,7 +169,7 @@ async function sendConfirmationEmail(env, reservation) {
     return;
   }
 
-  const { subject, text, html } = buildConfirmationEmailContent(reservation);
+  const { subject, text, html } = buildConfirmationEmailContent(reservation, env.SITE_URL);
   const from = env.RESEND_FROM || "GET LOCATION <reservations@getlocation.fr>";
 
   try {
