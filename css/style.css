@@ -1059,6 +1059,15 @@ textarea:focus-visible,
   transform: translateY(-4px);
 }
 
+.vehicle-card-clickable {
+  cursor: pointer;
+}
+
+.vehicle-card-clickable:focus-visible {
+  outline: 3px solid var(--orange);
+  outline-offset: 4px;
+}
+
 .vehicle-media {
   height: 190px;
   display: flex;

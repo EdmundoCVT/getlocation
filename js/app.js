@@ -312,8 +312,8 @@ function initSearchForm() {
     if (!select) return;
     select.add(new Option("Choisissez un lieu de livraison", "", true, true));
     select.options[0].disabled = true;
-    VILLES_LIVRAISON.forEach(ville => select.add(new Option(ville, ville)));
     select.add(new Option(ADRESSE_PERSONNALISEE, ADRESSE_PERSONNALISEE));
+    VILLES_LIVRAISON.forEach(ville => select.add(new Option(ville, ville)));
   });
 
   function creerChampsAdressePersonnalisee(select, suffixe) {
@@ -505,6 +505,18 @@ function initVehiculesPage() {
   const grid = document.getElementById("vehicle-grid");
   if (!grid) return;
 
+  // Depuis la flotte de la page d'accueil, ?vehicule=<id> ouvre une fiche
+  // ciblée : une seule carte détaillée, ses caractéristiques, ses photos et
+  // le bouton de réservation. Un identifiant inconnu revient sans erreur au
+  // catalogue complet.
+  const vehiculeCibleId = new URLSearchParams(window.location.search).get("vehicule");
+  const vehiculeCible = vehiculeCibleId ? getVehiculeParId(vehiculeCibleId) : null;
+  if (vehiculeCible) {
+    const titre = document.querySelector("h1.section-title");
+    if (titre) titre.textContent = vehiculeCible.nom;
+    document.title = `${vehiculeCible.nom} — GETLOCATION`;
+  }
+
   const recherche = readJSON(STORAGE.recherche, {
     lieuPrise: LIEUX[0],
     lieuRetour: LIEUX[0],
@@ -542,6 +554,8 @@ function initVehiculesPage() {
   // la main via les puces de filtre ci-dessous.
   let activeCategorie = recherche.typeVehicule === "utilitaire" ? "Utilitaire" : "Toutes";
 
+  if (vehiculeCible && filterBar) filterBar.hidden = true;
+
   function renderChips() {
     filterBar.innerHTML = "";
     ["Toutes", ...CATEGORIES].forEach(cat => {
@@ -558,7 +572,9 @@ function initVehiculesPage() {
   }
 
   function renderGrid() {
-    const liste = VEHICULES.filter(v => activeCategorie === "Toutes" || v.categorie === activeCategorie);
+    const liste = vehiculeCible
+      ? [vehiculeCible]
+      : VEHICULES.filter(v => activeCategorie === "Toutes" || v.categorie === activeCategorie);
     grid.innerHTML = "";
     if (liste.length === 0) {
       grid.innerHTML = `<div class="empty-state">Aucun véhicule dans cette catégorie pour le moment.</div>`;
@@ -579,6 +595,7 @@ function initVehiculesPage() {
       const remise = prixInfo && prixInfo.reductionDuree ? prixInfo.reductionDuree : null;
       const card = document.createElement("div");
       card.className = "vehicle-card";
+      card.id = `vehicule-${v.id}`;
       const nbPhotos = v.photos ? v.photos.length : 0;
       card.innerHTML = `
         <div class="vehicle-media"${nbPhotos ? ` data-gallery="${v.id}"` : ""}>
@@ -638,6 +655,25 @@ function initVehiculesPage() {
       updateInfoBar();
       renderGrid();
     }
+  });
+}
+
+// Rend les cartes de la flotte de l'accueil entièrement cliquables, tout en
+// laissant leurs vrais liens/boutons fonctionner normalement. Le clavier
+// (Entrée/Espace) bénéficie du même parcours que la souris.
+function initHomeVehicleLinks() {
+  document.querySelectorAll("[data-vehicle-link]").forEach((card) => {
+    const navigate = () => { window.location.href = card.dataset.vehicleLink; };
+    card.addEventListener("click", (event) => {
+      if (event.target.closest("a, button")) return;
+      navigate();
+    });
+    card.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      if (event.target.closest("a, button")) return;
+      event.preventDefault();
+      navigate();
+    });
   });
 }
 
@@ -799,6 +835,9 @@ function initVehicleGalleries() {
   document.addEventListener("click", (e) => {
     const media = e.target.closest("[data-gallery]");
     if (!media) return;
+    // Sur l'accueil, la carte mène d'abord à la fiche du véhicule. La
+    // galerie reste disponible sur cette fiche, dans vehicules.html.
+    if (media.closest("[data-vehicle-link]")) return;
     openGallery(media.dataset.gallery, 0);
   });
 }
@@ -1767,6 +1806,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initDocumentsPage();
   initAgencyDocumentsPage();
   initTestimonialsSlider();
+  initHomeVehicleLinks();
   initVehicleGalleries();
 });
 
