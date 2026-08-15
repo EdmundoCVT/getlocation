@@ -30,6 +30,18 @@ test("generateReservationId : format non devinable", () => {
   assert.notEqual(id, id2);
 });
 
+test("index documentaire : retrouve la réservation par empreinte sans stocker le jeton brut", async () => {
+  const env = makeEnv();
+  const record = await createReservation(env, { vehiculeId: "opel-corsa" });
+  const hash = "a".repeat(64);
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const { saveDocumentAccessIndex, findReservationByDocumentTokenHash } = require("../src/lib/reservation-store.js");
+  assert.equal(await saveDocumentAccessIndex(env, record.id, hash, expiresAt), true);
+  assert.equal((await findReservationByDocumentTokenHash(env, hash)).id, record.id);
+  assert.equal(await env.RESERVATIONS_KV.get(`doc_${hash}`), record.id);
+  assert.equal(await findReservationByDocumentTokenHash(env, "invalide"), null);
+});
+
 test("createReservation : statut initial pending_payment, id non écrasable", async () => {
   const env = makeEnv();
   const record = await createReservation(env, {

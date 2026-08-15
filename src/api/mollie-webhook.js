@@ -37,7 +37,8 @@ const { getPayment } = require("../lib/mollie-client.js");
 const {
   updateReservationStatus,
   getReservation,
-  findReservationByPaymentId
+  findReservationByPaymentId,
+  saveDocumentAccessIndex
 } = require("../lib/reservation-store.js");
 const { sendConfirmationEmail } = require("../lib/send-confirmation-email.js");
 const { sendContractEmail } = require("../lib/send-contract-email.js");
@@ -89,7 +90,22 @@ async function handlePaid(env, payment) {
   // dépend du résultat de l'autre) et n'échouent jamais vers l'appelant
   // (try/catch interne à chacun) : les lancer en parallèle évite de doubler
   // inutilement la latence du webhook.
-  const emailReservation = documentAccess
+  let documentAccessIndexed = false;
+  if (documentAccess) {
+    try {
+      documentAccessIndexed = await saveDocumentAccessIndex(
+        env,
+        updated.id,
+        documentAccess.stored.tokenHash,
+        documentAccess.stored.expiresAt
+      );
+    } catch (err) {
+      // Ne jamais envoyer un lien inutilisable ni faire échouer la
+      // confirmation du paiement si l'écriture de l'index KV échoue.
+      console.error("[mollie-webhook] Échec d'indexation du jeton documentaire :", err && err.message);
+    }
+  }
+  const emailReservation = documentAccess && documentAccessIndexed
     ? { ...updated, documentsAccessToken: documentAccess.token }
     : updated;
   await Promise.all([sendConfirmationEmail(env, emailReservation), sendContractEmail(env, updated)]);

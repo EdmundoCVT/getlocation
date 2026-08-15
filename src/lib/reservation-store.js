@@ -96,6 +96,21 @@ async function findReservationByPaymentId(env, paymentId) {
   return getReservation(env, id);
 }
 
+async function saveDocumentAccessIndex(env, reservationId, tokenHash, expiresAt) {
+  if (!reservationId || !/^[a-f0-9]{64}$/.test(tokenHash || "")) return false;
+  const expiryMs = new Date(expiresAt).getTime();
+  if (!Number.isFinite(expiryMs)) return false;
+  const expirationTtl = Math.max(60, Math.ceil((expiryMs - Date.now()) / 1000));
+  await env.RESERVATIONS_KV.put(`doc_${tokenHash}`, reservationId, { expirationTtl });
+  return true;
+}
+
+async function findReservationByDocumentTokenHash(env, tokenHash) {
+  if (!/^[a-f0-9]{64}$/.test(tokenHash || "")) return null;
+  const id = await env.RESERVATIONS_KV.get(`doc_${tokenHash}`);
+  return id ? getReservation(env, id) : null;
+}
+
 // Liste les réservations "actives" (pending_payment récent ou paid) pour un
 // véhicule donné. Implémentation volontairement simple (parcours des clés
 // préfixées "res_", index "pay_*" jamais listé) : adaptée à une petite
@@ -154,6 +169,8 @@ module.exports = {
   getReservation,
   updateReservationStatus,
   findReservationByPaymentId,
+  saveDocumentAccessIndex,
+  findReservationByDocumentTokenHash,
   hasOverlappingReservation,
   generateReservationId,
   reservationTtlSeconds
