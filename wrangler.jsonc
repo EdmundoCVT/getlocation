@@ -36,5 +36,9 @@
   // Worker y accède via ce binding.
   "r2_buckets": [
     { "binding": "DOCUMENTS_BUCKET", "bucket_name": "getlocation-documents" }
-  ]
+  ],
+  // Relance quotidienne des dossiers payés mais toujours incomplets.
+  // Les expressions Cron Cloudflare utilisent UTC : 09:00 UTC correspond
+  // à 10:00 en hiver et 11:00 en été en France métropolitaine.
+  "triggers": { "crons": ["0 9 * * *"] }
 }
