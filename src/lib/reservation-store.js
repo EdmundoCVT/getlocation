@@ -132,6 +132,20 @@ async function updateReservationDocuments(env, id, extra) {
   return updateReservationStatus(env, id, "paid", extra);
 }
 
+async function listReservations(env) {
+  const records = [];
+  let cursor;
+  do {
+    const page = await env.RESERVATIONS_KV.list({ prefix: "res_", cursor });
+    for (const key of page.keys) {
+      const raw = await env.RESERVATIONS_KV.get(key.name);
+      if (raw) records.push(JSON.parse(raw));
+    }
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+  return records;
+}
+
 // Liste les réservations "actives" (pending_payment récent ou paid) pour un
 // véhicule donné. Implémentation volontairement simple (parcours des clés
 // préfixées "res_", index "pay_*" jamais listé) : adaptée à une petite
@@ -195,6 +209,7 @@ module.exports = {
   saveAgencyDocumentAccessIndex,
   findReservationByAgencyDocumentTokenHash,
   updateReservationDocuments,
+  listReservations,
   hasOverlappingReservation,
   generateReservationId,
   reservationTtlSeconds
