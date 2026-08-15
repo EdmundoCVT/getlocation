@@ -31,6 +31,15 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
     Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+    # Contrairement aux assets versionnés /css/* et /js/* ci-dessous, les
+    # pages HTML elles-mêmes n'ont pas de paramètre ?v= : sans Cache-Control
+    # explicite, un navigateur peut les mettre en cache selon ses propres
+    # heuristiques et continuer d'afficher une page périmée après un
+    # déploiement (constaté en conditions réelles — voir _headers, fichier
+    # réellement utilisé par le déploiement Cloudflare actif, section
+    # miroir de ce correctif). "no-cache" force une revalidation à chaque
+    # chargement, sans empêcher la mise en cache elle-même.
+    Cache-Control = "no-cache"
     # Aucun domaine tiers requis pour le paiement : Mollie se fait par
     # redirection de page complète (voir netlify/functions/create-payment.js),
     # pas par un script/iframe embarqué sur nos pages — contrairement à

@@ -23,6 +23,20 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'
+  Cache-Control: no-cache
+
+# Les pages HTML elles-mêmes (contrairement aux assets versionnés /css/*
+# et /js/* ci-dessous) n'avaient jusqu'ici AUCUNE règle de cache explicite
+# : sans Cache-Control, un navigateur peut les mettre en cache selon ses
+# propres heuristiques (constaté sur mobile : une page restait affichée
+# avec une ancienne référence js/app.js?v=14 après déploiement d'un
+# correctif, alors que la navigation privée — qui démarre sans cache —
+# affichait bien la version à jour). Cache-Control: no-cache ci-dessus
+# force une revalidation avec le serveur à chaque chargement (pas de
+# contenu jamais servi tel quel depuis le cache local) : le visiteur voit
+# toujours la page actuelle, tandis que /css/* et /js/* restent mis en
+# cache longuement puisqu'un changement de contenu s'accompagne toujours
+# d'un nouveau ?v=, jamais vu auparavant.
 
 /images/*
   Cache-Control: public, max-age=3600, must-revalidate
