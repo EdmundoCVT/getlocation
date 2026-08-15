@@ -28,7 +28,7 @@
   // voir DEPLOIEMENT.md, Phase B) : c'est volontaire, pour ne jamais
   // déployer silencieusement contre un espace de noms inexistant.
   "kv_namespaces": [
-    { "binding": "RESERVATIONS_KV", "id": "REMPLACER_PAR_UN_VRAI_KV_NAMESPACE_ID" },
-    { "binding": "RATE_LIMITS_KV", "id": "REMPLACER_PAR_UN_VRAI_KV_NAMESPACE_ID" }
+    { "binding": "RESERVATIONS_KV", "id": "3ca8121a81df4b7c91772f1579b62cdf" },
+    { "binding": "RATE_LIMITS_KV", "id": "8c4fc8e9a1e643b6907168639c1617ca" }
   ]
 }
