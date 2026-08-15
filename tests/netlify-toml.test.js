@@ -53,3 +53,10 @@ test("les en-têtes de sécurité globaux (/*) sont toujours présents", () => {
   assert.match(TOML, /Strict-Transport-Security/);
   assert.match(TOML, /Content-Security-Policy/);
 });
+
+test("les pages HTML (/*) ne sont jamais mises en cache sans revalidation (pas de ?v=, contrairement à css/js)", () => {
+  const cc = sectionFor("/*");
+  assert.ok(cc, "règle de cache pour /* introuvable");
+  assert.match(cc, /no-cache/);
+  assert.equal(/immutable/.test(cc), false, "les pages HTML ne doivent jamais être immutable");
+});
