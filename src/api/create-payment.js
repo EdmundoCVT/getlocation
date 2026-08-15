@@ -92,10 +92,13 @@ function clientIp(request) {
 // Code de test interne (jamais présent dans js/data.js, donc jamais exposé
 // au navigateur ni visible dans le code source public) : si le code promo
 // saisi correspond exactement à TEST_DISCOUNT_CODE (secret Worker, jamais
-// commité), le montant facturé est ramené à 0,99 € au lieu du tarif normal.
+// commité), le montant facturé est ramené à 0,10 € au lieu du tarif normal.
 // Sert à valider en conditions réelles (Mollie live) le parcours complet
 // paiement + email de confirmation sans payer le plein tarif à chaque test.
-const TEST_DISCOUNT_CENTIMES = 99; // 0,99 €
+// Le contrôle de prix minimum plus haut (prix.totalCentimes < 50) porte sur
+// le tarif RÉEL calculé avant remise de test, jamais sur ce montant réduit :
+// descendre sous 50 centimes ici n'a donc pas besoin d'un cas particulier.
+const TEST_DISCOUNT_CENTIMES = 10; // 0,10 €
 function resolverMontantFacture(prix, codePromoBrut, testDiscountCode) {
   if (testDiscountCode && codePromoBrut && codePromoBrut.trim().toUpperCase() === testDiscountCode.trim().toUpperCase()) {
     return { totalCentimesFacture: TEST_DISCOUNT_CENTIMES, totalFacture: TEST_DISCOUNT_CENTIMES / 100 };
