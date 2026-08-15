@@ -37,8 +37,8 @@
   "r2_buckets": [
     { "binding": "DOCUMENTS_BUCKET", "bucket_name": "getlocation-documents" }
   ],
-  // Relance quotidienne des dossiers payés mais toujours incomplets.
-  // Les expressions Cron Cloudflare utilisent UTC : 09:00 UTC correspond
-  // à 10:00 en hiver et 11:00 en été en France métropolitaine.
-  "triggers": { "crons": ["0 9 * * *"] }
+  // Relances et planning agence quotidiens. Les expressions Cron Cloudflare
+  // utilisent UTC : 06:00 UTC correspond à 07:00 en hiver et 08:00 en été
+  // en France métropolitaine.
+  "triggers": { "crons": ["0 6 * * *"] }
 }
