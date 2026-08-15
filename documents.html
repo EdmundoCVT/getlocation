@@ -21,13 +21,13 @@
   <form id="documents-form" class="card" hidden enctype="multipart/form-data" novalidate>
     <p id="documents-reference" class="hint-text"></p>
     <h2>Vérification</h2>
-    <div class="field"><label for="birthDate">Date de naissance du conducteur principal</label><input type="date" id="birthDate" name="birthDate" required></div>
+    <div class="field"><label for="birthDate">Date de naissance du conducteur principal</label><input type="text" id="birthDate" name="birthDate" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" pattern="\d{2}/\d{2}/\d{4}" required></div>
 
     <h2>Informations du conducteur</h2>
     <div class="form-grid">
       <div class="field full"><label for="postalAddress">Adresse postale complète</label><input type="text" id="postalAddress" name="postalAddress" maxlength="300" autocomplete="street-address" required></div>
       <div class="field"><label for="permitNumber">Numéro de permis</label><input type="text" id="permitNumber" name="permitNumber" maxlength="50" required></div>
-      <div class="field"><label for="permitDate">Date d'obtention du permis</label><input type="date" id="permitDate" name="permitDate" required></div>
+      <div class="field"><label for="permitDate">Date d'obtention du permis</label><input type="text" id="permitDate" name="permitDate" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" pattern="\d{2}/\d{2}/\d{4}" required></div>
     </div>
 
     <h2>Documents du conducteur</h2>
@@ -46,7 +46,7 @@
         <div class="field"><label for="secondDriverFirstName">Prénom</label><input type="text" id="secondDriverFirstName" name="secondDriverFirstName" maxlength="100"></div>
         <div class="field"><label for="secondDriverLastName">Nom</label><input type="text" id="secondDriverLastName" name="secondDriverLastName" maxlength="100"></div>
         <div class="field"><label for="secondDriverPermitNumber">Numéro de permis</label><input type="text" id="secondDriverPermitNumber" name="secondDriverPermitNumber" maxlength="50"></div>
-        <div class="field"><label for="secondDriverPermitDate">Date d'obtention</label><input type="date" id="secondDriverPermitDate" name="secondDriverPermitDate"></div>
+        <div class="field"><label for="secondDriverPermitDate">Date d'obtention</label><input type="text" id="secondDriverPermitDate" name="secondDriverPermitDate" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" pattern="\d{2}/\d{2}/\d{4}"></div>
         <div class="field"><label for="second-permis-recto">Permis — recto</label><input type="file" id="second-permis-recto" name="second-permis-recto" accept="image/jpeg,image/png,application/pdf"></div>
         <div class="field"><label for="second-permis-verso">Permis — verso</label><input type="file" id="second-permis-verso" name="second-permis-verso" accept="image/jpeg,image/png,application/pdf"></div>
         <div class="field full"><label for="second-identite">Pièce d'identité</label><input type="file" id="second-identite" name="second-identite" accept="image/jpeg,image/png,application/pdf"></div>
@@ -62,6 +62,6 @@
 </main>
 
 <script src="js/data.js?v=6"></script>
-<script src="js/app.js?v=17"></script>
+<script src="js/app.js?v=18"></script>
 </body>
 </html>
