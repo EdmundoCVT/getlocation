@@ -1,26 +1,28 @@
-# Équivalent Cloudflare Pages des blocs [[headers]] de netlify.toml.
-# Netlify lit aussi ce fichier nativement (voir netlify.toml) : tant que le
-# site tourne encore sur Netlify (Phase A de la migration Cloudflare — voir
-# DEPLOIEMENT.md / plan de migration), vérifier qu'aucun doublon d'en-tête
-# n'apparaît en pratique avant la bascule DNS.
+# En-têtes servis par le Worker Cloudflare pour les assets statiques (voir
+# wrangler.jsonc, binding ASSETS). Équivalent des blocs [[headers]] de
+# netlify.toml, conservé en miroir tant que netlify.toml existe encore dans
+# le dépôt (voir DEPLOIEMENT.md, Phase B — netlify/functions n'est plus
+# appelé par le site depuis le passage des fonctions serveur sur ce même
+# Worker Cloudflare, mais netlify.toml reste présent pour référence/rollback
+# le temps de confirmer la bascule en production).
 #
 # cdnjs.cloudflare.com : jsPDF, chargé par contrat.html pour générer le PDF
 # du contrat signé (aperçu agence + copie téléchargeable client).
 # Aucun domaine tiers requis pour le paiement : Mollie se fait par
 # redirection de page complète, pas par un script/iframe embarqué.
 #
-# connect-src : le proxy externe via _redirects n'étant pas supporté par
-# Cloudflare (voir plan de migration, A.3), js/app.js appelle désormais les
-# fonctions Netlify en cross-origin explicite (NETLIFY_FUNCTIONS_BASE) — le
-# domaine Netlify doit donc être autorisé ici, sous peine de blocage
-# silencieux côté navigateur malgré un CORS serveur correct.
+# connect-src 'self' : depuis la Phase B de la migration Cloudflare, le site
+# statique et les fonctions serveur (/api/*, voir src/api/) sont servis par
+# le même Worker — plus besoin d'autoriser un domaine Netlify tiers ici
+# (contrairement à la Phase A, où js/app.js appelait
+# shiny-caramel-1ba9fc.netlify.app en cross-origin explicite).
 /*
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://shiny-caramel-1ba9fc.netlify.app; font-src 'self'; object-src 'none'; base-uri 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'
 
 /images/*
   Cache-Control: public, max-age=3600, must-revalidate

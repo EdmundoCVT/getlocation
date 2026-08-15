@@ -2,7 +2,59 @@
 
 Ce document réunit ce qu'il faut savoir pour déployer, tester et faire vivre le site après ce chantier. Le détail technique complet (fichier par fichier) reste dans `AUDIT.md` (§7 à §9). Ce fichier-ci est la synthèse orientée "que dois-je faire maintenant".
 
-**Le prestataire de paiement est Mollie** (bascule décidée le 4 août 2026, à la place de Stripe initialement envisagé — compte Mollie déjà créé, choisi pour sa facilité d'intégration avec Qonto). Tant que `MOLLIE_API_KEY` n'est pas configurée dans Netlify, le site fonctionne et se déploie quand même (repli téléphone/WhatsApp automatique sur `paiement.html`), mais le paiement en ligne réel ne peut pas être testé.
+**⚠️ Mise à jour du 14/08/2026 — migration Cloudflare Phase B : lire la section 0 ci-dessous en premier.** Les sections 1 à 7 qui suivent décrivent l'état du chantier P0/P1/P2 tel que déployé sur Netlify (Phase A de la migration Cloudflare) ; elles restent exactes pour comprendre ce qui a été fait, mais **la configuration de production a changé** (les fonctions serveur ne tournent plus sur Netlify).
+
+**Le prestataire de paiement est Mollie** (bascule décidée le 4 août 2026, à la place de Stripe initialement envisagé — compte Mollie déjà créé, choisi pour sa facilité d'intégration avec Qonto). Tant que `MOLLIE_API_KEY` n'est pas configurée (voir section 0), le site fonctionne et se déploie quand même (repli téléphone/WhatsApp automatique sur `paiement.html`), mais le paiement en ligne réel ne peut pas être testé.
+
+## 0. Migration Cloudflare — Phase B : les fonctions serveur passent de Netlify à Cloudflare Workers
+
+**Ce qui a changé dans ce commit.** La Phase A (voir section 1 et l'historique git) avait basculé uniquement le site statique sur Cloudflare Pages/Workers, en gardant les fonctions serveur (paiement Mollie, webhook, statut réservation, emails) sur Netlify, appelées en cross-origin explicite depuis `js/app.js`. Cette Phase B termine la migration : les fonctions serveur tournent maintenant sur le même Worker Cloudflare que le site (routes `/api/create-payment`, `/api/mollie-webhook`, `/api/reservation-status`, voir `src/worker.js` et `src/api/`), appelées en same-origin. Netlify Blobs est remplacé par **Cloudflare KV**, et nodemailer/SMTP Gmail (incompatible avec le runtime Workers) est remplacé par l'API HTTP de **Resend**.
+
+**`netlify.toml` et `netlify/functions/` sont volontairement conservés dans le dépôt**, inchangés, comme filet de sécurité pendant la bascule : ce code n'est plus appelé par le site (`js/app.js` appelle désormais `/api/...` en same-origin), mais reste disponible pour comprendre l'historique ou revenir en arrière si besoin. **Une fois la Phase B confirmée en production (voir check-list plus bas), ils peuvent être supprimés** ainsi que les dépendances `@netlify/blobs`, `@mollie/api-client` et `nodemailer` dans `package.json` (uniquement utilisées par ce code legacy — le nouveau code sous `src/` n'a besoin d'aucune de ces trois dépendances, uniquement de `fetch`/`crypto` natifs).
+
+### 0.1 Étapes obligatoires avant que le paiement en ligne ne fonctionne à nouveau
+
+Le code est complet et testé (`npm test`), mais **rien de tout cela n'est déployable tel quel** : `wrangler.jsonc` contient des identifiants d'espace de noms KV placeholders (`REMPLACER_PAR_UN_VRAI_KV_NAMESPACE_ID`) qui font volontairement échouer `wrangler deploy` tant qu'ils ne sont pas remplacés — pour ne jamais déployer silencieusement contre un espace de noms inexistant. **Tant que ces étapes ne sont pas faites, `wrangler deploy` échouera à chaque push** (la dernière version fonctionnelle reste servie, mais aucun changement — y compris de simples changements de tarifs — ne pourra plus être déployé tant que ce n'est pas corrigé) :
+
+1. **Créer les deux espaces de noms KV** (nécessite le CLI `wrangler` connecté à votre compte Cloudflare) :
+   ```
+   npx wrangler kv namespace create RESERVATIONS_KV
+   npx wrangler kv namespace create RATE_LIMITS_KV
+   ```
+   Remplacer les deux `"id": "REMPLACER_PAR_UN_VRAI_KV_NAMESPACE_ID"` dans `wrangler.jsonc` par les identifiants retournés.
+
+2. **Configurer les secrets du Worker** (équivalent Cloudflare des "Environment variables" de Netlify) :
+   ```
+   npx wrangler secret put MOLLIE_API_KEY
+   npx wrangler secret put RESEND_API_KEY
+   npx wrangler secret put AGENCY_EMAIL
+   npx wrangler secret put TEST_DISCOUNT_CODE
+   ```
+   Voir le tableau détaillé section 0.2 pour le rôle de chacune (reprend celui de la section 2, adapté à Cloudflare).
+
+3. **Créer un compte Resend** (https://resend.com) et **vérifier le domaine `getlocation.fr`** (enregistrements DNS SPF/DKIM à ajouter, voir la documentation Resend, section "Domains") — obligatoire pour pouvoir envoyer depuis `reservations@getlocation.fr` (ou toute autre adresse `RESEND_FROM` choisie). Sans domaine vérifié, Resend refuse l'envoi.
+
+4. **Déployer** (`npx wrangler deploy`, ou laisser le déploiement automatique Cloudflare reprendre au prochain push une fois les étapes 1 à 3 faites).
+
+5. **Vérifier** avec la procédure de test Mollie de la section 4 (inchangée dans son déroulé, seul l'endroit où les logs se consultent change : Cloudflare → Workers & Pages → getlocation → Logs, au lieu de Netlify → Functions).
+
+### 0.2 Variables d'environnement (secrets Cloudflare Worker)
+
+| Variable | Obligatoire | Rôle |
+|---|---|---|
+| `MOLLIE_API_KEY` | Oui, pour activer le paiement en ligne | Identique à l'ancienne variable Netlify (section 2) — jeton d'accès Mollie (`test_...` ou `live_...`). |
+| `RESEND_API_KEY` | Oui, pour les emails (confirmation client + contrat agence) | Clé API Resend (remplace `GMAIL_USER`/`GMAIL_APP_PASSWORD`). Sans elle, le paiement fonctionne quand même, seuls les emails ne sont pas envoyés (comportement "best effort" inchangé). |
+| `RESEND_FROM` | Optionnel | Adresse expéditrice, format `"Nom <adresse@domaine>"`. Doit appartenir à un domaine vérifié dans Resend (voir 0.1.3). Par défaut : `"GET LOCATION <reservations@getlocation.fr>"`. |
+| `AGENCY_EMAIL` | Oui, pour recevoir le contrat pré-rempli et la copie cachée des confirmations | Remplace l'usage de `GMAIL_USER` comme adresse de réception (l'agence peut garder une adresse Gmail ordinaire ici — elle ne sert plus qu'en tant que destinataire, plus d'authentification SMTP). |
+| `TEST_DISCOUNT_CODE` | Optionnel, usage interne uniquement | Identique à l'ancienne variable Netlify (section 2, point détaillé) — ramène le montant facturé à 0,99 € pour un code promo secret de votre choix. |
+| `ALLOWED_ORIGINS` | Optionnel | Liste d'origines CORS supplémentaires (séparées par des virgules). Moins utile qu'avant : site et API étant désormais same-origin, aucune valeur n'est nécessaire en usage normal — l'origine de chaque requête est de toute façon toujours auto-autorisée (voir `src/api/create-payment.js`). |
+| `SITE_URL` | Optionnel | Utilisé uniquement par `send-contract-email.js` pour construire le lien vers `contrat.html`. Par défaut `https://getlocation.fr`. |
+
+Aucune de ces variables ne doit être ajoutée à `wrangler.jsonc` (fichier commité) : toutes se configurent via `wrangler secret put NOM` (ou dans le dashboard Cloudflare → Workers & Pages → getlocation → Settings → Variables), jamais en clair dans le dépôt.
+
+### 0.3 Ce qui n'a pas pu être testé dans cet environnement
+
+Comme pour la Phase A (voir section 6), cet environnement de développement n'a pas d'accès réseau sortant vers Mollie, Resend ou Cloudflare KV en conditions réelles : la logique métier est entièrement couverte par les tests unitaires (`npm test`, voir `tests/worker-*.test.js`), mais les appels réseau réels (création/vérification de paiement Mollie, envoi effectif d'un email Resend, lecture/écriture KV en production) n'ont pas pu être exercés ici. À vérifier manuellement après déploiement avec la procédure de la section 4.
 
 Le paiement fonctionne par **redirection** : le client est envoyé vers une page de paiement hébergée par Mollie (carte, Apple Pay, etc.), puis renvoyé automatiquement vers `confirmation.html` — contrairement à un ancien projet de formulaire carte embarqué (Stripe Elements), abandonné avec le changement de prestataire.
 
