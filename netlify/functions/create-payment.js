@@ -111,7 +111,7 @@ function clientIp(event) {
 // Code de test interne (jamais présent dans js/data.js, donc jamais exposé
 // au navigateur ni visible dans le code source public) : si le code promo
 // saisi correspond exactement à TEST_DISCOUNT_CODE (secret configuré côté
-// Netlify, jamais commité), le montant facturé est ramené à 0,99 € au lieu
+// Netlify, jamais commité), le montant facturé est ramené à 0,10 € au lieu
 // du tarif normal. Sert à valider en conditions réelles (Mollie live) le
 // parcours complet paiement + email de confirmation sans payer le plein
 // tarif à chaque test. Sans TEST_DISCOUNT_CODE configurée, cette fonction
@@ -119,7 +119,7 @@ function clientIp(event) {
 // Le détail du prix (sous-total, options, réduction promo classique...)
 // enregistré dans la réservation reste celui du calcul normal — seul le
 // montant effectivement facturé est réduit.
-const TEST_DISCOUNT_CENTIMES = 99; // 0,99 €
+const TEST_DISCOUNT_CENTIMES = 10; // 0,10 €
 function resolverMontantFacture(prix, codePromoBrut, testDiscountCode) {
   if (testDiscountCode && codePromoBrut && codePromoBrut.trim().toUpperCase() === testDiscountCode.trim().toUpperCase()) {
     return { totalCentimesFacture: TEST_DISCOUNT_CENTIMES, totalFacture: TEST_DISCOUNT_CENTIMES / 100 };
