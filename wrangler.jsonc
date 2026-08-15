@@ -30,5 +30,11 @@
   "kv_namespaces": [
     { "binding": "RESERVATIONS_KV", "id": "3ca8121a81df4b7c91772f1579b62cdf" },
     { "binding": "RATE_LIMITS_KV", "id": "8c4fc8e9a1e643b6907168639c1617ca" }
+  ],
+  // Stockage privé des permis, pièces d'identité et justificatifs transmis
+  // après paiement. Le bucket n'est jamais exposé publiquement : seul le
+  // Worker y accède via ce binding.
+  "r2_buckets": [
+    { "binding": "DOCUMENTS_BUCKET", "bucket_name": "getlocation-documents" }
   ]
 }
