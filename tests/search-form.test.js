@@ -92,8 +92,8 @@ test("les villes et l'adresse personnalisée peuplent les deux sélecteurs", () 
   const document = window.document;
   const villesPrise = [...document.getElementById("adresse-prise").options].map((o) => o.value).filter(Boolean);
   const villesRetour = [...document.getElementById("adresse-retour").options].map((o) => o.value).filter(Boolean);
-  assert.deepEqual(villesPrise, [...VILLES_LIVRAISON, ADRESSE_PERSONNALISEE]);
-  assert.deepEqual(villesRetour, [...VILLES_LIVRAISON, ADRESSE_PERSONNALISEE]);
+  assert.deepEqual(villesPrise, [ADRESSE_PERSONNALISEE, ...VILLES_LIVRAISON]);
+  assert.deepEqual(villesRetour, [ADRESSE_PERSONNALISEE, ...VILLES_LIVRAISON]);
 });
 
 test("adresse personnalisée : affiche rue, code postal et ville puis enregistre l'adresse complète", () => {
