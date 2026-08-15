@@ -16,11 +16,15 @@
 const { handleCreatePayment } = require("./api/create-payment.js");
 const { handleMollieWebhook } = require("./api/mollie-webhook.js");
 const { handleReservationStatus } = require("./api/reservation-status.js");
+const { handleDocumentsAccess } = require("./api/documents-access.js");
+const { handleDocumentsSubmit } = require("./api/documents-submit.js");
 
 const ROUTES = {
   "/api/create-payment": handleCreatePayment,
   "/api/mollie-webhook": handleMollieWebhook,
-  "/api/reservation-status": handleReservationStatus
+  "/api/reservation-status": handleReservationStatus,
+  "/api/documents-access": handleDocumentsAccess,
+  "/api/documents-submit": handleDocumentsSubmit
 };
 
 export default {

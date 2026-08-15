@@ -37,10 +37,12 @@ const { getPayment } = require("../lib/mollie-client.js");
 const {
   updateReservationStatus,
   getReservation,
-  findReservationByPaymentId
+  findReservationByPaymentId,
+  saveDocumentAccessIndex
 } = require("../lib/reservation-store.js");
 const { sendConfirmationEmail } = require("../lib/send-confirmation-email.js");
 const { sendContractEmail } = require("../lib/send-contract-email.js");
+const { issueDocumentAccess } = require("../lib/document-access-token.js");
 
 async function resolveReservation(env, payment) {
   const reservationId = payment.metadata && payment.metadata.reservationId;
@@ -61,9 +63,26 @@ async function handlePaid(env, payment) {
     return;
   }
   if (reservation.status === "paid") return; // déjà traité : idempotent
+  const paidAt = new Date().toISOString();
+  // La création du jeton est volontairement best effort : une variable de
+  // sécurité manquante ne doit jamais empêcher d'enregistrer un paiement.
+  // Sans DOCUMENT_TOKEN_PEPPER, la confirmation part simplement sans lien
+  // documentaire et un avertissement sans donnée personnelle est journalisé.
+  let documentAccess = null;
+  try {
+    documentAccess = await issueDocumentAccess(env, reservation, paidAt);
+    if (!documentAccess) {
+      console.warn("[mollie-webhook] DOCUMENT_TOKEN_PEPPER non configuré : lien documentaire non généré.");
+    }
+  } catch (err) {
+    console.error("[mollie-webhook] Échec de génération du jeton documentaire :", err && err.message);
+  }
+
   const updated = await updateReservationStatus(env, reservation.id, "paid", {
     paymentId: payment.id,
-    paidAt: new Date().toISOString()
+    paidAt,
+    documentsStatus: "pending",
+    ...(documentAccess ? { documentAccess: documentAccess.stored } : {})
   });
   // Best effort (voir send-confirmation-email.js / send-contract-email.js) :
   // un échec d'envoi ne remet jamais en cause la confirmation du paiement
@@ -71,7 +90,25 @@ async function handlePaid(env, payment) {
   // dépend du résultat de l'autre) et n'échouent jamais vers l'appelant
   // (try/catch interne à chacun) : les lancer en parallèle évite de doubler
   // inutilement la latence du webhook.
-  await Promise.all([sendConfirmationEmail(env, updated), sendContractEmail(env, updated)]);
+  let documentAccessIndexed = false;
+  if (documentAccess) {
+    try {
+      documentAccessIndexed = await saveDocumentAccessIndex(
+        env,
+        updated.id,
+        documentAccess.stored.tokenHash,
+        documentAccess.stored.expiresAt
+      );
+    } catch (err) {
+      // Ne jamais envoyer un lien inutilisable ni faire échouer la
+      // confirmation du paiement si l'écriture de l'index KV échoue.
+      console.error("[mollie-webhook] Échec d'indexation du jeton documentaire :", err && err.message);
+    }
+  }
+  const emailReservation = documentAccess && documentAccessIndexed
+    ? { ...updated, documentsAccessToken: documentAccess.token }
+    : updated;
+  await Promise.all([sendConfirmationEmail(env, emailReservation), sendContractEmail(env, updated)]);
 }
 
 async function handleFailedOrCanceled(env, payment) {

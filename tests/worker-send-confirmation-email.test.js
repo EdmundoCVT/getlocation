@@ -101,6 +101,23 @@ test("buildConfirmationEmailContent : inclut un lien WhatsApp prérempli avec la
   assert.match(html, new RegExp(encodeURIComponent(reservation.id)));
 });
 
+test("buildConfirmationEmailContent : ajoute le lien documentaire dans le fragment sans exposer le jeton ailleurs", () => {
+  const reservation = makeReservation({ documentsAccessToken: "jeton_test-A_B" });
+  const { text, html } = buildConfirmationEmailContent(reservation, "https://getlocation.fr/");
+  const expected = "https://getlocation.fr/documents.html#token=jeton_test-A_B";
+  assert.match(text, /Complétez votre dossier en ligne/);
+  assert.ok(text.includes(expected));
+  assert.ok(html.includes(expected));
+  assert.doesNotMatch(text, /documents\.html\?token=/);
+  assert.doesNotMatch(html, /documents\.html\?token=/);
+});
+
+test("buildConfirmationEmailContent : n'affiche aucun bouton documentaire sans jeton transitoire", () => {
+  const { text, html } = buildConfirmationEmailContent(makeReservation());
+  assert.doesNotMatch(text, /Complétez votre dossier en ligne/);
+  assert.doesNotMatch(html, /Compléter mon dossier/);
+});
+
 test("buildConfirmationEmailContent : échappe le prénom du conducteur dans le HTML mais pas dans le texte brut", () => {
   const reservation = makeReservation({
     conducteur: { prenom: "<img src=x onerror=alert(1)>", nom: "Martin", email: "camille@example.com" }

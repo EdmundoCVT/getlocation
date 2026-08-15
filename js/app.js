@@ -1400,6 +1400,87 @@ function renderConfirmationPendingOrError(container, status) {
 }
 
 /* ---------------------------------------------------------
+   PAGE : documents.html — dépôt sécurisé post-paiement
+--------------------------------------------------------- */
+function initDocumentsPage() {
+  const form = document.getElementById("documents-form");
+  if (!form) return;
+  const loading = document.getElementById("documents-loading");
+  const errorCard = document.getElementById("documents-error");
+  const errorText = document.getElementById("documents-error-text");
+  const success = document.getElementById("documents-success");
+  const submitError = document.getElementById("documents-submit-error");
+  const submitButton = document.getElementById("documents-submit");
+
+  const fragment = new URLSearchParams(window.location.hash.slice(1));
+  const token = fragment.get("token") || "";
+  // Retire immédiatement le secret de la barre d'adresse et de l'historique.
+  if (window.location.hash) history.replaceState(null, "", window.location.pathname);
+
+  function showAccessError(message) {
+    loading.hidden = true;
+    form.hidden = true;
+    errorText.textContent = message;
+    errorCard.hidden = false;
+  }
+
+  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
+    showAccessError("Ce lien est invalide ou a expiré. Ouvrez à nouveau le lien reçu par e-mail.");
+    return;
+  }
+
+  fetch("/api/documents-access", { headers: { Authorization: `Bearer ${token}` } })
+    .then(async (response) => {
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Lien invalide ou expiré");
+      return body;
+    })
+    .then((access) => {
+      loading.hidden = true;
+      document.getElementById("documents-reference").textContent = `Réservation ${access.reference} — ${access.vehicle ? access.vehicle.name : "véhicule"}`;
+      const second = document.getElementById("second-driver-fields");
+      second.hidden = !access.secondDriverRequired;
+      second.querySelectorAll("input").forEach((input) => { input.required = !!access.secondDriverRequired; });
+      const delivery = document.getElementById("delivery-fields");
+      delivery.hidden = !access.deliveryAddressRequired;
+      document.getElementById("deliveryAddress").required = !!access.deliveryAddressRequired;
+      if (access.documentsStatus === "submitted") submitButton.textContent = "Remplacer mon dossier";
+      form.hidden = false;
+    })
+    .catch((err) => showAccessError(err.message));
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    submitError.textContent = "";
+    if (!form.reportValidity()) return;
+    const files = [...form.querySelectorAll('input[type="file"]')]
+      .filter((input) => input.required || input.files.length)
+      .flatMap((input) => [...input.files]);
+    if (files.some((file) => file.size > 8 * 1024 * 1024)) {
+      submitError.textContent = "Chaque fichier doit faire moins de 8 Mo.";
+      return;
+    }
+    submitButton.disabled = true;
+    submitButton.textContent = "Envoi en cours…";
+    try {
+      const response = await fetch("/api/documents-submit", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: new FormData(form)
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "L'envoi a échoué");
+      form.hidden = true;
+      success.hidden = false;
+    } catch (err) {
+      submitError.textContent = err.message;
+      submitButton.disabled = false;
+      submitButton.textContent = "Envoyer mon dossier";
+    }
+  });
+}
+
+/* ---------------------------------------------------------
    Section "Avis clients".
    Les anciens témoignages étaient des exemples de démonstration
    (faux noms, fausses citations) : les présenter comme de vrais avis
@@ -1440,6 +1521,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initReservationPage();
   initPaiementPage();
   initConfirmationPage();
+  initDocumentsPage();
   initTestimonialsSlider();
   initVehicleGalleries();
 });

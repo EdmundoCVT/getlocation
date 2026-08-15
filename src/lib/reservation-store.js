@@ -14,6 +14,7 @@
 // Statuts possibles : "pending_payment" | "paid" | "cancelled" | "expired"
 
 const RESERVATION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 jours
+const PAID_RETENTION_AFTER_RETURN_MS = 30 * 24 * 60 * 60 * 1000;
 // Fenêtre pendant laquelle une réservation "pending_payment" (non encore
 // payée) bloque le véhicule pour éviter une double vente pendant le tunnel
 // de paiement. Voir l'équivalent Netlify Blobs pour le détail du
@@ -48,6 +49,22 @@ async function getReservation(env, id) {
   return raw ? JSON.parse(raw) : null;
 }
 
+// Les réservations payées doivent rester disponibles au moins jusqu'à 30
+// jours après le retour. Le TTL fixe de 7 jours reste adapté au tunnel de
+// paiement, mais ferait sinon disparaître une réservation future de KV et
+// libérerait à tort le véhicule dans le contrôle de disponibilité.
+function reservationTtlSeconds(record) {
+  if (!record || record.status !== "paid") return RESERVATION_TTL_SECONDS;
+  const returnMs = record.periodeFin
+    ? new Date(record.periodeFin).getTime()
+    : record.dateFin && record.heureFin
+      ? new Date(`${record.dateFin}T${record.heureFin}:00`).getTime()
+      : NaN;
+  if (!Number.isFinite(returnMs)) return RESERVATION_TTL_SECONDS;
+  const untilRetentionEnd = Math.ceil((returnMs + PAID_RETENTION_AFTER_RETURN_MS - Date.now()) / 1000);
+  return Math.max(RESERVATION_TTL_SECONDS, untilRetentionEnd);
+}
+
 // extra peut contenir n'importe quel champ métier à fusionner (ex.
 // paymentId, cglVersion, cglAcceptedAt, failureReason...). Les champs
 // id/createdAt ne sont jamais écrasables.
@@ -63,9 +80,11 @@ async function updateReservationStatus(env, id, status, extra = {}) {
     updatedAt: new Date().toISOString()
   };
 
-  await env.RESERVATIONS_KV.put(id, JSON.stringify(updated), { expirationTtl: RESERVATION_TTL_SECONDS });
+  const expirationTtl = reservationTtlSeconds(updated);
+  updated.expiresAt = new Date(Date.now() + expirationTtl * 1000).toISOString();
+  await env.RESERVATIONS_KV.put(id, JSON.stringify(updated), { expirationTtl });
   if (updated.paymentId) {
-    await env.RESERVATIONS_KV.put(`pay_${updated.paymentId}`, id, { expirationTtl: RESERVATION_TTL_SECONDS });
+    await env.RESERVATIONS_KV.put(`pay_${updated.paymentId}`, id, { expirationTtl });
   }
   return updated;
 }
@@ -75,6 +94,27 @@ async function findReservationByPaymentId(env, paymentId) {
   const id = await env.RESERVATIONS_KV.get(`pay_${paymentId}`);
   if (!id) return null;
   return getReservation(env, id);
+}
+
+async function saveDocumentAccessIndex(env, reservationId, tokenHash, expiresAt) {
+  if (!reservationId || !/^[a-f0-9]{64}$/.test(tokenHash || "")) return false;
+  const expiryMs = new Date(expiresAt).getTime();
+  if (!Number.isFinite(expiryMs)) return false;
+  const expirationTtl = Math.max(60, Math.ceil((expiryMs - Date.now()) / 1000));
+  await env.RESERVATIONS_KV.put(`doc_${tokenHash}`, reservationId, { expirationTtl });
+  return true;
+}
+
+async function findReservationByDocumentTokenHash(env, tokenHash) {
+  if (!/^[a-f0-9]{64}$/.test(tokenHash || "")) return null;
+  const id = await env.RESERVATIONS_KV.get(`doc_${tokenHash}`);
+  return id ? getReservation(env, id) : null;
+}
+
+async function updateReservationDocuments(env, id, extra) {
+  const record = await getReservation(env, id);
+  if (!record || record.status !== "paid") return null;
+  return updateReservationStatus(env, id, "paid", extra);
 }
 
 // Liste les réservations "actives" (pending_payment récent ou paid) pour un
@@ -135,6 +175,10 @@ module.exports = {
   getReservation,
   updateReservationStatus,
   findReservationByPaymentId,
+  saveDocumentAccessIndex,
+  findReservationByDocumentTokenHash,
+  updateReservationDocuments,
   hasOverlappingReservation,
-  generateReservationId
+  generateReservationId,
+  reservationTtlSeconds
 };

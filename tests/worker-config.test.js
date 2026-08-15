@@ -30,6 +30,16 @@ test("main pointe vers le Worker qui route /api/* (voir src/worker.js)", () => {
   assert.equal(config.main, "src/worker.js");
 });
 
+test("le Worker route la validation du lien documentaire", () => {
+  const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
+  assert.match(worker, /"\/api\/documents-access"\s*:\s*handleDocumentsAccess/);
+});
+
+test("le Worker route l'envoi du dossier documentaire", () => {
+  const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
+  assert.match(worker, /"\/api\/documents-submit"\s*:\s*handleDocumentsSubmit/);
+});
+
 test("assets.binding est déclaré (nécessaire pour env.ASSETS.fetch() dans src/worker.js)", () => {
   assert.equal(config.assets.binding, "ASSETS");
   assert.equal(config.assets.directory, ".");
