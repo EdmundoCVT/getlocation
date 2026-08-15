@@ -63,15 +63,15 @@ function buildContractPrefillData(reservation) {
 }
 
 async function sendContractEmail(env, reservation) {
-  if (!reservation || !reservation.conducteur) return;
+  if (!reservation || !reservation.conducteur) return false;
 
   if (!env.RESEND_API_KEY) {
     console.warn("[send-contract-email] RESEND_API_KEY non configurée : email de contrat non envoyé.");
-    return;
+    return false;
   }
   if (!env.AGENCY_EMAIL) {
     console.warn("[send-contract-email] AGENCY_EMAIL non configurée : email de contrat non envoyé.");
-    return;
+    return false;
   }
 
   const vehicule = getVehiculeParId(reservation.vehiculeId);
@@ -122,11 +122,13 @@ async function sendContractEmail(env, reservation) {
       text,
       html
     });
+    return true;
   } catch (err) {
     console.error(
       `[send-contract-email] Échec de l'envoi pour la réservation ${reservation.id} :`,
       err && err.message
     );
+    return false;
   }
 }
 

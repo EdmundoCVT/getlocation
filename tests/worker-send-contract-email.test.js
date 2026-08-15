@@ -131,6 +131,23 @@ test("sendContractEmail : utilise le lien sécurisé #agencyToken= (fragment, ja
   assert.equal(capturedBody.html.includes("?prefill="), false, "ne doit pas aussi inclure l'ancien lien base64 quand le jeton sécurisé est disponible");
 });
 
+test("sendContractEmail : indique explicitement le succès ou l'échec de livraison", async () => {
+  const env = { RESEND_API_KEY: "re_test", AGENCY_EMAIL: "agence@example.com" };
+  const reservation = makeReservation();
+
+  const success = await withFakeFetch(
+    async () => new Response(JSON.stringify({ id: "email_test" }), { status: 200 }),
+    () => sendContractEmail(env, reservation)
+  );
+  assert.equal(success, true);
+
+  const failure = await withFakeFetch(
+    async () => new Response(JSON.stringify({ message: "rate limited" }), { status: 429 }),
+    () => sendContractEmail(env, reservation)
+  );
+  assert.equal(failure, false);
+});
+
 test("sendContractEmail : repli sur l'ancien lien ?prefill= (base64) quand aucun jeton sécurisé n'est disponible", async () => {
   let capturedBody;
   await withFakeFetch(
@@ -144,7 +161,7 @@ test("sendContractEmail : repli sur l'ancien lien ?prefill= (base64) quand aucun
 });
 
 test("sendContractEmail : ne lève jamais si RESEND_API_KEY/AGENCY_EMAIL ne sont pas configurées", async () => {
-  await assert.doesNotReject(sendContractEmail({}, makeReservation()));
+  assert.equal(await sendContractEmail({}, makeReservation()), false);
 });
 
 test("sendContractEmail : ne lève jamais si la réservation est absente ou sans conducteur", async () => {

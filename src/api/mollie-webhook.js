@@ -64,7 +64,16 @@ async function handlePaid(env, payment) {
     console.error("[mollie-webhook] Aucune réservation trouvée pour le paiement (paid).");
     return;
   }
-  if (reservation.status === "paid") return; // déjà traité : idempotent
+  // Un incident Resend ne doit pas rendre l'e-mail agence définitivement
+  // irrécupérable. Lors d'une nouvelle notification Mollie pour un paiement
+  // déjà confirmé, on rejoue uniquement l'e-mail contrat s'il n'a jamais été
+  // marqué comme envoyé. La confirmation client, elle, n'est pas renvoyée.
+  if (reservation.status === "paid") {
+    if (!reservation.contractEmailSentAt) {
+      await deliverContractEmail(env, reservation);
+    }
+    return;
+  }
   const paidAt = new Date().toISOString();
   // La création du jeton est volontairement best effort : une variable de
   // sécurité manquante ne doit jamais empêcher d'enregistrer un paiement.
@@ -80,10 +89,10 @@ async function handlePaid(env, payment) {
     console.error("[mollie-webhook] Échec de génération du jeton documentaire :", err && err.message);
   }
 
-  // Même principe best effort que le jeton documentaire ci-dessus : sans
-  // DOCUMENT_TOKEN_PEPPER, l'email de contrat part simplement avec l'ancien
-  // lien ?prefill= (base64, non sécurisé mais toujours fonctionnel — voir
-  // send-contract-email.js) plutôt que d'empêcher la confirmation du paiement.
+  // Le dossier est créé dès la confirmation du paiement, même si la
+  // messagerie agence est temporairement indisponible. Le jeton brut reste
+  // uniquement en mémoire le temps de l'envoi ; seule son empreinte est
+  // persistée.
   let contractAgencyAccess = null;
   try {
     contractAgencyAccess = await issueContractAgencyAccess(env, reservation, paidAt);
@@ -122,6 +131,9 @@ async function handlePaid(env, payment) {
       console.error("[mollie-webhook] Échec d'indexation du jeton documentaire :", err && err.message);
     }
   }
+  const emailReservation = documentAccess && documentAccessIndexed
+    ? { ...updated, documentsAccessToken: documentAccess.token }
+    : updated;
   let contractAgencyAccessIndexed = false;
   if (contractAgencyAccess) {
     try {
@@ -135,13 +147,63 @@ async function handlePaid(env, payment) {
       console.error("[mollie-webhook] Échec d'indexation du jeton dossier contrat :", err && err.message);
     }
   }
-  const emailReservation = documentAccess && documentAccessIndexed
-    ? { ...updated, documentsAccessToken: documentAccess.token }
-    : updated;
-  const contractEmailReservation = contractAgencyAccess && contractAgencyAccessIndexed
-    ? { ...updated, contractDossierToken: contractAgencyAccess.token }
-    : updated;
-  await Promise.all([sendConfirmationEmail(env, emailReservation), sendContractEmail(env, contractEmailReservation)]);
+  // Les deux appels Resend sont volontairement séquentiels. Les lancer en
+  // parallèle rendait le second message vulnérable à la limite de débit du
+  // fournisseur ; l'échec était ensuite masqué par le mode best effort.
+  await sendConfirmationEmail(env, emailReservation);
+  await deliverContractEmail(env, updated, contractAgencyAccessIndexed ? contractAgencyAccess : null);
+}
+
+async function deliverContractEmail(env, reservation, preparedAccess = null) {
+  // Ne pas créer/invalider un jeton si l'e-mail ne peut de toute façon pas
+  // partir. Ces contrôles sont répétés dans sendContractEmail par défense en
+  // profondeur.
+  if (!env.RESEND_API_KEY || !env.AGENCY_EMAIL || !reservation || reservation.status !== "paid") {
+    return false;
+  }
+
+  let contractAgencyAccess = preparedAccess;
+  if (!contractAgencyAccess) {
+    try {
+      contractAgencyAccess = await issueContractAgencyAccess(env, reservation, reservation.paidAt);
+      if (!contractAgencyAccess) {
+        console.warn("[mollie-webhook] DOCUMENT_TOKEN_PEPPER non configuré : envoi du contrat avec le lien historique.");
+      }
+    } catch (err) {
+      console.error("[mollie-webhook] Échec de génération du jeton dossier contrat :", err && err.message);
+    }
+  }
+
+  let current = reservation;
+  if (contractAgencyAccess && !preparedAccess) {
+    try {
+      current = await updateReservationStatus(env, reservation.id, "paid", {
+        contractAgencyAccess: contractAgencyAccess.stored,
+        contractEmailLastAttemptAt: new Date().toISOString()
+      });
+      const indexed = await saveContractAgencyAccessIndex(
+        env,
+        current.id,
+        contractAgencyAccess.stored.tokenHash,
+        contractAgencyAccess.stored.expiresAt
+      );
+      if (!indexed) return false;
+    } catch (err) {
+      console.error("[mollie-webhook] Échec de préparation du lien contrat agence :", err && err.message);
+      return false;
+    }
+  }
+
+  const sent = await sendContractEmail(
+    env,
+    contractAgencyAccess ? { ...current, contractDossierToken: contractAgencyAccess.token } : current
+  );
+  if (!sent) return false;
+
+  await updateReservationStatus(env, reservation.id, "paid", {
+    contractEmailSentAt: new Date().toISOString()
+  });
+  return true;
 }
 
 async function handleFailedOrCanceled(env, payment) {
@@ -217,4 +279,4 @@ async function handleMollieWebhook(request, env) {
   }
 }
 
-module.exports = { handleMollieWebhook, processPaymentStatus };
+module.exports = { handleMollieWebhook, processPaymentStatus, deliverContractEmail };
