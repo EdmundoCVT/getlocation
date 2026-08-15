@@ -5,7 +5,7 @@
 // dates/heures bien formées et futures, longueurs de chaînes bornées) —
 // ne calcule et ne fait jamais confiance à un prix fourni par le client.
 
-const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, VILLES_LIVRAISON, CGL_VERSION, OPTIONS } = require("../../../js/data.js");
+const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS } = require("../../../js/data.js");
 
 const MAX_LEN = {
   nom: 100,
@@ -109,12 +109,12 @@ function validateReservationInput(payload) {
   // correspondant est bien "Livraison" (sinon adressePrise/adresseRetour
   // doivent être vides).
   if (lieuPrise === LIEU_LIVRAISON) {
-    if (!VILLES_LIVRAISON.includes(adressePrise)) errors.push("Lieu de livraison (prise en charge) invalide");
+    if (!VILLES_LIVRAISON.includes(adressePrise) && !parseAdressePersonnalisee(adressePrise)) errors.push("Lieu de livraison (prise en charge) invalide");
   } else if (adressePrise !== undefined && adressePrise !== null && adressePrise !== "") {
     errors.push("Lieu de livraison (prise en charge) invalide");
   }
   if (lieuRetour === LIEU_LIVRAISON) {
-    if (!VILLES_LIVRAISON.includes(adresseRetour)) errors.push("Lieu de livraison (restitution) invalide");
+    if (!VILLES_LIVRAISON.includes(adresseRetour) && !parseAdressePersonnalisee(adresseRetour)) errors.push("Lieu de livraison (restitution) invalide");
   } else if (adresseRetour !== undefined && adresseRetour !== null && adresseRetour !== "") {
     errors.push("Lieu de livraison (restitution) invalide");
   }

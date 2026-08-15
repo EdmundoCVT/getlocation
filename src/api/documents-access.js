@@ -2,7 +2,7 @@
 // l'en-tête Authorization (jamais dans l'URL), est haché côté serveur, puis
 // résolu via un index KV non énumérable par le client.
 
-const { getVehiculeParId, LIEU_LIVRAISON } = require("../../js/data.js");
+const { getVehiculeParId, LIEU_LIVRAISON, parseAdressePersonnalisee } = require("../../js/data.js");
 const { hashDocumentToken } = require("../lib/document-access-token.js");
 const { findReservationByDocumentTokenHash } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
@@ -33,6 +33,7 @@ function hasOption(reservation, id) {
 
 function safeAccessView(reservation) {
   const vehicle = getVehiculeParId(reservation.vehiculeId);
+  const adresse = parseAdressePersonnalisee(reservation.adressePrise);
   return {
     reference: reservation.id,
     vehicle: vehicle ? { id: vehicle.id, name: vehicle.nom } : null,
@@ -40,6 +41,7 @@ function safeAccessView(reservation) {
     secondDriverRequired: hasOption(reservation, "second-conducteur"),
     deliveryAddressRequired: hasOption(reservation, "livraison-adresse") ||
       reservation.lieuPrise === LIEU_LIVRAISON || reservation.lieuRetour === LIEU_LIVRAISON,
+    deliveryAddressPrefill: adresse ? `${adresse.rue}, ${adresse.codePostal} ${adresse.ville}` : "",
     expiresAt: reservation.documentAccess && reservation.documentAccess.expiresAt
   };
 }

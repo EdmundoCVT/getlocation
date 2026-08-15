@@ -9,6 +9,7 @@ const {
   saveDocumentAccessIndex
 } = require("../src/lib/reservation-store.js");
 const { issueDocumentAccess } = require("../src/lib/document-access-token.js");
+const { formatAdressePersonnalisee } = require("../js/data.js");
 
 const PEPPER = "pepper-de-test-documents-access";
 
@@ -70,7 +71,8 @@ test("refuse un jeton absent, mal formé ou inconnu sans révéler la cause", as
 test("renvoie uniquement la vue minimale d'une réservation payée", async () => {
   const env = makeEnv();
   const { reservation, token } = await paidReservationWithAccess(env, {
-    options: [{ id: "second-conducteur" }, { id: "livraison-adresse" }]
+    options: [{ id: "second-conducteur" }, { id: "livraison-adresse" }],
+    adressePrise: formatAdressePersonnalisee("12 avenue Jean Médecin", "06000", "Nice")
   });
   const response = await handleDocumentsAccess(request(token), env);
   assert.equal(response.status, 200);
@@ -82,6 +84,7 @@ test("renvoie uniquement la vue minimale d'une réservation payée", async () =>
   assert.equal(body.documentsStatus, "pending");
   assert.equal(body.secondDriverRequired, true);
   assert.equal(body.deliveryAddressRequired, true);
+  assert.equal(body.deliveryAddressPrefill, "12 avenue Jean Médecin, 06000 Nice");
   assert.equal(JSON.stringify(body).includes("client@example.com"), false);
   assert.equal(JSON.stringify(body).includes("1990-01-01"), false);
   assert.equal(JSON.stringify(body).includes(token), false);

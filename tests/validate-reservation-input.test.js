@@ -2,7 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { validateReservationInput } = require("../netlify/functions/lib/validate-reservation-input.js");
-const { CGL_VERSION, LIEU_LIVRAISON, VILLES_LIVRAISON, OPTIONS } = require("../js/data.js");
+const { CGL_VERSION, LIEU_LIVRAISON, VILLES_LIVRAISON, OPTIONS, formatAdressePersonnalisee } = require("../js/data.js");
 
 // Dates calculées par rapport à aujourd'hui (plutôt que codées en dur) pour
 // que ces tests restent valides indéfiniment : le validateur rejette toute
@@ -185,6 +185,15 @@ test("ajoute toujours le supplément livraison côté serveur, même si le navig
   }));
   assert.equal(valid, true);
   assert.ok(options.includes("livraison-adresse"));
+});
+
+test("accepte une adresse personnalisée complète et rejette un code postal invalide", () => {
+  const adresse = formatAdressePersonnalisee("12 avenue Jean Médecin", "06000", "Nice");
+  const accepte = validateReservationInput(basePayload({ lieuPrise: LIEU_LIVRAISON, lieuRetour: LIEU_LIVRAISON, adressePrise: adresse, adresseRetour: adresse }));
+  assert.equal(accepte.valid, true, accepte.errors.join(", "));
+
+  const invalide = formatAdressePersonnalisee("12 avenue Jean Médecin", "6000", "Nice");
+  assert.equal(validateReservationInput(basePayload({ lieuPrise: LIEU_LIVRAISON, lieuRetour: LIEU_LIVRAISON, adressePrise: invalide, adresseRetour: invalide })).valid, false);
 });
 
 test("rejette une adresse libre (texte arbitraire) à la place d'une ville de livraison", () => {

@@ -486,6 +486,19 @@ textarea:focus-visible,
   border-color: var(--violet);
 }
 
+.custom-delivery-address label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 640px) {
+  .custom-delivery-address {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 .datetime-group {
   display: flex;
   gap: 8px;
