@@ -61,3 +61,62 @@ test("sendConfirmationEmail : ne lève jamais si la réservation n'a pas d'email
   await assert.doesNotReject(sendConfirmationEmail({}, makeReservation({ conducteur: null })));
   await assert.doesNotReject(sendConfirmationEmail({}, null));
 });
+
+test("buildConfirmationEmailContent : inclut le montant de la caution du véhicule", () => {
+  const { text, html } = buildConfirmationEmailContent(makeReservation());
+  // Peugeot 3008 : caution 600 € dans js/data.js
+  assert.match(text, /Caution du véhicule : 600/);
+  assert.match(html, /Caution du véhicule.*600/s);
+});
+
+test("buildConfirmationEmailContent : inclut la checklist de documents de base sans mention du second conducteur par défaut", () => {
+  const { text, html } = buildConfirmationEmailContent(makeReservation());
+  assert.match(text, /Permis de conduire valide/);
+  assert.match(text, /Pièce d'identité/);
+  assert.match(text, /Justificatif de domicile ou adresse postale/);
+  // Dans le HTML, l'apostrophe est échappée en entité (&#39;) — voir escapeHtml.
+  assert.match(html, /Permis de conduire valide/);
+  assert.match(html, /Pi[eè]ce d&#39;identit[eé]/);
+  assert.match(html, /Justificatif de domicile ou adresse postale/);
+  assert.doesNotMatch(text, /second conducteur/);
+  assert.doesNotMatch(html, /second conducteur/);
+});
+
+test("buildConfirmationEmailContent : ajoute la checklist du second conducteur uniquement si l'option a été sélectionnée", () => {
+  const reservation = makeReservation({
+    options: [{ id: "second-conducteur", nom: "Deuxième conducteur", type: "jour", montant: 20 }]
+  });
+  const { text, html } = buildConfirmationEmailContent(reservation);
+  assert.match(text, /second conducteur/);
+  assert.match(html, /second conducteur/);
+});
+
+test("buildConfirmationEmailContent : inclut un lien WhatsApp prérempli avec la référence de réservation", () => {
+  const reservation = makeReservation();
+  const { text, html } = buildConfirmationEmailContent(reservation);
+  const expectedUrlStart = "https://wa.me/33667485430?text=";
+  assert.match(text, new RegExp(expectedUrlStart.replace(/[/?]/g, "\\$&")));
+  assert.match(html, new RegExp(expectedUrlStart.replace(/[/?]/g, "\\$&")));
+  assert.match(text, new RegExp(encodeURIComponent(reservation.id)));
+  assert.match(html, new RegExp(encodeURIComponent(reservation.id)));
+});
+
+test("buildConfirmationEmailContent : échappe le prénom du conducteur dans le HTML mais pas dans le texte brut", () => {
+  const reservation = makeReservation({
+    conducteur: { prenom: "<img src=x onerror=alert(1)>", nom: "Martin", email: "camille@example.com" }
+  });
+  const { text, html } = buildConfirmationEmailContent(reservation);
+  assert.doesNotMatch(html, /<img/);
+  assert.match(html, /&lt;img/);
+  assert.match(text, /<img src=x onerror=alert\(1\)>/);
+});
+
+test("buildConfirmationEmailContent : la version texte et la version HTML contiennent les mêmes informations clés", () => {
+  const reservation = makeReservation();
+  const { text, html } = buildConfirmationEmailContent(reservation);
+  const faitsClefs = [reservation.id, "Peugeot 3008", "600", "138"];
+  faitsClefs.forEach((fait) => {
+    assert.ok(text.includes(fait), `texte manquant : ${fait}`);
+    assert.ok(html.includes(fait), `html manquant : ${fait}`);
+  });
+});

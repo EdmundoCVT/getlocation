@@ -25,6 +25,13 @@
 const { getVehiculeParId, formatEUR } = require("../../js/data.js");
 const { sendEmail } = require("./resend-client.js");
 
+// Numéro WhatsApp de l'agence, déjà utilisé comme repli paiement
+// indisponible (js/app.js, showPaymentUnavailableFallback) et sur
+// paiement.html — même numéro réutilisé ici pour le bouton de contact
+// post-paiement, avec la référence de réservation pré-remplie dans le
+// message pour que l'agence identifie immédiatement le dossier.
+const AGENCY_WHATSAPP_NUMBER = "33667485430";
+
 function formatDateHeure(dateISO, heure) {
   if (!dateISO) return "";
   const date = new Date(`${dateISO}T00:00:00`).toLocaleDateString("fr-FR", {
@@ -36,13 +43,60 @@ function formatDateHeure(dateISO, heure) {
   return heure ? `${date} à ${heure}` : date;
 }
 
+// Échappement HTML défensif de toute valeur dérivée de la réservation
+// injectée dans le corps HTML de l'email (ex. prénom du conducteur, saisi
+// librement par le client — voir AUDIT.md P0-7). Les autres champs
+// interpolés ici (lieuPrise/lieuRetour, véhicule) sont en réalité des
+// valeurs d'énumération déjà validées côté serveur (validate-reservation-
+// input.js), mais on les échappe quand même par prudence plutôt que de
+// supposer qu'ils resteront toujours non manipulables par l'utilisateur.
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function aOptionSelectionnee(reservation, optionId) {
+  const options = Array.isArray(reservation.options) ? reservation.options : [];
+  return options.some((o) => o && o.id === optionId);
+}
+
+// Lien WhatsApp prérempli vers l'agence, avec la référence de réservation
+// dans le message pour éviter au client de la retaper.
+function buildWhatsappUrl(reservationId) {
+  const message = `Bonjour, je vous contacte au sujet de ma réservation ${reservationId}.`;
+  return `https://wa.me/${AGENCY_WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+}
+
+// Checklist des documents à préparer avant la prise en charge. Ne prétend
+// jamais qu'un document a déjà été reçu ou validé (aucun système de
+// collecte de documents n'existe encore, cf. AUDIT.md/CLAUDE.md) — se
+// limite à indiquer ce que le client doit préparer de son côté.
+function buildChecklistLignes(reservation) {
+  const lignes = [
+    "Permis de conduire valide",
+    "Pièce d'identité (carte d'identité ou passeport)",
+    "Justificatif de domicile ou adresse postale, si demandé par l'agence"
+  ];
+  if (aOptionSelectionnee(reservation, "second-conducteur")) {
+    lignes.push("Permis de conduire et pièce d'identité du second conducteur");
+  }
+  return lignes;
+}
+
 function buildConfirmationEmailContent(reservation) {
   const vehicule = getVehiculeParId(reservation.vehiculeId);
   const vehiculeNom = vehicule ? vehicule.nom : reservation.vehiculeId;
   const prise = formatDateHeure(reservation.dateDebut, reservation.heureDebut);
   const retour = formatDateHeure(reservation.dateFin, reservation.heureFin);
   const total = typeof reservation.total === "number" ? formatEUR(reservation.total) : "";
+  const caution = vehicule ? formatEUR(vehicule.caution) : "";
   const prenom = reservation.conducteur ? reservation.conducteur.prenom : "";
+  const checklistLignes = buildChecklistLignes(reservation);
+  const whatsappUrl = buildWhatsappUrl(reservation.id);
 
   const subject = `Confirmation de votre réservation GET LOCATION — ${vehiculeNom}`;
 
@@ -56,7 +110,14 @@ function buildConfirmationEmailContent(reservation) {
     `Retour : ${retour}${reservation.lieuRetour ? ` — ${reservation.lieuRetour}` : ""}`,
     `Durée : ${reservation.jours} jour(s)`,
     `Montant total réglé : ${total}`,
+    `Caution du véhicule : ${caution} (prélevée avant la remise des clés)`,
     `Référence de réservation : ${reservation.id}`,
+    "",
+    "Documents à préparer pour la prise en charge du véhicule :",
+    ...checklistLignes.map((l) => `- ${l}`),
+    "",
+    "Prochaines étapes : notre équipe reprend contact avec vous avant la prise en charge pour finaliser les derniers détails. Vous pouvez dès maintenant nous écrire sur WhatsApp en mentionnant votre référence de réservation :",
+    whatsappUrl,
     "",
     "Pour toute question, répondez simplement à cet email.",
     "",
@@ -65,16 +126,23 @@ function buildConfirmationEmailContent(reservation) {
   ];
   const text = lignes.join("\n");
 
-  const html = `<p>Bonjour ${prenom},</p>
+  const checklistHtml = checklistLignes.map((l) => `<li>${escapeHtml(l)}</li>`).join("");
+
+  const html = `<p>Bonjour ${escapeHtml(prenom)},</p>
 <p>Votre réservation est confirmée. Voici son récapitulatif :</p>
 <ul>
-<li><strong>Véhicule :</strong> ${vehiculeNom}</li>
-<li><strong>Prise en charge :</strong> ${prise}${reservation.lieuPrise ? ` — ${reservation.lieuPrise}` : ""}</li>
-<li><strong>Retour :</strong> ${retour}${reservation.lieuRetour ? ` — ${reservation.lieuRetour}` : ""}</li>
+<li><strong>Véhicule :</strong> ${escapeHtml(vehiculeNom)}</li>
+<li><strong>Prise en charge :</strong> ${escapeHtml(prise)}${reservation.lieuPrise ? ` — ${escapeHtml(reservation.lieuPrise)}` : ""}</li>
+<li><strong>Retour :</strong> ${escapeHtml(retour)}${reservation.lieuRetour ? ` — ${escapeHtml(reservation.lieuRetour)}` : ""}</li>
 <li><strong>Durée :</strong> ${reservation.jours} jour(s)</li>
-<li><strong>Montant total réglé :</strong> ${total}</li>
-<li><strong>Référence de réservation :</strong> ${reservation.id}</li>
+<li><strong>Montant total réglé :</strong> ${escapeHtml(total)}</li>
+<li><strong>Caution du véhicule :</strong> ${escapeHtml(caution)} (prélevée avant la remise des clés)</li>
+<li><strong>Référence de réservation :</strong> ${escapeHtml(reservation.id)}</li>
 </ul>
+<p><strong>Documents à préparer pour la prise en charge du véhicule :</strong></p>
+<ul>${checklistHtml}</ul>
+<p>Notre équipe reprend contact avec vous avant la prise en charge pour finaliser les derniers détails. Vous pouvez dès maintenant nous écrire sur WhatsApp en mentionnant votre référence de réservation :</p>
+<p><a href="${escapeHtml(whatsappUrl)}" style="display:inline-block;padding:10px 18px;background:#25D366;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;">💬 Contacter l'agence sur WhatsApp</a></p>
 <p>Pour toute question, répondez simplement à cet email.</p>
 <p>À bientôt,<br>L'équipe GET LOCATION</p>`;
 
