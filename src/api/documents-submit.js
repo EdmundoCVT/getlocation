@@ -4,6 +4,8 @@ const { generateDocumentObjectKey, putPrivateDocument, deletePrivateDocument } =
 const { updateReservationDocuments } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { sendDocumentsNotificationEmail } = require("../lib/send-documents-notification-email.js");
+const { issueAgencyDocumentAccess } = require("../lib/agency-document-token.js");
+const { saveAgencyDocumentAccessIndex } = require("../lib/reservation-store.js");
 
 const MAX_REQUEST_BYTES = 52 * 1024 * 1024;
 
@@ -59,15 +61,19 @@ async function handleDocumentsSubmit(request, env) {
     const previousKeys = Array.isArray(resolved.reservation.documentFiles)
       ? resolved.reservation.documentFiles.map((file) => file.key).filter(Boolean)
       : [];
+    const agencyAccess = await issueAgencyDocumentAccess(env);
+    if (!agencyAccess) throw new Error("Accès agence indisponible");
     const updated = await updateReservationDocuments(env, resolved.reservation.id, {
       documentsStatus: "submitted",
       documentsData: validated.data,
       documentFiles: uploaded,
-      documentsSubmittedAt: new Date().toISOString()
+      documentsSubmittedAt: new Date().toISOString(),
+      agencyDocumentAccess: agencyAccess.stored
     });
     if (!updated) throw new Error("Réservation non disponible");
+    await saveAgencyDocumentAccessIndex(env, updated.id, agencyAccess.stored.tokenHash, agencyAccess.stored.expiresAt);
     await cleanup(env, previousKeys);
-    await sendDocumentsNotificationEmail(env, updated, uploaded.map((file) => file.type));
+    await sendDocumentsNotificationEmail(env, updated, uploaded.map((file) => file.type), agencyAccess.token);
     return new Response(JSON.stringify({ received: true, documentsStatus: "submitted" }), { status: 200, headers });
   } catch (err) {
     await cleanup(env, uploaded.map((file) => file.key));

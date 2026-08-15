@@ -111,6 +111,21 @@ async function findReservationByDocumentTokenHash(env, tokenHash) {
   return id ? getReservation(env, id) : null;
 }
 
+async function saveAgencyDocumentAccessIndex(env, reservationId, tokenHash, expiresAt) {
+  if (!reservationId || !/^[a-f0-9]{64}$/.test(tokenHash || "")) return false;
+  const expiryMs = new Date(expiresAt).getTime();
+  if (!Number.isFinite(expiryMs)) return false;
+  const expirationTtl = Math.max(60, Math.ceil((expiryMs - Date.now()) / 1000));
+  await env.RESERVATIONS_KV.put(`agency_doc_${tokenHash}`, reservationId, { expirationTtl });
+  return true;
+}
+
+async function findReservationByAgencyDocumentTokenHash(env, tokenHash) {
+  if (!/^[a-f0-9]{64}$/.test(tokenHash || "")) return null;
+  const id = await env.RESERVATIONS_KV.get(`agency_doc_${tokenHash}`);
+  return id ? getReservation(env, id) : null;
+}
+
 async function updateReservationDocuments(env, id, extra) {
   const record = await getReservation(env, id);
   if (!record || record.status !== "paid") return null;
@@ -177,6 +192,8 @@ module.exports = {
   findReservationByPaymentId,
   saveDocumentAccessIndex,
   findReservationByDocumentTokenHash,
+  saveAgencyDocumentAccessIndex,
+  findReservationByAgencyDocumentTokenHash,
   updateReservationDocuments,
   hasOverlappingReservation,
   generateReservationId,

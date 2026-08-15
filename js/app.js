@@ -1480,6 +1480,74 @@ function initDocumentsPage() {
   });
 }
 
+function initAgencyDocumentsPage() {
+  const content = document.getElementById("agency-documents-content");
+  if (!content) return;
+  const loading = document.getElementById("agency-documents-loading");
+  const errorCard = document.getElementById("agency-documents-error");
+  const errorText = document.getElementById("agency-documents-error-text");
+  const downloadError = document.getElementById("agency-documents-download-error");
+  const fragment = new URLSearchParams(window.location.hash.slice(1));
+  const token = fragment.get("token") || "";
+  if (window.location.hash) history.replaceState(null, "", window.location.pathname);
+
+  function fail(message) {
+    loading.hidden = true;
+    content.hidden = true;
+    errorText.textContent = message;
+    errorCard.hidden = false;
+  }
+
+  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
+    fail("Ce lien est invalide ou a expiré.");
+    return;
+  }
+
+  fetch("/api/agency-documents-access", { headers: { Authorization: `Bearer ${token}` } })
+    .then(async (response) => {
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Accès indisponible");
+      return body;
+    })
+    .then((dossier) => {
+      loading.hidden = true;
+      document.getElementById("agency-documents-reference").textContent = `Réservation ${dossier.reference}`;
+      document.getElementById("agency-documents-meta").textContent = `${dossier.vehicle} — dossier reçu le ${new Date(dossier.submittedAt).toLocaleString("fr-FR")}`;
+      const list = document.getElementById("agency-documents-list");
+      dossier.files.forEach((file) => {
+        const row = document.createElement("p");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "btn btn-secondary";
+        button.textContent = `Télécharger ${file.type}`;
+        button.addEventListener("click", async () => {
+          downloadError.textContent = "";
+          button.disabled = true;
+          try {
+            const response = await fetch(`/api/agency-document-file?file=${encodeURIComponent(file.id)}`, { headers: { Authorization: `Bearer ${token}` } });
+            if (!response.ok) throw new Error("Téléchargement impossible");
+            const blobUrl = URL.createObjectURL(await response.blob());
+            const anchor = document.createElement("a");
+            anchor.href = blobUrl;
+            anchor.download = "";
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+          } catch (err) {
+            downloadError.textContent = err.message;
+          } finally {
+            button.disabled = false;
+          }
+        });
+        row.appendChild(button);
+        list.appendChild(row);
+      });
+      content.hidden = false;
+    })
+    .catch((err) => fail(err.message));
+}
+
 /* ---------------------------------------------------------
    Section "Avis clients".
    Les anciens témoignages étaient des exemples de démonstration
@@ -1522,6 +1590,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initPaiementPage();
   initConfirmationPage();
   initDocumentsPage();
+  initAgencyDocumentsPage();
   initTestimonialsSlider();
   initVehicleGalleries();
 });
