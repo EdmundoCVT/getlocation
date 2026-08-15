@@ -18,7 +18,7 @@
 // du dossier contrat, un contrat ne doit jamais pouvoir diverger de ce qui
 // a réellement été payé.
 
-const { getVehiculeParId, calculerKilometrage, joursFacturablesDepuisHeures, dureeEnHeures, KM_INCLUS_PAR_JOUR, SUPPLEMENT_KM_CENTIMES, CGL_VERSION } = require("../../js/data.js");
+const { getVehiculeParId, calculerKilometrage, joursFacturablesDepuisHeures, dureeEnHeures, KM_INCLUS_PAR_JOUR, SUPPLEMENT_KM_CENTIMES, CGL_VERSION, parseAdressePersonnalisee } = require("../../js/data.js");
 const {
   updateContractDossier,
   findReservationByContractAgencyTokenHash,
@@ -92,7 +92,8 @@ function buildDossierView(reservation) {
   // déjà soumis ou non) : évite à l'agence de ressaisir des informations
   // déjà connues, sans jamais écraser ce que l'agence a explicitement
   // renseigné dans le dossier contrat lui-même (voir contrat.html).
-  const documentsData = reservation.documentsData || null;
+  const documentsData = reservation.documentsData || {};
+  const adresseLivraison = parseAdressePersonnalisee(reservation.adressePrise);
 
   return {
     reservation: {
@@ -116,18 +117,17 @@ function buildDossierView(reservation) {
     },
     kmInclusParJour: KM_INCLUS_PAR_JOUR,
     supplementKmCentimes: SUPPLEMENT_KM_CENTIMES,
-    documentsPrefill: documentsData
-      ? {
+    documentsPrefill: {
         adresse: documentsData.postalAddress || "",
         permisNumero: documentsData.permitNumber || "",
         permisDate: documentsData.permitDate || "",
-        livraisonRue: documentsData.deliveryAddress || "",
-        livraisonVille: reservation.adressePrise || "",
+        livraisonRue: documentsData.deliveryAddress || (adresseLivraison ? adresseLivraison.rue : ""),
+        livraisonCP: adresseLivraison ? adresseLivraison.codePostal : "",
+        livraisonVille: adresseLivraison ? adresseLivraison.ville : (reservation.adressePrise || ""),
         secondConducteurNom: documentsData.secondDriver ? documentsData.secondDriver.lastName || "" : "",
         secondConducteurPrenom: documentsData.secondDriver ? documentsData.secondDriver.firstName || "" : "",
         secondConducteurPermisNumero: documentsData.secondDriver ? documentsData.secondDriver.permitNumber || "" : ""
-      }
-      : null,
+      },
     dossier: {
       status: dossier ? dossier.status : "draft",
       fields: dossier ? dossier.fields || null : null,

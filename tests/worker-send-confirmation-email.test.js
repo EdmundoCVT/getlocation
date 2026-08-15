@@ -16,6 +16,7 @@ const {
   sendConfirmationEmail,
   buildConfirmationEmailContent
 } = require("../src/lib/send-confirmation-email.js");
+const { formatAdressePersonnalisee } = require("../js/data.js");
 
 function makeReservation(overrides = {}) {
   return {
@@ -45,6 +46,14 @@ test("buildConfirmationEmailContent : inclut les informations clés de la réser
   assert.match(text, /138/);
   assert.match(html, /Peugeot 3008/);
   assert.match(html, /res_test1234567890abcdef1234567890/);
+});
+
+test("buildConfirmationEmailContent : affiche l'adresse personnalisée complète sans libellé technique", () => {
+  const adresse = formatAdressePersonnalisee("12 avenue Jean Médecin", "06000", "Nice");
+  const { text, html } = buildConfirmationEmailContent(makeReservation({ adressePrise: adresse, adresseRetour: adresse }));
+  assert.match(text, /12 avenue Jean Médecin, 06000 Nice/);
+  assert.match(html, /12 avenue Jean Médecin, 06000 Nice/);
+  assert.doesNotMatch(text, /Saisir une adresse personnalisée/);
 });
 
 test("buildConfirmationEmailContent : aucune donnée conducteur autre que le prénom n'apparaît (pas de fuite superflue)", () => {

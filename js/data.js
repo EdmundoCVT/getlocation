@@ -11,6 +11,7 @@
 // uniquement ce fichier.
 
 const LIEU_LIVRAISON = "Livraison à l'adresse de votre choix";
+const ADRESSE_PERSONNALISEE = "Saisir une adresse personnalisée";
 
 const LIEUX = [
   LIEU_LIVRAISON
@@ -47,6 +48,23 @@ const VILLES_LIVRAISON = [
   "Gare de Nice-Saint-Augustin",
   "Aéroport Nice Côte d'Azur"
 ];
+
+function formatAdressePersonnalisee(rue, codePostal, ville) {
+  return `${ADRESSE_PERSONNALISEE} — ${String(rue || "").trim()}, ${String(codePostal || "").trim()} ${String(ville || "").trim()}`;
+}
+
+function parseAdressePersonnalisee(value) {
+  if (typeof value !== "string" || value.length > 300) return null;
+  const prefix = `${ADRESSE_PERSONNALISEE} — `;
+  if (!value.startsWith(prefix)) return null;
+  const match = /^(.{3,200}), (\d{5}) (.{2,80})$/u.exec(value.slice(prefix.length));
+  return match ? { rue: match[1], codePostal: match[2], ville: match[3] } : null;
+}
+
+function libelleAdresseLivraison(value) {
+  const adresse = parseAdressePersonnalisee(value);
+  return adresse ? `${adresse.rue}, ${adresse.codePostal} ${adresse.ville}` : (value || "");
+}
 
 const CATEGORIES = ["Citadine", "SUV", "Utilitaire"];
 
@@ -415,6 +433,10 @@ function calculerKilometrage({ kmDepart, kmRetour, jours }) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     LIEU_LIVRAISON,
+    ADRESSE_PERSONNALISEE,
+    formatAdressePersonnalisee,
+    parseAdressePersonnalisee,
+    libelleAdresseLivraison,
     VILLES_LIVRAISON,
     LIEUX,
     CATEGORIES,

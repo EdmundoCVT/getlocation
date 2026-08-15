@@ -15,7 +15,7 @@ const { JSDOM } = require("jsdom");
 // du script, mais ne deviennent PAS des propriétés de l'objet window (au
 // contraire des déclarations de fonction, ex. window.initSearchForm plus
 // bas) — voir tests/tunnel-robustness.test.js pour le même contournement.
-const { LIEU_LIVRAISON, LIEUX, VILLES_LIVRAISON } = require("../js/data.js");
+const { LIEU_LIVRAISON, LIEUX, VILLES_LIVRAISON, ADRESSE_PERSONNALISEE, formatAdressePersonnalisee } = require("../js/data.js");
 
 const DATA_SRC = fs.readFileSync(path.join(__dirname, "..", "js", "data.js"), "utf8");
 const APP_SRC = fs.readFileSync(path.join(__dirname, "..", "js", "app.js"), "utf8");
@@ -87,13 +87,30 @@ test("le lieu de restitution est masqué par défaut, le bouton pour le révéle
   assert.notEqual(document.getElementById("toggle-retour").style.display, "none");
 });
 
-test("les villes de livraison (Côte d'Azur) peuplent les deux selects d'adresse, rien d'autre", () => {
+test("les villes et l'adresse personnalisée peuplent les deux sélecteurs", () => {
   const window = newWindow();
   const document = window.document;
   const villesPrise = [...document.getElementById("adresse-prise").options].map((o) => o.value).filter(Boolean);
   const villesRetour = [...document.getElementById("adresse-retour").options].map((o) => o.value).filter(Boolean);
-  assert.deepEqual(villesPrise, VILLES_LIVRAISON);
-  assert.deepEqual(villesRetour, VILLES_LIVRAISON);
+  assert.deepEqual(villesPrise, [...VILLES_LIVRAISON, ADRESSE_PERSONNALISEE]);
+  assert.deepEqual(villesRetour, [...VILLES_LIVRAISON, ADRESSE_PERSONNALISEE]);
+});
+
+test("adresse personnalisée : affiche rue, code postal et ville puis enregistre l'adresse complète", () => {
+  const window = newWindow();
+  const document = window.document;
+  const select = document.getElementById("adresse-prise");
+  select.value = ADRESSE_PERSONNALISEE;
+  select.dispatchEvent(new window.Event("change", { bubbles: true }));
+
+  document.getElementById("adresse-prise-rue").value = "12 avenue Jean Médecin";
+  document.getElementById("adresse-prise-codePostal").value = "06000";
+  document.getElementById("adresse-prise-ville").value = "Nice";
+  document.getElementById("search-form").dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+
+  const recherche = JSON.parse(window.localStorage.getItem("gl_recherche"));
+  assert.equal(recherche.adressePrise, formatAdressePersonnalisee("12 avenue Jean Médecin", "06000", "Nice"));
+  assert.equal(recherche.adresseRetour, recherche.adressePrise);
 });
 
 test("cliquer sur le bouton révèle le lieu de restitution et masque le bouton", () => {

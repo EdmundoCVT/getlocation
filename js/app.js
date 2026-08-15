@@ -313,7 +313,53 @@ function initSearchForm() {
     select.add(new Option("Choisissez un lieu de livraison", "", true, true));
     select.options[0].disabled = true;
     VILLES_LIVRAISON.forEach(ville => select.add(new Option(ville, ville)));
+    select.add(new Option(ADRESSE_PERSONNALISEE, ADRESSE_PERSONNALISEE));
   });
+
+  function creerChampsAdressePersonnalisee(select, suffixe) {
+    if (!select) return null;
+    const bloc = document.createElement("div");
+    bloc.className = "custom-delivery-address";
+    bloc.style.cssText = "display:none;grid-template-columns:2fr 1fr 1.5fr;gap:10px;width:100%;margin-top:10px";
+    const champs = [
+      { key: "rue", label: "Adresse", placeholder: "Numéro et rue", maxLength: 200 },
+      { key: "codePostal", label: "Code postal", placeholder: "06000", maxLength: 5, inputMode: "numeric", pattern: "[0-9]{5}" },
+      { key: "ville", label: "Ville", placeholder: "Nice", maxLength: 80 }
+    ];
+    const inputs = {};
+    champs.forEach((champ) => {
+      const wrapper = document.createElement("label");
+      wrapper.textContent = champ.label;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.id = `adresse-${suffixe}-${champ.key}`;
+      input.placeholder = champ.placeholder;
+      input.maxLength = champ.maxLength;
+      if (champ.inputMode) input.inputMode = champ.inputMode;
+      if (champ.pattern) input.pattern = champ.pattern;
+      wrapper.appendChild(input);
+      bloc.appendChild(wrapper);
+      inputs[champ.key] = input;
+    });
+    select.insertAdjacentElement("afterend", bloc);
+    return { bloc, inputs };
+  }
+
+  const adressePersonnaliseePrise = creerChampsAdressePersonnalisee(selectAdressePrise, "prise");
+  const adressePersonnaliseeRetour = creerChampsAdressePersonnalisee(selectAdresseRetour, "retour");
+
+  function majAdressePersonnalisee(select, groupe) {
+    if (!select || !groupe) return;
+    const active = select.value === ADRESSE_PERSONNALISEE;
+    groupe.bloc.style.display = active ? "grid" : "none";
+    Object.values(groupe.inputs).forEach((input) => { input.required = active; });
+  }
+
+  function valeurAdresse(select, groupe) {
+    if (!select) return "";
+    if (select.value !== ADRESSE_PERSONNALISEE) return select.value;
+    return formatAdressePersonnalisee(groupe.inputs.rue.value, groupe.inputs.codePostal.value, groupe.inputs.ville.value);
+  }
 
   // GETLOCATION fonctionne désormais uniquement en livraison : le sélecteur
   // technique de mode n'a donc plus d'intérêt visuel. On conserve sa valeur
@@ -358,6 +404,7 @@ function initSearchForm() {
     champ.style.display = estLivraison ? "" : "none";
     selectVille.required = estLivraison;
     if (!estLivraison) selectVille.value = "";
+    majAdressePersonnalisee(selectVille, selectVille === selectAdressePrise ? adressePersonnaliseePrise : adressePersonnaliseeRetour);
   }
 
   if (selectPrise) {
@@ -367,12 +414,14 @@ function initSearchForm() {
       if (!retourIndependant && selectRetour) selectRetour.value = selectPrise.value;
     });
   }
+  if (selectAdressePrise) selectAdressePrise.addEventListener("change", () => majAdressePersonnalisee(selectAdressePrise, adressePersonnaliseePrise));
   // Tant que la restitution n'a pas été rendue indépendante, son champ ville
   // reste masqué : elle reprend silencieusement la ville de prise en charge
   // au moment de l'envoi (voir plus bas), pas besoin de la resaisir.
   if (selectRetour) {
     selectRetour.addEventListener("change", () => majChampAdresse(selectRetour, champAdresseRetour, selectAdresseRetour));
   }
+  if (selectAdresseRetour) selectAdresseRetour.addEventListener("change", () => majAdressePersonnalisee(selectAdresseRetour, adressePersonnaliseeRetour));
 
   remplirOptionsHeure(selectHeureDebut);
   remplirOptionsHeure(selectHeureFin);
@@ -416,13 +465,13 @@ function initSearchForm() {
     e.preventDefault();
     corrigerFinSiNecessaire();
 
-    const adressePriseFinale = (selectPrise.value === LIEU_LIVRAISON && selectAdressePrise) ? selectAdressePrise.value : "";
+    const adressePriseFinale = (selectPrise.value === LIEU_LIVRAISON && selectAdressePrise) ? valeurAdresse(selectAdressePrise, adressePersonnaliseePrise) : "";
     // Sans restitution indépendante, on reprend silencieusement le lieu (et
     // la ville de livraison) de la prise en charge : pas besoin de le
     // ressaisir pour le cas le plus courant (même lieu au départ et au retour).
     const lieuRetourFinal = retourIndependant ? selectRetour.value : selectPrise.value;
     const adresseRetourFinale = retourIndependant
-      ? ((selectRetour.value === LIEU_LIVRAISON && selectAdresseRetour) ? selectAdresseRetour.value : "")
+      ? ((selectRetour.value === LIEU_LIVRAISON && selectAdresseRetour) ? valeurAdresse(selectAdresseRetour, adressePersonnaliseeRetour) : "")
       : adressePriseFinale;
 
     writeJSON(STORAGE.recherche, {
@@ -444,7 +493,7 @@ function initSearchForm() {
 // affiche l'adresse plutôt que le libellé générique.
 function libelleLieu(lieu, adresse) {
   if (lieu === LIEU_LIVRAISON && adresse) {
-    return `Livraison — ${adresse}`;
+    return `Livraison — ${libelleAdresseLivraison(adresse)}`;
   }
   return lieu;
 }
@@ -1549,6 +1598,7 @@ function initDocumentsPage() {
       const delivery = document.getElementById("delivery-fields");
       delivery.hidden = !access.deliveryAddressRequired;
       document.getElementById("deliveryAddress").required = !!access.deliveryAddressRequired;
+      if (access.deliveryAddressPrefill) document.getElementById("deliveryAddress").value = access.deliveryAddressPrefill;
       if (access.documentsStatus === "submitted") submitButton.textContent = "Remplacer mon dossier";
       form.hidden = false;
     })

@@ -12,7 +12,7 @@
 // confirmée en production — ne pas laisser les deux diverger si l'une des
 // deux est modifiée avant la suppression définitive de l'ancienne.
 
-const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, VILLES_LIVRAISON, CGL_VERSION, OPTIONS } = require("../../js/data.js");
+const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS } = require("../../js/data.js");
 
 const MAX_LEN = {
   nom: 100,
@@ -118,12 +118,12 @@ function validateReservationInput(payload) {
   // lieu correspondant est bien "Livraison" (sinon adressePrise/adresseRetour
   // doivent être vides).
   if (lieuPrise === LIEU_LIVRAISON) {
-    if (!VILLES_LIVRAISON.includes(adressePrise)) errors.push("Lieu de livraison (prise en charge) invalide");
+    if (!VILLES_LIVRAISON.includes(adressePrise) && !parseAdressePersonnalisee(adressePrise)) errors.push("Lieu de livraison (prise en charge) invalide");
   } else if (adressePrise !== undefined && adressePrise !== null && adressePrise !== "") {
     errors.push("Lieu de livraison (prise en charge) invalide");
   }
   if (lieuRetour === LIEU_LIVRAISON) {
-    if (!VILLES_LIVRAISON.includes(adresseRetour)) errors.push("Lieu de livraison (restitution) invalide");
+    if (!VILLES_LIVRAISON.includes(adresseRetour) && !parseAdressePersonnalisee(adresseRetour)) errors.push("Lieu de livraison (restitution) invalide");
   } else if (adresseRetour !== undefined && adresseRetour !== null && adresseRetour !== "") {
     errors.push("Lieu de livraison (restitution) invalide");
   }

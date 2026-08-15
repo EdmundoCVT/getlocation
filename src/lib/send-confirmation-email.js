@@ -22,7 +22,7 @@
 // (avertissement en log) mais la confirmation de paiement elle-même n'est
 // pas affectée.
 
-const { getVehiculeParId, formatEUR } = require("../../js/data.js");
+const { getVehiculeParId, formatEUR, libelleAdresseLivraison } = require("../../js/data.js");
 const { sendEmail } = require("./resend-client.js");
 
 // Numéro WhatsApp de l'agence, déjà utilisé comme repli paiement
@@ -104,6 +104,8 @@ function buildConfirmationEmailContent(reservation, siteUrl) {
   const checklistLignes = buildChecklistLignes(reservation);
   const whatsappUrl = buildWhatsappUrl(reservation.id);
   const documentsUrl = buildDocumentsUrl(reservation, siteUrl);
+  const lieuPrise = [reservation.lieuPrise, libelleAdresseLivraison(reservation.adressePrise)].filter(Boolean).join(" — ");
+  const lieuRetour = [reservation.lieuRetour, libelleAdresseLivraison(reservation.adresseRetour)].filter(Boolean).join(" — ");
 
   const subject = `Confirmation de votre réservation GET LOCATION — ${vehiculeNom}`;
 
@@ -113,8 +115,8 @@ function buildConfirmationEmailContent(reservation, siteUrl) {
     `Votre réservation est confirmée. Voici son récapitulatif :`,
     "",
     `Véhicule : ${vehiculeNom}`,
-    `Prise en charge : ${prise}${reservation.lieuPrise ? ` — ${reservation.lieuPrise}` : ""}`,
-    `Retour : ${retour}${reservation.lieuRetour ? ` — ${reservation.lieuRetour}` : ""}`,
+    `Prise en charge : ${prise}${lieuPrise ? ` — ${lieuPrise}` : ""}`,
+    `Retour : ${retour}${lieuRetour ? ` — ${lieuRetour}` : ""}`,
     `Durée : ${reservation.jours} jour(s)`,
     `Montant total réglé : ${total}`,
     `Caution du véhicule : ${caution} (prélevée avant la remise des clés)`,
@@ -143,8 +145,8 @@ function buildConfirmationEmailContent(reservation, siteUrl) {
 <p>Votre réservation est confirmée. Voici son récapitulatif :</p>
 <ul>
 <li><strong>Véhicule :</strong> ${escapeHtml(vehiculeNom)}</li>
-<li><strong>Prise en charge :</strong> ${escapeHtml(prise)}${reservation.lieuPrise ? ` — ${escapeHtml(reservation.lieuPrise)}` : ""}</li>
-<li><strong>Retour :</strong> ${escapeHtml(retour)}${reservation.lieuRetour ? ` — ${escapeHtml(reservation.lieuRetour)}` : ""}</li>
+<li><strong>Prise en charge :</strong> ${escapeHtml(prise)}${lieuPrise ? ` — ${escapeHtml(lieuPrise)}` : ""}</li>
+<li><strong>Retour :</strong> ${escapeHtml(retour)}${lieuRetour ? ` — ${escapeHtml(lieuRetour)}` : ""}</li>
 <li><strong>Durée :</strong> ${reservation.jours} jour(s)</li>
 <li><strong>Montant total réglé :</strong> ${escapeHtml(total)}</li>
 <li><strong>Caution du véhicule :</strong> ${escapeHtml(caution)} (prélevée avant la remise des clés)</li>

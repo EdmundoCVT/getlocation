@@ -24,6 +24,7 @@ const {
   buildContractPrefillData,
   encodeContractData
 } = require("../src/lib/send-contract-email.js");
+const { formatAdressePersonnalisee } = require("../js/data.js");
 
 function makeReservation(overrides = {}) {
   return {
@@ -70,6 +71,16 @@ test("buildContractPrefillData : détecte la livraison et préremplit sa zone sa
   assert.equal(data.secondConducteur, true);
   assert.equal(data.livraison, true);
   assert.equal(data.livraisonRue, "");
+  assert.equal(data.livraisonVille, "Nice");
+});
+
+test("buildContractPrefillData : répartit une adresse personnalisée dans les champs du contrat", () => {
+  const data = buildContractPrefillData(makeReservation({
+    options: [{ id: "livraison-adresse" }],
+    adressePrise: formatAdressePersonnalisee("12 avenue Jean Médecin", "06000", "Nice")
+  }));
+  assert.equal(data.livraisonRue, "12 avenue Jean Médecin");
+  assert.equal(data.livraisonCP, "06000");
   assert.equal(data.livraisonVille, "Nice");
 });
 
