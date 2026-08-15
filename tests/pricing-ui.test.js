@@ -121,8 +121,69 @@ test("initReservationPage : un code promo invalide affiche une erreur et ne chan
   window.document.getElementById("promo-input").value = "CODE-BIDON";
   window.document.getElementById("promo-apply").dispatchEvent(new window.Event("click", { bubbles: true }));
 
+  // Pas de window.fetch dans ce jsdom (comme un très vieux navigateur) :
+  // verifierCodeDeTest() bascule alors immédiatement, sans appel réseau, sur
+  // "invalide" — voir js/app.js. Couvre donc à la fois ce repli et le cas
+  // d'un code réellement inconnu.
   assert.match(window.document.getElementById("reservation-summary").textContent, /118/);
   assert.match(window.document.getElementById("promo-message").textContent, /invalide/);
+});
+
+test("initReservationPage : un code absent du catalogue public déclenche une vérification serveur (/api/validate-promo)", () => {
+  const window = newWindow(reservationPageHtml());
+  window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
+
+  const appels = [];
+  window.fetch = (url, options) => {
+    appels.push({ url, body: JSON.parse(options.body) });
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ valid: false }) });
+  };
+
+  window.initReservationPage();
+  window.document.getElementById("promo-input").value = "TEST1";
+  window.document.getElementById("promo-apply").dispatchEvent(new window.Event("click", { bubbles: true }));
+
+  assert.equal(appels.length, 1);
+  assert.equal(appels[0].url, "/api/validate-promo");
+  assert.deepEqual(appels[0].body, { code: "TEST1" });
+});
+
+test("initReservationPage : un code de test interne confirmé par le serveur affiche un message de succès dédié", async () => {
+  const window = newWindow(reservationPageHtml());
+  window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
+  window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ valid: true, totalFacture: 0.1 }) });
+
+  window.initReservationPage();
+  window.document.getElementById("promo-input").value = "TEST1";
+  window.document.getElementById("promo-apply").dispatchEvent(new window.Event("click", { bubbles: true }));
+
+  // Le message affiche "Vérification du code…" pendant que la promesse
+  // fetch()/json() n'est pas encore résolue (avant même le premier .then()).
+  assert.match(window.document.getElementById("promo-message").textContent, /Vérification/);
+
+  // Laisse la chaîne de promesses (fetch -> json -> then) se dérouler.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.match(window.document.getElementById("promo-message").textContent, /reconnu.*test interne/);
+  // Le total affiché reste volontairement le tarif normal (indicatif) : seul
+  // le serveur applique réellement la réduction, au moment du paiement.
+  assert.match(window.document.getElementById("reservation-summary").textContent, /118/);
+
+  const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
+  assert.equal(persisted.codePromo, "TEST1");
+});
+
+test("initReservationPage : un code déjà enregistré (retour sur la page) est revérifié auprès du serveur", async () => {
+  const window = newWindow(reservationPageHtml());
+  window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation({ codePromo: "TEST1" })));
+  window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ valid: true, totalFacture: 0.1 }) });
+
+  window.initReservationPage();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.match(window.document.getElementById("promo-message").textContent, /reconnu.*test interne/);
 });
 
 test("initReservationPage : affiche la remise durée dans le résumé à partir de 5 jours", () => {

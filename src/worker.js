@@ -16,6 +16,7 @@
 const { handleCreatePayment } = require("./api/create-payment.js");
 const { handleMollieWebhook } = require("./api/mollie-webhook.js");
 const { handleReservationStatus } = require("./api/reservation-status.js");
+const { handleValidatePromo } = require("./api/validate-promo.js");
 const { handleDocumentsAccess } = require("./api/documents-access.js");
 const { handleDocumentsSubmit } = require("./api/documents-submit.js");
 const { handleAgencyDocumentsAccess } = require("./api/agency-documents-access.js");
@@ -26,6 +27,7 @@ const ROUTES = {
   "/api/create-payment": handleCreatePayment,
   "/api/mollie-webhook": handleMollieWebhook,
   "/api/reservation-status": handleReservationStatus,
+  "/api/validate-promo": handleValidatePromo,
   "/api/documents-access": handleDocumentsAccess,
   "/api/documents-submit": handleDocumentsSubmit,
   "/api/agency-documents-access": handleAgencyDocumentsAccess,

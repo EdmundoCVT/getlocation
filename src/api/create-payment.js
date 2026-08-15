@@ -99,8 +99,18 @@ function clientIp(request) {
 // le tarif RÉEL calculé avant remise de test, jamais sur ce montant réduit :
 // descendre sous 50 centimes ici n'a donc pas besoin d'un cas particulier.
 const TEST_DISCOUNT_CENTIMES = 10; // 0,10 €
+
+// Extrait à part (et exporté) pour être réutilisé par /api/validate-promo
+// (voir validate-promo.js) sans dupliquer cette comparaison : un seul
+// endroit décide de ce qui compte comme "le bon code de test".
+function estCodeDeTestValide(codePromoBrut, testDiscountCode) {
+  return Boolean(
+    testDiscountCode && codePromoBrut && codePromoBrut.trim().toUpperCase() === testDiscountCode.trim().toUpperCase()
+  );
+}
+
 function resolverMontantFacture(prix, codePromoBrut, testDiscountCode) {
-  if (testDiscountCode && codePromoBrut && codePromoBrut.trim().toUpperCase() === testDiscountCode.trim().toUpperCase()) {
+  if (estCodeDeTestValide(codePromoBrut, testDiscountCode)) {
     return { totalCentimesFacture: TEST_DISCOUNT_CENTIMES, totalFacture: TEST_DISCOUNT_CENTIMES / 100 };
   }
   return { totalCentimesFacture: prix.totalCentimes, totalFacture: prix.total };
@@ -249,4 +259,4 @@ async function handleCreatePayment(request, env) {
   }
 }
 
-module.exports = { handleCreatePayment, resolverMontantFacture };
+module.exports = { handleCreatePayment, resolverMontantFacture, estCodeDeTestValide };
