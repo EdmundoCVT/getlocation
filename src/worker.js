@@ -22,6 +22,7 @@ const { handleAgencyDocumentsAccess } = require("./api/agency-documents-access.j
 const { handleAgencyDocumentFile } = require("./api/agency-document-file.js");
 const { runDocumentReminders } = require("./lib/document-reminders.js");
 const { runPickupReminders } = require("./lib/pickup-reminders.js");
+const { runReturnReminders } = require("./lib/return-reminders.js");
 
 const ROUTES = {
   "/api/create-payment": handleCreatePayment,
@@ -45,7 +46,8 @@ export default {
   async scheduled(controller, env, ctx) {
     ctx.waitUntil(Promise.all([
       runDocumentReminders(env),
-      runPickupReminders(env)
+      runPickupReminders(env),
+      runReturnReminders(env)
     ]));
   }
 };
