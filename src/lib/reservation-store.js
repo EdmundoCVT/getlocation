@@ -14,7 +14,19 @@
 // Statuts possibles : "pending_payment" | "paid" | "cancelled" | "expired"
 
 const RESERVATION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 jours
+// Décision validée (revue de sécurité PR #3-8, finding "haute") : les
+// documents d'identité sont purgés automatiquement 30 jours après la
+// restitution — voir document-retention.js, seul endroit qui doit rester
+// synchronisé avec cette valeur (d'où l'export).
 const PAID_RETENTION_AFTER_RETURN_MS = 30 * 24 * 60 * 60 * 1000;
+// Marge technique PUREMENT KV : la purge documentaire tourne une fois par
+// jour et peut retenter plusieurs jours de suite en cas d'échec partiel de
+// suppression R2 (voir document-retention.js). La fiche réservation elle-
+// même ne doit jamais expirer avant que la purge ait eu l'occasion de
+// s'exécuter (et de réessayer) — cette marge ne change PAS le déclenchement
+// de la purge (toujours exactement J+30), seulement la durée de survie de
+// l'enregistrement KV.
+const KV_RETENTION_SAFETY_MARGIN_MS = 5 * 24 * 60 * 60 * 1000; // 5 jours
 // Fenêtre pendant laquelle une réservation "pending_payment" (non encore
 // payée) bloque le véhicule pour éviter une double vente pendant le tunnel
 // de paiement. Voir l'équivalent Netlify Blobs pour le détail du
@@ -61,7 +73,9 @@ function reservationTtlSeconds(record) {
       ? new Date(`${record.dateFin}T${record.heureFin}:00`).getTime()
       : NaN;
   if (!Number.isFinite(returnMs)) return RESERVATION_TTL_SECONDS;
-  const untilRetentionEnd = Math.ceil((returnMs + PAID_RETENTION_AFTER_RETURN_MS - Date.now()) / 1000);
+  const untilRetentionEnd = Math.ceil(
+    (returnMs + PAID_RETENTION_AFTER_RETURN_MS + KV_RETENTION_SAFETY_MARGIN_MS - Date.now()) / 1000
+  );
   return Math.max(RESERVATION_TTL_SECONDS, untilRetentionEnd);
 }
 
@@ -212,5 +226,6 @@ module.exports = {
   listReservations,
   hasOverlappingReservation,
   generateReservationId,
-  reservationTtlSeconds
+  reservationTtlSeconds,
+  PAID_RETENTION_AFTER_RETURN_MS
 };
