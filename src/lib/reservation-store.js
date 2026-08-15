@@ -111,6 +111,12 @@ async function findReservationByDocumentTokenHash(env, tokenHash) {
   return id ? getReservation(env, id) : null;
 }
 
+async function updateReservationDocuments(env, id, extra) {
+  const record = await getReservation(env, id);
+  if (!record || record.status !== "paid") return null;
+  return updateReservationStatus(env, id, "paid", extra);
+}
+
 // Liste les réservations "actives" (pending_payment récent ou paid) pour un
 // véhicule donné. Implémentation volontairement simple (parcours des clés
 // préfixées "res_", index "pay_*" jamais listé) : adaptée à une petite
@@ -171,6 +177,7 @@ module.exports = {
   findReservationByPaymentId,
   saveDocumentAccessIndex,
   findReservationByDocumentTokenHash,
+  updateReservationDocuments,
   hasOverlappingReservation,
   generateReservationId,
   reservationTtlSeconds

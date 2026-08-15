@@ -2,7 +2,7 @@
 // l'en-tête Authorization (jamais dans l'URL), est haché côté serveur, puis
 // résolu via un index KV non énumérable par le client.
 
-const { getVehiculeParId } = require("../../js/data.js");
+const { getVehiculeParId, LIEU_LIVRAISON } = require("../../js/data.js");
 const { hashDocumentToken } = require("../lib/document-access-token.js");
 const { findReservationByDocumentTokenHash } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
@@ -39,7 +39,7 @@ function safeAccessView(reservation) {
     documentsStatus: reservation.documentsStatus || "pending",
     secondDriverRequired: hasOption(reservation, "second-conducteur"),
     deliveryAddressRequired: hasOption(reservation, "livraison-adresse") ||
-      reservation.lieuPrise === "livraison" || reservation.lieuRetour === "livraison",
+      reservation.lieuPrise === LIEU_LIVRAISON || reservation.lieuRetour === LIEU_LIVRAISON,
     expiresAt: reservation.documentAccess && reservation.documentAccess.expiresAt
   };
 }
@@ -64,21 +64,23 @@ async function handleDocumentsAccess(request, env) {
     });
   }
 
-  const token = bearerToken(request);
-  if (!token || !env.DOCUMENT_TOKEN_PEPPER) {
+  const resolved = await resolveDocumentAccess(request, env);
+  if (!resolved) {
     return new Response(JSON.stringify({ error: "Lien invalide ou expiré" }), { status: 401, headers: responseHeaders });
   }
 
+  return new Response(JSON.stringify(safeAccessView(resolved.reservation)), { status: 200, headers: responseHeaders });
+}
+
+async function resolveDocumentAccess(request, env) {
+  const token = bearerToken(request);
+  if (!token || !env.DOCUMENT_TOKEN_PEPPER) return null;
   const tokenHash = await hashDocumentToken(token, env.DOCUMENT_TOKEN_PEPPER);
   const reservation = await findReservationByDocumentTokenHash(env, tokenHash);
   const access = reservation && reservation.documentAccess;
   const expired = !access || !access.expiresAt || new Date(access.expiresAt).getTime() <= Date.now();
   const invalid = !reservation || reservation.status !== "paid" || access.tokenHash !== tokenHash || access.revokedAt || expired;
-  if (invalid) {
-    return new Response(JSON.stringify({ error: "Lien invalide ou expiré" }), { status: 401, headers: responseHeaders });
-  }
-
-  return new Response(JSON.stringify(safeAccessView(reservation)), { status: 200, headers: responseHeaders });
+  return invalid ? null : { reservation, tokenHash };
 }
 
-module.exports = { handleDocumentsAccess };
+module.exports = { handleDocumentsAccess, resolveDocumentAccess, safeAccessView };

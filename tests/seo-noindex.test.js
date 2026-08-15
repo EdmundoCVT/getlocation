@@ -25,6 +25,12 @@ test("chaque page transactionnelle contient une balise noindex, follow", () => {
   }
 });
 
+test("la page documentaire sensible est noindex, nofollow et no-referrer", () => {
+  const content = fs.readFileSync(path.join(ROOT, "documents.html"), "utf8");
+  assert.match(content, /<meta name="robots" content="noindex, nofollow">/);
+  assert.match(content, /<meta name="referrer" content="no-referrer">/);
+});
+
 test("sitemap.xml ne référence aucune page transactionnelle", () => {
   const sitemap = fs.readFileSync(path.join(ROOT, "sitemap.xml"), "utf8");
   const forbidden = ["/reservation<", "/paiement<", "/confirmation<", "/contrat<"];
