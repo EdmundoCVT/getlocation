@@ -116,6 +116,72 @@ test("idempotence : rejouer le même statut paid ne change rien de plus", async 
   assert.equal(afterSecond.paidAt, paidAtFirst); // pas retraité, donc pas réécrit
 });
 
+test("un échec de l'email contrat est récupéré au prochain webhook sans renvoyer la confirmation client", async () => {
+  const env = makeEnv({
+    RESEND_API_KEY: "re_test",
+    AGENCY_EMAIL: "agence@example.com",
+    SITE_URL: "https://getlocation.fr"
+  });
+  const reservation = await createReservation(env, {
+    vehiculeId: "opel-corsa",
+    dateDebut: "2027-03-10",
+    heureDebut: "10:00",
+    dateFin: "2027-03-11",
+    heureFin: "10:00",
+    jours: 1,
+    montantCents: 5900,
+    conducteur: {
+      prenom: "Test",
+      nom: "Client",
+      naissance: "1986-12-19",
+      telephone: "+33600000000",
+      email: "client@example.com"
+    }
+  });
+  const paymentId = `tr_${Math.random().toString(36).slice(2)}`;
+  await updateReservationStatus(env, reservation.id, "pending_payment", { paymentId });
+  const payment = makePayment("paid", { id: paymentId, metadata: { reservationId: reservation.id } });
+
+  const originalFetch = globalThis.fetch;
+  const firstSubjects = [];
+  globalThis.fetch = async (_url, init) => {
+    const body = JSON.parse(init.body);
+    firstSubjects.push(body.subject);
+    if (body.subject.startsWith("Contrat à préparer")) {
+      return new Response(JSON.stringify({ message: "rate limited" }), { status: 429 });
+    }
+    return new Response(JSON.stringify({ id: "confirmation_ok" }), { status: 200 });
+  };
+  try {
+    await processPaymentStatus(env, payment);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  let updated = await getReservation(env, reservation.id);
+  assert.equal(firstSubjects.length, 2);
+  assert.equal(updated.contractEmailSentAt, undefined);
+  const failedTokenHash = updated.contractAgencyAccess.tokenHash;
+
+  const retrySubjects = [];
+  globalThis.fetch = async (_url, init) => {
+    const body = JSON.parse(init.body);
+    retrySubjects.push(body.subject);
+    return new Response(JSON.stringify({ id: "contract_retry_ok" }), { status: 200 });
+  };
+  try {
+    await processPaymentStatus(env, payment);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  updated = await getReservation(env, reservation.id);
+  assert.equal(retrySubjects.length, 1, "seul l'email contrat doit être rejoué");
+  assert.match(retrySubjects[0], /^Contrat à préparer/);
+  assert.ok(updated.contractEmailSentAt);
+  assert.notEqual(updated.contractAgencyAccess.tokenHash, failedTokenHash, "le lien perdu est remplacé par un nouveau jeton utilisable");
+});
+
 test("un paiement expiré/annulé/échoué annule la réservation, sans écraser un paiement déjà confirmé", async () => {
   const env = makeEnv();
   const reservation = await createReservation(env, { vehiculeId: "toyota-proace-city" });
