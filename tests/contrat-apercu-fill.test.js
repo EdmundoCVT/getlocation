@@ -141,3 +141,35 @@ test("second conducteur : la clause correspondante est révélée et remplie qua
   const clause = win.document.getElementById("secondConducteurClause");
   assert.notEqual(clause.style.display, "none");
 });
+
+// Bug initialement signalé : la clause reste display:none quand aucun
+// second conducteur n'est sélectionné (déjà le cas côté affichage), mais
+// texteConditionsLocation() l'incluait quand même dans le texte lu pour le
+// PDF, textContent ignorant le CSS — voir le filtre ajouté dans
+// texteConditionsLocation()/sectionsConditionsLocation().
+test("second conducteur NON sélectionné : la clause reste absente du texte lu pour le PDF (et masquée à l'écran)", () => {
+  const win = buildWindow();
+  const data = makeReservationData({ secondConducteur: false });
+  const payload = win.construirePayload(data, null, null);
+  win.remplirTexteArticles(payload);
+  const texte = win.texteConditionsLocation();
+
+  assert.doesNotMatch(texte, /second conducteur/i, "la clause second conducteur ne doit apparaître ni avec des \"…\" ni du tout");
+  const clause = win.document.getElementById("secondConducteurClause");
+  assert.equal(clause.style.display, "none");
+
+  const sections = win.sectionsConditionsLocation();
+  const texteSections = sections.map((s) => s.paragraphes.join(" ")).join(" ");
+  assert.doesNotMatch(texteSections, /second conducteur/i, "sectionsConditionsLocation() doit appliquer le même filtre");
+});
+
+test("forfait kilométrique (200 km/jour, 0,25 €/km) reflète js/data.js (getKmInclusParJour/getSupplementKmCentimes), pas une valeur codée en dur", () => {
+  const win = buildWindow();
+  const data = makeReservationData();
+  const payload = win.construirePayload(data, null, null);
+  win.remplirTexteArticles(payload);
+  const texte = win.texteConditionsLocation();
+
+  assert.match(texte, new RegExp(win.getKmInclusParJour() + " km inclus par jour"));
+  assert.match(texte, new RegExp(win.formatEUR(win.getSupplementKmCentimes() / 100).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " / km"));
+});

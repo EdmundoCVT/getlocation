@@ -105,6 +105,44 @@ test("encodeContractData : produit un base64 décodable par decodeData() de cont
   assert.equal(encodedByBrowser, encodedByServer);
 });
 
+function withFakeFetch(handler, fn) {
+  const original = globalThis.fetch;
+  globalThis.fetch = handler;
+  return Promise.resolve(fn()).finally(() => {
+    globalThis.fetch = original;
+  });
+}
+
+test("sendContractEmail : utilise le lien sécurisé #agencyToken= (fragment, jamais paramètre de requête) quand contractDossierToken est présent", async () => {
+  let capturedBody;
+  await withFakeFetch(
+    async (url, init) => {
+      capturedBody = JSON.parse(init.body);
+      return new Response(JSON.stringify({ id: "email_test" }), { status: 200 });
+    },
+    () => sendContractEmail(
+      { RESEND_API_KEY: "re_test", AGENCY_EMAIL: "agence@example.com" },
+      makeReservation({ contractDossierToken: "abc123-jeton-de-test-1234567890abcde" })
+    )
+  );
+  assert.ok(capturedBody, "aucun email envoyé");
+  assert.match(capturedBody.html, /contrat\.html#agencyToken=abc123-jeton-de-test-1234567890abcde/);
+  assert.equal(capturedBody.html.includes("?agencyToken="), false, "le jeton ne doit jamais apparaître en paramètre de requête (journaux d'accès)");
+  assert.equal(capturedBody.html.includes("?prefill="), false, "ne doit pas aussi inclure l'ancien lien base64 quand le jeton sécurisé est disponible");
+});
+
+test("sendContractEmail : repli sur l'ancien lien ?prefill= (base64) quand aucun jeton sécurisé n'est disponible", async () => {
+  let capturedBody;
+  await withFakeFetch(
+    async (url, init) => {
+      capturedBody = JSON.parse(init.body);
+      return new Response(JSON.stringify({ id: "email_test" }), { status: 200 });
+    },
+    () => sendContractEmail({ RESEND_API_KEY: "re_test", AGENCY_EMAIL: "agence@example.com" }, makeReservation())
+  );
+  assert.match(capturedBody.html, /contrat\.html\?prefill=/);
+});
+
 test("sendContractEmail : ne lève jamais si RESEND_API_KEY/AGENCY_EMAIL ne sont pas configurées", async () => {
   await assert.doesNotReject(sendContractEmail({}, makeReservation()));
 });

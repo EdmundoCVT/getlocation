@@ -130,6 +130,23 @@
   .share-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
   .share-btn{flex:1 1 auto;min-width:110px;text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;}
   .hidden{display:none !important;}
+  .rr-table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px;}
+  .rr-table th, .rr-table td{padding:8px;border-bottom:1px solid var(--ligne);text-align:left;vertical-align:top;}
+  .rr-table th{color:var(--bleu-ocean);font-size:12px;text-transform:uppercase;letter-spacing:.04em;}
+  .rr-table td:first-child{color:#6b6478;font-weight:600;width:150px;}
+  .rr-table input, .rr-table select, .rr-table textarea{width:100%;}
+  .rr-table textarea{min-height:50px;resize:vertical;}
+  @media(max-width:640px){
+    .rr-table, .rr-table thead, .rr-table tbody, .rr-table th, .rr-table td, .rr-table tr{display:block;}
+    .rr-table thead{display:none;}
+    .rr-table tr{margin-bottom:14px;border-bottom:2px solid var(--ligne);padding-bottom:10px;}
+    .rr-table td:first-child{width:auto;padding-bottom:2px;}
+  }
+  .missing-fields{color:#c0392b;font-size:13px;margin-top:8px;}
+  .badge-statut{display:inline-block;font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;margin-left:8px;vertical-align:middle;}
+  .badge-statut.draft{background:var(--sable-clair);color:var(--bleu-ocean);}
+  .badge-statut.sent{background:#fff3cd;color:#8a6d00;}
+  .badge-statut.signed{background:var(--vert-clair);color:var(--vert);}
   @media print{
     .no-print{display:none!important;}
     body{background:#fff;}
@@ -334,7 +351,7 @@
         <p>Une caution de <span class="fill" data-fill="caution">…</span> est prélevée avant remise des clés, réglée par <span class="fill" data-fill="modeCaution">…</span>. Un état des lieux (photos, kilométrage, niveau de carburant) est réalisé au départ et à la restitution. Toute dégradation non mentionnée au départ sera facturée sur devis.</p>
         <p id="secondConducteurClause" style="display:none;">Un second conducteur, <span class="fill" data-fill="nom2">…</span> (permis n° <span class="fill" data-fill="permis2">…</span>), est autorisé à conduire le véhicule dans les mêmes conditions que le locataire principal, qui reste seul responsable vis-à-vis du présent contrat.</p>
         <h3>Article 4 — Kilométrage et carburant</h3>
-        <p>Le véhicule est loué avec un forfait de <strong>200 km inclus par jour de location</strong>, soit <span class="fill" data-fill="kmInclus">…</span> km au total pour la durée du contrat. Tout kilomètre parcouru au-delà de ce forfait est facturé <strong>0,25 € / km</strong>, prélevé sur la caution ou facturé séparément à la restitution. Le véhicule doit être restitué avec le même niveau de carburant qu'au départ.</p>
+        <p>Le véhicule est loué avec un forfait de <strong><span class="fill" data-fill="kmInclusParJour">…</span> km inclus par jour de location</strong>, soit <span class="fill" data-fill="kmInclus">…</span> km au total pour la durée du contrat. Tout kilomètre parcouru au-delà de ce forfait est facturé <strong><span class="fill" data-fill="supplementKm">…</span> / km</strong>, prélevé sur la caution ou facturé séparément à la restitution (voir le tableau de remise et restitution du véhicule, kilométrage relevé au départ et au retour). Le véhicule doit être restitué avec le même niveau de carburant qu'au départ.</p>
         <h3>Article 5 — Restitution et retard</h3>
         <p>Le véhicule doit être restitué au lieu, à la date et à l'heure convenus. Tout retard non signalé au préalable entraîne une facturation complémentaire. Une restitution en dehors des horaires habituels reste possible sur demande : il suffit d'appeler l'agence au <a href="tel:+33667485430">+33 6 67 48 54 30</a> pour convenir d'un rendez-vous adapté.</p>
         <h3>Article 6 — Assistance et remorquage</h3>
@@ -388,9 +405,190 @@
     </div>
   </div>
 
+  <!-- ================= DOSSIER AGENCE SÉCURISÉ (#agencyToken=) ================= -->
+  <div id="dossierAgencyView" class="hidden">
+    <div id="dossierAgencyLoading" class="card"><p>Vérification de votre lien sécurisé…</p></div>
+    <div id="dossierAgencyError" class="card hidden"><h2>Lien indisponible</h2><p class="missing-fields" id="dossierAgencyErrorText"></p></div>
+
+    <div id="dossierAgencyContent" class="hidden">
+      <h1>Dossier de location<span class="badge-statut" id="dossierStatutBadge"></span></h1>
+      <p class="lead" id="dossierReference"></p>
+
+      <div class="card">
+        <h2>Récapitulatif de la réservation</h2>
+        <div id="dossierRecap"></div>
+      </div>
+
+      <div class="card">
+        <h2>Informations du contrat à compléter</h2>
+        <p class="lead" style="margin-bottom:10px;">Le véhicule, les dates et les coordonnées viennent de la réservation payée (ci-dessus, non modifiables ici). Complétez le reste avant d'envoyer le lien de signature au client.</p>
+        <div class="grid">
+          <div class="field">
+            <label for="df-immatriculation">Immatriculation</label>
+            <input id="df-immatriculation" type="text" placeholder="AA-123-BB">
+          </div>
+          <div class="field full">
+            <label for="df-adresse">Adresse du locataire (n° et rue)</label>
+            <input id="df-adresse" type="text">
+          </div>
+          <div class="field">
+            <label for="df-codePostal">Code postal</label>
+            <input id="df-codePostal" type="text" inputmode="numeric" maxlength="10">
+          </div>
+          <div class="field">
+            <label for="df-ville">Ville</label>
+            <input id="df-ville" type="text">
+          </div>
+          <div class="field">
+            <label for="df-permisNumero">N° de permis de conduire</label>
+            <input id="df-permisNumero" type="text">
+          </div>
+          <div class="field">
+            <label for="df-permisDate">Date d'obtention du permis</label>
+            <input id="df-permisDate" type="date">
+          </div>
+        </div>
+        <div class="field full" style="margin-top:16px;">
+          <label>Mode de règlement de la caution</label>
+          <div class="tabs" id="dfCautionTabs">
+            <button type="button" class="tab-btn active" data-mode="carte">Carte bancaire</button>
+            <button type="button" class="tab-btn" data-mode="especes">Espèces</button>
+          </div>
+        </div>
+        <div class="check-row">
+          <input type="checkbox" id="df-livraison-toggle">
+          <label for="df-livraison-toggle">Livraison du véhicule à une adresse</label>
+        </div>
+        <div class="second-conducteur" id="dfLivraisonBlock">
+          <div class="grid">
+            <div class="field full"><label for="df-livraisonRue">Adresse de livraison</label><input id="df-livraisonRue" type="text"></div>
+            <div class="field"><label for="df-livraisonCP">Code postal</label><input id="df-livraisonCP" type="text" inputmode="numeric" maxlength="10"></div>
+            <div class="field"><label for="df-livraisonVille">Ville</label><input id="df-livraisonVille" type="text"></div>
+          </div>
+        </div>
+        <div class="check-row">
+          <input type="checkbox" id="df-second-toggle">
+          <label for="df-second-toggle">Ajouter un second conducteur</label>
+        </div>
+        <div class="second-conducteur" id="dfSecondBlock">
+          <div class="grid">
+            <div class="field"><label for="df-secondNom">Nom (2<sup>e</sup> conducteur)</label><input id="df-secondNom" type="text"></div>
+            <div class="field"><label for="df-secondPrenom">Prénom (2<sup>e</sup> conducteur)</label><input id="df-secondPrenom" type="text"></div>
+            <div class="field full"><label for="df-secondPermis">N° de permis</label><input id="df-secondPermis" type="text"></div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-primary" id="dfSaveBtn" style="margin-top:16px;">Enregistrer ces informations</button>
+        <p class="meta-line" id="dfSaveMsg"></p>
+      </div>
+
+      <div class="card">
+        <h2>Aperçu PDF</h2>
+        <button type="button" class="btn btn-primary" id="dfDownloadPdfBtn">📄 Télécharger le PDF</button>
+      </div>
+
+      <div class="card">
+        <h2>Envoyer le contrat au client</h2>
+        <p class="lead" id="dfSendHint" style="margin-bottom:10px;">Complétez et enregistrez toutes les informations obligatoires ci-dessus pour pouvoir envoyer le lien de signature.</p>
+        <p class="missing-fields hidden" id="dfMissingFields"></p>
+        <button type="button" class="btn btn-primary" id="dfSendBtn">✉️ Envoyer au client pour signature</button>
+        <div class="link-box hidden" id="dfLinkBox">
+          <input type="text" id="dfLinkOutput" readonly>
+          <button type="button" class="btn" id="dfCopyBtn">📋 Copier</button>
+        </div>
+        <div class="share-actions hidden" id="dfShareActions">
+          <a class="btn share-btn" id="dfWhatsappBtn" target="_blank" rel="noopener">💬 WhatsApp</a>
+          <a class="btn share-btn" id="dfSmsBtn">📱 SMS</a>
+          <a class="btn share-btn" id="dfEmailBtn">✉️ E-mail</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Remise et restitution du véhicule</h2>
+        <div style="overflow-x:auto;">
+          <table class="rr-table">
+            <thead><tr><th></th><th>Départ</th><th>Retour</th></tr></thead>
+            <tbody>
+              <tr><td>Date et heure</td><td><input type="datetime-local" id="rr-depart-dateHeure"></td><td><input type="datetime-local" id="rr-retour-dateHeure"></td></tr>
+              <tr><td>Kilométrage compteur</td><td><input type="number" min="0" id="rr-depart-km"></td><td><input type="number" min="0" id="rr-retour-km"></td></tr>
+              <tr><td>Niveau de carburant</td><td><select id="rr-depart-carburant"></select></td><td><select id="rr-retour-carburant"></select></td></tr>
+              <tr><td>État de propreté</td><td><input type="text" id="rr-depart-proprete"></td><td><input type="text" id="rr-retour-proprete"></td></tr>
+              <tr><td>Dommages / observations</td><td><textarea id="rr-depart-dommages"></textarea></td><td><textarea id="rr-retour-dommages"></textarea></td></tr>
+              <tr><td>Photos (nombre / référence)</td><td><input type="text" id="rr-depart-photosRef" placeholder="ex. 6 photos (dossier départ)"></td><td><input type="text" id="rr-retour-photosRef" placeholder="ex. 6 photos (dossier retour)"></td></tr>
+              <tr><td>Clés et accessoires</td><td><input type="text" id="rr-depart-clesAccessoires" placeholder="2 clés, carte grise, chargeur…"></td><td><input type="text" id="rr-retour-clesAccessoires"></td></tr>
+              <tr><td>Nom de l'agent</td><td><input type="text" id="rr-depart-agent"></td><td><input type="text" id="rr-retour-agent"></td></tr>
+              <tr><td>Signature client</td><td><input type="text" id="rr-depart-clientSigne" placeholder="Nom tapé par le client"></td><td><input type="text" id="rr-retour-clientSigne"></td></tr>
+              <tr><td>Signature agence</td><td><input type="text" id="rr-depart-agenceSigne" placeholder="Nom de l'agent"></td><td><input type="text" id="rr-retour-agenceSigne"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-primary" id="rrDepartSaveBtn" style="flex:1;">Enregistrer la remise (départ)</button>
+          <button type="button" class="btn btn-primary" id="rrRetourSaveBtn" style="flex:1;">Enregistrer la restitution (retour)</button>
+        </div>
+        <p class="meta-line" id="rrSaveMsg"></p>
+        <div class="vehicule-recap hidden" id="rrKilometrageResultat" style="margin-top:14px;"></div>
+
+        <div class="field full" style="margin-top:18px;">
+          <label for="rrObservations">Observations complémentaires</label>
+          <textarea id="rrObservations" rows="3"></textarea>
+        </div>
+        <button type="button" class="btn" id="rrObservationsSaveBtn" style="margin-top:8px;">Enregistrer les observations</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= DOSSIER CLIENT SÉCURISÉ (#clientToken=) ================= -->
+  <div id="dossierClientView" class="hidden">
+    <div id="dossierClientLoading" class="card"><p>Vérification de votre lien sécurisé…</p></div>
+    <div id="dossierClientError" class="card hidden"><h2>Lien indisponible</h2><p class="missing-fields" id="dossierClientErrorText"></p></div>
+
+    <div id="dossierClientContent" class="hidden">
+      <div class="badge">Vérification et signature</div>
+      <h1>Votre contrat de location</h1>
+      <p class="lead">Vérifiez les informations ci-dessous, puis signez pour valider votre réservation.</p>
+
+      <div class="card">
+        <h2>Récapitulatif</h2>
+        <div id="dcRecap"></div>
+        <button type="button" class="btn no-print" id="dcPreviewPdfBtn" style="margin-top:16px;width:100%;">📄 Aperçu PDF (avant signature)</button>
+      </div>
+
+      <div class="card" id="dcAlreadySigned" class="hidden">
+        <h2>Contrat déjà signé</h2>
+        <p class="meta-line" id="dcAlreadySignedMeta"></p>
+        <button type="button" class="btn" id="dcDownloadSignedPdfBtn">📄 Télécharger le PDF</button>
+      </div>
+
+      <div class="card" id="dcSignCard">
+        <h2>Conditions de location</h2>
+        <p class="meta-line">Le texte des conditions générales est identique à celui affiché ailleurs sur le site (voir <a href="cgl.html" target="_blank" rel="noopener">cgl.html</a>) — cette section reprend automatiquement les mêmes articles.</p>
+
+        <form id="dcSignForm">
+          <div class="check-row">
+            <input type="checkbox" id="dc-accept" required>
+            <label for="dc-accept">J'ai lu et j'accepte les conditions de location.</label>
+          </div>
+
+          <div class="sig-row" style="margin-top:16px;">
+            <span class="hint">Signez avec la souris, le trackpad ou le doigt</span>
+            <button type="button" class="btn btn-ghost no-print" id="dcClearBtn">Effacer</button>
+          </div>
+          <canvas id="dcPad" width="700" height="150"></canvas>
+          <p class="meta-line no-print" id="dcPadHint">Le champ signature est requis avant validation.</p>
+
+          <button type="submit" class="btn btn-primary no-print" id="dcSubmitBtn" disabled>Signer et valider le contrat</button>
+          <div class="status" id="dcStatusBox">
+            <span>✓</span>
+            <span id="dcStatusText">Contrat signé électroniquement.</span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
 </div>
 
-<script src="js/data.js?v=6"></script>
+<script src="js/data.js?v=7"></script>
 <script>
 // VEHICULES, formatEUR, joursFacturablesDepuisHeures, getVehiculeParId et
 // getOptionParId viennent de js/data.js (chargé juste avant ce script) —
@@ -429,7 +627,6 @@ function formatDateHeureFR(v){
   var heure = d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
   return date + ' à ' + heure;
 }
-function kmInclusPour(heures){ return joursFacturablesDepuisHeures(heures) * 200; }
 function encodeData(obj){
   return btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
 }
@@ -444,12 +641,45 @@ function decodeData(str){
 // bug), alors que textContent reste fiable quel que soit l'affichage.
 // Reconstruit les sauts de paragraphe (perdus par textContent) en joignant
 // chaque titre/paragraphe séparément.
+//
+// IMPORTANT : ignore les noeuds masqués individuellement (style.display ===
+// 'none', ex. #secondConducteurClause quand aucun second conducteur n'est
+// sélectionné — voir remplirTexteArticles()/initClientView()). textContent
+// ignore le CSS et renvoie le texte même caché : sans ce filtre, la clause
+// second conducteur (avec ses "…" jamais remplis) apparaissait dans le PDF
+// et dans tout usage de cette fonction alors qu'elle restait bien invisible
+// à l'écran — c'était le bug réellement observé, pas un problème d'affichage.
 function texteConditionsLocation(){
   var el = document.getElementById('contractText');
   if(!el) return '';
   var parties = [];
-  el.querySelectorAll('h3, p').forEach(function(node){ parties.push(node.textContent.trim()); });
+  el.querySelectorAll('h3, p').forEach(function(node){
+    if(node.style && node.style.display === 'none') return;
+    parties.push(node.textContent.trim());
+  });
   return parties.join('\n\n');
+}
+
+// Même filtre que texteConditionsLocation() ci-dessus (clauses masquées
+// ignorées), mais structuré par article (titre + paragraphes) plutôt qu'un
+// bloc de texte plat — permet au PDF (genererPDF) de garder un titre
+// d'article avec le début de son texte plutôt que de le laisser isolé en
+// bas de page (voir sautDePageSiBesoin).
+function sectionsConditionsLocation(){
+  var el = document.getElementById('contractText');
+  if(!el) return [];
+  var sections = [];
+  var courante = null;
+  Array.prototype.forEach.call(el.children, function(node){
+    if(node.style && node.style.display === 'none') return;
+    if(node.tagName === 'H3'){
+      courante = { titre: node.textContent.trim(), paragraphes: [] };
+      sections.push(courante);
+    } else if(node.tagName === 'P' && courante){
+      courante.paragraphes.push(node.textContent.trim());
+    }
+  });
+  return sections;
 }
 
 // Construit le payload attendu par genererPDF()/la soumission de signature
@@ -493,7 +723,7 @@ function construirePayload(data, sigData, stamp){
     second_conducteur_prenom: data.prenom2 || '',
     second_conducteur_nom: data.nom2 || '',
     second_conducteur_permis: data.permis2 || '',
-    kmInclus: kmInclusPour(heures).toLocaleString('fr-FR'),
+    kmInclus: kmInclusPourJours(jours).toLocaleString('fr-FR'),
     horodatage_signature: stamp || '',
     signature_image: sigData || ''
   };
@@ -523,12 +753,20 @@ function remplirTexteArticles(payload){
   setFill('caution', payload.caution);
   setFill('modeCaution', (payload.mode_reglement_caution || '').toLowerCase());
   setFill('kmInclus', payload.kmInclus);
+  setFill('kmInclusParJour', getKmInclusParJour().toLocaleString('fr-FR'));
+  setFill('supplementKm', formatEUR(getSupplementKmCentimes() / 100));
   if(payload.second_conducteur === 'Oui'){
     setFill('nom2', (payload.second_conducteur_prenom + ' ' + payload.second_conducteur_nom).trim());
     setFill('permis2', payload.second_conducteur_permis);
     var clause = document.getElementById('secondConducteurClause');
     if(clause) clause.style.display = '';
   }
+}
+
+// Formate un champ carburant (0/10/20.../100) en "40 %" ; laisse tel quel
+// (déjà une chaîne libre, ex. état de propreté) sinon.
+function formatCarburant(niveau){
+  return (niveau === '' || niveau === null || niveau === undefined) ? '—' : (niveau + ' %');
 }
 
 function genererPDF(payload, estApercu){
@@ -546,23 +784,38 @@ function genererPDF(payload, estApercu){
     if(y + hauteur > pageHeight - margin){ doc.addPage(); y = margin; }
   }
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(26,47,82);
-  doc.text('GETLOCATION', margin, y); y += 16;
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(107,100,120);
-  doc.text('TLST SAS — Location de véhicules — Grasse, Alpes-Maritimes', margin, y); y += 18;
+  function enTete(){
+    doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(26,47,82);
+    doc.text('GETLOCATION', margin, y); y += 16;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(107,100,120);
+    doc.text('TLST SAS — Location de véhicules — Grasse, Alpes-Maritimes', margin, y); y += 14;
+    if(payload.reference){
+      doc.text('Référence de réservation : ' + payload.reference, margin, y); y += 14;
+    }
 
-  if(estApercu){
-    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(242,118,12);
-    doc.text('APERÇU — document non contractuel, en attente de signature du client', margin, y); y += 16;
+    // Page 1 : statut clair (aperçu / envoyé pour signature / signé) — voir
+    // payload.statutDossier (dossier sécurisé) avec repli sur l'ancien
+    // indicateur estApercu/signature_image (lien ?data=/?prefill= historique).
+    var statutTexte, statutCouleur;
+    if(payload.signature_image){
+      statutTexte = 'CONTRAT SIGNÉ'; statutCouleur = [47,158,91];
+    } else if(payload.statutDossier === 'sent'){
+      statutTexte = 'ENVOYÉ AU CLIENT — EN ATTENTE DE SIGNATURE'; statutCouleur = [242,118,12];
+    } else {
+      statutTexte = 'APERÇU — DOCUMENT NON CONTRACTUEL'; statutCouleur = [242,118,12];
+    }
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(statutCouleur[0],statutCouleur[1],statutCouleur[2]);
+    doc.text(statutTexte, margin, y); y += 16;
+
+    doc.setDrawColor(227,232,234); doc.line(margin, y, pageWidth - margin, y); y += 20;
   }
-
-  doc.setDrawColor(227,232,234); doc.line(margin, y, pageWidth - margin, y); y += 20;
+  enTete();
 
   doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(26,47,82);
   doc.text('Contrat de location — Récapitulatif', margin, y); y += 20;
 
   function ligne(label, valeur){
-    valeur = valeur || '—';
+    valeur = (valeur === undefined || valeur === null || valeur === '') ? (estApercu ? 'À compléter' : '—') : valeur;
     doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(107,100,120);
     doc.text(label, margin, y);
     doc.setFont('helvetica','normal'); doc.setTextColor(42,36,56);
@@ -586,7 +839,7 @@ function genererPDF(payload, estApercu){
   sautDePageSiBesoin(90);
   doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(26,47,82);
   doc.text('Locataire', margin, y); y += 16;
-  ligne('Nom', payload.locataire_prenom + ' ' + payload.locataire_nom);
+  ligne('Nom', (payload.locataire_prenom || payload.locataire_nom) ? (payload.locataire_prenom + ' ' + payload.locataire_nom) : '');
   ligne('Naissance', payload.locataire_naissance);
   ligne('Adresse', payload.locataire_adresse);
   ligne('Téléphone', payload.locataire_tel);
@@ -595,22 +848,112 @@ function genererPDF(payload, estApercu){
   if(payload.second_conducteur === 'Oui'){
     ligne('2e conducteur', payload.second_conducteur_prenom + ' ' + payload.second_conducteur_nom + ' (permis ' + payload.second_conducteur_permis + ')');
   }
-  y += 8;
 
-  sautDePageSiBesoin(60);
-  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(26,47,82);
-  doc.text('Conditions de location', margin, y); y += 16;
-  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(80,74,94);
+  // ---- Page 2 : remise et restitution du véhicule (dossier sécurisé
+  // uniquement — jamais présent pour l'ancien flux ?data=/?prefill=, cette
+  // section reste alors simplement absente du PDF, sans changement pour lui). ----
+  if(payload.remise || payload.restitution){
+    doc.addPage(); y = margin;
+    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(26,47,82);
+    doc.text('Remise et restitution du véhicule', margin, y); y += 20;
+
+    var col1 = margin, col2 = margin + (maxWidth-140)/2 + 140, colLabelWidth = 140, colWidth = (maxWidth-140)/2;
+    function ligneEtatDesLieux(label, remiseVal, restitutionVal){
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(107,100,120);
+      var lignesLabel = doc.splitTextToSize(label, colLabelWidth - 6);
+      doc.text(lignesLabel, col1, y);
+      doc.setFont('helvetica','normal'); doc.setTextColor(42,36,56);
+      var lR = doc.splitTextToSize(remiseVal || '—', colWidth - 6);
+      var lS = doc.splitTextToSize(restitutionVal || '—', colWidth - 6);
+      doc.text(lR, col1 + colLabelWidth, y);
+      doc.text(lS, col2, y);
+      y += 12 * Math.max(lignesLabel.length, lR.length, lS.length, 1) + 4;
+      sautDePageSiBesoin(20);
+    }
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(242,118,12);
+    doc.text('', col1, y);
+    doc.text('Départ', col1 + colLabelWidth, y);
+    doc.text('Retour', col2, y);
+    y += 14;
+    doc.setDrawColor(227,232,234); doc.line(margin, y-6, pageWidth-margin, y-6);
+
+    var r = payload.remise || {}, s = payload.restitution || {};
+    ligneEtatDesLieux('Date et heure', r.dateHeure, s.dateHeure);
+    ligneEtatDesLieux('Kilométrage', r.km !== undefined && r.km !== null ? (r.km + ' km') : '', s.km !== undefined && s.km !== null ? (s.km + ' km') : '');
+    ligneEtatDesLieux('Carburant', formatCarburant(r.carburant), formatCarburant(s.carburant));
+    ligneEtatDesLieux('État de propreté', r.proprete, s.proprete);
+    ligneEtatDesLieux('Dommages / observations', r.dommages, s.dommages);
+    ligneEtatDesLieux('Photos', r.photosRef, s.photosRef);
+    ligneEtatDesLieux('Clés et accessoires', r.clesAccessoires, s.clesAccessoires);
+    ligneEtatDesLieux('Agent', r.agent, s.agent);
+    ligneEtatDesLieux('Signature client', r.clientSigne, s.clientSigne);
+    ligneEtatDesLieux('Signature agence', r.agenceSigne, s.agenceSigne);
+    y += 8;
+
+    sautDePageSiBesoin(70);
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(26,47,82);
+    doc.text('Kilométrage — résultat', margin, y); y += 16;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(42,36,56);
+    var km = payload.kilometrageResultat;
+    if(km && km.valid){
+      ligne('Km inclus', km.kmInclus + ' km');
+      ligne('Km parcourus', km.kmParcourus + ' km');
+      if(km.kmDepasses > 0){
+        ligne('Dépassement', km.kmDepasses + ' km — supplément ' + formatEUR(km.supplement));
+      } else {
+        doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(47,158,91);
+        doc.text('Aucun dépassement', margin, y); y += 14;
+      }
+    } else {
+      doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(107,100,120);
+      doc.text('Calcul disponible une fois la remise et la restitution toutes deux complétées.', margin, y); y += 14;
+    }
+
+    if(payload.observationsComplementaires){
+      y += 6;
+      sautDePageSiBesoin(40);
+      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(26,47,82);
+      doc.text('Observations complémentaires', margin, y); y += 14;
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(42,36,56);
+      doc.splitTextToSize(payload.observationsComplementaires, maxWidth).forEach(function(l){
+        sautDePageSiBesoin(12);
+        doc.text(l, margin, y); y += 11;
+      });
+    }
+  }
+
+  // ---- Pages suivantes : conditions de location (articles), avec un
+  // contrôle simple des veuves/orphelines (titre gardé avec le début de son
+  // texte, jamais isolé seul en bas de page). ----
+  doc.addPage(); y = margin;
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(26,47,82);
+  doc.text('Conditions de location', margin, y); y += 20;
+
   remplirTexteArticles(payload);
-  var texteContrat = texteConditionsLocation();
-  var lignesContrat = doc.splitTextToSize(texteContrat, maxWidth);
-  lignesContrat.forEach(function(l){
-    sautDePageSiBesoin(12);
-    doc.text(l, margin, y);
-    y += 11;
+  var sections = sectionsConditionsLocation();
+  sections.forEach(function(section){
+    doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(242,118,12);
+    var lignesTitre = doc.splitTextToSize(section.titre, maxWidth);
+    // Garde le titre avec au moins la première ligne de son texte : un
+    // saut de page ici ne doit jamais laisser un titre seul en bas de page.
+    sautDePageSiBesoin(12 * lignesTitre.length + 24);
+    doc.text(lignesTitre, margin, y);
+    y += 12 * lignesTitre.length + 6;
+
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(80,74,94);
+    section.paragraphes.forEach(function(paragraphe){
+      var lignes = doc.splitTextToSize(paragraphe, maxWidth);
+      lignes.forEach(function(l){
+        sautDePageSiBesoin(12);
+        doc.text(l, margin, y);
+        y += 11;
+      });
+      y += 4;
+    });
+    y += 6;
   });
 
-  y += 14;
+  y += 10;
   sautDePageSiBesoin(120);
   doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(26,47,82);
   doc.text('Signature électronique', margin, y); y += 10;
@@ -625,9 +968,560 @@ function genererPDF(payload, estApercu){
     doc.text('En attente de signature du client.', margin, y);
   }
 
+  // ---- Pied de page + numérotation, appliqués une fois le nombre total de
+  // pages connu (impossible de le savoir avant la fin du document). ----
+  var totalPages = doc.internal.getNumberOfPages();
+  for(var p = 1; p <= totalPages; p++){
+    doc.setPage(p);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(150,144,160);
+    var piedTexte = 'GETLOCATION — TLST SAS' + (payload.reference ? ' — Réf. ' + payload.reference : '');
+    doc.text(piedTexte, margin, pageHeight - 20);
+    doc.text('Page ' + p + ' / ' + totalPages, pageWidth - margin, pageHeight - 20, { align: 'right' });
+  }
+
   var suffixe = payload.signature_image ? '' : '-apercu';
   var nomFichier = 'contrat-getlocation-' + (payload.locataire_nom || 'client').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-') + suffixe + '.pdf';
   doc.save(nomFichier);
+}
+
+// ---------------------------------------------------------------------
+// Dossier contrat SÉCURISÉ (#agencyToken=/#clientToken=, en fragment — voir
+// src/api/contract-dossier-agency.js / contract-dossier-client.js. Les
+// informations de remise/restitution du véhicule vivent uniquement ici —
+// jamais dans les anciens liens ?data=/?prefill= en base64 ci-dessous,
+// conservés inchangés pour la compatibilité des liens déjà envoyés par
+// e-mail avant l'ajout de ce dossier sécurisé.
+// ---------------------------------------------------------------------
+
+function recapRow(label, valeur){
+  var row = document.createElement('div'); row.className = 'recap-row';
+  var l = document.createElement('span'); l.textContent = label;
+  var v = document.createElement('span'); v.textContent = (valeur === undefined || valeur === null || valeur === '') ? '—' : valeur;
+  row.appendChild(l); row.appendChild(v);
+  return row;
+}
+
+function peuplerSelectCarburant(select){
+  select.innerHTML = '';
+  select.add(new Option('—', ''));
+  for(var n = 0; n <= 100; n += 10){ select.add(new Option(n + ' %', String(n))); }
+}
+
+function initDossierAgencyView(token){
+  var loading = document.getElementById('dossierAgencyLoading');
+  var errorCard = document.getElementById('dossierAgencyError');
+  var errorText = document.getElementById('dossierAgencyErrorText');
+  var content = document.getElementById('dossierAgencyContent');
+
+  function showError(message){
+    loading.classList.add('hidden');
+    errorText.textContent = message;
+    errorCard.classList.remove('hidden');
+  }
+
+  if(!/^[A-Za-z0-9_-]{43}$/.test(token || '')){
+    showError("Ce lien est invalide ou a expiré. Ouvrez à nouveau le lien reçu par e-mail.");
+    return;
+  }
+
+  function apiGet(){
+    return fetch('/api/contract-dossier-agency', { headers: { Authorization: 'Bearer ' + token } })
+      .then(function(r){ return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || 'Lien invalide ou expiré'); return body; }); });
+  }
+  function apiPost(payload){
+    return fetch('/api/contract-dossier-agency', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function(r){
+      return r.json().then(function(body){
+        if(!r.ok){
+          var err = new Error(body.error || 'Erreur');
+          err.champsManquants = body.champsManquants;
+          throw err;
+        }
+        return body;
+      });
+    });
+  }
+
+  var view = null;
+  var NOMS_CHAMPS = {
+    immatriculation: 'Immatriculation', adresse: 'Adresse', codePostal: 'Code postal', ville: 'Ville',
+    permisNumero: 'Numéro de permis', livraisonRue: 'Adresse de livraison', livraisonCP: 'Code postal de livraison',
+    livraisonVille: 'Ville de livraison', secondConducteurNom: 'Nom du second conducteur',
+    secondConducteurPrenom: 'Prénom du second conducteur', secondConducteurPermisNumero: 'Permis du second conducteur'
+  };
+
+  // Mêmes règles que champsManquantsAvantEnvoi() côté serveur (source de
+  // vérité, toujours revalidées à l'envoi) — recopiées ici uniquement pour
+  // un retour visuel immédiat, jamais pour se substituer à la validation serveur.
+  function champsManquantsLabels(){
+    var f = view.dossier && view.dossier.fields;
+    if(!f) return [NOMS_CHAMPS.immatriculation, NOMS_CHAMPS.adresse, NOMS_CHAMPS.codePostal, NOMS_CHAMPS.ville, NOMS_CHAMPS.permisNumero];
+    var manquants = [];
+    if(!f.immatriculation) manquants.push(NOMS_CHAMPS.immatriculation);
+    if(!f.adresse) manquants.push(NOMS_CHAMPS.adresse);
+    if(!f.codePostal) manquants.push(NOMS_CHAMPS.codePostal);
+    if(!f.ville) manquants.push(NOMS_CHAMPS.ville);
+    if(!f.permisNumero) manquants.push(NOMS_CHAMPS.permisNumero);
+    if(f.livraison){
+      if(!f.livraisonRue) manquants.push(NOMS_CHAMPS.livraisonRue);
+      if(!f.livraisonCP) manquants.push(NOMS_CHAMPS.livraisonCP);
+      if(!f.livraisonVille) manquants.push(NOMS_CHAMPS.livraisonVille);
+    }
+    if(f.secondConducteur){
+      if(!f.secondConducteurNom) manquants.push(NOMS_CHAMPS.secondConducteurNom);
+      if(!f.secondConducteurPrenom) manquants.push(NOMS_CHAMPS.secondConducteurPrenom);
+      if(!f.secondConducteurPermisNumero) manquants.push(NOMS_CHAMPS.secondConducteurPermisNumero);
+    }
+    return manquants;
+  }
+
+  function construireDossierPayload(v){
+    var r = v.reservation;
+    var f = (v.dossier && v.dossier.fields) || {};
+    var jours = r.jours;
+    var departISO = r.dateDebut + 'T' + r.heureDebut;
+    var retourISO = r.dateFin + 'T' + r.heureFin;
+    var heures = dureeHeures(departISO, retourISO);
+    var lieuAffiche = f.livraison ? ('Livraison à ' + (f.livraisonRue||'') + ', ' + (f.livraisonCP||'') + ' ' + (f.livraisonVille||'')) : r.lieuPrise;
+    var adresseComplete = [f.adresse, [f.codePostal, f.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    return {
+      'form-name': 'contrat-signature',
+      reference: r.id,
+      statutDossier: v.dossier.status,
+      vehicule: r.vehicule ? r.vehicule.nom : '',
+      immatriculation: f.immatriculation || (r.vehicule ? r.vehicule.immatriculation : ''),
+      lieu: lieuAffiche,
+      livraison: f.livraison ? 'Oui (+20 €)' : 'Non',
+      depart: formatDateHeureFR(departISO),
+      retour: formatDateHeureFR(retourISO),
+      duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
+      total: formatEUR(r.total),
+      caution: r.vehicule ? formatEUR(r.vehicule.caution) : '',
+      mode_reglement_caution: f.modeCaution === 'especes' ? 'Espèces' : 'Carte bancaire',
+      locataire_prenom: r.conducteur ? r.conducteur.prenom : '',
+      locataire_nom: r.conducteur ? r.conducteur.nom : '',
+      locataire_naissance: r.conducteur ? r.conducteur.naissance : '',
+      locataire_adresse: adresseComplete,
+      locataire_tel: r.conducteur ? r.conducteur.telephone : '',
+      locataire_email: r.conducteur ? r.conducteur.email : '',
+      locataire_permis: f.permisNumero || '',
+      second_conducteur: f.secondConducteur ? 'Oui' : 'Non',
+      second_conducteur_prenom: f.secondConducteurPrenom || '',
+      second_conducteur_nom: f.secondConducteurNom || '',
+      second_conducteur_permis: f.secondConducteurPermisNumero || '',
+      kmInclus: kmInclusPourJours(jours).toLocaleString('fr-FR'),
+      horodatage_signature: v.dossier.signature ? formatDateHeureFR(v.dossier.signature.signedAt) : '',
+      signatureId: v.dossier.signature ? v.dossier.signature.signatureId : '',
+      signature_image: v.dossier.signature ? (v.dossier.signature.imageDataUrl || '') : '',
+      remise: v.dossier.depart,
+      restitution: v.dossier.retour,
+      kilometrageResultat: v.dossier.kilometrage,
+      observationsComplementaires: v.dossier.observations || ''
+    };
+  }
+
+  function updateSendHint(){
+    var manquants = champsManquantsLabels();
+    var hint = document.getElementById('dfSendHint');
+    var missingEl = document.getElementById('dfMissingFields');
+    var sendBtn = document.getElementById('dfSendBtn');
+    if(manquants.length){
+      hint.classList.remove('hidden');
+      missingEl.classList.remove('hidden');
+      missingEl.textContent = 'Champs manquants avant l\'envoi : ' + manquants.join(', ') + '.';
+      sendBtn.disabled = true;
+    } else {
+      hint.classList.add('hidden');
+      missingEl.classList.add('hidden');
+      sendBtn.disabled = false;
+    }
+  }
+
+  function render(){
+    var r = view.reservation;
+    var statutLabels = { draft: 'Brouillon', sent: 'Envoyé au client', signed: 'Signé' };
+    var badge = document.getElementById('dossierStatutBadge');
+    badge.textContent = statutLabels[view.dossier.status] || view.dossier.status;
+    badge.className = 'badge-statut ' + view.dossier.status;
+    document.getElementById('dossierReference').textContent = 'Réservation ' + r.id;
+
+    var recap = document.getElementById('dossierRecap');
+    recap.textContent = '';
+    recap.appendChild(recapRow('Véhicule', r.vehicule ? r.vehicule.nom : ''));
+    recap.appendChild(recapRow('Dates', formatDateHeureFR(r.dateDebut + 'T' + r.heureDebut) + ' → ' + formatDateHeureFR(r.dateFin + 'T' + r.heureFin)));
+    recap.appendChild(recapRow('Lieu de prise en charge', r.lieuPrise));
+    recap.appendChild(recapRow('Conducteur', r.conducteur ? (r.conducteur.prenom + ' ' + r.conducteur.nom) : ''));
+    recap.appendChild(recapRow('E-mail', r.conducteur ? r.conducteur.email : ''));
+    recap.appendChild(recapRow('Téléphone', r.conducteur ? r.conducteur.telephone : ''));
+    recap.appendChild(recapRow('Total réglé', formatEUR(r.total)));
+    recap.appendChild(recapRow('Caution', r.vehicule ? formatEUR(r.vehicule.caution) : ''));
+
+    var f = view.dossier.fields || {};
+    var prefill = view.documentsPrefill || {};
+    function val(champ){ return (f[champ] !== undefined && f[champ] !== '') ? f[champ] : (prefill[champ] || ''); }
+
+    document.getElementById('df-immatriculation').value = f.immatriculation || (r.vehicule ? r.vehicule.immatriculation : '');
+    document.getElementById('df-adresse').value = val('adresse');
+    document.getElementById('df-codePostal').value = val('codePostal');
+    document.getElementById('df-ville').value = val('ville');
+    document.getElementById('df-permisNumero').value = val('permisNumero');
+    document.getElementById('df-permisDate').value = val('permisDate');
+    document.querySelectorAll('#dfCautionTabs .tab-btn').forEach(function(b){
+      b.classList.toggle('active', b.dataset.mode === (f.modeCaution || 'carte'));
+    });
+    document.getElementById('df-livraison-toggle').checked = !!f.livraison;
+    document.getElementById('dfLivraisonBlock').classList.toggle('show', !!f.livraison);
+    document.getElementById('df-livraisonRue').value = f.livraisonRue || '';
+    document.getElementById('df-livraisonCP').value = f.livraisonCP || '';
+    document.getElementById('df-livraisonVille').value = f.livraisonVille || '';
+    document.getElementById('df-second-toggle').checked = !!f.secondConducteur;
+    document.getElementById('dfSecondBlock').classList.toggle('show', !!f.secondConducteur);
+    document.getElementById('df-secondNom').value = val('secondConducteurNom');
+    document.getElementById('df-secondPrenom').value = val('secondConducteurPrenom');
+    document.getElementById('df-secondPermis').value = val('secondConducteurPermisNumero');
+
+    ['depart','retour'].forEach(function(etape){
+      var data = view.dossier[etape];
+      var prefix = etape === 'depart' ? 'rr-depart-' : 'rr-retour-';
+      document.getElementById(prefix + 'dateHeure').value = data ? data.dateHeure : '';
+      document.getElementById(prefix + 'km').value = data ? data.km : '';
+      document.getElementById(prefix + 'carburant').value = data ? String(data.carburant) : '';
+      document.getElementById(prefix + 'proprete').value = data ? data.proprete : '';
+      document.getElementById(prefix + 'dommages').value = data ? data.dommages : '';
+      document.getElementById(prefix + 'photosRef').value = data ? data.photosRef : '';
+      document.getElementById(prefix + 'clesAccessoires').value = data ? data.clesAccessoires : '';
+      document.getElementById(prefix + 'agent').value = data ? data.agent : '';
+      document.getElementById(prefix + 'clientSigne').value = data ? data.clientSigne : '';
+      document.getElementById(prefix + 'agenceSigne').value = data ? data.agenceSigne : '';
+    });
+    document.getElementById('rrObservations').value = view.dossier.observations || '';
+
+    var resultatEl = document.getElementById('rrKilometrageResultat');
+    if(view.dossier.kilometrage && view.dossier.kilometrage.valid){
+      var km = view.dossier.kilometrage;
+      resultatEl.classList.remove('hidden');
+      resultatEl.textContent = '';
+      var span = document.createElement('span');
+      span.textContent = km.kmDepasses > 0
+        ? ('Dépassement : ' + km.kmDepasses + ' km — supplément ' + formatEUR(km.supplement))
+        : ('Aucun dépassement (' + km.kmParcourus + ' km parcourus, ' + km.kmInclus + ' km inclus)');
+      resultatEl.appendChild(span);
+    } else {
+      resultatEl.classList.add('hidden');
+    }
+
+    updateSendHint();
+  }
+
+  peuplerSelectCarburant(document.getElementById('rr-depart-carburant'));
+  peuplerSelectCarburant(document.getElementById('rr-retour-carburant'));
+
+  document.getElementById('dfCautionTabs').addEventListener('click', function(e){
+    var btn = e.target.closest('.tab-btn');
+    if(!btn) return;
+    document.querySelectorAll('#dfCautionTabs .tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  });
+  document.getElementById('df-livraison-toggle').addEventListener('change', function(){
+    document.getElementById('dfLivraisonBlock').classList.toggle('show', this.checked);
+  });
+  document.getElementById('df-second-toggle').addEventListener('change', function(){
+    document.getElementById('dfSecondBlock').classList.toggle('show', this.checked);
+  });
+
+  document.getElementById('dfSaveBtn').addEventListener('click', function(){
+    var msg = document.getElementById('dfSaveMsg');
+    msg.textContent = 'Enregistrement…';
+    var modeCautionBtn = document.querySelector('#dfCautionTabs .tab-btn.active');
+    apiPost({
+      action: 'update-fields',
+      immatriculation: document.getElementById('df-immatriculation').value,
+      modeCaution: modeCautionBtn ? modeCautionBtn.dataset.mode : 'carte',
+      adresse: document.getElementById('df-adresse').value,
+      codePostal: document.getElementById('df-codePostal').value,
+      ville: document.getElementById('df-ville').value,
+      permisNumero: document.getElementById('df-permisNumero').value,
+      permisDate: document.getElementById('df-permisDate').value,
+      livraison: document.getElementById('df-livraison-toggle').checked,
+      livraisonRue: document.getElementById('df-livraisonRue').value,
+      livraisonCP: document.getElementById('df-livraisonCP').value,
+      livraisonVille: document.getElementById('df-livraisonVille').value,
+      secondConducteur: document.getElementById('df-second-toggle').checked,
+      secondConducteurNom: document.getElementById('df-secondNom').value,
+      secondConducteurPrenom: document.getElementById('df-secondPrenom').value,
+      secondConducteurPermisNumero: document.getElementById('df-secondPermis').value
+    }).then(function(body){
+      view = body; render();
+      msg.textContent = 'Enregistré ✓';
+    }).catch(function(err){
+      msg.textContent = err.message;
+    });
+  });
+
+  document.getElementById('dfSendBtn').addEventListener('click', function(){
+    apiPost({ action: 'send-to-client' }).then(function(body){
+      view = body; render();
+      var message = 'Bonjour ' + (view.reservation.conducteur ? view.reservation.conducteur.prenom : '') +
+        ', voici le lien pour vérifier et signer votre contrat de location GETLOCATION : ' + body.clientUrl;
+      var messageEnc = encodeURIComponent(message);
+      document.getElementById('dfLinkOutput').value = body.clientUrl;
+      document.getElementById('dfLinkBox').classList.remove('hidden');
+      document.getElementById('dfShareActions').classList.remove('hidden');
+      document.getElementById('dfWhatsappBtn').href = 'https://wa.me/?text=' + messageEnc;
+      document.getElementById('dfSmsBtn').href = 'sms:?body=' + messageEnc;
+      document.getElementById('dfEmailBtn').href = 'mailto:?subject=' + encodeURIComponent('Votre contrat de location GETLOCATION') + '&body=' + messageEnc;
+    }).catch(function(err){
+      var missingEl = document.getElementById('dfMissingFields');
+      missingEl.classList.remove('hidden');
+      missingEl.textContent = err.champsManquants ? ('Champs manquants avant l\'envoi : ' + err.champsManquants.join(', ') + '.') : err.message;
+    });
+  });
+  document.getElementById('dfCopyBtn').addEventListener('click', function(){
+    var linkOutput = document.getElementById('dfLinkOutput');
+    linkOutput.select();
+    navigator.clipboard.writeText(linkOutput.value).catch(function(){ document.execCommand('copy'); });
+  });
+
+  function lireEtatDesLieux(prefix){
+    return {
+      dateHeure: document.getElementById(prefix + 'dateHeure').value,
+      km: Number(document.getElementById(prefix + 'km').value),
+      carburant: Number(document.getElementById(prefix + 'carburant').value),
+      proprete: document.getElementById(prefix + 'proprete').value,
+      dommages: document.getElementById(prefix + 'dommages').value,
+      photosRef: document.getElementById(prefix + 'photosRef').value,
+      clesAccessoires: document.getElementById(prefix + 'clesAccessoires').value,
+      agent: document.getElementById(prefix + 'agent').value,
+      clientSigne: document.getElementById(prefix + 'clientSigne').value,
+      agenceSigne: document.getElementById(prefix + 'agenceSigne').value
+    };
+  }
+  document.getElementById('rrDepartSaveBtn').addEventListener('click', function(){
+    var msg = document.getElementById('rrSaveMsg');
+    msg.textContent = 'Enregistrement…';
+    var data = lireEtatDesLieux('rr-depart-'); data.action = 'update-depart';
+    apiPost(data).then(function(body){ view = body; render(); msg.textContent = 'Remise enregistrée ✓'; })
+      .catch(function(err){ msg.textContent = err.message; });
+  });
+  document.getElementById('rrRetourSaveBtn').addEventListener('click', function(){
+    var msg = document.getElementById('rrSaveMsg');
+    msg.textContent = 'Enregistrement…';
+    var data = lireEtatDesLieux('rr-retour-'); data.action = 'update-retour';
+    apiPost(data).then(function(body){ view = body; render(); msg.textContent = 'Restitution enregistrée ✓'; })
+      .catch(function(err){ msg.textContent = err.message; });
+  });
+  document.getElementById('rrObservationsSaveBtn').addEventListener('click', function(){
+    apiPost({ action: 'update-observations', observations: document.getElementById('rrObservations').value })
+      .then(function(body){ view = body; render(); });
+  });
+
+  document.getElementById('dfDownloadPdfBtn').addEventListener('click', function(){
+    if(!view) return;
+    genererPDF(construireDossierPayload(view), view.dossier.status !== 'signed');
+  });
+
+  loading.classList.remove('hidden');
+  apiGet().then(function(body){
+    view = body;
+    loading.classList.add('hidden');
+    content.classList.remove('hidden');
+    render();
+  }).catch(function(err){
+    showError(err.message);
+  });
+}
+
+function initDossierClientView(token){
+  var loading = document.getElementById('dossierClientLoading');
+  var errorCard = document.getElementById('dossierClientError');
+  var errorText = document.getElementById('dossierClientErrorText');
+  var content = document.getElementById('dossierClientContent');
+
+  function showError(message){
+    loading.classList.add('hidden');
+    errorText.textContent = message;
+    errorCard.classList.remove('hidden');
+  }
+
+  if(!/^[A-Za-z0-9_-]{43}$/.test(token || '')){
+    showError("Ce lien est invalide ou a expiré. Ouvrez à nouveau le lien reçu.");
+    return;
+  }
+
+  function construireDossierClientPayload(v, sigData, stamp, signatureId){
+    var r = v.reservation, f = v.fields;
+    var jours = r.jours;
+    var departISO = r.dateDebut + 'T' + r.heureDebut;
+    var retourISO = r.dateFin + 'T' + r.heureFin;
+    var heures = dureeHeures(departISO, retourISO);
+    var lieuAffiche = f.livraison ? ('Livraison à ' + f.livraisonRue + ', ' + f.livraisonCP + ' ' + f.livraisonVille) : r.lieuPrise;
+    var adresseComplete = [f.adresse, [f.codePostal, f.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    return {
+      'form-name': 'contrat-signature',
+      statutDossier: v.status,
+      vehicule: r.vehicule ? r.vehicule.nom : '',
+      immatriculation: r.immatriculation,
+      lieu: lieuAffiche,
+      livraison: f.livraison ? 'Oui (+20 €)' : 'Non',
+      depart: formatDateHeureFR(departISO),
+      retour: formatDateHeureFR(retourISO),
+      duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
+      total: formatEUR(r.total),
+      caution: r.vehicule ? formatEUR(r.vehicule.caution) : '',
+      mode_reglement_caution: f.modeCaution === 'especes' ? 'Espèces' : 'Carte bancaire',
+      locataire_prenom: r.conducteur ? r.conducteur.prenom : '',
+      locataire_nom: r.conducteur ? r.conducteur.nom : '',
+      locataire_naissance: r.conducteur ? r.conducteur.naissance : '',
+      locataire_adresse: adresseComplete,
+      locataire_tel: r.conducteur ? r.conducteur.telephone : '',
+      locataire_email: r.conducteur ? r.conducteur.email : '',
+      locataire_permis: f.permisNumero,
+      second_conducteur: f.secondConducteur ? 'Oui' : 'Non',
+      second_conducteur_prenom: f.secondConducteurPrenom || '',
+      second_conducteur_nom: f.secondConducteurNom || '',
+      second_conducteur_permis: f.secondConducteurPermisNumero || '',
+      kmInclus: kmInclusPourJours(jours).toLocaleString('fr-FR'),
+      horodatage_signature: stamp || '',
+      signatureId: signatureId || '',
+      signature_image: sigData || ''
+    };
+  }
+
+  loading.classList.remove('hidden');
+  fetch('/api/contract-dossier-client', { headers: { Authorization: 'Bearer ' + token } })
+    .then(function(r){ return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || 'Lien invalide ou expiré'); return body; }); })
+    .then(function(v){
+      loading.classList.add('hidden');
+      content.classList.remove('hidden');
+
+      var r = v.reservation, f = v.fields;
+      var departISO = r.dateDebut + 'T' + r.heureDebut;
+      var retourISO = r.dateFin + 'T' + r.heureFin;
+      var lieuAffiche = f.livraison ? ('Livraison à ' + f.livraisonRue + ', ' + f.livraisonCP + ' ' + f.livraisonVille) : r.lieuPrise;
+
+      var recap = document.getElementById('dcRecap');
+      recap.textContent = '';
+      recap.appendChild(recapRow('Véhicule', r.vehicule ? r.vehicule.nom : ''));
+      recap.appendChild(recapRow('Immatriculation', r.immatriculation));
+      recap.appendChild(recapRow(f.livraison ? 'Livraison' : 'Lieu de prise en charge', lieuAffiche));
+      recap.appendChild(recapRow('Départ', formatDateHeureFR(departISO)));
+      recap.appendChild(recapRow('Retour', formatDateHeureFR(retourISO)));
+      recap.appendChild(recapRow('Total', formatEUR(r.total)));
+      recap.appendChild(recapRow('Caution', r.vehicule ? (formatEUR(r.vehicule.caution) + ' (' + (f.modeCaution === 'carte' ? 'carte bancaire' : 'espèces') + ')') : ''));
+      recap.appendChild(recapRow('Locataire', r.conducteur ? (r.conducteur.prenom + ' ' + r.conducteur.nom) : ''));
+      recap.appendChild(recapRow('N° de permis', f.permisNumero));
+      if(f.secondConducteur){
+        recap.appendChild(recapRow('Second conducteur', f.secondConducteurPrenom + ' ' + f.secondConducteurNom + ' (permis ' + f.secondConducteurPermisNumero + ')'));
+      }
+
+      remplirTexteArticles(construireDossierClientPayload(v, null, null, null));
+
+      document.getElementById('dcPreviewPdfBtn').addEventListener('click', function(){
+        genererPDF(construireDossierClientPayload(v, null, null, null), true);
+      });
+
+      if(v.status === 'signed'){
+        document.getElementById('dcSignCard').classList.add('hidden');
+        var already = document.getElementById('dcAlreadySigned');
+        already.classList.remove('hidden');
+        document.getElementById('dcAlreadySignedMeta').textContent = 'Signé le ' + formatDateHeureFR(v.signedAt) + ' — identifiant ' + v.signatureId;
+        document.getElementById('dcDownloadSignedPdfBtn').addEventListener('click', function(){
+          genererPDF(construireDossierClientPayload(v, null, formatDateHeureFR(v.signedAt), v.signatureId), false);
+        });
+        return;
+      }
+
+      var canvas = document.getElementById('dcPad');
+      var ctx = canvas.getContext('2d');
+      var submitBtn = document.getElementById('dcSubmitBtn');
+      var accept = document.getElementById('dc-accept');
+      var hasSignature = false;
+      var drawing = false;
+      var last = null;
+
+      function resizeCanvas(){
+        var ratio = window.devicePixelRatio || 1;
+        var rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * ratio;
+        canvas.height = rect.height * ratio;
+        ctx.scale(ratio, ratio);
+        ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.strokeStyle = '#2a2438';
+      }
+      window.addEventListener('resize', function(){
+        var imgData = hasSignature ? canvas.toDataURL() : null;
+        resizeCanvas();
+        if(imgData){
+          var img = new Image();
+          img.onload = function(){ ctx.drawImage(img,0,0,canvas.getBoundingClientRect().width,canvas.getBoundingClientRect().height); };
+          img.src = imgData;
+        }
+      });
+      resizeCanvas();
+
+      function pos(e){
+        var rect = canvas.getBoundingClientRect();
+        var p = e.touches ? e.touches[0] : e;
+        return { x: p.clientX - rect.left, y: p.clientY - rect.top };
+      }
+      function start(e){ e.preventDefault(); drawing = true; last = pos(e); }
+      function move(e){
+        if(!drawing) return;
+        e.preventDefault();
+        var p = pos(e);
+        ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+        last = p; hasSignature = true; updateSubmitState();
+      }
+      function end(){ drawing = false; }
+      canvas.addEventListener('mousedown', start);
+      canvas.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', end);
+      canvas.addEventListener('touchstart', start, {passive:false});
+      canvas.addEventListener('touchmove', move, {passive:false});
+      canvas.addEventListener('touchend', end);
+
+      document.getElementById('dcClearBtn').addEventListener('click', function(){
+        var rect = canvas.getBoundingClientRect();
+        ctx.clearRect(0,0,rect.width,rect.height);
+        hasSignature = false;
+        updateSubmitState();
+      });
+
+      function updateSubmitState(){
+        submitBtn.disabled = !(hasSignature && accept.checked);
+        document.getElementById('dcPadHint').textContent = hasSignature ? 'Signature enregistrée.' : 'Le champ signature est requis avant validation.';
+      }
+      accept.addEventListener('change', updateSubmitState);
+      updateSubmitState();
+
+      document.getElementById('dcSignForm').addEventListener('submit', function(e){
+        e.preventDefault();
+        if(!hasSignature || !accept.checked){ updateSubmitState(); return; }
+        var sigData = canvas.toDataURL('image/png');
+        submitBtn.disabled = true;
+        fetch('/api/contract-dossier-client', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cglAccepted: true, cglVersion: r.cglVersion, signatureImage: sigData })
+        }).then(function(res){ return res.json().then(function(body){ if(!res.ok) throw new Error(body.error || 'La signature a échoué'); return body; }); })
+        .then(function(signed){
+          var now = new Date();
+          var stamp = now.toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' }) + ' à ' + now.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+          document.getElementById('dcStatusBox').classList.add('show');
+          document.getElementById('dcStatusText').textContent = 'Contrat signé électroniquement le ' + stamp + '.';
+          Array.prototype.forEach.call(document.getElementById('dcSignForm').querySelectorAll('button, input'), function(el){ el.disabled = true; });
+          document.getElementById('dcClearBtn').style.display = 'none';
+          genererPDF(construireDossierClientPayload(v, sigData, stamp, signed.signatureId), false);
+        })
+        .catch(function(err){
+          submitBtn.disabled = false;
+          alert(err.message);
+        });
+      });
+    })
+    .catch(function(err){ showError(err.message); });
 }
 
 var params = new URLSearchParams(window.location.search);
@@ -637,9 +1531,33 @@ var encoded = params.get('data');
 // netlify/functions/lib/send-contract-email.js) — contrairement à `data`,
 // qui affiche la vue CLIENT (lecture + signature). Un lien reçu par email
 // avec `?prefill=` ouvre donc bien le formulaire éditable, pas la signature.
+// Conservés tous les deux inchangés pour la compatibilité des liens déjà
+// envoyés avant l'ajout du dossier sécurisé ci-dessous (voir send-contract-email.js).
 var prefillEncoded = params.get('prefill');
+// #agencyToken=/#clientToken= (FRAGMENT, jamais ?agencyToken=/?clientToken=
+// en paramètre de requête) : comme pour documents.html
+// (document-access-token.js), un jeton porteur ne doit jamais transiter par
+// un paramètre de requête — le navigateur l'enverrait au serveur avec
+// chaque requête (URL complète dans les journaux d'accès, l'en-tête
+// Referer si la page ouvrait un lien externe...), contrairement à un
+// fragment, que le navigateur ne transmet jamais au serveur.
+var hashParams = new URLSearchParams(window.location.hash.slice(1));
+var agencyToken = hashParams.get('agencyToken');
+var clientToken = hashParams.get('clientToken');
 
-if(encoded){
+if(agencyToken){
+  history.replaceState(null, '', window.location.pathname);
+  document.getElementById('ownerView').classList.add('hidden');
+  document.getElementById('clientView').classList.add('hidden');
+  document.getElementById('dossierAgencyView').classList.remove('hidden');
+  initDossierAgencyView(agencyToken);
+} else if(clientToken){
+  history.replaceState(null, '', window.location.pathname);
+  document.getElementById('ownerView').classList.add('hidden');
+  document.getElementById('clientView').classList.add('hidden');
+  document.getElementById('dossierClientView').classList.remove('hidden');
+  initDossierClientView(clientToken);
+} else if(encoded){
   document.getElementById('ownerView').classList.add('hidden');
   document.getElementById('clientView').classList.remove('hidden');
   initClientView(decodeData(encoded));
@@ -739,7 +1657,7 @@ function initOwnerView(prefill){
       '<span><strong>' + v.nom + '</strong> — ' + v.prixJour + ' €/jour</span>' +
       '<span>Caution : ' + formatEUR(v.caution) + '</span>';
     document.getElementById('dureeTxt').textContent = formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours);
-    document.getElementById('kmTxt').textContent = kmInclusPour(heures).toLocaleString('fr-FR') + ' km';
+    document.getElementById('kmTxt').textContent = kmInclusPourJours(jours).toLocaleString('fr-FR') + ' km';
     document.getElementById('totalTxt').textContent = formatEUR(total);
   }
   document.getElementById('ownerForm').addEventListener('input', function(){
@@ -900,7 +1818,7 @@ function initClientView(data){
   var total = calculTarif(v.prixJour, heures);
   if(data.secondConducteur) total += calculSupplementConducteur(jours);
   if(data.livraison) total += SUPPLEMENT_LIVRAISON;
-  var kmInclus = kmInclusPour(heures);
+  var kmInclus = kmInclusPourJours(jours);
   var adresseComplete = data.adresse + ', ' + data.codePostal + ' ' + data.ville;
   var lieuAffiche = data.livraison
     ? 'Livraison à ' + data.livraisonRue + ', ' + data.livraisonCP + ' ' + data.livraisonVille
@@ -954,6 +1872,8 @@ function initClientView(data){
   setFill('caution', formatEUR(v.caution));
   setFill('modeCaution', data.modeCaution === 'carte' ? 'carte bancaire' : 'espèces');
   setFill('kmInclus', kmInclus.toLocaleString('fr-FR'));
+  setFill('kmInclusParJour', getKmInclusParJour().toLocaleString('fr-FR'));
+  setFill('supplementKm', formatEUR(getSupplementKmCentimes() / 100));
   if(data.secondConducteur){
     setFill('nom2', data.prenom2 + ' ' + data.nom2);
     setFill('permis2', data.permis2);

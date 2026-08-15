@@ -76,6 +76,25 @@ test("accepte un paiement payé et confirme la réservation liée", async () => 
   assert.match(updated.documentAccess.tokenHash, /^[a-f0-9]{64}$/);
   assert.equal(updated.documentAccess.revokedAt, null);
   assert.equal("documentsAccessToken" in updated, false);
+
+  assert.match(updated.contractAgencyAccess.tokenHash, /^[a-f0-9]{64}$/);
+  assert.equal(updated.contractAgencyAccess.revokedAt, null);
+  assert.equal("contractDossierToken" in updated, false);
+});
+
+test("sans DOCUMENT_TOKEN_PEPPER : la confirmation de paiement réussit quand même, simplement sans jetons", async () => {
+  const env = makeEnv({ DOCUMENT_TOKEN_PEPPER: undefined });
+  const reservation = await createReservation(env, { vehiculeId: "opel-corsa" });
+  const paymentId = `tr_${Math.random().toString(36).slice(2)}`;
+  await updateReservationStatus(env, reservation.id, "pending_payment", { paymentId });
+
+  const payment = makePayment("paid", { id: paymentId, metadata: { reservationId: reservation.id } });
+  await processPaymentStatus(env, payment);
+
+  const updated = await getReservation(env, reservation.id);
+  assert.equal(updated.status, "paid");
+  assert.equal("documentAccess" in updated, false);
+  assert.equal("contractAgencyAccess" in updated, false);
 });
 
 test("idempotence : rejouer le même statut paid ne change rien de plus", async () => {

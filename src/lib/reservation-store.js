@@ -146,6 +146,49 @@ async function updateReservationDocuments(env, id, extra) {
   return updateReservationStatus(env, id, "paid", extra);
 }
 
+// Index des jetons du dossier contrat (voir contract-dossier-token.js) —
+// même schéma que doc_*/agency_doc_* ci-dessus, deux préfixes distincts pour
+// ne jamais confondre un jeton AGENCE (lecture/écriture) et un jeton CLIENT
+// (lecture + signature uniquement).
+async function saveContractAgencyAccessIndex(env, reservationId, tokenHash, expiresAt) {
+  if (!reservationId || !/^[a-f0-9]{64}$/.test(tokenHash || "")) return false;
+  const expiryMs = new Date(expiresAt).getTime();
+  if (!Number.isFinite(expiryMs)) return false;
+  const expirationTtl = Math.max(60, Math.ceil((expiryMs - Date.now()) / 1000));
+  await env.RESERVATIONS_KV.put(`contract_agency_${tokenHash}`, reservationId, { expirationTtl });
+  return true;
+}
+
+async function findReservationByContractAgencyTokenHash(env, tokenHash) {
+  if (!/^[a-f0-9]{64}$/.test(tokenHash || "")) return null;
+  const id = await env.RESERVATIONS_KV.get(`contract_agency_${tokenHash}`);
+  return id ? getReservation(env, id) : null;
+}
+
+async function saveContractClientAccessIndex(env, reservationId, tokenHash, expiresAt) {
+  if (!reservationId || !/^[a-f0-9]{64}$/.test(tokenHash || "")) return false;
+  const expiryMs = new Date(expiresAt).getTime();
+  if (!Number.isFinite(expiryMs)) return false;
+  const expirationTtl = Math.max(60, Math.ceil((expiryMs - Date.now()) / 1000));
+  await env.RESERVATIONS_KV.put(`contract_client_${tokenHash}`, reservationId, { expirationTtl });
+  return true;
+}
+
+async function findReservationByContractClientTokenHash(env, tokenHash) {
+  if (!/^[a-f0-9]{64}$/.test(tokenHash || "")) return null;
+  const id = await env.RESERVATIONS_KV.get(`contract_client_${tokenHash}`);
+  return id ? getReservation(env, id) : null;
+}
+
+// Même garde que updateReservationDocuments (réservation payée uniquement) :
+// le dossier contrat (champs contrat, remise, retour) ne doit jamais pouvoir
+// être modifié sur une réservation qui n'a jamais été payée.
+async function updateContractDossier(env, id, extra) {
+  const record = await getReservation(env, id);
+  if (!record || record.status !== "paid") return null;
+  return updateReservationStatus(env, id, "paid", extra);
+}
+
 async function listReservations(env) {
   const records = [];
   let cursor;
@@ -223,6 +266,11 @@ module.exports = {
   saveAgencyDocumentAccessIndex,
   findReservationByAgencyDocumentTokenHash,
   updateReservationDocuments,
+  saveContractAgencyAccessIndex,
+  findReservationByContractAgencyTokenHash,
+  saveContractClientAccessIndex,
+  findReservationByContractClientTokenHash,
+  updateContractDossier,
   listReservations,
   hasOverlappingReservation,
   generateReservationId,

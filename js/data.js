@@ -321,6 +321,71 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
   };
 }
 
+// Forfait kilométrique inclus dans chaque location et tarif de dépassement
+// — seule source de vérité désormais (contrat.html avait ces deux valeurs
+// codées en dur en local, jamais partagées avec le reste du site ni avec un
+// calcul serveur faisant foi — voir AUDIT-CROISE-SITE-CONTRAT-2026-08-04.md,
+// finding P0 correspondant). Valeurs inchangées par cette centralisation :
+// 200 km/jour, 0,25 €/km au-delà.
+const KM_INCLUS_PAR_JOUR = 200;
+const SUPPLEMENT_KM_CENTIMES = 25; // 0,25 € / km, en centimes pour éviter l'arrondi flottant
+
+// Kilomètres inclus dans une location à partir de sa durée facturable (en
+// jours — voir joursFacturablesDepuisHeures). Utilisé à la fois par
+// l'affichage (tunnel de réservation, contrat.html) et par le recalcul
+// serveur faisant foi du dépassement kilométrique.
+function kmInclusPourJours(jours) {
+  return jours * KM_INCLUS_PAR_JOUR;
+}
+
+// Accesseurs (plutôt que d'exposer KM_INCLUS_PAR_JOUR/SUPPLEMENT_KM_CENTIMES
+// comme des `const` directement référencées ailleurs) : mêmes conventions
+// que getVehiculeParId()/getOptionParId() pour le reste du catalogue.
+function getKmInclusParJour() {
+  return KM_INCLUS_PAR_JOUR;
+}
+function getSupplementKmCentimes() {
+  return SUPPLEMENT_KM_CENTIMES;
+}
+
+// Calcule le kilométrage parcouru et un éventuel dépassement à partir des
+// deux relevés compteur (départ/retour, état des lieux du contrat) et de la
+// durée facturable de la location. Ne fait jamais confiance à un
+// dépassement/supplément déjà calculé côté client : c'est cette même
+// fonction qui doit être appelée côté serveur (voir
+// src/api/contract-dossier-agency.js) pour recalculer et faire foi, jamais
+// une valeur transmise telle quelle par le navigateur.
+//
+// Retourne { valid: false, error } si les relevés sont manquants ou
+// incohérents (retour inférieur au départ) ; sinon { valid: true, kmInclus,
+// kmParcourus, kmDepasses, supplementCentimes, supplement }.
+function calculerKilometrage({ kmDepart, kmRetour, jours }) {
+  if (!Number.isFinite(kmDepart) || kmDepart < 0) {
+    return { valid: false, error: "Kilométrage de départ manquant ou invalide" };
+  }
+  if (!Number.isFinite(kmRetour) || kmRetour < 0) {
+    return { valid: false, error: "Kilométrage de retour manquant ou invalide" };
+  }
+  if (kmRetour < kmDepart) {
+    return { valid: false, error: "Le kilométrage de retour doit être supérieur ou égal à celui du départ" };
+  }
+  if (!Number.isFinite(jours) || jours <= 0) {
+    return { valid: false, error: "Durée de location invalide" };
+  }
+  const kmInclus = kmInclusPourJours(jours);
+  const kmParcourus = kmRetour - kmDepart;
+  const kmDepasses = Math.max(kmParcourus - kmInclus, 0);
+  const supplementCentimes = Math.round(kmDepasses * SUPPLEMENT_KM_CENTIMES);
+  return {
+    valid: true,
+    kmInclus,
+    kmParcourus,
+    kmDepasses,
+    supplementCentimes,
+    supplement: supplementCentimes / 100
+  };
+}
+
 // Export CommonJS gardé : ne s'exécute que côté Node (fonctions Netlify).
 // `module` n'existe pas dans le navigateur, donc ce bloc est ignoré tel quel
 // par <script src="js/data.js">, aucun changement de comportement côté site.
@@ -345,6 +410,12 @@ if (typeof module !== "undefined" && module.exports) {
     prixJourMinimum,
     getCodePromo,
     getOptionParId,
-    calculerPrixTotal
+    calculerPrixTotal,
+    KM_INCLUS_PAR_JOUR,
+    SUPPLEMENT_KM_CENTIMES,
+    kmInclusPourJours,
+    getKmInclusParJour,
+    getSupplementKmCentimes,
+    calculerKilometrage
   };
 }
