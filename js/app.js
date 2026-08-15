@@ -824,6 +824,18 @@ function initReservationPage() {
       } else if (prix.codePromo) {
         promoMessage.textContent = `Code "${prix.codePromo.code}" appliqué : ${prix.codePromo.description}.`;
         promoMessage.classList.add("is-success");
+      } else if (data._codePromoTestValide === true) {
+        // Code de test interne (TEST_DISCOUNT_CODE) : jamais dans le
+        // catalogue public (js/data.js), donc invisible de calculerPrixTotal
+        // ci-dessus — sa validité est confirmée par le serveur (voir
+        // verifierCodeDeTest) sans jamais exposer le secret lui-même. Le
+        // total affiché ci-dessus n'est volontairement pas modifié : seul
+        // le serveur applique réellement la réduction, au moment du paiement.
+        promoMessage.textContent = `Code "${data.codePromo}" reconnu (code de test interne) : le montant sera ramené à 0,10 € lors du paiement Mollie — le total ci-dessus reste indicatif.`;
+        promoMessage.classList.add("is-success");
+      } else if (data._codePromoTestValide === null) {
+        promoMessage.textContent = "Vérification du code…";
+        promoMessage.classList.remove("is-success");
       } else {
         promoMessage.textContent = "Code promo invalide ou expiré.";
         promoMessage.classList.remove("is-success");
@@ -873,18 +885,67 @@ function initReservationPage() {
   // Code promo : saisie facultative, validée à l'affichage (voir render())
   // — un code inconnu/expiré n'empêche jamais de continuer la réservation,
   // il est simplement ignoré dans le calcul.
+  //
+  // Les codes publics (CODES_PROMO, js/data.js) sont validés instantanément
+  // ci-dessus via calculerPrixTotal, sans appel serveur. Le code de test
+  // interne (TEST_DISCOUNT_CODE) est volontairement absent de ce catalogue
+  // public (jamais exposé au navigateur) : seul le serveur peut confirmer
+  // sa validité, d'où l'appel à /api/validate-promo ci-dessous — uniquement
+  // quand le code saisi n'est pas déjà reconnu localement.
+  function verifierCodeDeTest(code) {
+    // Navigateur trop ancien pour fetch() (extrêmement rare) : pas de repli
+    // plus élaboré possible ici, le code de test reste simplement affiché
+    // comme invalide plutôt que de laisser planter le gestionnaire de clic.
+    if (typeof fetch !== "function") {
+      data._codePromoTestValide = false;
+      render();
+      return;
+    }
+    fetch("/api/validate-promo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code })
+    })
+      .then((r) => (r.ok ? r.json() : { valid: false }))
+      .then((res) => {
+        // Le champ a pu changer pendant l'appel réseau : n'applique la
+        // réponse que si elle correspond toujours au code actuellement saisi.
+        if (data.codePromo !== code) return;
+        data._codePromoTestValide = !!res.valid;
+        render();
+      })
+      .catch(() => {
+        if (data.codePromo !== code) return;
+        data._codePromoTestValide = false;
+        render();
+      });
+  }
+
   const promoInput = document.getElementById("promo-input");
   const promoApply = document.getElementById("promo-apply");
   if (promoInput) promoInput.value = data.codePromo || "";
   if (promoApply) {
     promoApply.addEventListener("click", () => {
-      data.codePromo = (promoInput.value || "").trim();
+      const code = (promoInput.value || "").trim();
+      data.codePromo = code;
+      data._codePromoTestValide = code ? null : undefined;
       writeReservationLocal(data);
       render();
+      if (code && !getCodePromo(code)) verifierCodeDeTest(code);
     });
   }
 
   render();
+
+  // Retour sur la page avec un code déjà enregistré (localStorage) qui
+  // n'est pas dans le catalogue public : peut être le code de test interne,
+  // on relance la vérification serveur pour refléter correctement son statut
+  // plutôt que d'afficher à tort "Code promo invalide".
+  if (data.codePromo && !getCodePromo(data.codePromo)) {
+    data._codePromoTestValide = null;
+    render();
+    verifierCodeDeTest(data.codePromo);
+  }
 
   // Barre de dates persistante : permet d'ajuster les dates directement
   // depuis cette page sans revenir en arrière — le résumé et le total se

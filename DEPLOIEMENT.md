@@ -46,7 +46,7 @@ Le code est complet et testé (`npm test`), mais **rien de tout cela n'est dépl
 | `RESEND_API_KEY` | Oui, pour les emails (confirmation client + contrat agence) | Clé API Resend (remplace `GMAIL_USER`/`GMAIL_APP_PASSWORD`). Sans elle, le paiement fonctionne quand même, seuls les emails ne sont pas envoyés (comportement "best effort" inchangé). |
 | `RESEND_FROM` | Optionnel | Adresse expéditrice, format `"Nom <adresse@domaine>"`. Doit appartenir à un domaine vérifié dans Resend (voir 0.1.3). Par défaut : `"GET LOCATION <reservations@getlocation.fr>"`. |
 | `AGENCY_EMAIL` | Oui, pour recevoir le contrat pré-rempli et la copie cachée des confirmations | Remplace l'usage de `GMAIL_USER` comme adresse de réception (l'agence peut garder une adresse Gmail ordinaire ici — elle ne sert plus qu'en tant que destinataire, plus d'authentification SMTP). |
-| `TEST_DISCOUNT_CODE` | Optionnel, usage interne uniquement | Identique à l'ancienne variable Netlify (section 2, point détaillé) — ramène le montant facturé à 0,10 € pour un code promo secret de votre choix. |
+| `TEST_DISCOUNT_CODE` | Optionnel, usage interne uniquement | Identique à l'ancienne variable Netlify (section 2, point détaillé) — ramène le montant facturé à 0,10 € pour un code promo secret de votre choix. Sa validité est confirmée dès la saisie sur reservation.html (avant même la page de paiement) via `/api/validate-promo` (`src/api/validate-promo.js`), sans jamais exposer sa valeur au navigateur — voir §0.5 ci-dessous. |
 | `ALLOWED_ORIGINS` | Optionnel | Liste d'origines CORS supplémentaires (séparées par des virgules). Moins utile qu'avant : site et API étant désormais same-origin, aucune valeur n'est nécessaire en usage normal — l'origine de chaque requête est de toute façon toujours auto-autorisée (voir `src/api/create-payment.js`). |
 | `SITE_URL` | Optionnel | Utilisé uniquement par `send-contract-email.js` pour construire le lien vers `contrat.html`. Par défaut `https://getlocation.fr`. |
 | `DOCUMENT_TOKEN_PEPPER` | Requis avant d'activer le parcours documentaire | Secret aléatoire long utilisé pour calculer l'empreinte HMAC des jetons d'accès aux documents. Le jeton brut n'est jamais stocké. |
@@ -111,6 +111,16 @@ node scripts/revoke-document-access.js res_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx both
 - Demande une confirmation explicite (taper `CONFIRMER`) avant toute écriture — action sur des données de **production**.
 - Effet : le lien concerné cesse de fonctionner immédiatement (le jeton, une fois `revokedAt` renseigné, est rejeté par `documents-access.js`/`agency-documents-access.js`) ; l'autre lien, si non ciblé, continue de fonctionner normalement.
 - Remarque technique : l'écriture via `wrangler kv key put` sans `--expiration-ttl` explicite réinitialise la durée de vie technique de la clé dans KV — sans conséquence fonctionnelle, le prochain écrit normal effectué par le Worker (rappel, purge, nouveau paiement...) recalcule le TTL correct.
+
+### 0.5 Validation immédiate du code promo de test (`/api/validate-promo`)
+
+Les codes promo publics (`CODES_PROMO`, `js/data.js`) sont validés instantanément côté navigateur, sans appel serveur — le catalogue est chargé tel quel sur chaque page. `TEST_DISCOUNT_CODE` (§0.2) est volontairement absent de ce catalogue public pour ne jamais apparaître dans le code source visible du site : par construction, le navigateur ne peut donc pas le reconnaître seul.
+
+Avant cet ajout, saisir ce code sur reservation.html affichait à tort "Code promo invalide" (le catalogue public ne le connaît pas), même quand il fonctionnait correctement côté paiement — obligeant à aller jusqu'à la page Mollie pour vérifier qu'il était bien pris en compte.
+
+`src/api/validate-promo.js` (route `/api/validate-promo`, `src/worker.js`) comble cet écart : quand le code saisi n'est pas reconnu localement, `js/app.js` (`verifierCodeDeTest`) interroge ce endpoint, qui répond `{ valid: true/false }` (jamais la valeur du secret elle-même) en réutilisant `estCodeDeTestValide()` de `create-payment.js` — la même règle de comparaison que celle qui détermine réellement le montant facturé, sans la dupliquer. Rate-limité à 10 requêtes/minute par IP (nettement plus strict que `create-payment`, `checkRateLimit` dans `src/lib/rate-limiter.js`) pour limiter une éventuelle devinette par force brute du secret.
+
+Le total affiché sur reservation.html reste volontairement le tarif normal (indicatif) même une fois le code de test confirmé : seul le serveur, au moment du paiement (`create-payment.js`), applique réellement la réduction — ce endpoint ne sert qu'à la confirmation visuelle, jamais de source de prix.
 
 ## 1. Ce qui a été fait
 
