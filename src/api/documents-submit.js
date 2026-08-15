@@ -6,6 +6,7 @@ const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { sendDocumentsNotificationEmail } = require("../lib/send-documents-notification-email.js");
 const { issueAgencyDocumentAccess } = require("../lib/agency-document-token.js");
 const { saveAgencyDocumentAccessIndex } = require("../lib/reservation-store.js");
+const { readBoundedBody, RequestTooLargeError } = require("../lib/read-bounded-body.js");
 
 const MAX_REQUEST_BYTES = 52 * 1024 * 1024;
 
@@ -43,9 +44,38 @@ async function handleDocumentsSubmit(request, env) {
   const resolved = await resolveDocumentAccess(request, env);
   if (!resolved) return new Response(JSON.stringify({ error: "Lien invalide ou expiré" }), { status: 401, headers });
 
+  // Le contrôle sur l'en-tête Content-Length ci-dessus est un filtre rapide
+  // pour le cas honnête, mais ne protège pas contre un en-tête absent ou
+  // mensonger (ex. Transfer-Encoding: chunked). readBoundedBody() compte
+  // réellement les octets reçus au fil de l'eau et interrompt la lecture
+  // dès que MAX_REQUEST_BYTES est dépassé — jamais de corps partiel
+  // bufferisé au-delà de la limite. form() n'est reconstruit qu'à partir de
+  // ce corps déjà borné, avec le Content-Type d'origine (nécessaire au
+  // découpage multipart par boundary).
+  let bodyBytes;
+  try {
+    bodyBytes = await readBoundedBody(request, MAX_REQUEST_BYTES);
+  } catch (err) {
+    if (err instanceof RequestTooLargeError) {
+      return new Response(JSON.stringify({ error: "Envoi trop volumineux" }), { status: 413, headers });
+    }
+    throw err;
+  }
+  // Content-Length retiré avant reconstruction : sa valeur (absente ou
+  // fausse dans le cas qu'on vient précisément d'intercepter) ne doit
+  // jamais entrer en conflit avec la taille réelle du corps borné —
+  // laissée au runtime, qui la recalcule à partir de bodyBytes.
+  const boundedHeaders = new Headers(request.headers);
+  boundedHeaders.delete("content-length");
+  const boundedRequest = new Request(request.url, {
+    method: "POST",
+    headers: boundedHeaders,
+    body: bodyBytes
+  });
+
   let validated;
   try {
-    validated = await validateDocumentSubmission(await request.formData(), resolved.reservation);
+    validated = await validateDocumentSubmission(await boundedRequest.formData(), resolved.reservation);
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message || "Dossier invalide" }), { status: 400, headers });
   }

@@ -16,7 +16,8 @@ const {
   findReservationByPaymentId,
   hasOverlappingReservation,
   generateReservationId,
-  reservationTtlSeconds
+  reservationTtlSeconds,
+  PAID_RETENTION_AFTER_RETURN_MS
 } = require("../src/lib/reservation-store.js");
 
 function makeEnv() {
@@ -178,4 +179,18 @@ test("une réservation payée future reste en KV jusqu'après son retour", () =>
   const ttl = reservationTtlSeconds({ status: "paid", periodeFin: inNinetyDays });
   assert.ok(ttl > 90 * 24 * 60 * 60);
   assert.equal(reservationTtlSeconds({ status: "pending_payment", periodeFin: inNinetyDays }), 7 * 24 * 60 * 60);
+});
+
+test("reservationTtlSeconds : marge technique au-delà des 30 jours de purge documentaire, pour que la purge puisse s'exécuter (et réessayer) avant que la fiche ne disparaisse de KV", () => {
+  // Retour très récent : la fenêtre de rétention (30 jours) domine
+  // largement le TTL plancher de 7 jours, on peut donc mesurer précisément
+  // la marge technique ajoutée par-dessus.
+  const justReturned = new Date(Date.now() - 1000).toISOString();
+  const ttlMs = reservationTtlSeconds({ status: "paid", periodeFin: justReturned }) * 1000;
+  // La purge se déclenche exactement à J+30 (PAID_RETENTION_AFTER_RETURN_MS) ;
+  // le TTL KV doit dépasser ce seuil d'une marge technique positive, pour
+  // que la purge (et ses éventuelles nouvelles tentatives) puisse
+  // s'exécuter avant que l'enregistrement ne disparaisse.
+  assert.ok(ttlMs > PAID_RETENTION_AFTER_RETURN_MS, "le TTL KV doit dépasser la fenêtre de purge de 30 jours");
+  assert.ok(ttlMs - PAID_RETENTION_AFTER_RETURN_MS >= 1 * 24 * 60 * 60 * 1000, "au moins un jour de marge technique");
 });

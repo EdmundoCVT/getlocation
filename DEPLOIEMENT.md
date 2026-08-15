@@ -59,6 +59,59 @@ Comme pour la Phase A (voir section 6), cet environnement de développement n'a 
 
 Le paiement fonctionne par **redirection** : le client est envoyé vers une page de paiement hébergée par Mollie (carte, Apple Pay, etc.), puis renvoyé automatiquement vers `confirmation.html` — contrairement à un ancien projet de formulaire carte embarqué (Stripe Elements), abandonné avec le changement de prestataire.
 
+### 0.4 Collecte documentaire post-paiement (R2, cron, rétention, révocation)
+
+Ajoutée par les PR #3 à #8 (jetons documentaires, dépôt sécurisé, accès agence, rappels, planning quotidien), puis complétée par une revue de sécurité indépendante et ses correctifs (purge automatique, séquencement du cron, révocation manuelle, limite de taille réelle).
+
+**Bucket R2 `getlocation-documents`.** Stocke uniquement les documents d'identité transmis après paiement (permis recto/verso, pièce d'identité, éventuellement ceux du second conducteur) — jamais dans KV, jamais dans les assets publics du site. Déclaré dans `wrangler.jsonc` :
+```jsonc
+"r2_buckets": [{ "binding": "DOCUMENTS_BUCKET", "bucket_name": "getlocation-documents" }]
+```
+**Strictement privé** : aucun domaine personnalisé ni accès public ne doit jamais être configuré sur ce bucket dans le dashboard Cloudflare (Workers & Pages → R2 → getlocation-documents → Settings) — le Worker y accède uniquement via le binding `DOCUMENTS_BUCKET`, jamais par URL directe. Si le bucket n'existe pas encore sur le compte cible, le créer avant déploiement :
+```
+npx wrangler r2 bucket create getlocation-documents
+```
+
+**Cron Trigger `0 6 * * *` (UTC)**, déclaré dans `wrangler.jsonc` (`triggers.crons`). Exécute chaque jour, **séquentiellement** (jamais en parallèle — voir `src/lib/scheduled-tasks.js`, correctif d'une revue de sécurité qui avait identifié un risque d'écrasement KV entre tâches concurrentes) :
+1. purge documentaire (voir ci-dessous) ;
+2. rappels de dossier incomplet ;
+3. rappels de prise en charge ;
+4. rappels de restitution ;
+5. planning quotidien envoyé à l'agence.
+
+Une étape en échec n'empêche pas les suivantes de s'exécuter, mais si une ou plusieurs échouent, l'exécution planifiée entière apparaît en échec dans Cloudflare → Workers & Pages → getlocation → Cron Triggers → journal d'exécution (à surveiller après déploiement).
+
+**Politique de suppression automatique.** Les documents d'identité sont supprimés **30 jours après la date de restitution du véhicule** (`periodeFin`, ou à défaut `dateFin`+`heureFin`) — décision validée le 15/08/2026 à la suite d'un finding "haute" (absence totale de purge). Implémentation : `src/lib/document-retention.js`.
+- Supprime chaque objet R2 référencé, vérifie le résultat de chaque suppression individuellement.
+- Nettoie ensuite dans KV : `documentFiles`, `documentsData` (adresse postale, n° de permis, informations du second conducteur...), `documentAccess`, `agencyDocumentAccess`.
+- Ne touche jamais au statut de paiement, au montant, à la référence de paiement, ni à l'identité du conducteur principal (preuve comptable/contractuelle).
+- Pose uniquement un marqueur non sensible, `documentsPurgedAt` (horodatage) — jamais de token, jamais de nom de fichier.
+- Idempotente : ne retraite jamais une réservation déjà marquée `documentsPurgedAt`.
+- En cas d'échec de suppression d'un objet R2, la purge de cette réservation n'est **pas** marquée terminée : seuls les fichiers réellement supprimés sont retirés de la liste, les autres sont retentés automatiquement le lendemain (même déclencheur cron). Le TTL KV de la réservation (`reservation-store.js#reservationTtlSeconds`) inclut une marge technique de 5 jours au-delà des 30 jours réglementaires, pour que ces nouvelles tentatives restent possibles avant que la fiche ne disparaisse de KV.
+
+**Vérifier que la purge fonctionne, sans jamais exposer de document réel :**
+1. Repérer dans les logs Cloudflare (Workers & Pages → getlocation → Logs, filtrer sur `[document-retention]`) l'absence de ligne `Échec de suppression R2` après une exécution du cron — une ligne présente n'affiche jamais que la référence de réservation et le type de pièce (ex. `permis-recto`), jamais de donnée personnelle.
+2. Sur une réservation de test dont la restitution est passée depuis plus de 30 jours, lire uniquement les **champs non sensibles** de l'enregistrement KV (jamais son contenu R2) :
+   ```
+   npx wrangler kv key get <reservationId> --binding=RESERVATIONS_KV --remote
+   ```
+   Vérifier que `documentsPurgedAt` est renseigné et que `documentFiles`/`documentsData`/`documentAccess`/`agencyDocumentAccess` sont bien vides ou `null`.
+3. Ne jamais utiliser `npx wrangler r2 object get` sur un document réel pour "vérifier" la purge — la vérification doit toujours passer par l'absence de la clé, pas par une nouvelle consultation du contenu.
+
+**Révocation manuelle d'un lien documentaire.** Sans back-office ni endpoint public : `scripts/revoke-document-access.js`, à utiliser en cas de fuite suspectée d'un lien (transfert d'e-mail, capture d'écran, boîte mail compromise).
+```
+node scripts/revoke-document-access.js res_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx client   # lien client uniquement
+node scripts/revoke-document-access.js res_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx agency   # lien agence uniquement
+node scripts/revoke-document-access.js res_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx both     # les deux
+```
+- Utilise uniquement l'outillage Cloudflare déjà en place (`npx wrangler kv key get/put --remote`) — aucun accès direct à l'API Cloudflare, aucune nouvelle dépendance.
+- Refuse tout identifiant de réservation mal formé avant même de contacter KV.
+- N'affiche jamais un jeton (brut ou empreinte) ni une donnée personnelle — uniquement la référence de réservation et l'état de chaque accès (à révoquer / déjà révoqué / absent).
+- Idempotente : relancer la commande sur un lien déjà révoqué ne fait rien (aucune écriture).
+- Demande une confirmation explicite (taper `CONFIRMER`) avant toute écriture — action sur des données de **production**.
+- Effet : le lien concerné cesse de fonctionner immédiatement (le jeton, une fois `revokedAt` renseigné, est rejeté par `documents-access.js`/`agency-documents-access.js`) ; l'autre lien, si non ciblé, continue de fonctionner normalement.
+- Remarque technique : l'écriture via `wrangler kv key put` sans `--expiration-ttl` explicite réinitialise la durée de vie technique de la clé dans KV — sans conséquence fonctionnelle, le prochain écrit normal effectué par le Worker (rappel, purge, nouveau paiement...) recalcule le TTL correct.
+
 ## 1. Ce qui a été fait
 
 **P0 — sécurité et intégrité du paiement.** Le serveur ne fait plus jamais confiance à un montant envoyé par le navigateur : il recalcule toujours le prix depuis `js/data.js`. Une vraie réservation serveur existe (Netlify Blobs, id non devinable), le webhook Mollie revérifie systématiquement le statut réel auprès de l'API Mollie (il ne fait jamais confiance au contenu du webhook lui-même — voir `netlify/functions/mollie-webhook.js`) et traite chaque paiement de façon idempotente, la page de confirmation lit désormais le serveur au lieu du `localStorage`, 3 failles XSS ont été corrigées, et la case CGL est obligatoire et tracée.

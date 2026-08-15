@@ -6,7 +6,8 @@
   "scripts": {
     "test": "node --test tests/*.test.js",
     "check:legal": "node scripts/check-legal-placeholders.js",
-    "check:vehicle-grid": "node scripts/check-vehicle-grid-sync.js"
+    "check:vehicle-grid": "node scripts/check-vehicle-grid-sync.js",
+    "revoke:document-access": "node scripts/revoke-document-access.js"
   },
   "dependencies": {
     "@mollie/api-client": "^4.6.0",
