@@ -1068,13 +1068,33 @@ function initReservationPage() {
   const backToProtection = document.getElementById("back-to-protection");
   if (backToProtection) backToProtection.addEventListener("click", () => showCheckoutStep("protection"));
 
-  // Options supplémentaires : la protection et la livraison sont gérées à
-  // part. Les autres choix restent issus de la source catalogue unique.
+  // Le bouton retour de la page de paiement pointe vers #options : on rend
+  // directement le bon écran sans faire répéter le choix de protection.
+  if (window.location.hash === "#options" && data.protectionChoice) {
+    showCheckoutStep("options");
+  }
+
+  // Options supplémentaires : ordre volontairement calé sur le parcours
+  // demandé (conducteur, kilométrage, plein/recharge, puis enfants).
   const optionsList = document.getElementById("options-list");
   if (optionsList) {
     optionsList.textContent = "";
-    OPTIONS.forEach((opt) => {
-      if (opt.id === "livraison-adresse" || opt.id === "assurance-passagers") return;
+
+    function optionIcon(kind) {
+      const icon = document.createElement("span");
+      icon.className = "option-icon";
+      icon.setAttribute("aria-hidden", "true");
+      const paths = {
+        driver: '<path d="M4 19v-1.5c0-3 2.8-5 6-5s6 2 6 5V19M10 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm9-5v8m-4-4h8"/>',
+        mileage: '<path d="M4 17a8 8 0 1 1 16 0M12 17l4-6M7 14h.01M12 10h.01M17 14h.01"/>',
+        fuel: '<path d="M5 21V3h10v18M3 21h14M7 7h6v5H7zM15 8h2l3 3v7a2 2 0 0 0 2 2V9"/>',
+        child: '<path d="M8 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm-2 7h5a4 4 0 0 1 4 4v5H4v-7a2 2 0 0 1 2-2Zm9-4h5v13h-5M15 12h5"/>'
+      };
+      icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[kind] || paths.child}</svg>`;
+      return icon;
+    }
+
+    function createOptionCard(opt, iconKind) {
       const card = document.createElement("article");
       card.className = "option-card";
 
@@ -1114,12 +1134,85 @@ function initReservationPage() {
         render();
       });
 
-      label.append(checkbox, texte);
+      label.append(optionIcon(iconKind), texte, checkbox);
       card.append(label, details);
       card.classList.toggle("is-selected", checkbox.checked);
       checkbox.addEventListener("change", () => card.classList.toggle("is-selected", checkbox.checked));
-      optionsList.appendChild(card);
+      return card;
+    }
+
+    const conducteur = getOptionParId("second-conducteur");
+    if (conducteur) optionsList.appendChild(createOptionCard(conducteur, "driver"));
+
+    const kmIds = ["km-200", "km-supplementaire", "km-400"];
+    const kmOptions = kmIds.map(getOptionParId).filter(Boolean);
+    const mileageCard = document.createElement("article");
+    mileageCard.className = "option-card mileage-card";
+    const mileageHead = document.createElement("div");
+    mileageHead.className = "option-group-heading";
+    mileageHead.appendChild(optionIcon("mileage"));
+    const mileageCopy = document.createElement("div");
+    const mileageTitle = document.createElement("h3");
+    mileageTitle.textContent = "Forfait kilométrage supplémentaire";
+    const mileageHint = document.createElement("p");
+    mileageHint.textContent = "Choisissez un seul forfait pour l'ensemble de la location.";
+    mileageCopy.append(mileageTitle, mileageHint);
+    mileageHead.appendChild(mileageCopy);
+    mileageCard.appendChild(mileageHead);
+
+    const mileageChoices = document.createElement("div");
+    mileageChoices.className = "mileage-choices";
+    const selectedKm = kmIds.find((id) => data.options.includes(id)) || "";
+    [{ id: "", nom: "Aucun forfait", prix: 0 }, ...kmOptions].forEach((opt) => {
+      const label = document.createElement("label");
+      label.className = "mileage-choice";
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = "kilometrage-supplementaire";
+      radio.id = opt.id ? `option-${opt.id}` : "option-km-none";
+      radio.value = opt.id;
+      radio.checked = selectedKm === opt.id;
+      const name = document.createElement("span");
+      name.textContent = opt.nom;
+      const price = document.createElement("strong");
+      price.textContent = opt.prix ? formatEUR(opt.prix) : "Inclus";
+      label.append(radio, name, price);
+      radio.addEventListener("change", () => {
+        if (!radio.checked) return;
+        data.options = data.options.filter((id) => !kmIds.includes(id));
+        if (opt.id) data.options.push(opt.id);
+        writeReservationLocal(data);
+        mileageCard.classList.toggle("is-selected", !!opt.id);
+        render();
+      });
+      mileageChoices.appendChild(label);
     });
+    mileageCard.classList.toggle("is-selected", !!selectedKm);
+    mileageCard.appendChild(mileageChoices);
+    const moreKm = document.createElement("a");
+    moreKm.href = "tel:+33667485430";
+    moreKm.className = "more-km-link";
+    moreKm.textContent = "Besoin de plus de kilomètres ? Nous consulter";
+    mileageCard.appendChild(moreKm);
+    optionsList.appendChild(mileageCard);
+
+    const servicePlein = getOptionParId("service-plein");
+    if (servicePlein) optionsList.appendChild(createOptionCard(servicePlein, "fuel"));
+
+    const childrenGroup = document.createElement("details");
+    childrenGroup.className = "child-options-group";
+    const childrenSummary = document.createElement("summary");
+    childrenSummary.append(optionIcon("child"), document.createTextNode(" Voyager avec un enfant"));
+    const childrenIntro = document.createElement("p");
+    childrenIntro.textContent = "Dépliez cette rubrique pour choisir l'équipement adapté à votre enfant.";
+    const childrenList = document.createElement("div");
+    childrenList.className = "child-options-list";
+    ["siege-auto", "siege-enfant", "rehausseur"].forEach((id) => {
+      const opt = getOptionParId(id);
+      if (opt) childrenList.appendChild(createOptionCard(opt, "child"));
+    });
+    childrenGroup.append(childrenSummary, childrenIntro, childrenList);
+    optionsList.appendChild(childrenGroup);
   }
 
   // Code promo : saisie facultative, validée à l'affichage (voir render())
