@@ -28,3 +28,21 @@ test("le hero ne présente pas de note en étoiles non sourcée", () => {
   assert.equal(document.querySelector(".hero-stars"), null);
   assert.doesNotMatch(document.querySelector(".hero").textContent, /★★★★★/);
 });
+
+test("la homepage ne présente pas de section d'avis tant qu'ils ne sont pas disponibles", () => {
+  assert.doesNotMatch(document.body.textContent, /Avis clients/);
+  assert.equal(document.querySelector(".testimonials"), null);
+});
+
+test("les CTA principaux utilisent des libellés cohérents", () => {
+  const availabilityCtas = [...document.querySelectorAll("a, button")]
+    .filter((element) => element.textContent.trim() === "Voir les véhicules disponibles");
+  assert.equal(availabilityCtas.length, 3);
+  assert.doesNotMatch(document.body.textContent, /Réserver maintenant|Voir la flotte|>Découvrir</);
+});
+
+test("les blocs de réassurance répétitifs sont regroupés", () => {
+  assert.doesNotMatch(document.body.textContent, /Pourquoi nous faire confiance|Pourquoi GETLOCATION/);
+  assert.match(document.body.textContent, /Tarifs transparents/);
+  assert.match(document.body.textContent, /sans frais cachés/);
+});
