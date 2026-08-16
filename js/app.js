@@ -1053,6 +1053,9 @@ function initReservationPage() {
       node.classList.toggle("done", completed);
       node.classList.toggle("current", name === step);
     });
+    if (window.history && typeof window.history.replaceState === "function") {
+      window.history.replaceState(null, "", step === "options" ? "#options" : "#protection");
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -1065,8 +1068,9 @@ function initReservationPage() {
       showCheckoutStep("options");
     });
   }
-  const backToProtection = document.getElementById("back-to-protection");
-  if (backToProtection) backToProtection.addEventListener("click", () => showCheckoutStep("protection"));
+  document.querySelectorAll("[data-back-to-protection]").forEach((button) => {
+    button.addEventListener("click", () => showCheckoutStep("protection"));
+  });
 
   // Le bouton retour de la page de paiement pointe vers #options : on rend
   // directement le bon écran sans faire répéter le choix de protection.
@@ -1155,7 +1159,7 @@ function initReservationPage() {
     const mileageTitle = document.createElement("h3");
     mileageTitle.textContent = "Forfait kilométrage supplémentaire";
     const mileageHint = document.createElement("p");
-    mileageHint.textContent = "Choisissez un seul forfait pour l'ensemble de la location.";
+    mileageHint.textContent = "Gardez la liberté de prolonger une balade ou d'improviser une étape, sans surveiller chaque kilomètre. Choisissez un seul forfait pour l'ensemble de la location.";
     mileageCopy.append(mileageTitle, mileageHint);
     mileageHead.appendChild(mileageCopy);
     mileageCard.appendChild(mileageHead);
@@ -1189,6 +1193,14 @@ function initReservationPage() {
     });
     mileageCard.classList.toggle("is-selected", !!selectedKm);
     mileageCard.appendChild(mileageChoices);
+    const mileageDetails = document.createElement("details");
+    mileageDetails.className = "choice-details mileage-details";
+    const mileageDetailsSummary = document.createElement("summary");
+    mileageDetailsSummary.textContent = "Comparer les forfaits";
+    const mileageDetailsText = document.createElement("p");
+    mileageDetailsText.textContent = "200 km pour une marge ponctuelle, 300 km pour plusieurs escapades, ou 400 km pour un séjour très mobile. Les kilomètres s'ajoutent au forfait déjà inclus dans votre location.";
+    mileageDetails.append(mileageDetailsSummary, mileageDetailsText);
+    mileageCard.appendChild(mileageDetails);
     const moreKm = document.createElement("a");
     moreKm.href = "tel:+33667485430";
     moreKm.className = "more-km-link";

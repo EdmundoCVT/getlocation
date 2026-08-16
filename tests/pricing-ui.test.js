@@ -35,7 +35,7 @@ function reservationPageHtml() {
       <input type="text" id="promo-input">
       <button type="button" id="promo-apply">Appliquer</button>
       <div id="promo-message"></div>
-      <button id="back-to-protection">Retour</button>
+      <button id="back-to-protection" data-back-to-protection>Retour</button>
       <button id="continue-to-payment">Paiement</button>
     </section>
     <form id="driver-form">
@@ -130,6 +130,22 @@ test("initReservationPage : un choix de protection est obligatoire avant les opt
   assert.equal(persisted.protectionChoice, "passagers");
   assert.ok(persisted.options.includes("assurance-passagers"));
   assert.match(window.document.getElementById("reservation-summary").textContent, /130/); // 118 € + 6 € x 2 jours
+});
+
+test("initReservationPage : le retour de l'étape 3 ramène réellement à la protection", () => {
+  const window = newWindow(reservationPageHtml());
+  window.scrollTo = () => {};
+  window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation({ protectionChoice: "incluse" })));
+  window.initReservationPage();
+
+  window.document.getElementById("continue-to-options").dispatchEvent(new window.Event("click", { bubbles: true }));
+  assert.equal(window.document.getElementById("options-step").hidden, false);
+  assert.equal(window.location.hash, "#options");
+
+  window.document.getElementById("back-to-protection").dispatchEvent(new window.Event("click", { bubbles: true }));
+  assert.equal(window.document.getElementById("protection-step").hidden, false);
+  assert.equal(window.document.getElementById("options-step").hidden, true);
+  assert.equal(window.location.hash, "#protection");
 });
 
 test("initReservationPage : la livraison est ajoutée et facturée sans case à cocher", () => {
