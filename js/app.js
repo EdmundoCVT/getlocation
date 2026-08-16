@@ -880,6 +880,12 @@ function initReservationPage() {
     writeReservationLocal(data);
   }
   if (typeof data.codePromo !== "string") data.codePromo = "";
+  // Une réservation créée avec l'ancienne interface peut déjà contenir la
+  // protection passagers. Dans ce seul cas, on restaure ce choix ; pour une
+  // nouvelle réservation, le client doit choisir explicitement sa protection.
+  if (data.protectionChoice !== "incluse" && data.protectionChoice !== "passagers") {
+    data.protectionChoice = data.options.includes("assurance-passagers") ? "passagers" : "";
+  }
 
   function prixCourant() {
     return calculerPrixTotal({
@@ -952,16 +958,128 @@ function initReservationPage() {
     }
   }
 
-  // Options supplémentaires : liste générée depuis le catalogue partagé
-  // (OPTIONS, js/data.js) — une seule source à mettre à jour pour ajouter/
-  // retirer une option du site entier.
+  // Étape dédiée à la protection. Elle ne crée aucune nouvelle garantie :
+  // elle rend explicite le choix entre l'assurance déjà prévue au contrat et
+  // l'option passagers déjà présente dans le catalogue partagé.
+  const protectionList = document.getElementById("protection-list");
+  const continueToOptions = document.getElementById("continue-to-options");
+  const protectionError = document.getElementById("protection-error");
+  const assurancePassagers = getOptionParId("assurance-passagers");
+
+  function selectProtection(value) {
+    data.protectionChoice = value;
+    if (value === "passagers") {
+      if (!data.options.includes("assurance-passagers")) data.options.push("assurance-passagers");
+    } else {
+      data.options = data.options.filter((id) => id !== "assurance-passagers");
+    }
+    writeReservationLocal(data);
+    if (continueToOptions) continueToOptions.disabled = false;
+    if (protectionError) protectionError.textContent = "";
+    document.querySelectorAll(".protection-card").forEach((card) => {
+      const radio = card.querySelector('input[type="radio"]');
+      card.classList.toggle("is-selected", !!radio && radio.checked);
+    });
+    render();
+  }
+
+  function addProtectionCard({ value, title, price, description, detail }) {
+    if (!protectionList) return;
+    const card = document.createElement("article");
+    card.className = "protection-card";
+
+    const choice = document.createElement("label");
+    choice.className = "protection-choice";
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "protection";
+    radio.value = value;
+    radio.checked = data.protectionChoice === value;
+    const copy = document.createElement("span");
+    copy.className = "protection-copy";
+    const heading = document.createElement("strong");
+    heading.textContent = title;
+    const desc = document.createElement("span");
+    desc.textContent = description;
+    copy.append(heading, desc);
+    const priceNode = document.createElement("span");
+    priceNode.className = "protection-price";
+    priceNode.textContent = price;
+    choice.append(radio, copy, priceNode);
+
+    const details = document.createElement("details");
+    details.className = "choice-details";
+    const summary = document.createElement("summary");
+    summary.textContent = "Voir le détail";
+    const detailText = document.createElement("p");
+    detailText.textContent = detail;
+    details.append(summary, detailText);
+
+    radio.addEventListener("change", () => selectProtection(value));
+    card.append(choice, details);
+    card.classList.toggle("is-selected", radio.checked);
+    protectionList.appendChild(card);
+  }
+
+  if (protectionList) {
+    protectionList.textContent = "";
+    addProtectionCard({
+      value: "incluse",
+      title: "Assurance incluse",
+      price: "Incluse",
+      description: "Conservez la protection prévue dans votre contrat de location.",
+      detail: `Aucun supplément. Une caution de ${formatEUR(vehicule.caution)} reste prévue pour ce véhicule. Les conditions exactes figurent dans les conditions de location.`
+    });
+    if (assurancePassagers) {
+      addProtectionCard({
+        value: "passagers",
+        title: assurancePassagers.nom,
+        price: `${formatEUR(assurancePassagers.prix)} / jour`,
+        description: "Ajoutez une protection dédiée aux passagers du véhicule.",
+        detail: `${assurancePassagers.description} Cette option s'ajoute à l'assurance incluse dans la location.`
+      });
+    }
+    if (continueToOptions) continueToOptions.disabled = !data.protectionChoice;
+  }
+
+  function showCheckoutStep(step) {
+    const protectionPanel = document.getElementById("protection-step");
+    const optionsPanel = document.getElementById("options-step");
+    if (protectionPanel) protectionPanel.hidden = step !== "protection";
+    if (optionsPanel) optionsPanel.hidden = step !== "options";
+    document.querySelectorAll("[data-checkout-step]").forEach((node) => {
+      const name = node.dataset.checkoutStep;
+      const completed = name === "vehicle" || (step === "options" && name === "protection");
+      node.classList.toggle("done", completed);
+      node.classList.toggle("current", name === step);
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  if (continueToOptions) {
+    continueToOptions.addEventListener("click", () => {
+      if (!data.protectionChoice) {
+        if (protectionError) protectionError.textContent = "Choisissez une protection pour continuer.";
+        return;
+      }
+      showCheckoutStep("options");
+    });
+  }
+  const backToProtection = document.getElementById("back-to-protection");
+  if (backToProtection) backToProtection.addEventListener("click", () => showCheckoutStep("protection"));
+
+  // Options supplémentaires : la protection et la livraison sont gérées à
+  // part. Les autres choix restent issus de la source catalogue unique.
   const optionsList = document.getElementById("options-list");
   if (optionsList) {
     optionsList.textContent = "";
     OPTIONS.forEach((opt) => {
-      if (opt.id === "livraison-adresse") return;
+      if (opt.id === "livraison-adresse" || opt.id === "assurance-passagers") return;
+      const card = document.createElement("article");
+      card.className = "option-card";
+
       const label = document.createElement("label");
-      label.className = "option-item";
+      label.className = "option-choice";
 
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
@@ -969,13 +1087,22 @@ function initReservationPage() {
       checkbox.checked = data.options.includes(opt.id);
 
       const texte = document.createElement("span");
+      texte.className = "option-copy";
       const titre = document.createElement("span");
       titre.className = "option-nom";
       titre.textContent = opt.nom;
-      const desc = document.createElement("span");
-      desc.className = "option-desc";
-      desc.textContent = ` — ${opt.description} (${formatEUR(opt.prix)}${opt.type === "jour" ? " / jour" : ""})`;
-      texte.append(titre, desc);
+      const price = document.createElement("span");
+      price.className = "option-price";
+      price.textContent = `${formatEUR(opt.prix)}${opt.type === "jour" ? " / jour" : ""}`;
+      texte.append(titre, price);
+
+      const details = document.createElement("details");
+      details.className = "choice-details";
+      const summary = document.createElement("summary");
+      summary.textContent = "Voir le détail";
+      const detailText = document.createElement("p");
+      detailText.textContent = opt.description;
+      details.append(summary, detailText);
 
       checkbox.addEventListener("change", () => {
         if (checkbox.checked) {
@@ -988,7 +1115,10 @@ function initReservationPage() {
       });
 
       label.append(checkbox, texte);
-      optionsList.appendChild(label);
+      card.append(label, details);
+      card.classList.toggle("is-selected", checkbox.checked);
+      checkbox.addEventListener("change", () => card.classList.toggle("is-selected", checkbox.checked));
+      optionsList.appendChild(card);
     });
   }
 

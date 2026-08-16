@@ -24,12 +24,20 @@ const { OPTIONS, getCodePromo } = require("../js/data.js");
 
 function reservationPageHtml() {
   return `
+    <div class="step done" data-checkout-step="vehicle"></div>
+    <div class="step current" data-checkout-step="protection"></div>
+    <div class="step" data-checkout-step="options"></div>
+    <div class="step" data-checkout-step="payment"></div>
     <div id="reservation-summary"></div>
-    <h3>Options supplémentaires</h3>
-    <div id="options-list"></div>
-    <input type="text" id="promo-input">
-    <button type="button" id="promo-apply">Appliquer</button>
-    <div id="promo-message"></div>
+    <section id="protection-step"><div id="protection-list"></div><div id="protection-error"></div><button id="continue-to-options" disabled>Continuer</button></section>
+    <section id="options-step" hidden>
+      <div id="options-list"></div>
+      <input type="text" id="promo-input">
+      <button type="button" id="promo-apply">Appliquer</button>
+      <div id="promo-message"></div>
+      <button id="back-to-protection">Retour</button>
+      <button id="continue-to-payment">Paiement</button>
+    </section>
     <form id="driver-form">
       <input name="nom" id="nom"><input name="prenom" id="prenom"><input name="email" id="email">
       <input name="telephone" id="telephone"><input name="naissance" id="naissance">
@@ -55,18 +63,44 @@ function baseReservation(overrides = {}) {
   };
 }
 
-test("initReservationPage : la liste d'options est générée depuis le catalogue OPTIONS", () => {
+test("initReservationPage : la protection est une étape dédiée et les autres options restent issues du catalogue", () => {
   const window = newWindow(reservationPageHtml());
   window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
   window.initReservationPage();
 
-  const items = window.document.querySelectorAll("#options-list .option-item");
-  const optionsFacultatives = OPTIONS.filter((opt) => opt.id !== "livraison-adresse");
+  const items = window.document.querySelectorAll("#options-list .option-card");
+  const optionsFacultatives = OPTIONS.filter((opt) => opt.id !== "livraison-adresse" && opt.id !== "assurance-passagers");
   assert.equal(items.length, optionsFacultatives.length);
   optionsFacultatives.forEach((opt) => {
     assert.ok(window.document.getElementById(`option-${opt.id}`), `checkbox manquante pour ${opt.id}`);
   });
   assert.equal(window.document.getElementById("option-livraison-adresse"), null, "la livraison obligatoire ne doit pas être décochable");
+  assert.equal(window.document.getElementById("option-assurance-passagers"), null, "la protection passagers doit être proposée à l'étape dédiée");
+  assert.equal(window.document.querySelectorAll('#protection-list input[name="protection"]').length, 2);
+});
+
+test("initReservationPage : un choix de protection est obligatoire avant les options et persiste dans la réservation", () => {
+  const window = newWindow(reservationPageHtml());
+  window.scrollTo = () => {};
+  window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
+  window.initReservationPage();
+
+  const next = window.document.getElementById("continue-to-options");
+  assert.equal(next.disabled, true);
+
+  const passagers = window.document.querySelector('input[name="protection"][value="passagers"]');
+  passagers.checked = true;
+  passagers.dispatchEvent(new window.Event("change", { bubbles: true }));
+  assert.equal(next.disabled, false);
+
+  next.dispatchEvent(new window.Event("click", { bubbles: true }));
+  assert.equal(window.document.getElementById("protection-step").hidden, true);
+  assert.equal(window.document.getElementById("options-step").hidden, false);
+
+  const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
+  assert.equal(persisted.protectionChoice, "passagers");
+  assert.ok(persisted.options.includes("assurance-passagers"));
+  assert.match(window.document.getElementById("reservation-summary").textContent, /130/); // 118 € + 6 € x 2 jours
 });
 
 test("initReservationPage : la livraison est ajoutée et facturée sans case à cocher", () => {
