@@ -111,7 +111,7 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=18">
+<link rel="stylesheet" href="css/style.css?v=21">
 </head>
 <body>
 
@@ -162,36 +162,59 @@
 </div>
 
 <section class="section container">
-  <h1 class="sr-only">Réservation — Options et prix final</h1>
+  <h1 class="checkout-title">Finalisez votre réservation</h1>
+  <p class="checkout-intro">Choisissez votre niveau de protection, puis ajoutez uniquement les options dont vous avez besoin.</p>
   <div class="steps">
-    <div class="step done"><span class="step-num">1</span> Véhicule</div>
+    <div class="step done" data-checkout-step="vehicle"><span class="step-num">1</span> Véhicule</div>
     <div class="step-sep"></div>
-    <div class="step current"><span class="step-num">2</span> Options</div>
+    <div class="step current" data-checkout-step="protection"><span class="step-num">2</span> Protection</div>
     <div class="step-sep"></div>
-    <div class="step"><span class="step-num">3</span> Paiement</div>
+    <div class="step" data-checkout-step="options"><span class="step-num">3</span> Options</div>
+    <div class="step-sep"></div>
+    <div class="step" data-checkout-step="payment"><span class="step-num">4</span> Paiement</div>
   </div>
 
-  <div class="booking-layout">
-    <div class="card">
-      <h2>Personnalisez votre location</h2>
+  <div class="booking-layout checkout-layout">
+    <div class="card checkout-main">
+      <section class="checkout-panel" id="protection-step" aria-labelledby="protection-heading">
+        <span class="checkout-kicker">Étape 2 sur 4</span>
+        <h2 id="protection-heading">Quelle protection souhaitez-vous ?</h2>
+        <p class="checkout-panel-intro">L’assurance prévue au contrat est incluse. Vous pouvez ajouter la protection passagers proposée par GETLOCATION.</p>
+        <div id="protection-list" class="protection-list"></div>
+        <p class="error-text" id="protection-error" aria-live="polite"></p>
+        <button type="button" class="btn btn-primary btn-block checkout-continue" id="continue-to-options" disabled>Continuer vers les options</button>
+      </section>
 
-      <h3 class="options-title">Options supplémentaires</h3>
-      <div id="options-list" class="options-list"></div>
+      <section class="checkout-panel" id="options-step" aria-labelledby="options-heading" hidden>
+        <span class="checkout-kicker">Étape 3 sur 4</span>
+        <h2 id="options-heading">Ajoutez les options utiles</h2>
+        <p class="checkout-panel-intro">Toutes ces options sont facultatives. Ouvrez « Voir le détail » pour en savoir plus avant de choisir.</p>
+        <div id="options-list" class="options-list"></div>
 
-      <h3 class="options-title">Code promo</h3>
-      <div class="promo-group">
-        <input type="text" id="promo-input" aria-describedby="promo-message">
-        <button type="button" class="btn btn-secondary btn-sm" id="promo-apply">Appliquer</button>
-      </div>
-      <div class="error-text" id="promo-message" aria-live="polite"></div>
+        <div class="promo-block">
+          <h3 class="options-title">Vous avez un code promo ?</h3>
+          <div class="promo-group">
+            <input type="text" id="promo-input" aria-describedby="promo-message" placeholder="Votre code">
+            <button type="button" class="btn btn-secondary btn-sm" id="promo-apply">Appliquer</button>
+          </div>
+          <div class="error-text" id="promo-message" aria-live="polite"></div>
+        </div>
+
+        <div class="checkout-actions">
+          <button type="button" class="btn btn-secondary" id="back-to-protection">Retour</button>
+          <button type="button" class="btn btn-primary" id="continue-to-payment">Continuer vers le paiement</button>
+        </div>
+      </section>
     </div>
 
-    <div class="card">
-      <h2>Résumé de la réservation</h2>
+    <aside class="card checkout-summary">
+      <h2>Votre réservation</h2>
       <div id="reservation-summary" aria-live="polite"></div>
-      <button type="button" class="btn btn-primary btn-block" id="continue-to-payment" style="margin-top: 16px;">Continuer vers le paiement</button>
-      <p class="hint-text" style="text-align:center; margin-top:8px;">Vos coordonnées vous seront demandées à l'étape suivante.</p>
-    </div>
+      <div class="checkout-reassurance">
+        <span>Prix actualisé à chaque choix</span>
+        <span>Aucun paiement à cette étape</span>
+      </div>
+    </aside>
   </div>
 </section>
 
@@ -230,6 +253,6 @@
 </footer>
 
 <script src="js/data.js?v=9"></script>
-<script src="js/app.js?v=21"></script>
+<script src="js/app.js?v=23"></script>
 </body>
 </html>
