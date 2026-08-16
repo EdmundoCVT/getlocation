@@ -152,14 +152,14 @@ function getCodePromo(code) {
 // type "jour" : prix multiplié par le nombre de jours facturables.
 // type "forfait" : montant fixe, quelle que soit la durée.
 const OPTIONS = [
-  { id: "second-conducteur", nom: "Conducteur supplémentaire", description: "Partagez la conduite pendant votre location. Chaque conducteur supplémentaire devra présenter un permis de conduire valide et respecter les mêmes conditions que le conducteur principal.", type: "jour", prix: 10 },
-  { id: "km-200", nom: "Forfait 200 km supplémentaires", description: "Ajoute 200 km au forfait inclus sur l'ensemble de la location.", type: "forfait", prix: 60 },
-  { id: "km-supplementaire", nom: "Forfait 300 km supplémentaires", description: "Ajoute 300 km au forfait inclus sur l'ensemble de la location.", type: "forfait", prix: 100 },
-  { id: "km-400", nom: "Forfait 400 km supplémentaires", description: "Ajoute 400 km au forfait inclus sur l'ensemble de la location.", type: "forfait", prix: 150 },
-  { id: "service-plein", nom: "Service de plein / recharge", description: "Gagnez du temps au retour : GETLOCATION se charge du plein ou de la recharge. Le carburant ou l'électricité consommés restent facturés selon les conditions de location.", type: "forfait", prix: 28 },
-  { id: "siege-auto", nom: "Siège bébé", description: "Un siège adapté aux bébés et jeunes enfants, installé dans le véhicule avant sa livraison.", type: "jour", prix: 5 },
-  { id: "siege-enfant", nom: "Siège enfant", description: "Un siège offrant maintien et confort aux enfants qui ne voyagent plus dans un siège bébé.", type: "jour", prix: 5 },
-  { id: "rehausseur", nom: "Rehausseur enfant", description: "Un rehausseur pour positionner plus confortablement l'enfant avec la ceinture de sécurité du véhicule.", type: "jour", prix: 3 },
+  { id: "second-conducteur", nom: "Conducteur supplémentaire", description: "Les longs trajets sont plus agréables quand on peut se relayer. Ajoutez un conducteur supplémentaire pour partager le volant et voyager plus sereinement. Il devra simplement présenter un permis de conduire valide et respecter les mêmes conditions que le conducteur principal.", type: "jour", prix: 10 },
+  { id: "km-200", nom: "Forfait 200 km supplémentaires", description: "Une petite marge de liberté pour prolonger une balade, changer d'itinéraire ou profiter d'une étape imprévue sans surveiller chaque kilomètre.", type: "forfait", prix: 60 },
+  { id: "km-supplementaire", nom: "Forfait 300 km supplémentaires", description: "Le bon équilibre pour explorer davantage la Côte d'Azur et ses alentours, avec une réserve confortable sur l'ensemble du séjour.", type: "forfait", prix: 100 },
+  { id: "km-400", nom: "Forfait 400 km supplémentaires", description: "Pour les séjours les plus mobiles : partez plus loin et multipliez les escapades avec une marge kilométrique généreuse.", type: "forfait", prix: 150 },
+  { id: "service-plein", nom: "Service de plein / recharge", description: "Profitez de votre dernière journée jusqu'au bout et évitez le détour par une station avant le retour. Rendez le véhicule sans refaire vous-même le plein ou la recharge : notre équipe s'en charge. Le carburant ou l'électricité consommés restent facturés selon les conditions de location.", type: "forfait", prix: 28 },
+  { id: "siege-auto", nom: "Siège bébé", description: "Voyagez plus léger : le siège bébé vous attend directement dans le véhicule lors de sa livraison. Une solution simple pour préparer le trajet familial avec moins de matériel à transporter.", type: "jour", prix: 5 },
+  { id: "siege-enfant", nom: "Siège enfant", description: "Offrez à votre enfant une assise adaptée et plus confortable pendant le trajet. Le siège est préparé dans le véhicule avant votre prise en charge.", type: "jour", prix: 5 },
+  { id: "rehausseur", nom: "Rehausseur enfant", description: "Une solution pratique pour mieux installer les enfants plus grands avec la ceinture du véhicule, sans avoir à emporter votre propre équipement.", type: "jour", prix: 3 },
   { id: "assurance-passagers", nom: "Assurance passagers / accident", description: "Couvre les dommages corporels des passagers en cas d'accident", type: "jour", prix: 6 },
   { id: "livraison-adresse", nom: "Livraison du véhicule", description: "Livraison à l'adresse ou au point de rendez-vous choisi sur la Côte d'Azur", type: "forfait", prix: 20 }
 ];

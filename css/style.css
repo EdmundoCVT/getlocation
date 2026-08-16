@@ -1523,6 +1523,14 @@ textarea:focus-visible,
   color: var(--violet-dark);
 }
 
+.checkout-back-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
 .checkout-layout {
   grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.8fr);
 }
