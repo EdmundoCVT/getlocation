@@ -186,8 +186,8 @@ textarea:focus-visible,
 
 /* ============ HERO ============ */
 .hero {
-  background: linear-gradient(135deg, var(--violet), var(--violet-dark));
-  color: white;
+  background: linear-gradient(135deg, #ffffff 0%, #fffaf5 52%, #fde7d2 100%);
+  color: var(--gris-fonce);
   padding: 72px 0 60px;
   position: relative;
   overflow: hidden;
@@ -200,7 +200,7 @@ textarea:focus-visible,
   right: -8%;
   width: 620px;
   height: 620px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 70%);
+  background: radial-gradient(circle, rgba(242, 118, 12, 0.12) 0%, rgba(242, 118, 12, 0) 70%);
   pointer-events: none;
 }
 
@@ -222,8 +222,8 @@ textarea:focus-visible,
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.16);
-  color: white;
+  background: var(--violet-light);
+  color: var(--violet-dark);
   font-size: 0.78rem;
   font-weight: 700;
   padding: 6px 14px;
@@ -241,7 +241,7 @@ textarea:focus-visible,
 
 .hero p.hero-subtitle {
   max-width: 540px;
-  color: rgba(255, 255, 255, 0.88);
+  color: #565660;
   font-size: 1.15rem;
   line-height: 1.6;
   margin: 0 0 26px;
@@ -255,7 +255,7 @@ textarea:focus-visible,
   margin-bottom: 30px;
   font-size: 0.88rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.92);
+  color: #45454e;
 }
 
 .hero-badges .badge-item {
@@ -266,34 +266,31 @@ textarea:focus-visible,
 
 .hero-badges .badge-item::before {
   content: "✓";
-  color: #ffffff;
+  color: var(--violet);
   font-weight: 800;
 }
 
-/* Boutons du hero : inversés pour rester lisibles sur le fond violet
-   (le bouton primaire devient blanc, le secondaire devient un contour
-   blanc translucide — motif déjà utilisé par .btn-outline ailleurs). */
 .hero .btn-primary {
-  background: white;
-  color: var(--violet-dark);
-  box-shadow: 0 10px 24px rgba(18, 16, 26, 0.18);
+  background: var(--violet);
+  color: white;
+  box-shadow: 0 10px 24px rgba(242, 118, 12, 0.2);
 }
 
 .hero .btn-primary:hover {
-  background: var(--violet-light);
-  box-shadow: 0 12px 28px rgba(18, 16, 26, 0.22);
+  background: var(--violet-dark);
+  box-shadow: 0 12px 28px rgba(242, 118, 12, 0.25);
 }
 
 .hero .btn-secondary {
-  background: transparent;
-  color: white;
-  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  background: white;
+  color: var(--gris-fonce);
+  border: 1.5px solid #dedee4;
 }
 
 .hero .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: white;
-  color: white;
+  background: var(--sable-clair);
+  border-color: var(--violet);
+  color: var(--violet-dark);
 }
 
 .hero-cta {
@@ -329,7 +326,8 @@ textarea:focus-visible,
   padding: 22px;
   border-radius: 28px;
   background: #ffffff;
-  box-shadow: 0 20px 50px rgba(18, 16, 26, 0.22);
+  border: 1px solid rgba(242, 118, 12, 0.13);
+  box-shadow: 0 20px 50px rgba(18, 16, 26, 0.12);
 }
 
 .fleet-card {
@@ -442,31 +440,31 @@ textarea:focus-visible,
   align-items: end;
 }
 
+.search-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 24px;
+  right: 24px;
+  height: 3px;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(90deg, var(--violet), var(--sable));
+}
+
+.search-card-heading h2 {
+  margin: 0 0 4px;
+  font-size: 1.35rem;
+}
+
+.search-card-heading p {
+  margin: 0;
+  color: #6b6b74;
+  font-size: 0.9rem;
+}
+
 .local-service-card {
   max-width: 820px;
 }
-
-.booking-inclusions {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1px;
-  overflow: hidden;
-  margin: -14px 0 36px;
-  border: 1px solid #ececf0;
-  border-radius: var(--radius-sm);
-  background: #ececf0;
-}
-
-.booking-inclusions > span {
-  display: flex;
-  flex-direction: column;
-  padding: 14px 16px;
-  background: var(--blanc);
-  text-align: center;
-}
-
-.booking-inclusions strong { font-size: 0.9rem; }
-.booking-inclusions small { color: #6b6b74; font-size: 0.76rem; }
 
 .faq-list { display: grid; gap: 12px; }
 
@@ -590,7 +588,20 @@ textarea:focus-visible,
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.vt-icon { font-size: 1.15rem; }
+.vt-icon {
+  width: 26px;
+  height: 20px;
+  display: inline-flex;
+}
+
+.vt-icon svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 
 .vt-option:hover:not(.active) { background: var(--sable-clair); }
 
@@ -1785,7 +1796,6 @@ textarea:focus-visible,
   .how-steps { flex-wrap: wrap; }
   .how-step { flex: 1 1 40%; margin-bottom: 24px; }
   .how-step-arrow { display: none; }
-  .booking-inclusions { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 640px) {
@@ -1830,8 +1840,6 @@ textarea:focus-visible,
   /* La flotte complète reste présentée plus bas : masquer cette mosaïque
      promotionnelle rapproche le moteur du hero sur les petits écrans. */
   .hero-fleet { display: none; }
-  .booking-inclusions { grid-template-columns: 1fr 1fr; margin-top: -10px; }
-  .booking-inclusions > span { padding: 12px 8px; }
   .mobile-availability-cta.is-visible {
     display: block;
     position: fixed;

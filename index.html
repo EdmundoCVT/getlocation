@@ -62,7 +62,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="css/style.css?v=19">
+<link rel="stylesheet" href="css/style.css?v=20">
 </head>
 <body>
 
@@ -130,14 +130,18 @@
 
 <div class="container search-section">
   <form id="search-form" class="search-card">
+    <div class="search-card-heading field-full">
+      <h2>Trouvez votre véhicule</h2>
+      <p>Choisissez vos dates et votre lieu de livraison pour consulter les disponibilités.</p>
+    </div>
     <div class="field field-full">
       <label id="vehicle-type-label">Quel type de véhicule ?</label>
       <div class="vehicle-type-toggle" id="vehicle-type-toggle" role="group" aria-labelledby="vehicle-type-label">
         <button type="button" class="vt-option active" data-type="voiture" aria-pressed="true">
-          <span class="vt-icon" aria-hidden="true">🚗</span> Voiture
+          <span class="vt-icon" aria-hidden="true"><svg viewBox="0 0 32 20" fill="none"><path d="M5 14.5h22l-1.5-6-5-4h-9l-4 4-2.5 6Z"/><path d="M9 8.5h14M3 14.5h26"/><circle cx="9" cy="15" r="2.5"/><circle cx="23" cy="15" r="2.5"/></svg></span> Voiture
         </button>
         <button type="button" class="vt-option" data-type="utilitaire" aria-pressed="false">
-          <span class="vt-icon" aria-hidden="true">🚐</span> Utilitaire
+          <span class="vt-icon" aria-hidden="true"><svg viewBox="0 0 32 20" fill="none"><path d="M3 5h17v10H3zM20 9h5l4 4v2h-9z"/><path d="M7 9h8M3 15h26"/><circle cx="8" cy="15" r="2.5"/><circle cx="24" cy="15" r="2.5"/></svg></span> Utilitaire
         </button>
       </div>
     </div>
@@ -179,12 +183,6 @@
     </div>
     <button type="submit" class="btn btn-primary" data-conversion="recherche_disponibilites">Voir les véhicules disponibles</button>
   </form>
-  <div class="booking-inclusions" aria-label="Informations tarifaires essentielles">
-    <span><strong>Assurance incluse</strong><small>dans chaque location</small></span>
-    <span><strong>200 km / jour</strong><small>puis 0,25 € / km</small></span>
-    <span><strong>Livraison : 20 €</strong><small>forfait Côte d'Azur</small></span>
-    <span><strong>Caution dès 500 €</strong><small>selon le véhicule</small></span>
-  </div>
 </div>
 
 <section class="section container">

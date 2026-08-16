@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
-const { VEHICULES, getOptionParId, getKmInclusParJour, getSupplementKmCentimes } = require("../js/data.js");
+const { VEHICULES } = require("../js/data.js");
 
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 const document = new JSDOM(html).window.document;
@@ -48,13 +48,16 @@ test("les blocs de réassurance répétitifs sont regroupés", () => {
   assert.match(document.body.textContent, /sans frais cachés/);
 });
 
-test("les informations tarifaires essentielles reflètent le catalogue", () => {
-  const inclusions = document.querySelector(".booking-inclusions").textContent;
-  const livraison = getOptionParId("livraison-adresse");
-  assert.match(inclusions, new RegExp(`${getKmInclusParJour()} km / jour`));
-  assert.match(inclusions, new RegExp(`${(getSupplementKmCentimes() / 100).toFixed(2).replace(".", ",")} € / km`));
-  assert.match(inclusions, new RegExp(`Livraison : ${livraison.prix} €`));
-  assert.match(inclusions, new RegExp(`Caution dès ${Math.min(...VEHICULES.map(v => v.caution))} €`));
+test("les détails tarifaires ne sont pas affichés avant la recherche", () => {
+  assert.equal(document.querySelector(".booking-inclusions"), null);
+  const searchSection = document.querySelector(".search-section").textContent;
+  assert.doesNotMatch(searchSection, /Assurance incluse|km \/ jour|Livraison : \d+ €|Caution dès/);
+});
+
+test("le sélecteur de véhicule utilise des icônes vectorielles sans emoji", () => {
+  const toggle = document.getElementById("vehicle-type-toggle");
+  assert.equal(toggle.querySelectorAll(".vt-icon svg").length, 2);
+  assert.doesNotMatch(toggle.textContent, /🚗|🚐/);
 });
 
 test("chaque véhicule de la homepage affiche sa caution exacte", () => {
