@@ -233,6 +233,12 @@ test("calculerPrixTotal : une option type \"jour\" est multipliée par le nombre
   assert.equal(result.total, vehicule.prixJour * 3 + result.optionsMontant);
 });
 
+test("forfaits kilométriques : les trois paliers utilisent les montants demandés", () => {
+  assert.equal(getOptionParId("km-200").prix, 60);
+  assert.equal(getOptionParId("km-supplementaire").prix, 100);
+  assert.equal(getOptionParId("km-400").prix, 150);
+});
+
 test("calculerPrixTotal : ignore un identifiant d'option inconnu et déduplique les doublons", () => {
   const result = calculerPrixTotal({
     vehiculeId: "opel-corsa",

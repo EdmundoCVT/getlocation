@@ -151,13 +151,16 @@ function getCodePromo(code) {
 // Catalogue des options proposées pendant la réservation (avant paiement).
 // type "jour" : prix multiplié par le nombre de jours facturables.
 // type "forfait" : montant fixe, quelle que soit la durée.
-// Prix d'exemple (placeholders) à ajuster ici.
 const OPTIONS = [
-  { id: "siege-auto", nom: "Siège auto bébé", description: "Siège auto homologué pour bébé (0-13 kg)", type: "jour", prix: 5 },
-  { id: "rehausseur", nom: "Réhausseur enfant", description: "Réhausseur homologué pour enfant (15-36 kg)", type: "jour", prix: 3 },
+  { id: "second-conducteur", nom: "Conducteur supplémentaire", description: "Partagez la conduite pendant votre location. Chaque conducteur supplémentaire devra présenter un permis de conduire valide et respecter les mêmes conditions que le conducteur principal.", type: "jour", prix: 10 },
+  { id: "km-200", nom: "Forfait 200 km supplémentaires", description: "Ajoute 200 km au forfait inclus sur l'ensemble de la location.", type: "forfait", prix: 60 },
+  { id: "km-supplementaire", nom: "Forfait 300 km supplémentaires", description: "Ajoute 300 km au forfait inclus sur l'ensemble de la location.", type: "forfait", prix: 100 },
+  { id: "km-400", nom: "Forfait 400 km supplémentaires", description: "Ajoute 400 km au forfait inclus sur l'ensemble de la location.", type: "forfait", prix: 150 },
+  { id: "service-plein", nom: "Service de plein / recharge", description: "Gagnez du temps au retour : GETLOCATION se charge du plein ou de la recharge. Le carburant ou l'électricité consommés restent facturés selon les conditions de location.", type: "forfait", prix: 28 },
+  { id: "siege-auto", nom: "Siège bébé", description: "Un siège adapté aux bébés et jeunes enfants, installé dans le véhicule avant sa livraison.", type: "jour", prix: 5 },
+  { id: "siege-enfant", nom: "Siège enfant", description: "Un siège offrant maintien et confort aux enfants qui ne voyagent plus dans un siège bébé.", type: "jour", prix: 5 },
+  { id: "rehausseur", nom: "Rehausseur enfant", description: "Un rehausseur pour positionner plus confortablement l'enfant avec la ceinture de sécurité du véhicule.", type: "jour", prix: 3 },
   { id: "assurance-passagers", nom: "Assurance passagers / accident", description: "Couvre les dommages corporels des passagers en cas d'accident", type: "jour", prix: 6 },
-  { id: "second-conducteur", nom: "Deuxième conducteur", description: "Ajoute un second conducteur autorisé sur le contrat", type: "jour", prix: 10 },
-  { id: "km-supplementaire", nom: "Forfait kilométrage supplémentaire", description: "300 km supplémentaires inclus sur la durée de la location", type: "forfait", prix: 30 },
   { id: "livraison-adresse", nom: "Livraison du véhicule", description: "Livraison à l'adresse ou au point de rendez-vous choisi sur la Côte d'Azur", type: "forfait", prix: 20 }
 ];
 

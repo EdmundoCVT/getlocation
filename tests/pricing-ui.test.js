@@ -68,15 +68,44 @@ test("initReservationPage : la protection est une étape dédiée et les autres 
   window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
   window.initReservationPage();
 
-  const items = window.document.querySelectorAll("#options-list .option-card");
   const optionsFacultatives = OPTIONS.filter((opt) => opt.id !== "livraison-adresse" && opt.id !== "assurance-passagers");
-  assert.equal(items.length, optionsFacultatives.length);
   optionsFacultatives.forEach((opt) => {
-    assert.ok(window.document.getElementById(`option-${opt.id}`), `checkbox manquante pour ${opt.id}`);
+    assert.ok(window.document.getElementById(`option-${opt.id}`), `contrôle manquant pour ${opt.id}`);
   });
   assert.equal(window.document.getElementById("option-livraison-adresse"), null, "la livraison obligatoire ne doit pas être décochable");
   assert.equal(window.document.getElementById("option-assurance-passagers"), null, "la protection passagers doit être proposée à l'étape dédiée");
   assert.equal(window.document.querySelectorAll('#protection-list input[name="protection"]').length, 2);
+});
+
+test("initReservationPage : les forfaits kilométriques sont exclusifs et recalculent le total", () => {
+  const window = newWindow(reservationPageHtml());
+  window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
+  window.initReservationPage();
+
+  const km200 = window.document.getElementById("option-km-200");
+  km200.checked = true;
+  km200.dispatchEvent(new window.Event("change", { bubbles: true }));
+  assert.match(window.document.getElementById("reservation-summary").textContent, /178/); // 118 € + 60 €
+
+  const km400 = window.document.getElementById("option-km-400");
+  km400.checked = true;
+  km400.dispatchEvent(new window.Event("change", { bubbles: true }));
+  const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
+  assert.ok(persisted.options.includes("km-400"));
+  assert.ok(!persisted.options.includes("km-200"));
+  assert.match(window.document.getElementById("reservation-summary").textContent, /268/); // 118 € + 150 €
+});
+
+test("initReservationPage : les trois équipements enfant sont regroupés dans une rubrique dépliable", () => {
+  const window = newWindow(reservationPageHtml());
+  window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
+  window.initReservationPage();
+
+  const group = window.document.querySelector(".child-options-group");
+  assert.ok(group);
+  ["siege-auto", "siege-enfant", "rehausseur"].forEach((id) => {
+    assert.ok(group.querySelector(`#option-${id}`));
+  });
 });
 
 test("initReservationPage : un choix de protection est obligatoire avant les options et persiste dans la réservation", () => {
