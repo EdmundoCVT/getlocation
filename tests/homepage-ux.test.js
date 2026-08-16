@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
+const { VEHICULES, getOptionParId, getKmInclusParJour, getSupplementKmCentimes } = require("../js/data.js");
 
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 const document = new JSDOM(html).window.document;
@@ -45,4 +46,33 @@ test("les blocs de réassurance répétitifs sont regroupés", () => {
   assert.doesNotMatch(document.body.textContent, /Pourquoi nous faire confiance|Pourquoi GETLOCATION/);
   assert.match(document.body.textContent, /Tarifs transparents/);
   assert.match(document.body.textContent, /sans frais cachés/);
+});
+
+test("les informations tarifaires essentielles reflètent le catalogue", () => {
+  const inclusions = document.querySelector(".booking-inclusions").textContent;
+  const livraison = getOptionParId("livraison-adresse");
+  assert.match(inclusions, new RegExp(`${getKmInclusParJour()} km / jour`));
+  assert.match(inclusions, new RegExp(`${(getSupplementKmCentimes() / 100).toFixed(2).replace(".", ",")} € / km`));
+  assert.match(inclusions, new RegExp(`Livraison : ${livraison.prix} €`));
+  assert.match(inclusions, new RegExp(`Caution dès ${Math.min(...VEHICULES.map(v => v.caution))} €`));
+});
+
+test("chaque véhicule de la homepage affiche sa caution exacte", () => {
+  for (const vehicule of VEHICULES) {
+    const card = document.querySelector(`[data-vehicle-link="vehicules.html?vehicule=${vehicule.id}"]`);
+    assert.match(card.textContent, new RegExp(`Caution ${vehicule.caution} €`));
+  }
+});
+
+test("la FAQ utilise des accordéons natifs accessibles", () => {
+  const items = [...document.querySelectorAll(".faq-item")];
+  assert.equal(items.length, 5);
+  assert.ok(items.every(item => item.tagName === "DETAILS" && item.querySelector(":scope > summary")));
+});
+
+test("les actions de conversion sont balisées sans traceur externe", () => {
+  assert.ok(document.querySelector('[data-conversion="recherche_disponibilites"]'));
+  assert.ok(document.querySelector('[data-conversion="mobile_disponibilites"]'));
+  assert.ok(document.querySelector('[data-conversion="appel"]'));
+  assert.ok(document.querySelector('[data-conversion="whatsapp"]'));
 });

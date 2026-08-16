@@ -611,6 +611,7 @@ function initVehiculesPage() {
             <span>${v.transmission}</span>
             <span>${v.clim ? "Climatisation" : "Sans clim"}</span>
             ${v.hybride ? '<span>Hybride</span>' : ''}
+            <span>Caution ${formatEUR(v.caution)}</span>
           </div>
           <p class="hint-text">${v.description}</p>
           <div class="vehicle-footer">
@@ -1794,6 +1795,37 @@ function initTestimonialsSlider() {
   if (controls) controls.style.display = "none";
 }
 
+function initConversionUx() {
+  const stickyCta = document.getElementById("mobile-availability-cta");
+  const hero = document.querySelector(".hero");
+  const searchForm = document.getElementById("search-form");
+
+  function elementVisible(element) {
+    if (!element) return false;
+    const rect = element.getBoundingClientRect();
+    return rect.bottom > 0 && rect.top < window.innerHeight;
+  }
+
+  function updateStickyCta() {
+    if (!stickyCta || !hero || !searchForm) return;
+    const mobile = window.matchMedia("(max-width: 640px)").matches;
+    const heroMostlyPassed = window.scrollY > hero.offsetHeight * 0.55;
+    stickyCta.classList.toggle("is-visible", mobile && heroMostlyPassed && !elementVisible(searchForm));
+  }
+
+  document.querySelectorAll("[data-conversion]").forEach((element) => {
+    element.addEventListener("click", () => {
+      const detail = { event: "conversion_click", action: element.dataset.conversion };
+      window.dispatchEvent(new CustomEvent("getlocation:conversion", { detail }));
+      if (Array.isArray(window.dataLayer)) window.dataLayer.push(detail);
+    });
+  });
+
+  updateStickyCta();
+  window.addEventListener("scroll", updateStickyCta, { passive: true });
+  window.addEventListener("resize", updateStickyCta);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   setFooterYear();
   syncHeaderHeightVar();
@@ -1806,6 +1838,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initDocumentsPage();
   initAgencyDocumentsPage();
   initTestimonialsSlider();
+  initConversionUx();
   initHomeVehicleLinks();
   initVehicleGalleries();
 });

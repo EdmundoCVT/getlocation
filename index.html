@@ -62,7 +62,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="css/style.css?v=18">
+<link rel="stylesheet" href="css/style.css?v=19">
 </head>
 <body>
 
@@ -99,7 +99,7 @@
         <span class="badge-item">Assurance incluse</span>
       </div>
       <div class="hero-cta">
-        <a href="#search-form" class="btn btn-primary">Voir les véhicules disponibles</a>
+        <a href="#search-form" class="btn btn-primary" data-conversion="hero_disponibilites">Voir les véhicules disponibles</a>
         <a href="vehicules.html" class="btn btn-secondary">Voir les véhicules</a>
       </div>
     </div>
@@ -177,8 +177,14 @@
       <label for="adresse-retour">Lieu de restitution</label>
       <select id="adresse-retour"></select>
     </div>
-    <button type="submit" class="btn btn-primary">Voir les véhicules disponibles</button>
+    <button type="submit" class="btn btn-primary" data-conversion="recherche_disponibilites">Voir les véhicules disponibles</button>
   </form>
+  <div class="booking-inclusions" aria-label="Informations tarifaires essentielles">
+    <span><strong>Assurance incluse</strong><small>dans chaque location</small></span>
+    <span><strong>200 km / jour</strong><small>puis 0,25 € / km</small></span>
+    <span><strong>Livraison : 20 €</strong><small>forfait Côte d'Azur</small></span>
+    <span><strong>Caution dès 500 €</strong><small>selon le véhicule</small></span>
+  </div>
 </div>
 
 <section class="section container">
@@ -246,7 +252,7 @@
         <div class="vehicle-body">
           <div class="vehicle-category">Citadine</div>
           <div class="vehicle-name">Opel Corsa Business 1.2T</div>
-          <div class="vehicle-specs"><span>5 places</span><span>Manuelle</span><span>Climatisation</span></div>
+          <div class="vehicle-specs"><span>5 places</span><span>Manuelle</span><span>Climatisation</span><span>Caution 500 €</span></div>
           <div class="vehicle-footer">
             <div class="price"><span class="price-from">À partir de</span>49 €<small> / jour</small></div>
             <a href="vehicules.html?vehicule=opel-corsa" class="btn btn-primary btn-sm">Voir le véhicule</a>
@@ -262,7 +268,7 @@
         <div class="vehicle-body">
           <div class="vehicle-category">SUV Hybride</div>
           <div class="vehicle-name">Peugeot 2008 Hybrid</div>
-          <div class="vehicle-specs"><span>5 places</span><span>Automatique</span><span>Climatisation</span></div>
+          <div class="vehicle-specs"><span>5 places</span><span>Automatique</span><span>Climatisation</span><span>Caution 500 €</span></div>
           <div class="vehicle-footer">
             <div class="price"><span class="price-from">À partir de</span>59 €<small> / jour</small></div>
             <a href="vehicules.html?vehicule=peugeot-2008-hybrid" class="btn btn-primary btn-sm">Voir le véhicule</a>
@@ -278,7 +284,7 @@
         <div class="vehicle-body">
           <div class="vehicle-category">SUV Hybride</div>
           <div class="vehicle-name">Peugeot 3008</div>
-          <div class="vehicle-specs"><span>5 places</span><span>Automatique</span><span>Climatisation</span></div>
+          <div class="vehicle-specs"><span>5 places</span><span>Automatique</span><span>Climatisation</span><span>Caution 600 €</span></div>
           <div class="vehicle-footer">
             <div class="price"><span class="price-from">À partir de</span>69 €<small> / jour</small></div>
             <a href="vehicules.html?vehicule=peugeot-3008" class="btn btn-primary btn-sm">Voir le véhicule</a>
@@ -296,7 +302,7 @@
         <div class="vehicle-body">
           <div class="vehicle-category">Utilitaire</div>
           <div class="vehicle-name">Toyota Proace City</div>
-          <div class="vehicle-specs"><span>5 places</span><span>Manuelle</span><span>Climatisation</span></div>
+          <div class="vehicle-specs"><span>5 places</span><span>Manuelle</span><span>Climatisation</span><span>Caution 800 €</span></div>
           <div class="vehicle-footer">
             <div class="price"><span class="price-from">À partir de</span>89 €<small> / jour</small></div>
             <a href="vehicules.html?vehicule=toyota-proace-city" class="btn btn-primary btn-sm">Voir le véhicule</a>
@@ -346,10 +352,10 @@
     <h2>Prêt à réserver votre véhicule ?</h2>
     <p>Choisissez vos dates, votre véhicule, et prenez la route sur la Côte d'Azur.</p>
     <div class="cta-buttons">
-      <a href="#search-form" class="btn btn-primary">Voir les véhicules disponibles</a>
+      <a href="#search-form" class="btn btn-primary" data-conversion="cta_disponibilites">Voir les véhicules disponibles</a>
       <a href="vehicules.html" class="btn btn-outline">Voir les véhicules</a>
-      <a href="tel:+33667485430" class="btn btn-outline">Nous appeler</a>
-      <a href="https://wa.me/33667485430" class="btn btn-outline" target="_blank" rel="noopener">WhatsApp</a>
+      <a href="tel:+33667485430" class="btn btn-outline" data-conversion="appel">Nous appeler</a>
+      <a href="https://wa.me/33667485430" class="btn btn-outline" target="_blank" rel="noopener" data-conversion="whatsapp">WhatsApp</a>
       <a href="mailto:contact@getlocation.fr?subject=Demande%20de%20devis%20GETLOCATION" class="btn btn-outline">Demander un devis</a>
     </div>
   </div>
@@ -366,27 +372,31 @@
 
 <section class="section container" style="max-width: 820px;">
   <h2 class="section-title">Questions fréquentes</h2>
-  <div class="card" style="margin-bottom: 16px;">
-    <h3>Quel âge minimum pour louer un véhicule ?</h3>
-    <p class="hint-text">Le conducteur doit être âgé d'au moins 21 ans et titulaire d'un permis de conduire valide depuis au moins 2 ans. Voir nos <a href="cgl.html">conditions générales de location</a>.</p>
-  </div>
-  <div class="card" style="margin-bottom: 16px;">
-    <h3>Dans quelles villes puis-je récupérer mon véhicule ?</h3>
-    <p class="hint-text">Nous sommes une agence en ligne : le véhicule est livré à l'adresse, à la gare ou au point de rendez-vous choisi sur la Côte d'Azur.</p>
-  </div>
-  <div class="card" style="margin-bottom: 16px;">
-    <h3>Une caution est-elle demandée ?</h3>
-    <p class="hint-text">Oui, un dépôt de garantie est demandé lors de la prise en charge du véhicule ; son montant varie selon le modèle loué (voir la fiche de chaque véhicule).</p>
-  </div>
-  <div class="card" style="margin-bottom: 16px;">
-    <h3>Le paiement en ligne est-il sécurisé ?</h3>
-    <p class="hint-text">Oui, le paiement est traité par Mollie, un prestataire de paiement certifié. GETLOCATION ne stocke aucune donnée bancaire.</p>
-  </div>
-  <div class="card">
-    <h3>Quels véhicules proposez-vous ?</h3>
-    <p class="hint-text">Une citadine (Opel Corsa Business), deux SUV/berlines hybrides (Peugeot 3008 et 2008 Hybrid) et un utilitaire compact (Toyota Proace City), tous des modèles 2026.</p>
+  <div class="faq-list">
+    <details class="faq-item">
+      <summary>Quel âge minimum pour louer un véhicule ?</summary>
+      <p>Le conducteur doit être âgé d'au moins 21 ans et titulaire d'un permis de conduire valide depuis au moins 2 ans. Voir nos <a href="cgl.html">conditions générales de location</a>.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Dans quelles villes puis-je récupérer mon véhicule ?</summary>
+      <p>Nous sommes une agence en ligne : le véhicule est livré à l'adresse, à la gare ou au point de rendez-vous choisi sur la Côte d'Azur.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Une caution est-elle demandée ?</summary>
+      <p>Oui, un dépôt de garantie de 500 à 800 € est demandé selon le véhicule loué. Son montant exact est affiché sur chaque fiche véhicule.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Le paiement en ligne est-il sécurisé ?</summary>
+      <p>Oui, le paiement est traité par Mollie, un prestataire de paiement certifié. GETLOCATION ne stocke aucune donnée bancaire.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Quels véhicules proposez-vous ?</summary>
+      <p>Une citadine (Opel Corsa Business), deux SUV/berlines hybrides (Peugeot 3008 et 2008 Hybrid) et un utilitaire compact (Toyota Proace City), tous des modèles 2026.</p>
+    </details>
   </div>
 </section>
+
+<a href="#search-form" class="mobile-availability-cta" id="mobile-availability-cta" data-conversion="mobile_disponibilites">Voir les disponibilités</a>
 
 <script type="application/ld+json">
 {
@@ -464,6 +474,6 @@
 </footer>
 
 <script src="js/data.js?v=9"></script>
-<script src="js/app.js?v=21"></script>
+<script src="js/app.js?v=22"></script>
 </body>
 </html>
