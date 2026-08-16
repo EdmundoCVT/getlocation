@@ -222,8 +222,8 @@ textarea:focus-visible,
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--violet-light);
-  color: var(--violet-dark);
+  background: rgba(255, 255, 255, 0.16);
+  color: white;
   font-size: 0.78rem;
   font-weight: 700;
   padding: 6px 14px;
@@ -233,8 +233,8 @@ textarea:focus-visible,
 }
 
 .hero h1 {
-  font-size: 3rem;
-  max-width: 620px;
+  font-size: clamp(2.75rem, 4.5vw, 4rem);
+  max-width: 680px;
   margin: 0 0 18px;
   letter-spacing: -0.03em;
 }
@@ -256,12 +256,6 @@ textarea:focus-visible,
   font-size: 0.88rem;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.92);
-}
-
-.hero-stars {
-  color: #ffce54;
-  font-size: 1rem;
-  letter-spacing: 1px;
 }
 
 .hero-badges .badge-item {
@@ -415,11 +409,14 @@ textarea:focus-visible,
   white-space: nowrap;
 }
 
-/* Search card — placée tout en haut de page, juste sous l'en-tête et avant
-   le hero (motif Sixt/Europcar : la recherche est le tout premier élément
-   visible, avant même le titre). Voir index.html et les pages
-   location-voiture-*.html : le <form id="search-form"> est le premier
-   bloc après </header>. */
+/* Sur la page d'accueil, le moteur prolonge visuellement le hero tout en
+   restant placé après sa promesse. Les pages locales gardent leur structure. */
+.search-section {
+  position: relative;
+  z-index: 5;
+  margin-top: -28px;
+}
+
 .search-card {
   background: var(--blanc);
   border-radius: var(--radius);
@@ -1714,6 +1711,7 @@ textarea:focus-visible,
 }
 
 @media (max-width: 900px) {
+  .search-section { margin-top: -20px; }
   .search-card { margin: 16px 0 28px; }
   .booking-layout { grid-template-columns: 1fr; }
   .footer-grid { grid-template-columns: 1fr 1fr; }
@@ -1764,6 +1762,7 @@ textarea:focus-visible,
   .main-nav a:last-child { border-bottom: none; }
   .header-inner { position: relative; }
 
+  .search-section { margin-top: -12px; }
   .search-card { grid-template-columns: 1fr; margin: 12px 0 24px; padding: 22px; }
   .form-grid { grid-template-columns: 1fr; }
   .hero { padding: 48px 0 40px; }
