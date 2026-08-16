@@ -86,7 +86,49 @@
   </div>
 </header>
 
-<div class="container">
+<section class="hero">
+  <div class="container hero-inner">
+    <div class="hero-text">
+      <span class="hero-eyebrow">Location &amp; livraison sur la Côte d'Azur</span>
+      <h1>Votre véhicule de location, livré où vous voulez sur la Côte d'Azur</h1>
+      <p class="hero-subtitle">Citadine, SUV ou utilitaire : choisissez votre véhicule et faites-vous livrer à domicile, à votre hôtel ou à l'aéroport, de Grasse à Monaco.</p>
+      <div class="hero-badges">
+        <span class="badge-item">Entreprise locale</span>
+        <span class="badge-item">Véhicules 2026</span>
+        <span class="badge-item">Paiement sécurisé</span>
+        <span class="badge-item">Assurance incluse</span>
+      </div>
+      <div class="hero-cta">
+        <a href="#search-form" class="btn btn-primary">Réserver maintenant</a>
+        <a href="vehicules.html" class="btn btn-secondary">Voir les véhicules</a>
+      </div>
+    </div>
+    <div class="hero-fleet">
+      <span class="hero-fleet-grid-note">Toute notre flotte 2026</span>
+      <div class="fleet-card">
+        <img src="images/opel-corsa-cutout.webp" alt="Opel Corsa disponible à la location chez GETLOCATION" class="is-cutout" width="900" height="612" decoding="async" onerror="this.classList.remove('is-cutout')">
+        <span class="fleet-card-label">Opel Corsa<small>Citadine</small></span>
+      </div>
+      <div class="fleet-card is-flagship">
+        <img src="images/peugeot-3008-cutout-veh.webp" alt="Peugeot 3008 disponible à la location chez GETLOCATION" class="is-cutout" width="900" height="616" decoding="async" fetchpriority="high" onerror="this.classList.remove('is-cutout')">
+        <span class="fleet-card-label">Peugeot 3008<small>SUV</small></span>
+      </div>
+      <div class="fleet-card">
+        <img src="images/peugeot-2008-hybrid-cutout.webp" alt="Peugeot 2008 Hybrid disponible à la location chez GETLOCATION" class="is-cutout" width="900" height="616" decoding="async" loading="lazy" onerror="this.classList.remove('is-cutout')">
+        <span class="fleet-card-label">Peugeot 2008<small>SUV hybride</small></span>
+      </div>
+      <div class="fleet-card">
+        <picture>
+          <source srcset="images/toyota-proace-city-fleet.webp" type="image/webp">
+          <img src="images/toyota-proace-city-fleet.jpg" alt="Toyota Proace City disponible à la location chez GETLOCATION" width="1200" height="900" decoding="async" loading="lazy">
+        </picture>
+        <span class="fleet-card-label">Toyota Proace<small>Utilitaire</small></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="container search-section">
   <form id="search-form" class="search-card">
     <div class="field field-full">
       <label id="vehicle-type-label">Quel type de véhicule ?</label>
@@ -135,51 +177,9 @@
       <label for="adresse-retour">Lieu de restitution</label>
       <select id="adresse-retour"></select>
     </div>
-    <button type="submit" class="btn btn-primary">Rechercher</button>
+    <button type="submit" class="btn btn-primary">Voir les véhicules disponibles</button>
   </form>
 </div>
-
-<section class="hero">
-  <div class="container hero-inner">
-    <div class="hero-text">
-      <h1>Location de voitures sur la Côte d'Azur</h1>
-      <p class="hero-subtitle">Citadines, SUV et utilitaires disponibles à Grasse, Nice, Cannes, Antibes et Monaco. Livraison à l'adresse de votre choix.</p>
-      <div class="hero-badges">
-        <span class="hero-stars" aria-hidden="true">★★★★★</span>
-        <span class="badge-item">Entreprise locale</span>
-        <span class="badge-item">Véhicules 2026</span>
-        <span class="badge-item">Paiement sécurisé</span>
-        <span class="badge-item">Assurance incluse</span>
-      </div>
-      <div class="hero-cta">
-        <a href="#search-form" class="btn btn-primary">Réserver maintenant</a>
-        <a href="vehicules.html" class="btn btn-secondary">Voir les véhicules</a>
-      </div>
-    </div>
-    <div class="hero-fleet">
-      <span class="hero-fleet-grid-note">Toute notre flotte 2026</span>
-      <div class="fleet-card">
-        <img src="images/opel-corsa-cutout.webp" alt="Opel Corsa disponible à la location chez GETLOCATION" class="is-cutout" width="900" height="612" decoding="async" onerror="this.classList.remove('is-cutout')">
-        <span class="fleet-card-label">Opel Corsa<small>Citadine</small></span>
-      </div>
-      <div class="fleet-card is-flagship">
-        <img src="images/peugeot-3008-cutout-veh.webp" alt="Peugeot 3008 disponible à la location chez GETLOCATION" class="is-cutout" width="900" height="616" decoding="async" fetchpriority="high" onerror="this.classList.remove('is-cutout')">
-        <span class="fleet-card-label">Peugeot 3008<small>SUV</small></span>
-      </div>
-      <div class="fleet-card">
-        <img src="images/peugeot-2008-hybrid-cutout.webp" alt="Peugeot 2008 Hybrid disponible à la location chez GETLOCATION" class="is-cutout" width="900" height="616" decoding="async" loading="lazy" onerror="this.classList.remove('is-cutout')">
-        <span class="fleet-card-label">Peugeot 2008<small>SUV hybride</small></span>
-      </div>
-      <div class="fleet-card">
-        <picture>
-          <source srcset="images/toyota-proace-city-fleet.webp" type="image/webp">
-          <img src="images/toyota-proace-city-fleet.jpg" alt="Toyota Proace City disponible à la location chez GETLOCATION" width="1200" height="900" decoding="async" loading="lazy">
-        </picture>
-        <span class="fleet-card-label">Toyota Proace<small>Utilitaire</small></span>
-      </div>
-    </div>
-  </div>
-</section>
 
 <section class="section container">
   <span class="section-eyebrow">Pourquoi nous choisir</span>
