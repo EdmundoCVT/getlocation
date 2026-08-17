@@ -463,6 +463,17 @@ function formatEURPrecis(montant){
   return montant.toLocaleString('fr-FR', { style:'currency', currency:'EUR', minimumFractionDigits:2, maximumFractionDigits:2 });
 }
 
+// Le schéma d'URI "sms:" n'est pas standardisé entre plateformes : iOS
+// Safari n'ouvre l'app Messages avec le texte prérempli que si le corps est
+// passé après un "&" (sans numéro de destinataire), alors qu'Android exige
+// un "?" — utiliser systématiquement "?body=" (comme avant) laisse l'app
+// Messages s'ouvrir vide sur iPhone, sans erreur visible ni message
+// d'échec, ce qui explique un lien "copié" mais jamais envoyable par SMS.
+function smsHref(messageEnc){
+  var estIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  return estIOS ? ('sms:&body=' + messageEnc) : ('sms:?body=' + messageEnc);
+}
+
 function dureeHeures(a,b){
   var h = (new Date(b) - new Date(a)) / (1000*60*60);
   return Math.max(h, 1);
@@ -1250,7 +1261,7 @@ function initOwnerView(prefill){
 
     document.getElementById('shareActions').classList.remove('hidden');
     document.getElementById('whatsappBtn').href = 'https://wa.me/?text=' + messageEnc;
-    document.getElementById('smsBtn').href = 'sms:?body=' + messageEnc;
+    document.getElementById('smsBtn').href = smsHref(messageEnc);
     document.getElementById('emailBtn').href = 'mailto:?subject=' +
       encodeURIComponent('Votre contrat de location GETLOCATION') + '&body=' + messageEnc;
 
@@ -1279,12 +1290,29 @@ function initOwnerView(prefill){
   document.getElementById('copyBtn').addEventListener('click', function(){
     var linkOutput = document.getElementById('linkOutput');
     linkOutput.select();
-    navigator.clipboard.writeText(linkOutput.value).then(function(){
-      document.getElementById('copiedMsg').classList.remove('hidden');
-    }).catch(function(){
-      document.execCommand('copy');
-      document.getElementById('copiedMsg').classList.remove('hidden');
-    });
+    // .select() seul est parfois insuffisant sur mobile (Safari iOS
+    // notamment) pour sélectionner un <input readonly> ; setSelectionRange
+    // le garantit aussi, sans changer le comportement ailleurs.
+    linkOutput.setSelectionRange(0, linkOutput.value.length);
+
+    function marquerCopie(){ document.getElementById('copiedMsg').classList.remove('hidden'); }
+    function repliCopie(){
+      try {
+        document.execCommand('copy');
+        marquerCopie();
+      } catch(e){
+        alert("La copie automatique a échoué. Sélectionnez le lien dans le champ ci-dessus et copiez-le manuellement.");
+      }
+    }
+
+    // navigator.clipboard peut être absent (hors contexte sécurisé, ou
+    // navigateur ancien) — l'appeler directement sur `undefined` lèverait
+    // une exception synchrone, jamais rattrapée par le .catch() suivant.
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(linkOutput.value).then(marquerCopie).catch(repliCopie);
+    } else {
+      repliCopie();
+    }
   });
 }
 
