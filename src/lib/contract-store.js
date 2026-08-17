@@ -42,6 +42,27 @@ async function saveContract(env, rawData) {
   return record;
 }
 
+// Met à jour un contrat existant EN PLACE (même numéro, même createdAt) :
+// utilisé pour compléter le kilométrage retour d'une location déjà
+// commencée sans jamais créer un second contrat pour la même location.
+// rawData remplace intégralement l'ancien (le formulaire renvoie toujours
+// son état complet, jamais un patch partiel — même convention que
+// saveContract). Renvoie null si le numéro est introuvable.
+async function updateContract(env, numero, rawData) {
+  const key = `contract_${numero}`;
+  const raw = await env.CONTRACTS_KV.get(key);
+  if (!raw) return null;
+  const existing = JSON.parse(raw);
+  const updated = {
+    numero: existing.numero,
+    createdAt: existing.createdAt,
+    updatedAt: new Date().toISOString(),
+    rawData
+  };
+  await env.CONTRACTS_KV.put(key, JSON.stringify(updated));
+  return updated;
+}
+
 // Liste les derniers contrats, du plus récent au plus ancien. Implémentation
 // volontairement simple (parcours complet des clés préfixées "contract_",
 // tri en mémoire) : adaptée à une petite agence à faible volume, pas conçue
@@ -72,5 +93,6 @@ async function listRecentContracts(env, limit = 20) {
 module.exports = {
   generateContractNumber,
   saveContract,
+  updateContract,
   listRecentContracts
 };

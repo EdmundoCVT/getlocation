@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { createFakeKv } = require("./helpers/fake-kv.js");
-const { generateContractNumber, saveContract, listRecentContracts } = require("../src/lib/contract-store.js");
+const { generateContractNumber, saveContract, updateContract, listRecentContracts } = require("../src/lib/contract-store.js");
 
 function makeEnv() {
   return { CONTRACTS_KV: createFakeKv() };
@@ -81,4 +81,36 @@ test("listRecentContracts : liste vide sans contrat enregistré", async () => {
   const env = makeEnv();
   const liste = await listRecentContracts(env, 10);
   assert.deepEqual(liste, []);
+});
+
+test("updateContract : introuvable renvoie null (pas de crash)", async () => {
+  const env = makeEnv();
+  const result = await updateContract(env, "GL-20260817-9999", { nom: "Test" });
+  assert.equal(result, null);
+});
+
+test("updateContract : conserve le numéro et le createdAt d'origine, remplace rawData", async () => {
+  const env = makeEnv();
+  const cree = await saveContract(env, { nom: "Israa", kmDepart: "42150" });
+
+  const maj = await updateContract(env, cree.numero, { nom: "Israa", kmDepart: "42150", kmRetour: "42736" });
+  assert.equal(maj.numero, cree.numero);
+  assert.equal(maj.createdAt, cree.createdAt);
+  assert.ok(maj.updatedAt);
+  assert.equal(maj.rawData.kmRetour, "42736");
+
+  const liste = await listRecentContracts(env, 10);
+  assert.equal(liste.length, 1, "la mise à jour ne doit jamais créer un second contrat");
+});
+
+test("updateContract : plusieurs mises à jour successives restent sur le même contrat", async () => {
+  const env = makeEnv();
+  const cree = await saveContract(env, { nom: "Client" });
+  await updateContract(env, cree.numero, { nom: "Client", notes: "premier passage" });
+  const finale = await updateContract(env, cree.numero, { nom: "Client", notes: "second passage" });
+
+  assert.equal(finale.numero, cree.numero);
+  const liste = await listRecentContracts(env, 10);
+  assert.equal(liste.length, 1);
+  assert.equal(liste[0].rawData.notes, "second passage");
 });

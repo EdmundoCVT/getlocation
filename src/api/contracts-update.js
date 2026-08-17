@@ -1,13 +1,12 @@
-// src/api/contracts-create.js
+// src/api/contracts-update.js
 //
-// Enregistre un nouveau contrat (déclenché quand l'agence clique sur
-// "Générer le contrat officiel" dans contrat.html) : assigne un numéro
-// unique et persiste les données du formulaire en KV (voir
-// src/lib/contract-store.js). Page /contrat non authentifiée (choix
-// assumé par l'agence) : même niveau de confiance que le reste du
-// formulaire, protégé uniquement par une limite de débit best-effort.
+// Met à jour un contrat existant en place (typiquement pour enregistrer le
+// kilométrage retour d'une location déjà commencée) — déclenché quand
+// l'agence rouvre un contrat depuis l'historique de contrat.html ("Ouvrir")
+// puis clique sur "Mettre à jour le contrat". Le numéro et la date de
+// création d'origine sont conservés (voir src/lib/contract-store.js).
 
-const { saveContract } = require("../lib/contract-store.js");
+const { updateContract } = require("../lib/contract-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
 
 function corsHeaders(request, env) {
@@ -31,22 +30,20 @@ function clientIp(request) {
   );
 }
 
-// Champs minimaux requis pour qu'un contrat ait un sens (véhicule, dates,
-// identité du locataire). Les autres champs (adresse, permis, options...)
-// restent optionnels à ce stade, comme pour le reste du formulaire.
-function estValide(rawData) {
+const NUMERO_REGEX = /^GL-\d{8}-\d{4}$/;
+
+function estValide(body) {
   return Boolean(
-    rawData &&
-      typeof rawData === "object" &&
-      rawData.vehiculeId &&
-      rawData.depart &&
-      rawData.retour &&
-      rawData.nom &&
-      rawData.prenom
+    body &&
+      typeof body === "object" &&
+      typeof body.numero === "string" &&
+      NUMERO_REGEX.test(body.numero) &&
+      body.rawData &&
+      typeof body.rawData === "object"
   );
 }
 
-async function handleCreateContract(request, env) {
+async function handleUpdateContract(request, env) {
   const headers = corsHeaders(request, env);
 
   if (request.method === "OPTIONS") {
@@ -59,7 +56,7 @@ async function handleCreateContract(request, env) {
     return new Response(JSON.stringify({ error: "Méthode non autorisée" }), { status: 405, headers });
   }
 
-  const rate = await checkRateLimit(env, `contracts-create:${clientIp(request)}`, { windowMs: 60000, maxRequests: 30 });
+  const rate = await checkRateLimit(env, `contracts-update:${clientIp(request)}`, { windowMs: 60000, maxRequests: 30 });
   if (!rate.allowed) {
     return new Response(JSON.stringify({ error: "Trop de requêtes, veuillez réessayer dans un instant." }), {
       status: 429,
@@ -73,14 +70,17 @@ async function handleCreateContract(request, env) {
   } catch (e) {
     return new Response(JSON.stringify({ error: "Corps de requête JSON invalide" }), { status: 400, headers });
   }
-  const rawData = body && body.rawData;
 
-  if (!estValide(rawData)) {
-    return new Response(JSON.stringify({ error: "Champs requis manquants (véhicule, dates, nom, prénom)" }), { status: 400, headers });
+  if (!estValide(body)) {
+    return new Response(JSON.stringify({ error: "Numéro de contrat ou données manquantes/invalides" }), { status: 400, headers });
   }
 
-  const record = await saveContract(env, rawData);
-  return new Response(JSON.stringify({ numero: record.numero, createdAt: record.createdAt }), { status: 200, headers });
+  const record = await updateContract(env, body.numero, body.rawData);
+  if (!record) {
+    return new Response(JSON.stringify({ error: "Contrat introuvable : " + body.numero }), { status: 404, headers });
+  }
+
+  return new Response(JSON.stringify({ numero: record.numero, updatedAt: record.updatedAt }), { status: 200, headers });
 }
 
-module.exports = { handleCreateContract };
+module.exports = { handleUpdateContract };

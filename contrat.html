@@ -220,6 +220,25 @@
       </div>
 
       <div class="card">
+        <h2>Kilométrage</h2>
+        <div class="grid">
+          <div class="field">
+            <label for="kmDepart">Kilométrage au départ</label>
+            <input id="kmDepart" type="number" min="0" step="1" inputmode="numeric" placeholder="42150">
+          </div>
+          <div class="field">
+            <label for="kmRetour">Kilométrage au retour</label>
+            <input id="kmRetour" type="number" min="0" step="1" inputmode="numeric" placeholder="42736">
+          </div>
+        </div>
+        <p class="meta-line" id="kmAlerte" style="display:none;color:#c0392b;font-weight:600;"></p>
+        <div class="price-block" id="kmRecap" style="display:none;">
+          <span>Distance parcourue : <strong id="kmParcourusTxt">—</strong></span>
+          <span id="kmSuppTxt"></span>
+        </div>
+      </div>
+
+      <div class="card">
         <h2>Locataire</h2>
         <div class="grid">
           <div class="field">
@@ -297,9 +316,11 @@
       </div>
 
       <div class="card">
-        <h2>Générer le contrat officiel</h2>
-        <p class="lead" style="margin-bottom:10px;">Attribue un numéro de contrat unique, enregistre le contrat (pour l'historique et la duplication) et télécharge le PDF final.</p>
+        <h2 id="genererContratTitre">Générer le contrat officiel</h2>
+        <p class="lead" style="margin-bottom:10px;" id="genererContratLead">Attribue un numéro de contrat unique, enregistre le contrat (pour l'historique et la duplication) et télécharge le PDF final.</p>
+        <p class="meta-line hidden" id="modeEditionMsg" style="color:var(--bleu-ocean);font-weight:600;"></p>
         <button type="button" class="btn btn-primary" id="genererContratBtn">📄 Générer le contrat officiel</button>
+        <button type="button" class="btn btn-ghost hidden" id="annulerEditionBtn" style="margin-top:8px;">Annuler la modification</button>
         <p class="meta-line hidden" id="numeroGenereMsg"></p>
       </div>
 
@@ -358,7 +379,7 @@
         <p>Une caution de <span class="fill" data-fill="caution">…</span> est prélevée avant remise des clés, réglée par <span class="fill" data-fill="modeCaution">…</span>. Un état des lieux (photos, kilométrage, niveau de carburant) est réalisé au départ et à la restitution. Toute dégradation non mentionnée au départ sera facturée sur devis.</p>
         <p id="secondConducteurClause" style="display:none;">Un second conducteur, <span class="fill" data-fill="nom2">…</span> (permis n° <span class="fill" data-fill="permis2">…</span>), est autorisé à conduire le véhicule dans les mêmes conditions que le locataire principal, qui reste seul responsable vis-à-vis du présent contrat.</p>
         <h3>Article 4 — Kilométrage et carburant</h3>
-        <p>Le véhicule est loué avec un forfait de <strong>200 km inclus par jour de location</strong>, soit <span class="fill" data-fill="kmInclus">…</span> km au total pour la durée du contrat. Tout kilomètre parcouru au-delà de ce forfait est facturé <strong>0,25 € / km</strong>, prélevé sur la caution ou facturé séparément à la restitution. Le véhicule doit être restitué avec le même niveau de carburant qu'au départ.</p>
+        <p>Le véhicule est loué avec un forfait de <strong>200 km inclus par jour de location</strong>, soit <span class="fill" data-fill="kmInclus">…</span> km au total pour la durée du contrat. Tout kilomètre parcouru au-delà de ce forfait est facturé <strong><span class="fill" data-fill="tarifKmSupp">…</span> / km</strong>, prélevé sur la caution ou facturé séparément à la restitution. Le véhicule doit être restitué avec le même niveau de carburant qu'au départ.</p>
         <h3>Article 5 — Restitution et retard</h3>
         <p>Le véhicule doit être restitué au lieu, à la date et à l'heure convenus. Tout retard non signalé au préalable entraîne une facturation complémentaire. Une restitution en dehors des horaires habituels reste possible sur demande : il suffit d'appeler l'agence au <a href="tel:+33667485430">+33 6 67 48 54 30</a> pour convenir d'un rendez-vous adapté.</p>
         <h3>Article 6 — Assistance et remorquage</h3>
@@ -430,6 +451,17 @@ const LIEUX_CONTRAT = ["Agence Grasse"];
 const SUPPLEMENT_LIVRAISON = getOptionParId('livraison-adresse').prix;
 const SUPPLEMENT_CONDUCTEUR_JOUR = getOptionParId('second-conducteur').prix;
 function calculSupplementConducteur(jours){ return SUPPLEMENT_CONDUCTEUR_JOUR * jours; }
+// Tarif du kilomètre supplémentaire (au-delà du forfait inclus, voir
+// kmInclusPour) : seule source de vérité pour cette valeur, reprise à la
+// fois par la clause légale (Article 4, data-fill="tarifKmSupp") et par le
+// calcul de l'état kilométrique — auparavant seulement écrite en dur dans
+// le texte du contrat, jamais utilisable par du code.
+const TARIF_KM_SUPPLEMENTAIRE = 0.25;
+// formatEUR() (js/data.js) arrondit à l'euro entier (maximumFractionDigits:0)
+// — inadapté à un tarif/montant au centime près comme celui-ci.
+function formatEURPrecis(montant){
+  return montant.toLocaleString('fr-FR', { style:'currency', currency:'EUR', minimumFractionDigits:2, maximumFractionDigits:2 });
+}
 
 function dureeHeures(a,b){
   var h = (new Date(b) - new Date(a)) / (1000*60*60);
@@ -437,6 +469,40 @@ function dureeHeures(a,b){
 }
 function calculTarif(prixJour, heures){ return prixJour * joursFacturablesDepuisHeures(heures); }
 function formatJoursFactures(jours){ return jours + ' jour' + (jours > 1 ? 's' : ''); }
+
+// Calcule l'état kilométrique (départ/retour/distance/kilomètres
+// supplémentaires) à partir des valeurs brutes du formulaire. Centralisé ici
+// car réutilisé à la fois par le récapitulatif en direct (updateSummary) et
+// par le payload PDF (construirePayload) — évite toute divergence entre les
+// deux. kmDepartRaw/kmRetourRaw : chaînes issues des <input type="number">
+// (potentiellement vides). kmInclusNombre : forfait inclus déjà calculé
+// (kmInclusPour(heures)), jamais recalculé ici (source unique).
+function calculEtatKilometrique(kmDepartRaw, kmRetourRaw, kmInclusNombre){
+  var kmDepart = (kmDepartRaw !== '' && kmDepartRaw != null) ? Number(kmDepartRaw) : null;
+  var kmRetour = (kmRetourRaw !== '' && kmRetourRaw != null) ? Number(kmRetourRaw) : null;
+  var departValide = kmDepart !== null && isFinite(kmDepart) && kmDepart >= 0;
+  var retourValide = kmRetour !== null && isFinite(kmRetour) && kmRetour >= 0;
+  var coherent = !(departValide && retourValide) || kmRetour >= kmDepart;
+
+  var kmParcourus = (departValide && retourValide && coherent) ? (kmRetour - kmDepart) : null;
+  var kmSupplementaire = null, montantSupplementaire = null;
+  if(kmParcourus !== null){
+    var depasse = kmParcourus - kmInclusNombre;
+    if(depasse > 0){
+      kmSupplementaire = depasse;
+      montantSupplementaire = depasse * TARIF_KM_SUPPLEMENTAIRE;
+    }
+  }
+
+  return {
+    kmDepart: departValide ? kmDepart : null,
+    kmRetour: retourValide ? kmRetour : null,
+    coherent: coherent,
+    kmParcourus: kmParcourus,
+    kmSupplementaire: kmSupplementaire,
+    montantSupplementaire: montantSupplementaire
+  };
+}
 function formatDuree(heures){
   var total = Math.round(heures);
   var jours = Math.floor(total/24);
@@ -493,6 +559,8 @@ function construirePayload(data, sigData, stamp){
   var lieuAffiche = data.livraison
     ? 'Livraison à ' + (data.livraisonRue || '') + ', ' + (data.livraisonCP || '') + ' ' + (data.livraisonVille || '')
     : data.lieu;
+  var kmInclusNombre = kmInclusPour(heures);
+  var etatKm = calculEtatKilometrique(data.kmDepart, data.kmRetour, kmInclusNombre);
 
   return {
     'form-name': 'contrat-signature',
@@ -518,7 +586,16 @@ function construirePayload(data, sigData, stamp){
     second_conducteur_nom: data.nom2 || '',
     second_conducteur_permis: data.permis2 || '',
     notes: data.notes || '',
-    kmInclus: kmInclusPour(heures).toLocaleString('fr-FR'),
+    kmInclus: kmInclusNombre.toLocaleString('fr-FR'),
+    km_depart: etatKm.kmDepart !== null ? (etatKm.kmDepart.toLocaleString('fr-FR') + ' km') : '',
+    km_retour: etatKm.kmRetour !== null
+      ? (etatKm.kmRetour.toLocaleString('fr-FR') + ' km')
+      : (etatKm.kmDepart !== null ? 'À compléter à la restitution' : ''),
+    km_parcourus: etatKm.kmParcourus !== null ? (etatKm.kmParcourus.toLocaleString('fr-FR') + ' km') : '',
+    km_supplementaire_statut: etatKm.kmParcourus === null ? '' : (etatKm.kmSupplementaire !== null ? 'depasse' : 'aucun'),
+    km_supplementaire: etatKm.kmSupplementaire !== null ? (etatKm.kmSupplementaire.toLocaleString('fr-FR') + ' km') : '',
+    km_tarif_supplementaire: formatEURPrecis(TARIF_KM_SUPPLEMENTAIRE),
+    km_montant_supplementaire: etatKm.montantSupplementaire !== null ? formatEURPrecis(etatKm.montantSupplementaire) : '',
     horodatage_signature: stamp || '',
     signature_image: sigData || ''
   };
@@ -548,6 +625,7 @@ function remplirTexteArticles(payload){
   setFill('caution', payload.caution);
   setFill('modeCaution', (payload.mode_reglement_caution || '').toLowerCase());
   setFill('kmInclus', payload.kmInclus);
+  setFill('tarifKmSupp', formatEURPrecis(TARIF_KM_SUPPLEMENTAIRE));
   if(payload.second_conducteur === 'Oui'){
     setFill('nom2', (payload.second_conducteur_prenom + ' ' + payload.second_conducteur_nom).trim());
     setFill('permis2', payload.second_conducteur_permis);
@@ -615,6 +693,25 @@ function genererPDF(payload, estApercu, numero){
   ligne('Caution', payload.caution + ' — réglée par ' + payload.mode_reglement_caution);
   if(payload.notes){ ligne('Notes', payload.notes); }
   y += 6;
+
+  if(payload.km_depart){
+    sautDePageSiBesoin(90);
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(26,47,82);
+    doc.text('État kilométrique', margin, y); y += 16;
+    ligne('Kilométrage au départ', payload.km_depart);
+    ligne('Kilométrage au retour', payload.km_retour);
+    if(payload.km_parcourus){
+      ligne('Distance parcourue', payload.km_parcourus);
+      if(payload.km_supplementaire_statut === 'aucun'){
+        ligne('Kilomètres supplémentaires', 'Aucun kilomètre supplémentaire.');
+      } else if(payload.km_supplementaire_statut === 'depasse'){
+        ligne('Kilomètres supplémentaires', payload.km_supplementaire);
+        ligne('Tarif par km supplémentaire', payload.km_tarif_supplementaire + ' / km');
+        ligne('Montant supplémentaire', payload.km_montant_supplementaire);
+      }
+    }
+    y += 6;
+  }
 
   sautDePageSiBesoin(90);
   doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(26,47,82);
@@ -774,6 +871,38 @@ function initOwnerView(prefill){
     document.getElementById('dureeTxt').textContent = formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours);
     document.getElementById('kmTxt').textContent = kmInclusPour(heures).toLocaleString('fr-FR') + ' km';
     document.getElementById('totalTxt').textContent = formatEUR(total);
+    afficherEtatKilometrique(heures);
+  }
+
+  // Affiche en direct la distance parcourue et les kilomètres supplémentaires
+  // éventuels dès que départ + retour sont renseignés, et alerte (sans
+  // bloquer la saisie) si le retour est incohérent avec le départ.
+  function afficherEtatKilometrique(heures){
+    var kmInclusNombre = kmInclusPour(heures);
+    var etat = calculEtatKilometrique(document.getElementById('kmDepart').value, document.getElementById('kmRetour').value, kmInclusNombre);
+    var alerte = document.getElementById('kmAlerte');
+    var recap = document.getElementById('kmRecap');
+
+    if(!etat.coherent){
+      alerte.textContent = 'Le kilométrage de retour ne peut pas être inférieur au kilométrage de départ.';
+      alerte.style.display = '';
+      recap.style.display = 'none';
+      return;
+    }
+    alerte.style.display = 'none';
+
+    if(etat.kmParcourus === null){
+      recap.style.display = 'none';
+      return;
+    }
+    recap.style.display = '';
+    document.getElementById('kmParcourusTxt').textContent = etat.kmParcourus.toLocaleString('fr-FR') + ' km';
+    var suppTxt = document.getElementById('kmSuppTxt');
+    if(etat.kmSupplementaire !== null){
+      suppTxt.textContent = 'Supplément : ' + etat.kmSupplementaire.toLocaleString('fr-FR') + ' km × ' + formatEURPrecis(TARIF_KM_SUPPLEMENTAIRE) + ' = ' + formatEURPrecis(etat.montantSupplementaire);
+    } else {
+      suppTxt.textContent = 'Aucun kilomètre supplémentaire';
+    }
   }
   document.getElementById('ownerForm').addEventListener('input', function(){
     updateSummary();
@@ -855,7 +984,9 @@ function initOwnerView(prefill){
       livraisonRue: document.getElementById('livraisonRue').value,
       livraisonCP: document.getElementById('livraisonCP').value,
       livraisonVille: document.getElementById('livraisonVille').value,
-      notes: document.getElementById('notes').value
+      notes: document.getElementById('notes').value,
+      kmDepart: document.getElementById('kmDepart').value,
+      kmRetour: document.getElementById('kmRetour').value
     };
   }
 
@@ -869,16 +1000,22 @@ function initOwnerView(prefill){
     });
   }
 
-  // Réinjecte les données d'un contrat existant dans le formulaire (bouton
-  // "Dupliquer" de l'historique) — inverse de lireDonneesFormulaire(). Ne
-  // touche pas naissance2 (jamais lu par lireDonneesFormulaire non plus,
-  // comportement existant inchangé).
-  function remplirFormulaire(rawData){
+  // Réinjecte les données d'un contrat existant dans le formulaire (boutons
+  // "Ouvrir"/"Dupliquer" de l'historique) — inverse de
+  // lireDonneesFormulaire(). Ne touche pas naissance2 (jamais lu par
+  // lireDonneesFormulaire non plus, comportement existant inchangé).
+  // inclureKm=false (utilisé par "Dupliquer") : n'importe pas les relevés
+  // kilométriques, propres à la location d'origine — une nouvelle location
+  // aura ses propres relevés, contrairement au client/véhicule/tarif qui,
+  // eux, sont légitimement réutilisables tels quels.
+  function remplirFormulaire(rawData, inclureKm){
     if(rawData.vehiculeId){ selectVehicule.value = rawData.vehiculeId; appliquerPlaque(); }
     if(rawData.immat) inputImmat.value = rawData.immat;
     if(rawData.lieu) selectLieu.value = rawData.lieu;
     if(rawData.depart) inputDepart.value = rawData.depart;
     if(rawData.retour) inputRetour.value = rawData.retour;
+    document.getElementById('kmDepart').value = inclureKm ? (rawData.kmDepart || '') : '';
+    document.getElementById('kmRetour').value = inclureKm ? (rawData.kmRetour || '') : '';
 
     modeCaution = rawData.modeCaution === 'especes' ? 'especes' : 'carte';
     cautionTabs.querySelectorAll('.tab-btn').forEach(function(b){
@@ -920,29 +1057,95 @@ function initOwnerView(prefill){
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  // Numéro du contrat en cours de modification via "Ouvrir" (voir plus
+  // bas) — null si on prépare un contrat neuf. Détermine si le clic sur le
+  // bouton principal crée un nouveau contrat (POST /api/contracts-create,
+  // nouveau numéro) ou met à jour l'existant en place (POST
+  // /api/contracts-update, même numéro), typiquement pour enregistrer le
+  // kilométrage retour d'une location déjà commencée.
+  var contratEnCoursNumero = null;
+
+  function entrerModeEdition(numero){
+    contratEnCoursNumero = numero;
+    document.getElementById('genererContratTitre').textContent = 'Mettre à jour le contrat ' + numero;
+    document.getElementById('genererContratLead').textContent = 'Complétez ou corrigez les informations (par exemple le kilométrage au retour), puis enregistrez : le numéro et l\'identifiant du contrat sont conservés.';
+    document.getElementById('genererContratBtn').textContent = '💾 Mettre à jour le contrat';
+    document.getElementById('annulerEditionBtn').classList.remove('hidden');
+    document.getElementById('modeEditionMsg').classList.add('hidden');
+  }
+  function sortirModeEdition(){
+    contratEnCoursNumero = null;
+    document.getElementById('genererContratTitre').textContent = 'Générer le contrat officiel';
+    document.getElementById('genererContratLead').textContent = 'Attribue un numéro de contrat unique, enregistre le contrat (pour l\'historique et la duplication) et télécharge le PDF final.';
+    document.getElementById('genererContratBtn').textContent = '📄 Générer le contrat officiel';
+    document.getElementById('annulerEditionBtn').classList.add('hidden');
+  }
+  document.getElementById('annulerEditionBtn').addEventListener('click', sortirModeEdition);
+
+  // Message d'erreur qui expose la vraie cause (statut HTTP + message
+  // serveur) au lieu d'un "problème réseau" générique qui masque, par
+  // exemple, une limite de débit (429) ou une validation refusée (400) —
+  // ces cas ne sont pas des problèmes réseau et se réessayer à l'identique
+  // échouerait à nouveau sans que l'agence comprenne pourquoi.
+  function decrireEchecRequete(err, reponseJson){
+    if(reponseJson && reponseJson.error) return reponseJson.error;
+    if(err && err.message === 'network') return "Le contrat n'a pas pu être enregistré (problème réseau). Vérifiez votre connexion et réessayez.";
+    return "Le contrat n'a pas pu être enregistré (erreur inattendue). Réessayez.";
+  }
+
+  async function appelApiContrat(url, rawData, extra){
+    var corps = Object.assign({}, extra, { rawData: rawData });
+    var reponse;
+    try {
+      reponse = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corps)
+      });
+    } catch(e){
+      throw { message: 'network' };
+    }
+    var json = null;
+    try { json = await reponse.json(); } catch(e){ /* corps non-JSON, ignoré */ }
+    if(!reponse.ok){
+      throw { message: 'http', status: reponse.status, json: json };
+    }
+    return json;
+  }
+
   document.getElementById('genererContratBtn').addEventListener('click', function(){
     if(!tousLesChampsRequisRemplis()){
       alert('Merci de remplir tous les champs obligatoires avant de générer le contrat.');
       return;
     }
     var rawData = lireDonneesFormulaire();
+    var heuresActuelles = dureeHeures(rawData.depart, rawData.retour);
+    var etatKm = calculEtatKilometrique(rawData.kmDepart, rawData.kmRetour, kmInclusPour(heuresActuelles));
+    if(!etatKm.coherent){
+      alert('Le kilométrage de retour ne peut pas être inférieur au kilométrage de départ. Corrigez avant de continuer.');
+      return;
+    }
+
     var btn = document.getElementById('genererContratBtn');
     btn.disabled = true;
-    fetch('/api/contracts-create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(rawData)
-    })
-      .then(function(r){ if(!r.ok) throw new Error('echec'); return r.json(); })
+
+    var enEdition = !!contratEnCoursNumero;
+    var url = enEdition ? '/api/contracts-update' : '/api/contracts-create';
+    var extra = enEdition ? { numero: contratEnCoursNumero } : {};
+
+    appelApiContrat(url, rawData, extra)
       .then(function(result){
         genererPDF(construirePayload(rawData, null, null), false, result.numero);
         var msg = document.getElementById('numeroGenereMsg');
-        msg.textContent = 'Contrat ' + result.numero + ' généré ✓';
+        msg.textContent = enEdition
+          ? 'Contrat ' + result.numero + ' mis à jour ✓'
+          : 'Contrat ' + result.numero + ' généré ✓';
         msg.classList.remove('hidden');
+        if(enEdition) sortirModeEdition();
         chargerHistorique();
       })
-      .catch(function(){
-        alert("Le contrat n'a pas pu être enregistré (problème réseau). Réessayez.");
+      .catch(function(err){
+        alert(decrireEchecRequete(err, err && err.json));
       })
       .finally(function(){ btn.disabled = false; });
   });
@@ -950,7 +1153,10 @@ function initOwnerView(prefill){
   var historiqueContrats = [];
 
   function statutContrat(rawData){
-    return (rawData && rawData.signature_image) ? 'Signé' : 'Généré';
+    if(rawData && rawData.signature_image) return 'Signé';
+    if(rawData && rawData.kmDepart && !rawData.kmRetour) return 'En cours (retour à compléter)';
+    if(rawData && rawData.kmDepart && rawData.kmRetour) return 'Clôturé';
+    return 'Généré';
   }
 
   function renderHistorique(){
@@ -978,16 +1184,28 @@ function initOwnerView(prefill){
         '<div class="actions"></div>';
       var actions = row.querySelector('.actions');
 
+      // "Ouvrir" charge le contrat existant dans le formulaire EN MODE
+      // MODIFICATION (même numéro, même identifiant) — c'est le point
+      // d'entrée pour compléter le kilométrage retour d'une location déjà
+      // commencée, sans jamais créer de second contrat pour la même
+      // location (voir entrerModeEdition()).
       var ouvrirBtn = document.createElement('button');
       ouvrirBtn.type = 'button'; ouvrirBtn.className = 'btn'; ouvrirBtn.textContent = 'Ouvrir';
       ouvrirBtn.addEventListener('click', function(){
-        genererPDF(construirePayload(record.rawData, null, null), false, record.numero);
+        remplirFormulaire(record.rawData, true);
+        entrerModeEdition(record.numero);
       });
 
+      // "Dupliquer" prépare un contrat NEUF à partir de celui-ci (client,
+      // véhicule, tarif repris ; kilométrage volontairement non repris,
+      // voir remplirFormulaire) — toujours en mode création, jamais en
+      // mode modification, même si un autre contrat était en cours
+      // d'édition juste avant.
       var dupliquerBtn = document.createElement('button');
       dupliquerBtn.type = 'button'; dupliquerBtn.className = 'btn'; dupliquerBtn.textContent = 'Dupliquer';
       dupliquerBtn.addEventListener('click', function(){
-        remplirFormulaire(record.rawData);
+        sortirModeEdition();
+        remplirFormulaire(record.rawData, false);
       });
 
       actions.appendChild(ouvrirBtn);
