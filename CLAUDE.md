@@ -23,6 +23,7 @@ GETLOCATION — site de location de véhicules à Grasse (Alpes-Maritimes). Site
 3. **Le webhook Mollie ne fait jamais confiance à son propre corps.** Il ne reçoit qu'un id de paiement ; le statut réel est toujours revérifié auprès de l'API Mollie avant d'agir (voir `src/api/mollie-webhook.js`).
 4. Emails et webhook sont **best effort** : un échec d'envoi ne doit jamais faire échouer ou annuler une confirmation de paiement déjà enregistrée.
 5. Assets versionnés (`css/style.css?v=N`, `js/app.js?v=N`) : **toujours incrémenter `?v=`** dans TOUTES les pages HTML quand leur contenu change (cache `immutable` 1 an côté Cloudflare) — sinon les visiteurs déjà passés sur le site gardent l'ancienne version pendant un an.
+6. **Avant tout push vers GitHub (`git push`), exécuter systématiquement la suite de tests de régression (`tests/regression-data-app-contract.test.js`) ainsi que tout autre test existant dans le projet.** Si un test échoue, NE PAS pousser le code : corriger le problème d'abord, ou avertir clairement l'utilisateur dans la réponse si la résolution seule n'est pas possible. Cette règle s'applique même en mode autonome / sans confirmation (voir section Utilisateur ci-dessous).
 
 ## Tests et scripts de contrôle
 
@@ -51,4 +52,6 @@ Le dépôt est aussi connecté à un déploiement Git automatique Cloudflare (pu
 
 ## Utilisateur / contexte business
 
-Non-technique, découvre Git/Terminal/Cloudflare — expliquer étape par étape, en français, sans jargon non expliqué. Site en production réelle avec vrais paiements (compte Mollie live) : toujours signaler clairement le risque avant une action difficile à annuler.
+Non-technique, découvre Git/Terminal/Cloudflare — expliquer étape par étape, en français, sans jargon non expliqué. Site en production réelle avec vrais paiements (compte Mollie live).
+
+**Mode autonome (depuis le 17/08/2026)** : l'utilisateur travaille avec `--dangerously-skip-permissions` et a explicitement demandé de ne plus jamais être sollicité pour une confirmation avant d'agir, y compris pour les commits et les push GitHub (vers `main` inclus). Ne pas demander d'autorisation avant d'agir. En contrepartie, la règle critique n°6 ci-dessus (tests avant tout push) est non négociable et protège la production en l'absence de confirmation manuelle — signaler toujours clairement, dans le compte rendu final, ce qui a été poussé/déployé et le risque associé (site en production réelle), sans transformer ce signalement en question bloquante.
