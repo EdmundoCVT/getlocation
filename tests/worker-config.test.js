@@ -39,10 +39,11 @@ test("html_handling sert les URL sans .html (équivalent du pretty_urls de netli
   assert.equal(config.assets.html_handling, "auto-trailing-slash");
 });
 
-test("les deux espaces de noms KV attendus par src/lib/*.js sont déclarés", () => {
+test("les espaces de noms KV attendus par src/lib/*.js sont déclarés", () => {
   const bindings = config.kv_namespaces.map((ns) => ns.binding);
   assert.ok(bindings.includes("RESERVATIONS_KV"), "RESERVATIONS_KV manquant (voir src/lib/reservation-store.js)");
   assert.ok(bindings.includes("RATE_LIMITS_KV"), "RATE_LIMITS_KV manquant (voir src/lib/rate-limiter.js)");
+  assert.ok(bindings.includes("CONTRACTS_KV"), "CONTRACTS_KV manquant (voir src/lib/contract-store.js)");
   for (const ns of config.kv_namespaces) {
     assert.ok(typeof ns.id === "string" && ns.id.length > 0, `l'espace de noms KV "${ns.binding}" doit avoir un id`);
   }

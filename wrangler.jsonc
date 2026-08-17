@@ -22,13 +22,15 @@
   },
   // Espaces de noms Cloudflare KV (remplacent Netlify Blobs, voir
   // DEPLOIEMENT.md) : RESERVATIONS_KV stocke les réservations,
-  // RATE_LIMITS_KV les compteurs anti-abus. Les "id" ci-dessous sont des
-  // PLACEHOLDERS — le déploiement échoue tant qu'ils n'ont pas été
-  // remplacés par de vrais identifiants (`wrangler kv namespace create ...`,
-  // voir DEPLOIEMENT.md, Phase B) : c'est volontaire, pour ne jamais
-  // déployer silencieusement contre un espace de noms inexistant.
+  // RATE_LIMITS_KV les compteurs anti-abus, CONTRACTS_KV les contrats
+  // générés depuis /contrat (voir src/lib/contract-store.js). Les "id"
+  // ci-dessous doivent être de vrais identifiants (`wrangler kv namespace
+  // create ...`, voir DEPLOIEMENT.md, Phase B) — un placeholder ferait
+  // échouer le déploiement, volontairement, pour ne jamais déployer
+  // silencieusement contre un espace de noms inexistant.
   "kv_namespaces": [
     { "binding": "RESERVATIONS_KV", "id": "3ca8121a81df4b7c91772f1579b62cdf" },
-    { "binding": "RATE_LIMITS_KV", "id": "8c4fc8e9a1e643b6907168639c1617ca" }
+    { "binding": "RATE_LIMITS_KV", "id": "8c4fc8e9a1e643b6907168639c1617ca" },
+    { "binding": "CONTRACTS_KV", "id": "d18be3641a994bd88fe9c2add3676873" }
   ]
 }

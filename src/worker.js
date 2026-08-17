@@ -16,11 +16,15 @@
 const { handleCreatePayment } = require("./api/create-payment.js");
 const { handleMollieWebhook } = require("./api/mollie-webhook.js");
 const { handleReservationStatus } = require("./api/reservation-status.js");
+const { handleCreateContract } = require("./api/contracts-create.js");
+const { handleListContracts } = require("./api/contracts-list.js");
 
 const ROUTES = {
   "/api/create-payment": handleCreatePayment,
   "/api/mollie-webhook": handleMollieWebhook,
-  "/api/reservation-status": handleReservationStatus
+  "/api/reservation-status": handleReservationStatus,
+  "/api/contracts-create": handleCreateContract,
+  "/api/contracts-list": handleListContracts
 };
 
 export default {
