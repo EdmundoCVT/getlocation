@@ -1612,14 +1612,14 @@ function initOwnerView(prefill){
   var departDefaut = new Date(maintenant.getTime() + 2*24*60*60*1000);
   departDefaut.setHours(10,0,0,0);
   var retourDefaut = new Date(departDefaut.getTime() + 3*24*60*60*1000);
-  inputDepart.min = toDatetimeLocal(maintenant);
+  // Pas de borne .min sur les dates : l'agence doit pouvoir recréer un
+  // contrat pour une location déjà effectuée (date passée), en plus des
+  // locations en cours/à venir.
   inputDepart.value = toDatetimeLocal(departDefaut);
-  inputRetour.min = toDatetimeLocal(new Date(departDefaut.getTime()+60*60*1000));
   inputRetour.value = toDatetimeLocal(retourDefaut);
 
   inputDepart.addEventListener('change', function(){
     var d = new Date(inputDepart.value);
-    inputRetour.min = toDatetimeLocal(new Date(d.getTime() + 60*60*1000));
     if(!inputRetour.value || new Date(inputRetour.value) <= d){
       inputRetour.value = toDatetimeLocal(new Date(d.getTime() + 3*24*60*60*1000));
     }
