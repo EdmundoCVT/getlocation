@@ -518,14 +518,49 @@ function construirePayload(data, sigData, stamp){
     second_conducteur_nom: data.nom2 || '',
     second_conducteur_permis: data.permis2 || '',
     notes: data.notes || '',
+    kmInclus: kmInclusPour(heures).toLocaleString('fr-FR'),
     horodatage_signature: stamp || '',
     signature_image: sigData || ''
   };
 }
 
+// Injecte les valeurs de `payload` dans les emplacements <span data-fill="...">
+// du texte des articles (#contractText) avant de le lire pour le PDF (voir
+// texteConditionsLocation() plus bas). Nécessaire ici car ces emplacements
+// ne sont sinon remplis QUE dans la vue CLIENT (initClientView, après
+// signature du lien) — le bouton "Télécharger l'aperçu" de la vue AGENCE
+// (initOwnerView) appelle genererPDF() sans jamais passer par cette étape,
+// ce qui produisait un PDF avec des "…" non remplis dans les articles
+// (véhicule/dates/caution/km jamais injectés), alors que le tableau
+// récapitulatif au-dessus, lui, était toujours correct (rempli séparément).
+function remplirTexteArticles(payload){
+  function setFill(name, value){
+    var el = document.querySelector('[data-fill="' + name + '"]');
+    if(el) el.textContent = value;
+  }
+  setFill('vehicule', payload.vehicule);
+  setFill('immat', payload.immatriculation);
+  setFill('depart', payload.depart);
+  setFill('retour', payload.retour);
+  setFill('duree', payload.duree);
+  setFill('lieu', payload.lieu);
+  setFill('total', payload.total);
+  setFill('caution', payload.caution);
+  setFill('modeCaution', (payload.mode_reglement_caution || '').toLowerCase());
+  setFill('kmInclus', payload.kmInclus);
+  if(payload.second_conducteur === 'Oui'){
+    setFill('nom2', (payload.second_conducteur_prenom + ' ' + payload.second_conducteur_nom).trim());
+    setFill('permis2', payload.second_conducteur_permis);
+    var clause = document.getElementById('secondConducteurClause');
+    if(clause) clause.style.display = '';
+  }
+}
+
 function genererPDF(payload, estApercu, numero){
   var jsPDF = window.jspdf && window.jspdf.jsPDF;
   if(!jsPDF){ alert("Le générateur de PDF n'a pas pu se charger. Vérifiez votre connexion et réessayez."); return; }
+
+  remplirTexteArticles(payload);
 
   var doc = new jsPDF({ unit:'pt', format:'a4' });
   var margin = 42;
@@ -599,6 +634,7 @@ function genererPDF(payload, estApercu, numero){
   doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(26,47,82);
   doc.text('Conditions de location', margin, y); y += 16;
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(80,74,94);
+  remplirTexteArticles(payload);
   var texteContrat = texteConditionsLocation();
   var lignesContrat = doc.splitTextToSize(texteContrat, maxWidth);
   lignesContrat.forEach(function(l){
