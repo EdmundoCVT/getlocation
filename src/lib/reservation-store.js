@@ -39,6 +39,66 @@ function generateReservationId() {
   return `res_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
 
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+
+// Numéro de contrat lisible GL-AAAAMMJJ-NNNN (distinct de l'id KV opaque
+// res_<hex> et de la "référence de réservation" GL-<8 derniers hex>
+// affichée au client sur confirmation.html — ni l'un ni l'autre n'est
+// séquentiel). Compteur journalier stocké dans RESERVATIONS_KV (clé
+// "contract_counter_AAAAMMJJ", préfixe disjoint de tous les autres déjà
+// utilisés dans ce fichier : res_/pay_/doc_/agency_doc_/contract_agency_/
+// contract_client_). Lecture-puis-écriture non atomique — limite acceptée
+// pour une petite agence à faible volume (même compromis que
+// RESERVATION_HOLD_MS ci-dessus).
+async function generateContractNumero(env) {
+  const now = new Date();
+  const datePart = `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}`;
+  const counterKey = `contract_counter_${datePart}`;
+  const current = await env.RESERVATIONS_KV.get(counterKey);
+  const next = (current ? parseInt(current, 10) : 0) + 1;
+  await env.RESERVATIONS_KV.put(counterKey, String(next));
+  return `GL-${datePart}-${String(next).padStart(4, "0")}`;
+}
+
+// Contrat créé à la main par l'agence (client sans réservation en ligne, ou
+// contrat recréé après une location déjà effectuée) — statut dédié
+// "manual_contract", jamais confondu avec une réservation en ligne
+// (pending_payment/paid/cancelled/expired) par listActiveReservationsForVehicule
+// / hasOverlappingReservation, qui ne regardent que ces statuts-là. Stocké
+// SANS TTL (contrairement à createReservation) : c'est un document
+// commercial à conserver, pas une réservation à durée de vie limitée.
+async function createManualContract(env, rawData) {
+  const id = generateReservationId();
+  const numero = await generateContractNumero(env);
+  const now = new Date().toISOString();
+  const record = { ...rawData, id, contractNumero: numero, status: "manual_contract", createdAt: now, updatedAt: now };
+  await env.RESERVATIONS_KV.put(id, JSON.stringify(record));
+  return record;
+}
+
+// Met à jour un contrat manuel EN PLACE (même id, même numéro, même
+// createdAt) — typiquement pour compléter le kilométrage retour ou corriger
+// une information avant restitution. rawData remplace intégralement les
+// données métier (le formulaire renvoie toujours son état complet, jamais
+// un patch partiel — même convention que createManualContract). Renvoie
+// null si l'id est introuvable ou ne correspond pas à un contrat manuel.
+async function updateManualContract(env, id, rawData) {
+  const record = await getReservation(env, id);
+  if (!record || record.status !== "manual_contract") return null;
+  const updated = {
+    ...rawData,
+    id: record.id,
+    contractNumero: record.contractNumero,
+    status: "manual_contract",
+    createdAt: record.createdAt,
+    updatedAt: new Date().toISOString()
+  };
+  await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
+  return updated;
+}
+
 async function createReservation(env, data) {
   const id = generateReservationId();
   const now = new Date().toISOString();
@@ -203,6 +263,47 @@ async function listReservations(env) {
   return records;
 }
 
+// Historique unifié des contrats numérotés (voir generateContractNumero) —
+// couvre à la fois les contrats manuels (status "manual_contract") ET les
+// dossiers contrat des réservations payées en ligne (status "paid" avec un
+// contractNumero assigné à la confirmation du paiement, voir
+// mollie-webhook.js), déjà tous dans listReservations() puisqu'ils
+// partagent le même préfixe "res_". Réutilise l'implémentation existante
+// plutôt qu'un second parcours KV dédié.
+//
+// Vue volontairement minimale pour les dossiers en ligne (nom, véhicule,
+// dates, statut) — jamais permis/naissance/téléphone/adresse/signature —
+// car cette liste, contrairement à l'accès par jeton du dossier, n'est pas
+// protégée individuellement par un secret. Vue complète pour les contrats
+// manuels (nécessaire à "Ouvrir"/"Dupliquer" côté formulaire), qui restent
+// dans le même modèle de confiance qu'avant (page /contrat non
+// authentifiée, choix assumé — voir CLAUDE.md).
+async function listContractsHistory(env, limit = 30) {
+  const records = await listReservations(env);
+  const avecNumero = records.filter((r) => r.contractNumero);
+
+  avecNumero.sort((a, b) => (b.contractNumero || "").localeCompare(a.contractNumero || ""));
+
+  return avecNumero.slice(0, limit).map((r) => {
+    if (r.status === "manual_contract") {
+      return { id: r.id, numero: r.contractNumero, origine: "manuel", createdAt: r.createdAt, rawData: r };
+    }
+    return {
+      id: r.id,
+      numero: r.contractNumero,
+      origine: "reservation",
+      createdAt: r.createdAt,
+      resume: {
+        vehiculeId: r.vehiculeId || null,
+        nom: (r.conducteur && r.conducteur.nom) || "",
+        prenom: (r.conducteur && r.conducteur.prenom) || "",
+        depart: r.periodeDebut || (r.dateDebut && r.heureDebut ? `${r.dateDebut}T${r.heureDebut}` : ""),
+        statut: r.status
+      }
+    };
+  });
+}
+
 // Liste les réservations "actives" (pending_payment récent ou paid) pour un
 // véhicule donné. Implémentation volontairement simple (parcours des clés
 // préfixées "res_", index "pay_*" jamais listé) : adaptée à une petite
@@ -275,5 +376,9 @@ module.exports = {
   hasOverlappingReservation,
   generateReservationId,
   reservationTtlSeconds,
-  PAID_RETENTION_AFTER_RETURN_MS
+  PAID_RETENTION_AFTER_RETURN_MS,
+  generateContractNumero,
+  createManualContract,
+  updateManualContract,
+  listContractsHistory
 };

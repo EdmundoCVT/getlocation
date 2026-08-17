@@ -124,6 +124,13 @@
   .recap-row:last-child{border-bottom:none;}
   .recap-row span:first-child{color:#6b6478;}
   .recap-row span:last-child{font-weight:600;color:var(--gris-fonce);text-align:right;}
+  .historique-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--gris-clair);font-size:13.5px;}
+  .historique-row:last-child{border-bottom:none;}
+  .historique-row .info{display:flex;flex-direction:column;gap:2px;}
+  .historique-row .numero{font-weight:700;color:var(--bleu-nuit);}
+  .historique-row .details{color:#6b6478;font-size:12.5px;}
+  .historique-row .actions{display:flex;gap:6px;flex:none;}
+  .historique-row .btn{padding:7px 10px;font-size:13px;}
   .link-box{display:flex;gap:8px;margin-top:14px;}
   .link-box input{background:var(--gris-clair);font-size:13px;color:#6b6478;}
   .link-box .btn{flex:none;}
@@ -268,6 +275,10 @@
             <label for="permis">N° de permis de conduire</label>
             <input id="permis" type="text" required>
           </div>
+          <div class="field full">
+            <label for="notes">Notes internes (optionnel)</label>
+            <textarea id="notes" rows="2" placeholder="Remarques pour l'agence, non affichées au client"></textarea>
+          </div>
         </div>
 
         <div class="check-row">
@@ -300,6 +311,21 @@
         <h2>Aperçu PDF</h2>
         <p class="lead" style="margin-bottom:10px;">Téléchargez un aperçu du contrat à tout moment, avec les informations déjà saisies ci-dessus — pas besoin d'attendre que le client ait ouvert le lien ni qu'il ait signé.</p>
         <button type="button" class="btn btn-primary" id="downloadPdfBtn">📄 Télécharger le PDF</button>
+      </div>
+
+      <div class="card">
+        <h2 id="genererContratTitre">Générer le contrat officiel</h2>
+        <p class="lead" style="margin-bottom:10px;" id="genererContratLead">Attribue un numéro de contrat unique, enregistre le contrat (pour l'historique et la duplication) et télécharge le PDF final.</p>
+        <p class="meta-line hidden" id="modeEditionMsg" style="color:var(--bleu-ocean);font-weight:600;"></p>
+        <button type="button" class="btn btn-primary" id="genererContratBtn">📄 Générer le contrat officiel</button>
+        <button type="button" class="btn btn-ghost hidden" id="annulerEditionBtn" style="margin-top:8px;">Annuler la modification</button>
+        <p class="meta-line hidden" id="numeroGenereMsg"></p>
+      </div>
+
+      <div class="card">
+        <h2>Derniers contrats</h2>
+        <p class="meta-line" id="historiqueVide">Aucun contrat généré pour l'instant.</p>
+        <div id="historiqueListe"></div>
       </div>
 
       <div class="card">
@@ -629,6 +655,15 @@ function formatDateHeureFR(v){
 function encodeData(obj){
   return btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
 }
+// Le schéma d'URI "sms:" n'est pas standardisé entre plateformes : iOS
+// Safari n'ouvre l'app Messages avec le texte prérempli que si le corps est
+// passé après un "&" (sans numéro de destinataire), alors qu'Android exige
+// un "?" — utiliser systématiquement "?body=" laisse l'app Messages
+// s'ouvrir vide sur iPhone, sans erreur visible ni message d'échec.
+function smsHref(messageEnc){
+  var estIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  return estIOS ? ('sms:&body=' + messageEnc) : ('sms:?body=' + messageEnc);
+}
 function decodeData(str){
   return JSON.parse(decodeURIComponent(escape(atob(str))));
 }
@@ -723,6 +758,7 @@ function construirePayload(data, sigData, stamp){
     second_conducteur_nom: data.nom2 || '',
     second_conducteur_permis: data.permis2 || '',
     kmInclus: kmInclusPourJours(jours).toLocaleString('fr-FR'),
+    notes: data.notes || '',
     horodatage_signature: stamp || '',
     signature_image: sigData || ''
   };
@@ -791,6 +827,11 @@ function genererPDF(payload, estApercu){
     if(payload.reference){
       doc.text('Référence de réservation : ' + payload.reference, margin, y); y += 14;
     }
+    if(payload.numero){
+      doc.setFont('helvetica','bold'); doc.setTextColor(26,47,82);
+      doc.text('Contrat n° ' + payload.numero, margin, y); y += 14;
+      doc.setFont('helvetica','normal'); doc.setTextColor(107,100,120);
+    }
 
     // Page 1 : statut clair (aperçu / envoyé pour signature / signé) — voir
     // payload.statutDossier (dossier sécurisé) avec repli sur l'ancien
@@ -833,6 +874,7 @@ function genererPDF(payload, estApercu){
   ligne('Livraison à domicile', payload.livraison);
   ligne('Total', payload.total);
   ligne('Caution', payload.caution + ' — réglée par ' + payload.mode_reglement_caution);
+  if(payload.notes){ ligne('Notes', payload.notes); }
   y += 6;
 
   sautDePageSiBesoin(90);
@@ -978,7 +1020,7 @@ function genererPDF(payload, estApercu){
     doc.text('Page ' + p + ' / ' + totalPages, pageWidth - margin, pageHeight - 20, { align: 'right' });
   }
 
-  var suffixe = payload.signature_image ? '' : '-apercu';
+  var suffixe = payload.numero ? ('-' + payload.numero) : (payload.signature_image ? '' : '-apercu');
   var nomFichier = 'contrat-getlocation-' + (payload.locataire_nom || 'client').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-') + suffixe + '.pdf';
   doc.save(nomFichier);
 }
@@ -1089,6 +1131,7 @@ function initDossierAgencyView(token){
     return {
       'form-name': 'contrat-signature',
       reference: r.id,
+      numero: r.contractNumero || '',
       statutDossier: v.dossier.status,
       vehicule: r.vehicule ? r.vehicule.nom : '',
       immatriculation: f.immatriculation || (r.vehicule ? r.vehicule.immatriculation : ''),
@@ -1272,7 +1315,7 @@ function initDossierAgencyView(token){
       document.getElementById('dfLinkBox').classList.remove('hidden');
       document.getElementById('dfShareActions').classList.remove('hidden');
       document.getElementById('dfWhatsappBtn').href = 'https://wa.me/?text=' + messageEnc;
-      document.getElementById('dfSmsBtn').href = 'sms:?body=' + messageEnc;
+      document.getElementById('dfSmsBtn').href = smsHref(messageEnc);
       document.getElementById('dfEmailBtn').href = 'mailto:?subject=' + encodeURIComponent('Votre contrat de location GETLOCATION') + '&body=' + messageEnc;
     }).catch(function(err){
       var missingEl = document.getElementById('dfMissingFields');
@@ -1283,7 +1326,15 @@ function initDossierAgencyView(token){
   document.getElementById('dfCopyBtn').addEventListener('click', function(){
     var linkOutput = document.getElementById('dfLinkOutput');
     linkOutput.select();
-    navigator.clipboard.writeText(linkOutput.value).catch(function(){ document.execCommand('copy'); });
+    linkOutput.setSelectionRange(0, linkOutput.value.length);
+    // navigator.clipboard peut être absent (hors contexte sécurisé, ou
+    // navigateur ancien) — l'appeler directement sur `undefined` lèverait
+    // une exception synchrone, jamais rattrapée par le .catch() suivant.
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(linkOutput.value).catch(function(){ try{ document.execCommand('copy'); }catch(e){} });
+    } else {
+      try{ document.execCommand('copy'); }catch(e){}
+    }
   });
 
   function lireEtatDesLieux(prefix){
@@ -1741,13 +1792,230 @@ function initOwnerView(prefill){
       livraison: livraisonToggle.checked,
       livraisonRue: document.getElementById('livraisonRue').value,
       livraisonCP: document.getElementById('livraisonCP').value,
-      livraisonVille: document.getElementById('livraisonVille').value
+      livraisonVille: document.getElementById('livraisonVille').value,
+      notes: document.getElementById('notes').value
     };
   }
 
   document.getElementById('downloadPdfBtn').addEventListener('click', function(){
     genererPDF(construirePayload(lireDonneesFormulaire(), null, null), true);
   });
+
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  // Réinjecte les données d'un contrat manuel existant dans le formulaire
+  // (bouton "Dupliquer"/"Ouvrir" de l'historique) — inverse de
+  // lireDonneesFormulaire(). Ne touche pas naissance2 (jamais lu par
+  // lireDonneesFormulaire non plus, comportement existant inchangé).
+  function remplirFormulaire(rawData){
+    if(rawData.vehiculeId){ selectVehicule.value = rawData.vehiculeId; appliquerPlaque(); }
+    if(rawData.immat) inputImmat.value = rawData.immat;
+    if(rawData.lieu) selectLieu.value = rawData.lieu;
+    if(rawData.depart) inputDepart.value = rawData.depart;
+    if(rawData.retour) inputRetour.value = rawData.retour;
+
+    modeCaution = rawData.modeCaution === 'especes' ? 'especes' : 'carte';
+    cautionTabs.querySelectorAll('.tab-btn').forEach(function(b){
+      b.classList.toggle('active', b.dataset.mode === modeCaution);
+    });
+
+    document.getElementById('prenom').value = rawData.prenom || '';
+    document.getElementById('nom').value = rawData.nom || '';
+    document.getElementById('naissance').value = rawData.naissance || '';
+    document.getElementById('adresse').value = rawData.adresse || '';
+    document.getElementById('codePostal').value = rawData.codePostal || '';
+    document.getElementById('ville').value = rawData.ville || '';
+    document.getElementById('tel').value = rawData.tel || '';
+    document.getElementById('email').value = rawData.email || '';
+    document.getElementById('permis').value = rawData.permis || '';
+    document.getElementById('notes').value = rawData.notes || '';
+
+    secondToggle.checked = !!rawData.secondConducteur;
+    secondBlock.classList.toggle('show', secondToggle.checked);
+    document.getElementById('prenom2').required = secondToggle.checked;
+    document.getElementById('nom2').required = secondToggle.checked;
+    document.getElementById('permis2').required = secondToggle.checked;
+    document.getElementById('naissance2').required = secondToggle.checked;
+    document.getElementById('prenom2').value = rawData.prenom2 || '';
+    document.getElementById('nom2').value = rawData.nom2 || '';
+    document.getElementById('permis2').value = rawData.permis2 || '';
+
+    livraisonToggle.checked = !!rawData.livraison;
+    livraisonBlock.classList.toggle('show', livraisonToggle.checked);
+    document.getElementById('livraisonRue').required = livraisonToggle.checked;
+    document.getElementById('livraisonCP').required = livraisonToggle.checked;
+    document.getElementById('livraisonVille').required = livraisonToggle.checked;
+    document.getElementById('livraisonRue').value = rawData.livraisonRue || '';
+    document.getElementById('livraisonCP').value = rawData.livraisonCP || '';
+    document.getElementById('livraisonVille').value = rawData.livraisonVille || '';
+
+    updateSummary();
+    regenererLien();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Id (KV res_<hex>) du contrat manuel en cours de modification via
+  // "Ouvrir" — null si on prépare un contrat neuf. Détermine si le clic sur
+  // le bouton principal crée un nouveau contrat manuel (nouveau numéro) ou
+  // met à jour l'existant en place (même numéro, même id).
+  var contratEnCoursId = null;
+
+  function entrerModeEdition(id, numero){
+    contratEnCoursId = id;
+    document.getElementById('genererContratTitre').textContent = 'Mettre à jour le contrat ' + numero;
+    document.getElementById('genererContratLead').textContent = 'Complétez ou corrigez les informations, puis enregistrez : le numéro et l\'identifiant du contrat sont conservés.';
+    document.getElementById('genererContratBtn').textContent = '💾 Mettre à jour le contrat';
+    document.getElementById('annulerEditionBtn').classList.remove('hidden');
+    document.getElementById('modeEditionMsg').classList.add('hidden');
+  }
+  function sortirModeEdition(){
+    contratEnCoursId = null;
+    document.getElementById('genererContratTitre').textContent = 'Générer le contrat officiel';
+    document.getElementById('genererContratLead').textContent = 'Attribue un numéro de contrat unique, enregistre le contrat (pour l\'historique et la duplication) et télécharge le PDF final.';
+    document.getElementById('genererContratBtn').textContent = '📄 Générer le contrat officiel';
+    document.getElementById('annulerEditionBtn').classList.add('hidden');
+  }
+  document.getElementById('annulerEditionBtn').addEventListener('click', sortirModeEdition);
+
+  // Message d'erreur qui expose la vraie cause (statut HTTP + message
+  // serveur) au lieu d'un "problème réseau" générique qui masque, par
+  // exemple, une limite de débit (429) ou une validation refusée (400).
+  function decrireEchecRequete(err){
+    if(err && err.json && err.json.error) return err.json.error;
+    if(err && err.message === 'network') return "Le contrat n'a pas pu être enregistré (problème réseau). Vérifiez votre connexion et réessayez.";
+    return "Le contrat n'a pas pu être enregistré (erreur inattendue). Réessayez.";
+  }
+
+  async function appelApiContrat(url, corps){
+    var reponse;
+    try {
+      reponse = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corps)
+      });
+    } catch(e){
+      throw { message: 'network' };
+    }
+    var json = null;
+    try { json = await reponse.json(); } catch(e){ /* corps non-JSON, ignoré */ }
+    if(!reponse.ok){
+      throw { message: 'http', status: reponse.status, json: json };
+    }
+    return json;
+  }
+
+  document.getElementById('genererContratBtn').addEventListener('click', function(){
+    if(!tousLesChampsRequisRemplis()){
+      alert('Merci de remplir tous les champs obligatoires avant de générer le contrat.');
+      return;
+    }
+    var rawData = lireDonneesFormulaire();
+    var btn = document.getElementById('genererContratBtn');
+    btn.disabled = true;
+
+    var enEdition = !!contratEnCoursId;
+    var url = enEdition ? '/api/contracts-manual-update' : '/api/contracts-manual-create';
+    var corps = enEdition ? { id: contratEnCoursId, rawData: rawData } : { rawData: rawData };
+
+    appelApiContrat(url, corps)
+      .then(function(result){
+        var payload = construirePayload(rawData, null, null);
+        payload.numero = result.numero;
+        genererPDF(payload, false);
+        var msg = document.getElementById('numeroGenereMsg');
+        msg.textContent = enEdition
+          ? 'Contrat ' + result.numero + ' mis à jour ✓'
+          : 'Contrat ' + result.numero + ' généré ✓';
+        msg.classList.remove('hidden');
+        if(enEdition) sortirModeEdition();
+        chargerHistorique();
+      })
+      .catch(function(err){
+        alert(decrireEchecRequete(err));
+      })
+      .finally(function(){ btn.disabled = false; });
+  });
+
+  var historiqueContrats = [];
+
+  function statutContrat(entry){
+    if(entry.origine === 'reservation') return entry.resume.statut === 'paid' ? 'Payée en ligne' : entry.resume.statut;
+    var rawData = entry.rawData || {};
+    if(rawData.kmDepart && !rawData.kmRetour) return 'En cours (retour à compléter)';
+    return 'Généré';
+  }
+
+  function renderHistorique(){
+    var conteneur = document.getElementById('historiqueListe');
+    var vide = document.getElementById('historiqueVide');
+    conteneur.innerHTML = '';
+    if(!historiqueContrats.length){
+      vide.classList.remove('hidden');
+      return;
+    }
+    vide.classList.add('hidden');
+    historiqueContrats.forEach(function(entry){
+      var vehiculeId = entry.origine === 'reservation' ? entry.resume.vehiculeId : (entry.rawData && entry.rawData.vehiculeId);
+      var nom = entry.origine === 'reservation' ? (entry.resume.prenom + ' ' + entry.resume.nom) : ((entry.rawData.prenom||'') + ' ' + (entry.rawData.nom||''));
+      var depart = entry.origine === 'reservation' ? entry.resume.depart : (entry.rawData && entry.rawData.depart);
+      var v = getVehiculeParId(vehiculeId);
+      var row = document.createElement('div');
+      row.className = 'historique-row';
+      row.innerHTML =
+        '<div class="info">' +
+          '<span class="numero">' + escapeHtml(entry.numero) + (entry.origine === 'reservation' ? ' <span style="font-weight:400;color:#6b6478;">(réservation en ligne)</span>' : '') + '</span>' +
+          '<span class="details">' + escapeHtml(nom) +
+            ' — ' + escapeHtml(v ? v.nom : (vehiculeId || '')) +
+            ' — ' + escapeHtml(depart ? formatDateHeureFR(depart) : '') +
+            ' — ' + escapeHtml(statutContrat(entry)) +
+          '</span>' +
+        '</div>' +
+        '<div class="actions"></div>';
+      var actions = row.querySelector('.actions');
+
+      // Les contrats issus d'une réservation en ligne vivent dans le
+      // dossier sécurisé (jeton envoyé par e-mail à l'agence) : impossible
+      // de reconstruire cet accès depuis cette liste (le jeton brut n'est
+      // jamais reconservé, seule son empreinte l'est — voir
+      // contract-dossier-token.js). Ces entrées restent donc en lecture
+      // seule ici, uniquement pour référence/numérotation.
+      if(entry.origine === 'manuel'){
+        var ouvrirBtn = document.createElement('button');
+        ouvrirBtn.type = 'button'; ouvrirBtn.className = 'btn'; ouvrirBtn.textContent = 'Ouvrir';
+        ouvrirBtn.addEventListener('click', function(){
+          remplirFormulaire(entry.rawData);
+          entrerModeEdition(entry.id, entry.numero);
+        });
+
+        var dupliquerBtn = document.createElement('button');
+        dupliquerBtn.type = 'button'; dupliquerBtn.className = 'btn'; dupliquerBtn.textContent = 'Dupliquer';
+        dupliquerBtn.addEventListener('click', function(){
+          sortirModeEdition();
+          remplirFormulaire(entry.rawData);
+        });
+
+        actions.appendChild(ouvrirBtn);
+        actions.appendChild(dupliquerBtn);
+      }
+      conteneur.appendChild(row);
+    });
+  }
+
+  function chargerHistorique(){
+    fetch('/api/contracts-history')
+      .then(function(r){ return r.ok ? r.json() : { contracts: [] }; })
+      .then(function(res){
+        historiqueContrats = res.contracts || [];
+        renderHistorique();
+      })
+      .catch(function(){ /* historique = confort, ne bloque pas le reste de la page si indisponible */ });
+  }
+  chargerHistorique();
 
   function regenererLien(){
     if(!tousLesChampsRequisRemplis()){
@@ -1774,7 +2042,7 @@ function initOwnerView(prefill){
 
     document.getElementById('shareActions').classList.remove('hidden');
     document.getElementById('whatsappBtn').href = 'https://wa.me/?text=' + messageEnc;
-    document.getElementById('smsBtn').href = 'sms:?body=' + messageEnc;
+    document.getElementById('smsBtn').href = smsHref(messageEnc);
     document.getElementById('emailBtn').href = 'mailto:?subject=' +
       encodeURIComponent('Votre contrat de location GETLOCATION') + '&body=' + messageEnc;
 
@@ -1803,12 +2071,29 @@ function initOwnerView(prefill){
   document.getElementById('copyBtn').addEventListener('click', function(){
     var linkOutput = document.getElementById('linkOutput');
     linkOutput.select();
-    navigator.clipboard.writeText(linkOutput.value).then(function(){
-      document.getElementById('copiedMsg').classList.remove('hidden');
-    }).catch(function(){
-      document.execCommand('copy');
-      document.getElementById('copiedMsg').classList.remove('hidden');
-    });
+    // .select() seul est parfois insuffisant sur mobile (Safari iOS
+    // notamment) pour sélectionner un <input readonly> ; setSelectionRange
+    // le garantit aussi, sans changer le comportement ailleurs.
+    linkOutput.setSelectionRange(0, linkOutput.value.length);
+
+    function marquerCopie(){ document.getElementById('copiedMsg').classList.remove('hidden'); }
+    function repliCopie(){
+      try {
+        document.execCommand('copy');
+        marquerCopie();
+      } catch(e){
+        alert("La copie automatique a échoué. Sélectionnez le lien dans le champ ci-dessus et copiez-le manuellement.");
+      }
+    }
+
+    // navigator.clipboard peut être absent (hors contexte sécurisé, ou
+    // navigateur ancien) — l'appeler directement sur `undefined` lèverait
+    // une exception synchrone, jamais rattrapée par le .catch() suivant.
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(linkOutput.value).then(marquerCopie).catch(repliCopie);
+    } else {
+      repliCopie();
+    }
   });
 }
 

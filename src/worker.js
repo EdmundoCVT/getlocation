@@ -23,6 +23,9 @@ const { handleAgencyDocumentsAccess } = require("./api/agency-documents-access.j
 const { handleAgencyDocumentFile } = require("./api/agency-document-file.js");
 const { handleContractDossierAgency } = require("./api/contract-dossier-agency.js");
 const { handleContractDossierClient } = require("./api/contract-dossier-client.js");
+const { handleContractsManualCreate } = require("./api/contracts-manual-create.js");
+const { handleContractsManualUpdate } = require("./api/contracts-manual-update.js");
+const { handleContractsHistory } = require("./api/contracts-history.js");
 const { runScheduledTasks } = require("./lib/scheduled-tasks.js");
 
 const ROUTES = {
@@ -35,7 +38,10 @@ const ROUTES = {
   "/api/agency-documents-access": handleAgencyDocumentsAccess,
   "/api/agency-document-file": handleAgencyDocumentFile,
   "/api/contract-dossier-agency": handleContractDossierAgency,
-  "/api/contract-dossier-client": handleContractDossierClient
+  "/api/contract-dossier-client": handleContractDossierClient,
+  "/api/contracts-manual-create": handleContractsManualCreate,
+  "/api/contracts-manual-update": handleContractsManualUpdate,
+  "/api/contracts-history": handleContractsHistory
 };
 
 export default {

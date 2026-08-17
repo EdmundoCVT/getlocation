@@ -51,6 +51,13 @@ test("le Worker route le dossier contrat sécurisé (agence et client)", () => {
   assert.match(worker, /"\/api\/contract-dossier-client"\s*:\s*handleContractDossierClient/);
 });
 
+test("le Worker route la numérotation/historique des contrats manuels", () => {
+  const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
+  assert.match(worker, /"\/api\/contracts-manual-create"\s*:\s*handleContractsManualCreate/);
+  assert.match(worker, /"\/api\/contracts-manual-update"\s*:\s*handleContractsManualUpdate/);
+  assert.match(worker, /"\/api\/contracts-history"\s*:\s*handleContractsHistory/);
+});
+
 test("assets.binding est déclaré (nécessaire pour env.ASSETS.fetch() dans src/worker.js)", () => {
   assert.equal(config.assets.binding, "ASSETS");
   assert.equal(config.assets.directory, ".");

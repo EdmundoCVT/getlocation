@@ -39,7 +39,8 @@ const {
   getReservation,
   findReservationByPaymentId,
   saveDocumentAccessIndex,
-  saveContractAgencyAccessIndex
+  saveContractAgencyAccessIndex,
+  generateContractNumero
 } = require("../lib/reservation-store.js");
 const { sendConfirmationEmail } = require("../lib/send-confirmation-email.js");
 const { sendContractEmail } = require("../lib/send-contract-email.js");
@@ -103,10 +104,17 @@ async function handlePaid(env, payment) {
     console.error("[mollie-webhook] Échec de génération du jeton dossier contrat :", err && err.message);
   }
 
+  // Numéro de contrat lisible (GL-AAAAMMJJ-NNNN), distinct de l'id KV et de
+  // la référence de réservation affichée au client — assigné une seule
+  // fois ici, jamais rejoué (ce bloc entier n'exécute qu'à la toute
+  // première confirmation "paid", voir le retour anticipé plus haut).
+  const contractNumero = await generateContractNumero(env);
+
   const updated = await updateReservationStatus(env, reservation.id, "paid", {
     paymentId: payment.id,
     paidAt,
     documentsStatus: "pending",
+    contractNumero,
     ...(documentAccess ? { documentAccess: documentAccess.stored } : {}),
     ...(contractAgencyAccess ? { contractAgencyAccess: contractAgencyAccess.stored } : {})
   });

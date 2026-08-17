@@ -80,6 +80,8 @@ test("accepte un paiement payé et confirme la réservation liée", async () => 
   assert.match(updated.contractAgencyAccess.tokenHash, /^[a-f0-9]{64}$/);
   assert.equal(updated.contractAgencyAccess.revokedAt, null);
   assert.equal("contractDossierToken" in updated, false);
+
+  assert.match(updated.contractNumero, /^GL-\d{8}-\d{4}$/);
 });
 
 test("sans DOCUMENT_TOKEN_PEPPER : la confirmation de paiement réussit quand même, simplement sans jetons", async () => {
@@ -109,11 +111,14 @@ test("idempotence : rejouer le même statut paid ne change rien de plus", async 
   const afterFirst = await getReservation(env, reservation.id);
   assert.equal(afterFirst.status, "paid");
   const paidAtFirst = afterFirst.paidAt;
+  const numeroFirst = afterFirst.contractNumero;
+  assert.match(numeroFirst, /^GL-\d{8}-\d{4}$/);
 
   await processPaymentStatus(env, payment);
   const afterSecond = await getReservation(env, reservation.id);
   assert.equal(afterSecond.status, "paid");
   assert.equal(afterSecond.paidAt, paidAtFirst); // pas retraité, donc pas réécrit
+  assert.equal(afterSecond.contractNumero, numeroFirst); // jamais réassigné (pas de second numéro consommé)
 });
 
 test("un échec de l'email contrat est récupéré au prochain webhook sans renvoyer la confirmation client", async () => {
