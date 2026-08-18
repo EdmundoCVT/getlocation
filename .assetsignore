@@ -20,3 +20,8 @@ deployer.command
 # fonctions serveur serait téléchargeable publiquement (ex.
 # https://getlocation.fr/src/api/create-payment.js).
 src
+# graphify-out/ : sortie d'un outil d'analyse de code utilisé localement par
+# certains contributeurs (jamais versionné dans ce dépôt) — sans cette
+# ligne, `wrangler deploy` lu depuis un poste où cet outil a tourné publie
+# ce dossier tel quel comme asset statique public (constaté le 18/08/2026).
+graphify-out
