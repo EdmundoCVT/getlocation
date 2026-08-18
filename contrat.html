@@ -720,8 +720,18 @@ function formatDateHeureFR(v){
   var heure = d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
   return date + ' à ' + heure;
 }
+// Encodage base64url (RFC 4648 §5) plutôt que le base64 standard : "+" et
+// "/" cassent silencieusement la lecture du lien (URLSearchParams décode
+// "+" en espace, corrompant le base64 avant même atob()), et le "="
+// terminal empêche certaines messageries (WhatsApp constaté le 18/08/2026)
+// de reconnaître le texte collé comme un lien cliquable. base64url ne
+// contient aucun de ces trois caractères. Même transformation que
+// encodeContractData() côté serveur (src/lib/send-contract-email.js) —
+// les deux doivent rester synchronisés pour que les liens envoyés par
+// e-mail après paiement restent lisibles par decodeData() ci-dessous.
 function encodeData(obj){
-  return btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+  var standard = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+  return standard.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 // Le schéma d'URI "sms:" n'est pas standardisé entre plateformes : iOS
 // Safari n'ouvre l'app Messages avec le texte prérempli que si le corps est
@@ -732,8 +742,14 @@ function smsHref(messageEnc){
   var estIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   return estIOS ? ('sms:&body=' + messageEnc) : ('sms:?body=' + messageEnc);
 }
+// Accepte aussi bien un lien base64url (nouveau format, voir encodeData())
+// qu'un lien base64 standard déjà envoyé avant ce changement (ancien
+// format, avec "+"/"/"/"=" tels quels) : "-"/"_" n'existent jamais dans le
+// base64 standard, donc les remplacer ne modifie pas un ancien lien.
 function decodeData(str){
-  return JSON.parse(decodeURIComponent(escape(atob(str))));
+  var standard = String(str).replace(/-/g, '+').replace(/_/g, '/');
+  while (standard.length % 4) { standard += '='; }
+  return JSON.parse(decodeURIComponent(escape(atob(standard))));
 }
 
 // Lit le texte des conditions de location via textContent (pas innerText) :

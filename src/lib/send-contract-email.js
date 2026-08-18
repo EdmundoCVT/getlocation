@@ -21,10 +21,13 @@
 const { getVehiculeParId, LIEU_LIVRAISON, parseAdressePersonnalisee, libelleAdresseLivraison } = require("../../js/data.js");
 const { sendEmail } = require("./resend-client.js");
 
-// Même encodage que encodeData() côté navigateur (contrat.html) : base64
-// des octets UTF-8 du JSON. decodeData() côté client applique l'opération
-// inverse et retrouve exactement la même chaîne. btoa() (Web API, dispo à
-// la fois sous Cloudflare Workers et sous Node) remplace ici
+// Même encodage que encodeData() côté navigateur (contrat.html) : base64url
+// (RFC 4648 §5) des octets UTF-8 du JSON — pas le base64 standard, dont le
+// "+"/"/"/"=" cassent respectivement la lecture du lien (URLSearchParams
+// décode "+" en espace côté client) et sa reconnaissance comme lien
+// cliquable par certaines messageries (WhatsApp constaté le 18/08/2026).
+// decodeData() côté client applique l'opération inverse. btoa() (Web API,
+// dispo à la fois sous Cloudflare Workers et sous Node) remplace ici
 // Buffer.from(...).toString("base64") — même résultat pour du texte UTF-8.
 function encodeContractData(data) {
   const bytes = new TextEncoder().encode(JSON.stringify(data));
@@ -32,7 +35,8 @@ function encodeContractData(data) {
   bytes.forEach((b) => {
     binary += String.fromCharCode(b);
   });
-  return btoa(binary);
+  const standard = btoa(binary);
+  return standard.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 // Construit l'objet attendu par le formulaire AGENCE de contrat.html

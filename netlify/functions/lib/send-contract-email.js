@@ -27,10 +27,12 @@ function createTransport() {
 }
 
 // Même encodage que encodeData() côté navigateur (contrat.html) :
-// base64 des octets UTF-8 du JSON. decodeData() côté client applique
-// l'opération inverse et retrouve exactement la même chaîne.
+// base64url (RFC 4648 §5, pas le base64 standard — voir le commentaire de
+// encodeData() dans contrat.html) des octets UTF-8 du JSON. decodeData()
+// côté client applique l'opération inverse et retrouve exactement la même
+// chaîne.
 function encodeContractData(data) {
-  return Buffer.from(JSON.stringify(data), "utf8").toString("base64");
+  return Buffer.from(JSON.stringify(data), "utf8").toString("base64url");
 }
 
 // Construit l'objet attendu par le formulaire AGENCE de contrat.html
