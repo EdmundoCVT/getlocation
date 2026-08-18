@@ -18,6 +18,7 @@ change).
 | 134 | Âge minimum du conducteur (21 ans, [à ajuster]) | Confirmer l'âge minimum réellement appliqué par l'agence |
 | 135 | Ancienneté de permis minimale (2 ans, [à ajuster]) | Confirmer l'ancienneté de permis réellement exigée |
 | 157 | Frais de retard [à préciser : barème horaire/journalier] | Fournir le barème exact des pénalités de retard |
+| ~194 | Montants de franchise en vigueur [à compléter] (article 4, dommages/vol/bris de glace) | Montants exacts des franchises d'assurance auprès d'Allianz Assurance — voir aussi `js/data.js`, `FRANCHISES` ci-dessous : un seul et même montant à renseigner aux deux endroits |
 | 174 | Politique d'annulation [À compléter] | Fournir les conditions d'annulation/remboursement (délais, montants) |
 | 193 | Juridiction compétente en cas de litige [à compléter — ressort du siège social] | Confirmer le tribunal compétent (dépend du siège social réel) |
 
@@ -37,6 +38,15 @@ change).
 | Ligne (approx.) | Placeholder | Ce qu'il faut fournir |
 | --- | --- | --- |
 | 162 | Durée de conservation des données [à préciser] | Durées précises (ex. durée légale de conservation comptable/fiscale applicable) |
+
+## contrat.html / js/data.js — contrat de location
+
+| Emplacement | Placeholder | Ce qu'il faut fournir |
+| --- | --- | --- |
+| `js/data.js`, `FRANCHISES` | `dommages`/`vol`/`brisDeGlace` = `null` | Montants exacts des franchises d'assurance (distinctes du dépôt de garantie / caution) auprès d'Allianz Assurance, une fois pour toutes dans cet objet |
+| `js/data.js`, `VEHICULES` → `toyota-proace-city` | `carburant: null` | Type de carburant réel (diesel/électrique/essence) d'après la carte grise — non déductible du seul nom du modèle, contrairement aux 3 autres véhicules |
+| `js/data.js`, `AGENCE.rcs` | `null` | Ville du greffe d'immatriculation (même donnée que `mentions-legales.html`, à synchroniser) |
+| `js/data.js`, `AGENCE.capitalSocial` | `null` | Montant exact du capital social de TLST SAS (même donnée que `mentions-legales.html`) |
 
 ## Point à valider — adresse du siège social simplifiée (mentions-legales.html)
 

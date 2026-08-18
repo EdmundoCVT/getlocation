@@ -130,7 +130,9 @@
 
 <section class="section container" style="max-width: 780px;">
   <h1 class="section-title">Conditions générales de location (CGL)</h1>
-  <p class="section-subtitle">Applicables à toute réservation effectuée sur getlocation.fr auprès de GETLOCATION (TLST SAS).</p>
+  <p class="section-subtitle">Applicables à toute réservation effectuée sur getlocation.fr auprès de GETLOCATION (TLST SAS). <span id="cglVersionLine">Version en vigueur : <span id="cglVersionValeur">…</span>.</span></p>
+  <script src="js/data.js?v=12"></script>
+  <script>document.getElementById('cglVersionValeur').textContent = CGL_VERSION;</script>
 
   <div class="card" style="margin-bottom: 20px;">
     <h2>1. Conducteur et permis de conduire</h2>
@@ -157,18 +159,41 @@
     <h2>3. Prise en charge et restitution</h2>
     <p>
       Le véhicule est remis avec le plein de carburant et doit être restitué dans le même état
-      (plein fait), à l'heure et au lieu convenus. Tout retard non signalé au préalable pourra
-      entraîner des frais supplémentaires [à préciser : barème horaire/journalier].
+      (plein fait), à l'heure et au lieu convenus, sur le territoire français exclusivement.
+      Tout retard non signalé au préalable pourra entraîner des frais supplémentaires
+      [à préciser : barème horaire/journalier]. Toute prolongation doit être demandée avant la
+      fin de la période de location initiale ; un accord oral suffit, un lien de paiement
+      sécurisé est ensuite envoyé au locataire pour régler le supplément correspondant. En cas
+      de non-présentation du locataire à la date et à l'heure convenues, aucun frais
+      supplémentaire n'est facturé en plus du montant déjà réglé, sous réserve des conditions
+      de remboursement décrites à l'article 5.
+    </p>
+    <p>
+      Fumer et transporter des animaux dans le véhicule sont autorisés. Si le véhicule est
+      restitué dans un état nécessitant un nettoyage supplémentaire (odeurs, salissures
+      importantes, poils, etc.), un forfait de nettoyage de 50 € est facturé ; en l'absence de
+      dégradation constatée, aucun frais additionnel n'est appliqué. Toute contravention
+      (stationnement, vitesse, péage impayé, etc.) reçue pendant la durée de la location est à
+      la charge du locataire, réglée directement par lui ou prélevée sur le dépôt de garantie,
+      sans frais de dossier ajouté par GETLOCATION.
     </p>
   </div>
 
   <div class="card" style="margin-bottom: 20px;">
-    <h2>4. Assurance et franchise</h2>
+    <h2>4. Dépôt de garantie et assurance</h2>
     <p>
-      Chaque location inclut une assurance responsabilité civile obligatoire. Une assurance
-      tous risques optionnelle, réduisant la franchise en cas de sinistre, peut être souscrite
-      lors de la réservation. Le détail des garanties et exclusions est disponible sur demande
-      auprès de l'agence.
+      Chaque location inclut une assurance responsabilité civile obligatoire, souscrite auprès
+      d'Allianz Assurance. Un dépôt de garantie (caution) est prélevé lors de la prise en
+      charge du véhicule, dont le montant varie selon le modèle loué (voir fiche véhicule) —
+      il est restitué déduction faite, le cas échéant, des sommes dues au titre des présentes
+      CGL (franchise, kilométrage excédentaire, dommages, nettoyage, contraventions).
+    </p>
+    <p>
+      La franchise applicable en cas de sinistre responsable, de vol ou de bris de glace n'est
+      pas nécessairement égale au montant du dépôt de garantie : il s'agit de deux notions
+      distinctes. Les montants de franchise en vigueur [à compléter] seront communiqués au
+      locataire avant la prise en charge du véhicule. Le détail des garanties et exclusions est
+      disponible sur demande auprès de l'agence.
     </p>
   </div>
 
@@ -185,7 +210,10 @@
     <p>
       Le conducteur s'engage à utiliser le véhicule en bon père de famille, à respecter le
       code de la route et à signaler sans délai tout incident, sinistre ou vol à GETLOCATION et,
-      le cas échéant, aux autorités compétentes.
+      le cas échéant, aux autorités compétentes. En cas d'accident, de panne ou de vol, le
+      locataire contacte immédiatement GETLOCATION au <a href="tel:+33667485430">+33 6 67 48 54 30</a> ;
+      si un remorquage est nécessaire, GETLOCATION se charge de contacter l'assureur (Allianz
+      Assurance) pour organiser l'intervention au nom du locataire.
     </p>
   </div>
 
@@ -233,7 +261,7 @@
   <div class="footer-bottom">© <span id="footer-year"></span> GETLOCATION — TLST SAS · SIRET 932 098 908 00019 · <a href="mentions-legales.html">Mentions légales</a></div>
 </footer>
 
-<script src="js/data.js?v=9"></script>
+<script src="js/data.js?v=12"></script>
 <script src="js/app.js?v=21"></script>
 </body>
 </html>

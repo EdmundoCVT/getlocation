@@ -68,14 +68,25 @@ function buildClientView(reservation) {
   const fields = dossier.fields || {};
   return {
     reservation: {
-      vehicule: vehicule ? { nom: vehicule.nom, caution: vehicule.caution } : null,
+      numero: reservation.contractNumero || null,
+      vehicule: vehicule ? { nom: vehicule.nom, caution: vehicule.caution, prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, vin: vehicule.vin || null } : null,
       immatriculation: fields.immatriculation || "",
       dateDebut: reservation.dateDebut,
       heureDebut: reservation.heureDebut,
       dateFin: reservation.dateFin,
       heureFin: reservation.heureFin,
       lieuPrise: reservation.lieuPrise,
+      lieuRetour: reservation.lieuRetour,
       jours,
+      // Détail financier figé au paiement (voir contract-dossier-agency.js,
+      // même principe) : le locataire a le droit de voir le détail complet
+      // de son propre contrat avant de le signer.
+      sousTotalBrut: reservation.sousTotalBrut,
+      reductionDuree: reservation.reductionDuree || null,
+      options: Array.isArray(reservation.options) ? reservation.options : [],
+      optionsMontant: reservation.optionsMontant,
+      codePromo: reservation.codePromo || null,
+      reductionPromoMontant: reservation.reductionPromoMontant,
       total: reservation.total,
       conducteur: reservation.conducteur
         ? { nom: reservation.conducteur.nom, prenom: reservation.conducteur.prenom, naissance: reservation.conducteur.naissance, telephone: reservation.conducteur.telephone, email: reservation.conducteur.email }
@@ -88,6 +99,9 @@ function buildClientView(reservation) {
       codePostal: fields.codePostal || "",
       ville: fields.ville || "",
       permisNumero: fields.permisNumero || "",
+      permisPays: fields.permisPays || "",
+      permisDate: fields.permisDate || "",
+      permisValidite: fields.permisValidite || "",
       livraison: !!fields.livraison,
       livraisonRue: fields.livraisonRue || "",
       livraisonCP: fields.livraisonCP || "",
@@ -95,7 +109,9 @@ function buildClientView(reservation) {
       secondConducteur: !!fields.secondConducteur,
       secondConducteurNom: fields.secondConducteurNom || "",
       secondConducteurPrenom: fields.secondConducteurPrenom || "",
-      secondConducteurPermisNumero: fields.secondConducteurPermisNumero || ""
+      secondConducteurPermisNumero: fields.secondConducteurPermisNumero || "",
+      secondConducteurPermisPays: fields.secondConducteurPermisPays || "",
+      secondConducteurPermisDate: fields.secondConducteurPermisDate || ""
     },
     kmInclus: kmInclusPourJours(jours),
     status: dossier.status,

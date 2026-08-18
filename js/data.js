@@ -191,6 +191,11 @@ const VEHICULES = [
     transmission: "Manuelle",
     clim: true,
     hybride: false,
+    // "1.2T" = motorisation 1.2 Turbo essence (aucune version diesel de la
+    // Corsa ne porte cette désignation) — seule donnée de carburant déduite
+    // du nom du modèle plutôt que d'une carte grise, contrairement aux
+    // autres véhicules ci-dessous (voir LEGAL-TODO.md).
+    carburant: "Essence",
     prixJour: 59,
     caution: 500,
     description: "Compacte et économique, parfaite pour vos déplacements pro entre Cannes, Antibes et Grasse."
@@ -217,6 +222,7 @@ const VEHICULES = [
     transmission: "Automatique",
     clim: true,
     hybride: true,
+    carburant: "Hybride essence",
     prixJour: 69,
     caution: 500,
     description: "SUV compact hybride, confortable et sobre pour rayonner sur toute la Côte d'Azur."
@@ -243,6 +249,7 @@ const VEHICULES = [
     transmission: "Automatique",
     clim: true,
     hybride: true,
+    carburant: "Hybride essence",
     prixJour: 79,
     caution: 600,
     description: "SUV familial haut de gamme, idéal pour vos trajets entre Nice, Cannes et l'arrière-pays."
@@ -268,6 +275,11 @@ const VEHICULES = [
     transmission: "Manuelle",
     clim: true,
     hybride: false,
+    // Carburant non déductible avec certitude du seul nom du modèle
+    // (existe en diesel comme en électrique selon la finition réelle) —
+    // à confirmer sur la carte grise avant de l'afficher sur un contrat
+    // (voir LEGAL-TODO.md). `null` plutôt qu'une valeur inventée.
+    carburant: null,
     prixJour: 99,
     caution: 800,
     description: "Ludospace polyvalent au grand volume de chargement, idéal bagages, matériel ou déménagement."
@@ -276,6 +288,56 @@ const VEHICULES = [
 
 function formatEUR(montant) {
   return montant.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+}
+
+// Variante précise (2 décimales) de formatEUR, pour les rares montants non
+// entiers (ex. le tarif kilométrique supplémentaire — voir
+// SUPPLEMENT_KM_CENTIMES plus bas). formatEUR() seul ne convient pas ici :
+// avec maximumFractionDigits: 0, formatEUR(0.25) arrondit à "0 €" (bug
+// constaté sur le contrat : "0 €/km" au lieu de "0,25 €/km").
+function formatEURPrecis(montant) {
+  return montant.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Identité légale de GETLOCATION (TLST SAS), centralisée ici pour ne
+// jamais être ressaisie/dupliquée ailleurs (mentions-legales.html reste la
+// page publique de référence, mais contrat.html et tout futur document
+// généré doivent lire ces valeurs ici plutôt que de les recopier).
+// `null` = information non encore fournie par l'agence : ne JAMAIS
+// inventer de valeur de substitution (voir LEGAL-TODO.md, mêmes
+// placeholders que mentions-legales.html — RCS et capital social restent
+// à compléter).
+const AGENCE = {
+  nomCommercial: "GETLOCATION",
+  societe: "TLST SAS",
+  siegeSocial: "Grasse (06130)",
+  siret: "932 098 908 00019",
+  siren: "932 098 908",
+  rcs: null,
+  capitalSocial: null,
+  telephone: "+33 6 67 48 54 30",
+  telephoneHref: "+33667485430",
+  email: "contact@getlocation.fr",
+  siteWeb: "www.getlocation.fr"
+};
+
+// Franchises d'assurance — DISTINCTES du dépôt de garantie (voir
+// VEHICULES[].caution). Ne jamais assimiler franchise et caution : leurs
+// montants peuvent légitimement diverger selon le contrat d'assurance réel
+// souscrit par l'agence. Aucun montant n'a été communiqué à ce jour pour
+// ces trois franchises (dommages/vol/bris de glace) : elles restent à
+// `null` tant que l'agence ne les a pas configurées ici — le contrat
+// affiche alors une formulation générique renvoyant aux CGL plutôt qu'un
+// montant inventé. À renseigner une fois pour toutes ici (un seul endroit
+// à modifier) dès que l'agence communique les montants exacts.
+const FRANCHISES = {
+  dommages: null,
+  vol: null,
+  brisDeGlace: null
+};
+
+function getFranchises() {
+  return FRANCHISES;
 }
 
 function getVehiculeParId(id) {
@@ -391,6 +453,12 @@ function getKmInclusParJour() {
 function getSupplementKmCentimes() {
   return SUPPLEMENT_KM_CENTIMES;
 }
+function getCglVersion() {
+  return CGL_VERSION;
+}
+function getAgence() {
+  return AGENCE;
+}
 
 // Calcule le kilométrage parcouru et un éventuel dépassement à partir des
 // deux relevés compteur (départ/retour, état des lieux du contrat) et de la
@@ -451,6 +519,10 @@ if (typeof module !== "undefined" && module.exports) {
     OPTIONS,
     CGL_VERSION,
     formatEUR,
+    formatEURPrecis,
+    AGENCE,
+    FRANCHISES,
+    getFranchises,
     getVehiculeParId,
     dureeEnHeures,
     joursFacturablesDepuisHeures,
@@ -464,6 +536,8 @@ if (typeof module !== "undefined" && module.exports) {
     kmInclusPourJours,
     getKmInclusParJour,
     getSupplementKmCentimes,
+    getCglVersion,
+    getAgence,
     calculerKilometrage
   };
 }

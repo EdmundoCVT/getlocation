@@ -104,7 +104,7 @@ function buildDossierView(reservation) {
       // confirmation.html. Peut être absent sur une réservation payée avant
       // l'introduction de ce champ.
       contractNumero: reservation.contractNumero || null,
-      vehicule: vehicule ? { id: vehicule.id, nom: vehicule.nom, immatriculation: vehicule.immatriculation, caution: vehicule.caution, prixJour: vehicule.prixJour } : null,
+      vehicule: vehicule ? { id: vehicule.id, nom: vehicule.nom, immatriculation: vehicule.immatriculation, caution: vehicule.caution, prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, vin: vehicule.vin || null } : null,
       dateDebut: reservation.dateDebut,
       heureDebut: reservation.heureDebut,
       dateFin: reservation.dateFin,
@@ -114,6 +114,15 @@ function buildDossierView(reservation) {
       adressePrise: reservation.adressePrise,
       adresseRetour: reservation.adresseRetour,
       jours,
+      // Détail financier (voir calculerPrixTotal() de js/data.js) tel que
+      // calculé et figé au moment du paiement — jamais recalculé ici, pour
+      // que le contrat affiche exactement ce qui a été facturé, y compris
+      // si les tarifs ont changé depuis (voir AUDIT.md, P0).
+      sousTotalBrut: reservation.sousTotalBrut,
+      reductionDuree: reservation.reductionDuree || null,
+      optionsMontant: reservation.optionsMontant,
+      codePromo: reservation.codePromo || null,
+      reductionPromoMontant: reservation.reductionPromoMontant,
       total: reservation.total,
       options: Array.isArray(reservation.options) ? reservation.options : [],
       conducteur: reservation.conducteur

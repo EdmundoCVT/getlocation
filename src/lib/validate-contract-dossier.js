@@ -42,6 +42,8 @@ function validateContractFields(body) {
     ville: text(body.ville, "ville", { max: 100 }),
     permisNumero: text(body.permisNumero, "numéro de permis", { min: 3, max: 50 }),
     permisDate: optionalDate(body.permisDate, "date d'obtention du permis"),
+    permisPays: text(body.permisPays, "pays de délivrance du permis", { required: false, max: 100 }),
+    permisValidite: optionalDate(body.permisValidite, "date de validité du permis"),
     livraison,
     livraisonRue: "",
     livraisonCP: "",
@@ -50,7 +52,9 @@ function validateContractFields(body) {
     secondConducteurNom: "",
     secondConducteurPrenom: "",
     secondConducteurNaissance: "",
-    secondConducteurPermisNumero: ""
+    secondConducteurPermisNumero: "",
+    secondConducteurPermisPays: "",
+    secondConducteurPermisDate: ""
   };
   if (livraison) {
     data.livraisonRue = text(body.livraisonRue, "adresse de livraison", { max: 300 });
@@ -62,6 +66,8 @@ function validateContractFields(body) {
     data.secondConducteurPrenom = text(body.secondConducteurPrenom, "prénom du second conducteur", { max: 100 });
     data.secondConducteurNaissance = optionalDate(body.secondConducteurNaissance, "date de naissance du second conducteur");
     data.secondConducteurPermisNumero = text(body.secondConducteurPermisNumero, "numéro de permis du second conducteur", { min: 3, max: 50 });
+    data.secondConducteurPermisPays = text(body.secondConducteurPermisPays, "pays de délivrance du permis du second conducteur", { required: false, max: 100 });
+    data.secondConducteurPermisDate = optionalDate(body.secondConducteurPermisDate, "date d'obtention du permis du second conducteur");
   }
   return data;
 }

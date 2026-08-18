@@ -117,7 +117,7 @@ test("remplirTexteArticles() + texteConditionsLocation() : les articles reflète
   assert.match(texte, /le véhicule Peugeot 3008, immatriculé AB-123-CD/);
   assert.match(texte, /Lieu : Agence Grasse\./);
   assert.match(texte, /Montant total de la location : \d+([.,]\d+)?\s?€\./);
-  assert.match(texte, /Une caution de \d+([.,]\d+)?\s?€ est prélevée avant remise des clés, réglée par carte bancaire\./);
+  assert.match(texte, /Un dépôt de garantie de \d+([.,]\d+)?\s?€ est prélevé avant remise des clés, réglé par carte bancaire\./);
   assert.match(texte, /soit \d[\d\s]* km au total pour la durée du contrat/);
 
   // Plus aucun span data-fill non substitué (hors ceux volontairement
@@ -126,7 +126,7 @@ test("remplirTexteArticles() + texteConditionsLocation() : les articles reflète
   assert.doesNotMatch(texte, /immatriculé …/, "l'immatriculation doit être substituée");
   assert.doesNotMatch(texte, /Lieu : …\./, "le lieu doit être substitué");
   assert.doesNotMatch(texte, /location : …\./, "le montant total doit être substitué");
-  assert.doesNotMatch(texte, /caution de … est/, "la caution doit être substituée");
+  assert.doesNotMatch(texte, /garantie de … est/, "le dépôt de garantie doit être substitué");
   assert.doesNotMatch(texte, /soit … km/, "le kilométrage inclus doit être substitué");
 });
 
@@ -171,5 +171,7 @@ test("forfait kilométrique (200 km/jour, 0,25 €/km) reflète js/data.js (getK
   const texte = win.texteConditionsLocation();
 
   assert.match(texte, new RegExp(win.getKmInclusParJour() + " km inclus par jour"));
-  assert.match(texte, new RegExp(win.formatEUR(win.getSupplementKmCentimes() / 100).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " / km"));
+  // formatEURPrecis (pas formatEUR, qui arrondirait 0,25 € à "0 €" — le bug
+  // "0 €/km" corrigé sur le contrat, voir formatEURPrecis dans js/data.js).
+  assert.match(texte, new RegExp(win.formatEURPrecis(win.getSupplementKmCentimes() / 100).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " / km"));
 });
