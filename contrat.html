@@ -207,6 +207,22 @@
           <span>Km inclus : <strong id="kmTxt">—</strong></span>
           <span class="total">Total : <span id="totalTxt">—</span></span>
         </div>
+        <div class="check-row" style="margin-top:16px;">
+          <input type="checkbox" id="tarifManuel-toggle">
+          <label for="tarifManuel-toggle">Tarif spécial (montant différent du tarif calculé)</label>
+        </div>
+        <div class="second-conducteur" id="tarifManuelBlock">
+          <div class="grid">
+            <div class="field">
+              <label for="montantFinalConvenu">Montant final convenu (€)</label>
+              <input id="montantFinalConvenu" type="number" min="0" step="0.01">
+            </div>
+            <div class="field full">
+              <label for="tarifMotif">Motif du tarif spécial (interne, jamais imprimé)</label>
+              <textarea id="tarifMotif" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
         <div class="field full" style="margin-top:16px;">
           <label>Mode de paiement de la location</label>
           <div class="tabs" id="paiementTabs">
@@ -246,6 +262,22 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <div class="card">
+        <h2>Kilométrage</h2>
+        <div class="grid">
+          <div class="field">
+            <label for="kmDepart">Kilométrage départ</label>
+            <input id="kmDepart" type="number" min="0" step="1">
+          </div>
+          <div class="field">
+            <label for="kmRetour">Kilométrage retour (optionnel)</label>
+            <input id="kmRetour" type="number" min="0" step="1">
+          </div>
+        </div>
+        <div class="vehicule-recap hidden" id="kmRecap"></div>
+        <p class="meta-line" id="kmValidationMsg"></p>
       </div>
 
       <div class="card">
@@ -354,7 +386,7 @@
         <p class="meta-line hidden" id="numeroGenereMsg"></p>
       </div>
 
-      <div class="card">
+      <div class="card" id="derniers-contrats">
         <h2>Derniers contrats</h2>
         <p class="meta-line" id="historiqueVide">Aucun contrat généré pour l'instant.</p>
         <div id="historiqueListe"></div>
@@ -703,6 +735,20 @@ function calculerPrixContrat(data){
     codePromo: data.codePromo || ''
   });
 }
+// Applique un éventuel tarif manuel (case "Tarif spécial" du formulaire
+// agence) sur le tarif calculé automatiquement — remise OU majoration, les
+// deux sens autorisés. Fonction unique réutilisée par construirePayload()
+// (PDF), updateSummary() (récap agence en direct) et initClientView()
+// (récap client avant signature) : les 3 affichages du total ne doivent
+// jamais pouvoir diverger silencieusement (voir AUDIT.md P0, déjà rencontré
+// une fois exactement sur ce type de duplication).
+function appliquerTarifManuel(prix, data){
+  var tarifCalcule = prix ? prix.total : NaN;
+  var montantValide = data.montantFinalConvenu !== undefined && data.montantFinalConvenu !== '' && isFinite(Number(data.montantFinalConvenu));
+  var tarifManuelActif = !!(data.tarifManuel && montantValide);
+  var total = tarifManuelActif ? Number(data.montantFinalConvenu) : tarifCalcule;
+  return { tarifCalcule: tarifCalcule, total: total, tarifManuelActif: tarifManuelActif };
+}
 function formatJoursFactures(jours){ return jours + ' jour' + (jours > 1 ? 's' : ''); }
 function formatDuree(heures){
   var total = Math.round(heures);
@@ -866,7 +912,8 @@ function construirePayload(data, sigData, stamp){
   var v = (prix && prix.vehicule) || getVehiculeParId(data.vehiculeId) || VEHICULES[0];
   var heures = dureeHeures(data.depart, data.retour);
   var jours = prix ? prix.jours : NaN;
-  var total = prix ? prix.total : NaN;
+  var tarif = appliquerTarifManuel(prix, data);
+  var total = tarif.total;
   var montantRegleNombre = (data.montantRegle !== undefined && data.montantRegle !== '' && isFinite(Number(data.montantRegle)))
     ? Number(data.montantRegle) : total;
   var soldeNombre = (isFinite(total) && isFinite(montantRegleNombre)) ? Math.max(Math.round((total - montantRegleNombre) * 100) / 100, 0) : NaN;
@@ -874,6 +921,36 @@ function construirePayload(data, sigData, stamp){
   var lieuAffiche = data.livraison
     ? 'Livraison à ' + (data.livraisonRue || '') + ', ' + (data.livraisonCP || '') + ' ' + (data.livraisonVille || '')
     : data.lieu;
+
+  // Détail financier : remplace la ligne "Total" calculée automatiquement
+  // par 3 lignes (Location / Remise commerciale ou Ajustement tarif / TOTAL)
+  // quand un tarif manuel est actif. `tarifMotif` n'est volontairement
+  // jamais lu ici : il reste uniquement dans rawData/l'historique (comme
+  // `notes`), jamais imprimé sur le PDF ni transmis via le lien ?data=.
+  var detailFinancier = lignesDetailFinancier(prix);
+  if(prix && tarif.tarifManuelActif){
+    detailFinancier = detailFinancier.slice(0, -1);
+    var diff = tarif.tarifCalcule - total;
+    detailFinancier.push(['Location', formatEUR(tarif.tarifCalcule)]);
+    detailFinancier.push([diff >= 0 ? 'Remise commerciale' : 'Ajustement tarif', (diff >= 0 ? '− ' : '+ ') + formatEUR(Math.abs(diff))]);
+    detailFinancier.push(['TOTAL', formatEUR(total)]);
+  }
+
+  // État kilométrique manuel (nom délibérément distinct de
+  // `kilometrageResultat`, réservé au flux "dossier" des réservations
+  // payées, pour garantir qu'aucun des deux flux ne puisse jamais afficher
+  // la section de l'autre par erreur). Le calcul passe toujours par
+  // calculerKilometrage() de js/data.js — jamais de tarif recodé ici.
+  var kilometrageManuel = null;
+  if(data.kmDepart !== undefined && data.kmDepart !== ''){
+    kilometrageManuel = {
+      kmDepart: data.kmDepart,
+      kmRetour: data.kmRetour || '',
+      resultat: (data.kmRetour !== undefined && data.kmRetour !== '')
+        ? calculerKilometrage({ kmDepart: Number(data.kmDepart), kmRetour: Number(data.kmRetour), jours: jours })
+        : null
+    };
+  }
 
   return {
     'form-name': 'contrat-signature',
@@ -887,7 +964,8 @@ function construirePayload(data, sigData, stamp){
     depart: formatDateHeureFR(data.depart),
     retour: formatDateHeureFR(data.retour),
     duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
-    detailFinancier: lignesDetailFinancier(prix),
+    detailFinancier: detailFinancier,
+    kilometrageManuel: kilometrageManuel,
     total: formatEUR(total),
     montantRegle: formatEUR(montantRegleNombre),
     soldeRestant: formatEUR(soldeNombre),
@@ -1077,6 +1155,29 @@ function genererPDF(payload, estApercu){
   ligne('Livraison à domicile', payload.livraison);
   if(payload.notes){ ligne('Notes', payload.notes); }
   y += 6;
+
+  // État kilométrique manuel (contrat créé/modifié à la main par l'agence,
+  // jamais posé par le flux "dossier" des réservations payées — voir
+  // construirePayload) : jamais de double affichage avec le bloc
+  // "Remise et restitution du véhicule" plus bas, réservé à ce dernier.
+  if(payload.kilometrageManuel){
+    var km2 = payload.kilometrageManuel;
+    sautDePageSiBesoin(60);
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(26,47,82);
+    doc.text('État kilométrique', margin, y); y += 16;
+    ligne('Kilométrage départ', km2.kmDepart + ' km');
+    if(km2.kmRetour !== ''){ ligne('Kilométrage retour', km2.kmRetour + ' km'); } else { ligne('Kilométrage retour', 'À compléter à la restitution'); }
+    if(km2.resultat && km2.resultat.valid){
+      ligne('Km inclus', km2.resultat.kmInclus + ' km');
+      ligne('Km parcourus', km2.resultat.kmParcourus + ' km');
+      if(km2.resultat.kmDepasses > 0){
+        ligne('Dépassement kilométrique', km2.resultat.kmDepasses + ' km — supplément ' + formatEURPrecis(km2.resultat.supplement));
+      } else {
+        ligne('Dépassement kilométrique', 'Aucun');
+      }
+    }
+    y += 6;
+  }
 
   sautDePageSiBesoin(60);
   doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(26,47,82);
@@ -1924,6 +2025,8 @@ function initOwnerView(prefill){
   var secondBlock = document.getElementById('secondConducteurBlock');
   var livraisonToggle = document.getElementById('livraison-toggle');
   var livraisonBlock = document.getElementById('livraisonBlock');
+  var tarifManuelToggle = document.getElementById('tarifManuel-toggle');
+  var tarifManuelBlock = document.getElementById('tarifManuelBlock');
 
   VEHICULES.forEach(function(v){
     selectVehicule.add(new Option(v.nom + ' — ' + v.prixJour + ' €/jour', v.id));
@@ -1946,6 +2049,11 @@ function initOwnerView(prefill){
     document.getElementById('livraisonRue').required = show;
     document.getElementById('livraisonCP').required = show;
     document.getElementById('livraisonVille').required = show;
+    updateSummary();
+  });
+
+  tarifManuelToggle.addEventListener('change', function(){
+    tarifManuelBlock.classList.toggle('show', tarifManuelToggle.checked);
     updateSummary();
   });
 
@@ -2004,13 +2112,16 @@ function initOwnerView(prefill){
     var v = currentVehicule();
     if(!v || !inputDepart.value || !inputRetour.value) return;
     var heures = dureeHeures(inputDepart.value, inputRetour.value);
-    var prix = calculerPrixContrat({
+    var donneesTarif = {
       vehiculeId: selectVehicule.value,
       depart: inputDepart.value,
       retour: inputRetour.value,
       secondConducteur: secondToggle.checked,
-      livraison: livraisonToggle.checked
-    });
+      livraison: livraisonToggle.checked,
+      tarifManuel: document.getElementById('tarifManuel-toggle').checked,
+      montantFinalConvenu: document.getElementById('montantFinalConvenu').value
+    };
+    var prix = calculerPrixContrat(donneesTarif);
     document.getElementById('vehiculeRecap').innerHTML =
       '<span><strong>' + v.nom + '</strong> — ' + v.prixJour + ' €/jour</span>' +
       '<span>Caution : ' + formatEUR(v.caution) + '</span>';
@@ -2018,12 +2129,45 @@ function initOwnerView(prefill){
       document.getElementById('dureeTxt').textContent = 'Dates invalides (retour avant départ)';
       document.getElementById('kmTxt').textContent = '—';
       document.getElementById('totalTxt').textContent = '—';
+      afficherRecapKilometrage(NaN);
       return;
     }
+    var tarif = appliquerTarifManuel(prix, donneesTarif);
     document.getElementById('dureeTxt').textContent = formatDuree(heures) + ' — facturé ' + formatJoursFactures(prix.jours);
     document.getElementById('kmTxt').textContent = kmInclusPourJours(prix.jours).toLocaleString('fr-FR') + ' km';
-    document.getElementById('totalTxt').textContent = formatEUR(prix.total);
+    document.getElementById('totalTxt').textContent = tarif.tarifManuelActif
+      ? (formatEUR(tarif.total) + ' (tarif spécial, calculé : ' + formatEUR(tarif.tarifCalcule) + ')')
+      : formatEUR(tarif.total);
+    afficherRecapKilometrage(prix.jours);
   }
+
+  // Calcul/validation kilométrique en direct — toujours via
+  // calculerKilometrage() de js/data.js, jamais de tarif recodé ici. Message
+  // non bloquant pendant la saisie (la validation qui bloque réellement la
+  // génération est kmSontValides(), appelée au clic sur le bouton).
+  function afficherRecapKilometrage(jours){
+    var kmDepartVal = document.getElementById('kmDepart').value;
+    var kmRetourVal = document.getElementById('kmRetour').value;
+    var msg = document.getElementById('kmValidationMsg');
+    var recap = document.getElementById('kmRecap');
+    if(kmDepartVal === '' || kmRetourVal === ''){
+      msg.textContent = '';
+      recap.classList.add('hidden');
+      return;
+    }
+    var km = calculerKilometrage({ kmDepart: Number(kmDepartVal), kmRetour: Number(kmRetourVal), jours: jours });
+    if(!km.valid){
+      msg.textContent = km.error;
+      recap.classList.add('hidden');
+      return;
+    }
+    msg.textContent = '';
+    recap.classList.remove('hidden');
+    recap.innerHTML = km.kmDepasses > 0
+      ? ('<span>Dépassement : ' + km.kmDepasses + ' km — supplément ' + formatEURPrecis(km.supplement) + '</span>')
+      : ('<span>Aucun dépassement (' + km.kmParcourus + ' km parcourus, ' + km.kmInclus + ' km inclus)</span>');
+  }
+
   document.getElementById('ownerForm').addEventListener('input', function(){
     updateSummary();
     regenererLien();
@@ -2076,6 +2220,16 @@ function initOwnerView(prefill){
     return true;
   }
 
+  // Le kilométrage retour est facultatif (peut être complété plus tard via
+  // "Ouvrir") : pas de [required] possible ici, donc pas couvert par
+  // tousLesChampsRequisRemplis() — contrôle dédié, uniquement quand les deux
+  // relevés sont présents.
+  function kmSontValides(){
+    var d = document.getElementById('kmDepart').value, r = document.getElementById('kmRetour').value;
+    if(d === '' || r === '') return true;
+    return Number(r) >= Number(d);
+  }
+
   // Lit l'état courant du formulaire AGENCE — utilisé à la fois pour le
   // lien client (regenererLien, seulement une fois tous les champs requis
   // remplis) et pour le téléchargement PDF à tout moment (données
@@ -2113,7 +2267,12 @@ function initOwnerView(prefill){
       livraisonRue: document.getElementById('livraisonRue').value,
       livraisonCP: document.getElementById('livraisonCP').value,
       livraisonVille: document.getElementById('livraisonVille').value,
-      notes: document.getElementById('notes').value
+      notes: document.getElementById('notes').value,
+      tarifManuel: tarifManuelToggle.checked,
+      montantFinalConvenu: document.getElementById('montantFinalConvenu').value,
+      tarifMotif: document.getElementById('tarifMotif').value,
+      kmDepart: document.getElementById('kmDepart').value,
+      kmRetour: document.getElementById('kmRetour').value
     };
   }
 
@@ -2129,8 +2288,12 @@ function initOwnerView(prefill){
 
   // Réinjecte les données d'un contrat manuel existant dans le formulaire
   // (bouton "Dupliquer"/"Ouvrir" de l'historique) — inverse de
-  // lireDonneesFormulaire().
-  function remplirFormulaire(rawData){
+  // lireDonneesFormulaire(). inclureDonneesInstance=false (utilisé par
+  // "Dupliquer") : n'importe pas le tarif manuel ni le kilométrage, propres
+  // à la location d'origine — une nouvelle location repart du tarif calculé
+  // et sans relevé, contrairement au client/véhicule/tarif de base qui, eux,
+  // sont légitimement réutilisables tels quels.
+  function remplirFormulaire(rawData, inclureDonneesInstance){
     if(rawData.vehiculeId){ selectVehicule.value = rawData.vehiculeId; appliquerPlaque(); }
     if(rawData.immat) inputImmat.value = rawData.immat;
     if(rawData.lieu) selectLieu.value = rawData.lieu;
@@ -2182,6 +2345,13 @@ function initOwnerView(prefill){
     document.getElementById('livraisonRue').value = rawData.livraisonRue || '';
     document.getElementById('livraisonCP').value = rawData.livraisonCP || '';
     document.getElementById('livraisonVille').value = rawData.livraisonVille || '';
+
+    tarifManuelToggle.checked = !!(inclureDonneesInstance && rawData.tarifManuel);
+    tarifManuelBlock.classList.toggle('show', tarifManuelToggle.checked);
+    document.getElementById('montantFinalConvenu').value = inclureDonneesInstance ? (rawData.montantFinalConvenu || '') : '';
+    document.getElementById('tarifMotif').value = inclureDonneesInstance ? (rawData.tarifMotif || '') : '';
+    document.getElementById('kmDepart').value = inclureDonneesInstance ? (rawData.kmDepart || '') : '';
+    document.getElementById('kmRetour').value = inclureDonneesInstance ? (rawData.kmRetour || '') : '';
 
     updateSummary();
     regenererLien();
@@ -2242,6 +2412,10 @@ function initOwnerView(prefill){
   document.getElementById('genererContratBtn').addEventListener('click', function(){
     if(!tousLesChampsRequisRemplis()){
       alert('Merci de remplir tous les champs obligatoires avant de générer le contrat.');
+      return;
+    }
+    if(!kmSontValides()){
+      alert('Le kilométrage de retour doit être supérieur ou égal au kilométrage de départ.');
       return;
     }
     var rawData = lireDonneesFormulaire();
@@ -2318,7 +2492,7 @@ function initOwnerView(prefill){
         var ouvrirBtn = document.createElement('button');
         ouvrirBtn.type = 'button'; ouvrirBtn.className = 'btn'; ouvrirBtn.textContent = 'Ouvrir';
         ouvrirBtn.addEventListener('click', function(){
-          remplirFormulaire(entry.rawData);
+          remplirFormulaire(entry.rawData, true);
           entrerModeEdition(entry.id, entry.numero);
         });
 
@@ -2326,7 +2500,7 @@ function initOwnerView(prefill){
         dupliquerBtn.type = 'button'; dupliquerBtn.className = 'btn'; dupliquerBtn.textContent = 'Dupliquer';
         dupliquerBtn.addEventListener('click', function(){
           sortirModeEdition();
-          remplirFormulaire(entry.rawData);
+          remplirFormulaire(entry.rawData, false);
         });
 
         actions.appendChild(ouvrirBtn);
@@ -2433,7 +2607,8 @@ function initClientView(data){
   var heures = dureeHeures(data.depart, data.retour);
   var prixClient = calculerPrixContrat(data);
   var jours = prixClient ? prixClient.jours : joursFacturablesDepuisHeures(heures);
-  var total = prixClient ? prixClient.total : NaN;
+  var tarifClient = appliquerTarifManuel(prixClient, data);
+  var total = tarifClient.total;
   var kmInclus = kmInclusPourJours(jours);
   var adresseComplete = data.adresse + ', ' + data.codePostal + ' ' + data.ville;
   var lieuAffiche = data.livraison

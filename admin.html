@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Admin — GETLOCATION</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="css/style.css?v=18">
+<style>
+  /* Grille des 4 boutons, propre à cette page — pas de nouvelle classe
+     partagée dans css/style.css pour un seul écran interne, léger et
+     autonome. */
+  .admin-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+    margin-top:24px;
+  }
+  @media(max-width:560px){ .admin-grid{ grid-template-columns:1fr; } }
+  .admin-btn{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    padding:32px 16px;
+    text-align:center;
+    font-size:1.05rem;
+    min-height:120px;
+  }
+  .admin-btn .emoji{ font-size:2.2rem; line-height:1; }
+</style>
+</head>
+<body>
+<header class="site-header"><div class="header-inner container"><a href="index.html" class="logo"><span class="logo-mark">GL</span> GETLOCATION</a></div></header>
+<main class="section container" style="max-width:640px">
+  <h1 class="section-title">GET LOCATION</h1>
+  <p class="section-subtitle">Accès réservé à l'agence.</p>
+  <div class="admin-grid">
+    <a class="btn btn-primary admin-btn" href="/contrat"><span class="emoji">➕</span>Nouvelle location</a>
+    <a class="btn btn-secondary admin-btn" href="/contrat#derniers-contrats"><span class="emoji">📄</span>Derniers contrats</a>
+    <a class="btn btn-secondary admin-btn" href="/contrat#derniers-contrats"><span class="emoji">📋</span>Dupliquer un contrat</a>
+    <a class="btn btn-secondary admin-btn" href="/vehicules"><span class="emoji">🚗</span>Véhicules</a>
+  </div>
+</main>
+</body>
+</html>
