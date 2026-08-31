@@ -185,8 +185,10 @@
     </div>
     <div class="vehicle-card">
       <div class="vehicle-media" data-gallery="peugeot-2008-hybrid">
-        <img src="images/peugeot-2008-hybrid-cutout.webp" alt="Peugeot 2008 Hybrid" class="vehicle-photo is-cutout" loading="lazy" decoding="async" width="900" height="616" onerror="this.classList.remove('is-cutout')">
-        <span class="vehicle-photo-count">6</span>
+        <picture>
+          <source srcset="images/gallery/peugeot-2008-hybrid-1-700w.webp 700w, images/gallery/peugeot-2008-hybrid-1.webp 1400w" sizes="(max-width: 480px) 90vw, 340px" type="image/webp">
+          <img src="images/gallery/peugeot-2008-hybrid-1-700w.jpg" alt="Peugeot 2008 Hybrid" class="vehicle-photo" loading="lazy" decoding="async" width="1400" height="933" onerror="this.remove()">
+        </picture>
         <span class="vehicle-emoji-fallback">🚙</span>
       </div>
       <div class="vehicle-body">
@@ -321,7 +323,7 @@
   <div class="footer-bottom">© <span id="footer-year"></span> GETLOCATION — TLST SAS · SIRET 932 098 908 00019 · <a href="mentions-legales.html">Mentions légales</a></div>
 </footer>
 
-<script src="js/data.js?v=15"></script>
+<script src="js/data.js?v=16"></script>
 <script src="js/app.js?v=26"></script>
 </body>
 </html>
