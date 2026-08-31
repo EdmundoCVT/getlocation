@@ -211,7 +211,7 @@ test("kilométrage : sans dépassement, le supplément est nul et le message est
   assert.equal(body.dossier.kilometrage.supplementCentimes, 0);
 });
 
-test("kilométrage : un dépassement calcule le bon supplément (0,25 €/km), jamais une valeur envoyée par le client", async () => {
+test("kilométrage : un dépassement calcule le bon supplément (0,65 €/km sans forfait acheté), jamais une valeur envoyée par le client", async () => {
   const e = env();
   const { agencyToken } = await envoyerDossierComplet(e);
   await handleContractDossierAgency(agencyPost(agencyToken, { action: "update-depart", dateHeure: "2026-09-01T10:00", km: 15000, carburant: 100, agent: "Jean" }), e);
@@ -222,9 +222,10 @@ test("kilométrage : un dépassement calcule le bon supplément (0,25 €/km), j
   }), e);
   assert.equal(res.status, 200);
   const body = await res.json();
-  // 700 km parcourus, 600 inclus => 100 km de dépassement x 0,25 € = 25 €.
+  // 700 km parcourus, 600 inclus => 100 km de dépassement x 0,65 € (aucun
+  // forfait km acheté sur cette réservation — options: []) = 65 €.
   assert.equal(body.dossier.kilometrage.kmDepasses, 100);
-  assert.equal(body.dossier.kilometrage.supplementCentimes, 2500);
+  assert.equal(body.dossier.kilometrage.supplementCentimes, 6500);
 });
 
 test("kilométrage : un retour inférieur au départ est rejeté (jamais enregistré)", async () => {

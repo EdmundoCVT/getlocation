@@ -18,7 +18,7 @@
 // du dossier contrat, un contrat ne doit jamais pouvoir diverger de ce qui
 // a réellement été payé.
 
-const { getVehiculeParId, calculerKilometrage, joursFacturablesDepuisHeures, dureeEnHeures, KM_INCLUS_PAR_JOUR, SUPPLEMENT_KM_CENTIMES, CGL_VERSION, parseAdressePersonnalisee } = require("../../js/data.js");
+const { getVehiculeParId, calculerKilometrage, joursFacturablesDepuisHeures, dureeEnHeures, KM_INCLUS_PAR_JOUR, getSupplementKmCentimes, aForfaitKmSupplementaire, CGL_VERSION, parseAdressePersonnalisee } = require("../../js/data.js");
 const {
   updateContractDossier,
   findReservationByContractAgencyTokenHash,
@@ -84,8 +84,13 @@ function buildDossierView(reservation) {
   const dossier = reservation.contractDossier || null;
   const depart = dossier && dossier.depart ? dossier.depart : null;
   const retour = dossier && dossier.retour ? dossier.retour : null;
+  // Détermine le tarif de dépassement applicable à CETTE réservation une
+  // seule fois (voir aForfaitKmSupplementaire()/getSupplementKmCentimes()
+  // dans js/data.js) : 0,25 €/km si un forfait km a été acheté, 0,65 €/km
+  // sinon.
+  const aForfait = aForfaitKmSupplementaire(reservation.options);
   const kilometrage = depart && retour
-    ? calculerKilometrage({ kmDepart: depart.km, kmRetour: retour.km, jours })
+    ? calculerKilometrage({ kmDepart: depart.km, kmRetour: retour.km, jours, aForfaitKm: aForfait })
     : null;
 
   // Prefill "meilleur effort" depuis le dossier documentaire (documents.html,
@@ -131,7 +136,7 @@ function buildDossierView(reservation) {
       cglVersion: CGL_VERSION
     },
     kmInclusParJour: KM_INCLUS_PAR_JOUR,
-    supplementKmCentimes: SUPPLEMENT_KM_CENTIMES,
+    supplementKmCentimes: getSupplementKmCentimes(aForfait),
     documentsPrefill: {
         adresse: documentsData.postalAddress || "",
         permisNumero: documentsData.permitNumber || "",
@@ -239,7 +244,7 @@ async function handlePost(request, env, headers) {
         }
         const retour = validateConditionReport(payload);
         const jours = joursReservation(reservation);
-        const kilometrage = calculerKilometrage({ kmDepart: existing.depart.km, kmRetour: retour.km, jours });
+        const kilometrage = calculerKilometrage({ kmDepart: existing.depart.km, kmRetour: retour.km, jours, aForfaitKm: aForfaitKmSupplementaire(reservation.options) });
         if (!kilometrage.valid) {
           return new Response(JSON.stringify({ error: kilometrage.error }), { status: 400, headers });
         }

@@ -163,15 +163,16 @@ test("second conducteur NON sélectionné : la clause reste absente du texte lu 
   assert.doesNotMatch(texteSections, /second conducteur/i, "sectionsConditionsLocation() doit appliquer le même filtre");
 });
 
-test("forfait kilométrique (200 km/jour, 0,25 €/km) reflète js/data.js (getKmInclusParJour/getSupplementKmCentimes), pas une valeur codée en dur", () => {
+test("forfait kilométrique (200 km/jour, tarif de dépassement sans forfait acheté) reflète js/data.js (getKmInclusParJour/getSupplementKmCentimes), pas une valeur codée en dur", () => {
   const win = buildWindow();
-  const data = makeReservationData();
+  const data = makeReservationData(); // aucun kmForfait sélectionné => tarif "sans forfait"
   const payload = win.construirePayload(data, null, null);
   win.remplirTexteArticles(payload);
   const texte = win.texteConditionsLocation();
 
   assert.match(texte, new RegExp(win.getKmInclusParJour() + " km inclus par jour"));
-  // formatEURPrecis (pas formatEUR, qui arrondirait 0,25 € à "0 €" — le bug
+  // formatEURPrecis (pas formatEUR, qui arrondirait 0,65 € à "1 €" — le bug
   // "0 €/km" corrigé sur le contrat, voir formatEURPrecis dans js/data.js).
-  assert.match(texte, new RegExp(win.formatEURPrecis(win.getSupplementKmCentimes() / 100).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " / km"));
+  // getSupplementKmCentimes(false) : aucun forfait km acheté dans ce fixture.
+  assert.match(texte, new RegExp(win.formatEURPrecis(win.getSupplementKmCentimes(false) / 100).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " / km"));
 });

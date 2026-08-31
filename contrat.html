@@ -193,6 +193,28 @@
             <label for="lieu">Lieu de prise en charge</label>
             <select id="lieu" required></select>
           </div>
+        </div>
+        <div class="check-row">
+          <input type="checkbox" id="livraison-toggle">
+          <label for="livraison-toggle">Adresse de livraison (lieu de prise en charge) <strong>(+20 €)</strong></label>
+        </div>
+        <div class="second-conducteur" id="livraisonBlock">
+          <div class="grid">
+            <div class="field full">
+              <label for="livraisonRue">Adresse de livraison</label>
+              <input id="livraisonRue" type="text" placeholder="N° et nom de rue">
+            </div>
+            <div class="field">
+              <label for="livraisonCP">Code postal</label>
+              <input id="livraisonCP" type="text" inputmode="numeric" placeholder="06130" maxlength="5">
+            </div>
+            <div class="field">
+              <label for="livraisonVille">Ville</label>
+              <input id="livraisonVille" type="text" placeholder="Grasse">
+            </div>
+          </div>
+        </div>
+        <div class="grid" style="margin-top:16px;">
           <div class="field">
             <label for="depart">Départ (date et heure)</label>
             <input id="depart" type="datetime-local" required>
@@ -241,26 +263,7 @@
           <div class="tabs" id="cautionTabs">
             <button type="button" class="tab-btn active" data-mode="carte">Carte bancaire</button>
             <button type="button" class="tab-btn" data-mode="especes">Espèces</button>
-          </div>
-        </div>
-        <div class="check-row">
-          <input type="checkbox" id="livraison-toggle">
-          <label for="livraison-toggle">Livraison du véhicule à une adresse <strong>(+20 €)</strong></label>
-        </div>
-        <div class="second-conducteur" id="livraisonBlock">
-          <div class="grid">
-            <div class="field full">
-              <label for="livraisonRue">Adresse de livraison</label>
-              <input id="livraisonRue" type="text" placeholder="N° et nom de rue">
-            </div>
-            <div class="field">
-              <label for="livraisonCP">Code postal</label>
-              <input id="livraisonCP" type="text" inputmode="numeric" placeholder="06130" maxlength="5">
-            </div>
-            <div class="field">
-              <label for="livraisonVille">Ville</label>
-              <input id="livraisonVille" type="text" placeholder="Grasse">
-            </div>
+            <button type="button" class="tab-btn" data-mode="virement">Virement</button>
           </div>
         </div>
       </div>
@@ -268,6 +271,11 @@
       <div class="card">
         <h2>Kilométrage</h2>
         <div class="grid">
+          <div class="field full">
+            <label for="kmForfait">Forfait kilométrique supplémentaire acheté</label>
+            <select id="kmForfait"></select>
+            <small>Détermine le tarif de dépassement appliqué au-delà du kilométrage inclus (voir CGL).</small>
+          </div>
           <div class="field">
             <label for="kmDepart">Kilométrage départ</label>
             <input id="kmDepart" type="number" min="0" step="1">
@@ -294,7 +302,7 @@
           </div>
           <div class="field">
             <label for="naissance">Date de naissance</label>
-            <input id="naissance" type="date" required>
+            <input id="naissance" type="text" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" pattern="\d{2}/\d{2}/\d{4}" required>
           </div>
           <div class="field full">
             <label for="adresse">Adresse (n° et rue)</label>
@@ -322,7 +330,7 @@
           </div>
           <div class="field">
             <label for="permisDate">Date d'obtention du permis (optionnel)</label>
-            <input id="permisDate" type="date">
+            <input id="permisDate" type="text" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" pattern="\d{2}/\d{2}/\d{4}">
           </div>
           <div class="field">
             <label for="permisPays">Pays de délivrance (optionnel)</label>
@@ -330,7 +338,7 @@
           </div>
           <div class="field">
             <label for="permisValidite">Date de validité du permis (optionnel)</label>
-            <input id="permisValidite" type="date">
+            <input id="permisValidite" type="text" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" pattern="\d{2}/\d{2}/\d{4}">
           </div>
           <div class="field full">
             <label for="notes">Notes internes (optionnel)</label>
@@ -354,7 +362,7 @@
             </div>
             <div class="field">
               <label for="naissance2">Date de naissance</label>
-              <input id="naissance2" type="date">
+              <input id="naissance2" type="text" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" pattern="\d{2}/\d{2}/\d{4}">
             </div>
             <div class="field">
               <label for="permis2">N° de permis de conduire</label>
@@ -362,7 +370,7 @@
             </div>
             <div class="field">
               <label for="permis2Date">Date d'obtention du permis (optionnel)</label>
-              <input id="permis2Date" type="date">
+              <input id="permis2Date" type="text" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" pattern="\d{2}/\d{2}/\d{4}">
             </div>
             <div class="field">
               <label for="permis2Pays">Pays de délivrance (optionnel)</label>
@@ -461,7 +469,7 @@
         <p>Le véhicule est loué avec un forfait de <strong><span class="fill" data-fill="kmInclusParJour">…</span> km inclus par jour de location</strong>, soit <span class="fill" data-fill="kmInclus">…</span> km au total pour la durée du contrat. Tout kilomètre parcouru au-delà de ce forfait est facturé <strong><span class="fill" data-fill="supplementKm">…</span> / km</strong> (voir le tableau de remise et restitution du véhicule pour le relevé kilométrique départ/retour). Le véhicule doit être restitué avec le même niveau de carburant qu'au départ.</p>
         <h3>Article 4 — Dépôt de garantie et assurance</h3>
         <p>Un dépôt de garantie de <span class="fill" data-fill="caution">…</span> est prélevé avant remise des clés, réglé par <span class="fill" data-fill="modeCaution">…</span>. Le véhicule est couvert par une assurance responsabilité civile et les garanties complémentaires en vigueur, souscrites auprès d'Allianz Assurance ; les franchises applicables en cas de sinistre responsable, de vol ou de bris de glace ne sont pas nécessairement égales à ce dépôt de garantie — leurs montants sont précisés dans les Conditions Générales de Location. Un état des lieux (photos, kilométrage, niveau de carburant) est réalisé au départ et à la restitution ; toute dégradation non mentionnée au départ sera facturée sur devis.</p>
-        <p>À la restitution du véhicule et après validation de l'état des lieux de retour contradictoire : pour une caution réglée par empreinte bancaire (pré-autorisation), la mainlevée est ordonnée par GETLOCATION sous 7 jours ouvrables. Pour une caution réglée en espèces, le dépôt de garantie est restitué par virement bancaire, sur le RIB fourni par le locataire, sous 7 jours ouvrables minimum — aucun remboursement en espèces n'est effectué sur place au moment du retour. En cas de dégradation, de nettoyage requis, de carburant manquant ou d'infraction constatée, GETLOCATION peut conserver tout ou partie du dépôt de garantie le temps d'évaluer les frais, dans la limite de 30 jours (voir le détail complet dans les Conditions Générales de Location).</p>
+        <p>À la restitution du véhicule et après validation de l'état des lieux de retour contradictoire : pour une caution réglée par empreinte bancaire (pré-autorisation), la mainlevée est ordonnée par GETLOCATION sous 7 jours ouvrables. Pour une caution réglée en espèces ou par virement bancaire, le dépôt de garantie est restitué par virement bancaire, sur le RIB fourni par le locataire, sous 7 jours ouvrables minimum — aucun remboursement en espèces n'est effectué sur place au moment du retour. En cas de dégradation, de nettoyage requis, de carburant manquant ou d'infraction constatée, GETLOCATION peut conserver tout ou partie du dépôt de garantie le temps d'évaluer les frais, dans la limite de 30 jours (voir le détail complet dans les Conditions Générales de Location).</p>
         <p id="secondConducteurClause" style="display:none;">Un second conducteur, <span class="fill" data-fill="nom2">…</span> (permis n° <span class="fill" data-fill="permis2">…</span>), est autorisé à conduire le véhicule dans les mêmes conditions que le locataire principal, qui reste seul responsable vis-à-vis du présent contrat.</p>
         <p id="ribClientClause" style="display:none;">Coordonnées bancaires communiquées par le locataire pour la restitution du dépôt de garantie : IBAN <span class="fill" data-fill="ribIban">…</span>, titulaire <span class="fill" data-fill="ribTitulaire">…</span>.</p>
         <h3>Article 5 — Restitution, retard et incidents</h3>
@@ -478,7 +486,7 @@
 
         <div id="ribClientBlock" style="display:none;margin-top:22px;padding-top:22px;border-top:1px dashed var(--ligne);">
           <h2 style="margin:0 0 10px;">Coordonnées bancaires (restitution de la caution)</h2>
-          <p class="meta-line" style="margin-bottom:12px;">Facultatif : le dépôt de garantie étant réglé en espèces, vous pouvez dès maintenant indiquer le RIB sur lequel il devra vous être restitué (voir Article 4) — sinon l'agence le récupérera plus tard.</p>
+          <p class="meta-line" style="margin-bottom:12px;" id="ribClientBlockLead">Facultatif : vous pouvez dès maintenant indiquer le RIB sur lequel le dépôt de garantie devra vous être restitué (voir Article 4) — sinon l'agence le récupérera plus tard.</p>
           <div class="grid">
             <div class="field">
               <label for="ribIban">IBAN (facultatif)</label>
@@ -561,7 +569,7 @@
           </div>
           <div class="field">
             <label for="df-permisDate">Date d'obtention du permis</label>
-            <input id="df-permisDate" type="date">
+            <input id="df-permisDate" type="text" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" pattern="\d{2}/\d{2}/\d{4}">
           </div>
           <div class="field">
             <label for="df-permisPays">Pays de délivrance (optionnel)</label>
@@ -569,7 +577,7 @@
           </div>
           <div class="field">
             <label for="df-permisValidite">Date de validité du permis (optionnel)</label>
-            <input id="df-permisValidite" type="date">
+            <input id="df-permisValidite" type="text" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" pattern="\d{2}/\d{2}/\d{4}">
           </div>
         </div>
         <div class="field full" style="margin-top:16px;">
@@ -599,7 +607,7 @@
             <div class="field"><label for="df-secondNom">Nom (2<sup>e</sup> conducteur)</label><input id="df-secondNom" type="text"></div>
             <div class="field"><label for="df-secondPrenom">Prénom (2<sup>e</sup> conducteur)</label><input id="df-secondPrenom" type="text"></div>
             <div class="field"><label for="df-secondPermis">N° de permis</label><input id="df-secondPermis" type="text"></div>
-            <div class="field"><label for="df-secondPermisDate">Date d'obtention (optionnel)</label><input id="df-secondPermisDate" type="date"></div>
+            <div class="field"><label for="df-secondPermisDate">Date d'obtention (optionnel)</label><input id="df-secondPermisDate" type="text" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" pattern="\d{2}/\d{2}/\d{4}"></div>
             <div class="field full"><label for="df-secondPermisPays">Pays de délivrance (optionnel)</label><input id="df-secondPermisPays" type="text" placeholder="France"></div>
           </div>
         </div>
@@ -714,7 +722,7 @@
 
 </div>
 
-<script src="js/data.js?v=14"></script>
+<script src="js/data.js?v=15"></script>
 <script>
 // VEHICULES, formatEUR, joursFacturablesDepuisHeures, getVehiculeParId et
 // getOptionParId viennent de js/data.js (chargé juste avant ce script) —
@@ -753,6 +761,7 @@ function optionsDepuisFormulaire(data){
   var ids = [];
   if(data.secondConducteur) ids.push('second-conducteur');
   if(data.livraison) ids.push('livraison-adresse');
+  if(data.kmForfait) ids.push(data.kmForfait);
   return ids;
 }
 
@@ -803,6 +812,15 @@ function formatDateHeureFR(v){
   var date = d.toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' });
   var heure = d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
   return date + ' à ' + heure;
+}
+// Convertit une date ISO "AAAA-MM-JJ" (seul format que produit la
+// réservation en ligne, voir validate-reservation-input.js) en "JJ/MM/AAAA"
+// pour préremplir les champs de date texte de ce formulaire (naissance,
+// permis...). Ne fait rien sur une valeur déjà dans un autre format —
+// jamais de valeur inventée.
+function isoVersJourMoisAnnee(iso){
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? (m[3] + '/' + m[2] + '/' + m[1]) : (iso || '');
 }
 // Encodage base64url (RFC 4648 §5) plutôt que le base64 standard : "+" et
 // "/" cassent silencieusement la lecture du lien (URLSearchParams décode
@@ -886,6 +904,18 @@ function sectionsConditionsLocation(){
 
 function libelleModePaiement(mode){
   return mode === 'especes' ? 'Espèces' : (mode === 'virement' ? 'Virement bancaire' : 'Carte bancaire');
+}
+
+function libelleModeCaution(mode){
+  return mode === 'especes' ? 'Espèces' : (mode === 'virement' ? 'Virement bancaire' : 'Carte bancaire');
+}
+
+// La caution nécessite un RIB de restitution (voir #ribClientBlock) pour
+// tout mode qui n'est pas une pré-autorisation carte : espèces (remboursée
+// par virement) et virement (déjà réglée par virement, donc déjà un RIB
+// connu du locataire).
+function cautionNecessiteRib(mode){
+  return mode === 'especes' || mode === 'virement';
 }
 
 // Construit les lignes du détail financier (voir genererPDF) à partir d'un
@@ -974,6 +1004,12 @@ function construirePayload(data, sigData, stamp){
     detailFinancier.push(['TOTAL', formatEUR(total)]);
   }
 
+  // Tarif de dépassement applicable à CETTE location (voir
+  // aForfaitKmSupplementaire()/getSupplementKmCentimes() dans js/data.js) :
+  // 0,25 €/km si un forfait km a été acheté (selectKmForfait), 0,65 €/km
+  // sinon.
+  var aForfaitKm = aForfaitKmSupplementaire(optionsDepuisFormulaire(data));
+
   // État kilométrique manuel (nom délibérément distinct de
   // `kilometrageResultat`, réservé au flux "dossier" des réservations
   // payées, pour garantir qu'aucun des deux flux ne puisse jamais afficher
@@ -985,7 +1021,7 @@ function construirePayload(data, sigData, stamp){
       kmDepart: data.kmDepart,
       kmRetour: data.kmRetour || '',
       resultat: (data.kmRetour !== undefined && data.kmRetour !== '')
-        ? calculerKilometrage({ kmDepart: Number(data.kmDepart), kmRetour: Number(data.kmRetour), jours: jours })
+        ? calculerKilometrage({ kmDepart: Number(data.kmDepart), kmRetour: Number(data.kmRetour), jours: jours, aForfaitKm: aForfaitKm })
         : null
     };
   }
@@ -1004,12 +1040,13 @@ function construirePayload(data, sigData, stamp){
     duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
     detailFinancier: detailFinancier,
     kilometrageManuel: kilometrageManuel,
+    supplementKmCentimes: getSupplementKmCentimes(aForfaitKm),
     total: formatEUR(total),
     montantRegle: formatEUR(montantRegleNombre),
     soldeRestant: formatEUR(soldeNombre),
     modePaiement: libelleModePaiement(data.modePaiement),
     caution: formatEUR(v.caution),
-    mode_reglement_caution: data.modeCaution === 'carte' ? 'Carte bancaire' : 'Espèces',
+    mode_reglement_caution: libelleModeCaution(data.modeCaution),
     locataire_prenom: data.prenom,
     locataire_nom: data.nom,
     locataire_naissance: data.naissance,
@@ -1066,7 +1103,7 @@ function remplirTexteArticles(payload){
   setFill('modeCaution', (payload.mode_reglement_caution || '').toLowerCase());
   setFill('kmInclus', payload.kmInclus);
   setFill('kmInclusParJour', getKmInclusParJour().toLocaleString('fr-FR'));
-  setFill('supplementKm', formatEURPrecis(getSupplementKmCentimes() / 100));
+  setFill('supplementKm', formatEURPrecis((payload.supplementKmCentimes !== undefined ? payload.supplementKmCentimes : getSupplementKmCentimes(false)) / 100));
   setFill('cglVersion', payload.cglVersion || getCglVersion());
   if(payload.second_conducteur === 'Oui'){
     setFill('nom2', (payload.second_conducteur_prenom + ' ' + payload.second_conducteur_nom).trim());
@@ -1576,7 +1613,7 @@ function initDossierAgencyView(token){
       mode_reglement_caution: f.modeCaution === 'especes' ? 'Espèces' : 'Carte bancaire',
       locataire_prenom: r.conducteur ? r.conducteur.prenom : '',
       locataire_nom: r.conducteur ? r.conducteur.nom : '',
-      locataire_naissance: r.conducteur ? r.conducteur.naissance : '',
+      locataire_naissance: r.conducteur ? isoVersJourMoisAnnee(r.conducteur.naissance) : '',
       locataire_adresse: adresseComplete,
       locataire_tel: r.conducteur ? r.conducteur.telephone : '',
       locataire_email: r.conducteur ? r.conducteur.email : '',
@@ -1879,7 +1916,7 @@ function initDossierClientView(token){
       mode_reglement_caution: f.modeCaution === 'especes' ? 'Espèces' : 'Carte bancaire',
       locataire_prenom: r.conducteur ? r.conducteur.prenom : '',
       locataire_nom: r.conducteur ? r.conducteur.nom : '',
-      locataire_naissance: r.conducteur ? r.conducteur.naissance : '',
+      locataire_naissance: r.conducteur ? isoVersJourMoisAnnee(r.conducteur.naissance) : '',
       locataire_adresse: adresseComplete,
       locataire_tel: r.conducteur ? r.conducteur.telephone : '',
       locataire_email: r.conducteur ? r.conducteur.email : '',
@@ -2147,6 +2184,12 @@ function initOwnerView(prefill){
   });
   LIEUX_CONTRAT.forEach(function(l){ selectLieu.add(new Option(l, l)); });
 
+  var selectKmForfait = document.getElementById('kmForfait');
+  selectKmForfait.add(new Option('Aucun forfait — ' + formatEURPrecis(getSupplementKmCentimes(false) / 100) + ' / km au-delà du forfait inclus', ''));
+  KM_PACKAGE_OPTION_IDS.map(getOptionParId).filter(Boolean).forEach(function(o){
+    selectKmForfait.add(new Option(o.nom + ' (' + formatEUR(o.prix) + ', puis ' + formatEURPrecis(getSupplementKmCentimes(true) / 100) + ' / km)', o.id));
+  });
+
   function appliquerPlaque(){
     var v = getVehiculeParId(selectVehicule.value);
     if(v) inputImmat.value = v.immatriculation;
@@ -2303,7 +2346,7 @@ function initOwnerView(prefill){
     if(prefill.retour) inputRetour.value = prefill.retour;
     document.getElementById('prenom').value = prefill.prenom || '';
     document.getElementById('nom').value = prefill.nom || '';
-    document.getElementById('naissance').value = prefill.naissance || '';
+    document.getElementById('naissance').value = isoVersJourMoisAnnee(prefill.naissance);
     document.getElementById('tel').value = prefill.tel || '';
     document.getElementById('email').value = prefill.email || '';
     if(prefill.secondConducteur){
@@ -2395,7 +2438,8 @@ function initOwnerView(prefill){
       montantFinalConvenu: document.getElementById('montantFinalConvenu').value,
       tarifMotif: document.getElementById('tarifMotif').value,
       kmDepart: document.getElementById('kmDepart').value,
-      kmRetour: document.getElementById('kmRetour').value
+      kmRetour: document.getElementById('kmRetour').value,
+      kmForfait: selectKmForfait.value
     };
   }
 
@@ -2495,7 +2539,7 @@ function initOwnerView(prefill){
     if(rawData.depart) inputDepart.value = rawData.depart;
     if(rawData.retour) inputRetour.value = rawData.retour;
 
-    modeCaution = rawData.modeCaution === 'especes' ? 'especes' : 'carte';
+    modeCaution = (rawData.modeCaution === 'especes' || rawData.modeCaution === 'virement') ? rawData.modeCaution : 'carte';
     cautionTabs.querySelectorAll('.tab-btn').forEach(function(b){
       b.classList.toggle('active', b.dataset.mode === modeCaution);
     });
@@ -2547,6 +2591,7 @@ function initOwnerView(prefill){
     document.getElementById('tarifMotif').value = inclureDonneesInstance ? (rawData.tarifMotif || '') : '';
     document.getElementById('kmDepart').value = inclureDonneesInstance ? (rawData.kmDepart || '') : '';
     document.getElementById('kmRetour').value = inclureDonneesInstance ? (rawData.kmRetour || '') : '';
+    selectKmForfait.value = inclureDonneesInstance ? (rawData.kmForfait || '') : '';
 
     updateSummary();
     regenererLien();
@@ -2852,7 +2897,7 @@ function initClientView(data){
     '<div class="recap-row"><span>' + (data.livraison ? 'Livraison' : 'Lieu de prise en charge') + '</span><span>' + lieuAffiche + '</span></div>' +
     '<div class="recap-row"><span>Départ</span><span>' + formatDateHeureFR(data.depart) + '</span></div>' +
     '<div class="recap-row"><span>Retour</span><span>' + formatDateHeureFR(data.retour) + '</span></div>' +
-    '<div class="recap-row"><span>Caution</span><span>' + formatEUR(v.caution) + ' (' + (data.modeCaution === 'carte' ? 'carte bancaire' : 'espèces') + ')</span></div>';
+    '<div class="recap-row"><span>Caution</span><span>' + formatEUR(v.caution) + ' (' + libelleModeCaution(data.modeCaution).toLowerCase() + ')</span></div>';
 
   document.getElementById('c-dureeTxt').textContent = formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours);
   document.getElementById('c-kmTxt').textContent = kmInclus.toLocaleString('fr-FR') + ' km';
@@ -2885,10 +2930,11 @@ function initClientView(data){
   setFill('soldeRestant', formatEUR(0));
   setFill('modePaiement', libelleModePaiement(data.modePaiement).toLowerCase());
   setFill('caution', formatEUR(v.caution));
-  setFill('modeCaution', data.modeCaution === 'carte' ? 'carte bancaire' : 'espèces');
+  setFill('modeCaution', libelleModeCaution(data.modeCaution).toLowerCase());
   setFill('kmInclus', kmInclus.toLocaleString('fr-FR'));
   setFill('kmInclusParJour', getKmInclusParJour().toLocaleString('fr-FR'));
-  setFill('supplementKm', formatEURPrecis(getSupplementKmCentimes() / 100));
+  var aForfaitKmClient = aForfaitKmSupplementaire(optionsDepuisFormulaire(data));
+  setFill('supplementKm', formatEURPrecis(getSupplementKmCentimes(aForfaitKmClient) / 100));
   setFill('cglVersion', getCglVersion());
   if(data.secondConducteur){
     setFill('nom2', data.prenom2 + ' ' + data.nom2);
@@ -2897,12 +2943,12 @@ function initClientView(data){
   }
 
   // Coordonnées bancaires pour la restitution de la caution : uniquement
-  // pertinent pour une caution réglée en espèces (voir cgl.html, article 4
-  // — une caution par carte est libérée par simple mainlevée de la
-  // pré-autorisation, sans virement).
+  // pertinent pour une caution réglée en espèces ou par virement (voir
+  // cgl.html, article 4 — une caution par carte est libérée par simple
+  // mainlevée de la pré-autorisation, sans virement).
   var ribIban = document.getElementById('ribIban');
   var ribTitulaire = document.getElementById('ribTitulaire');
-  if(data.modeCaution === 'especes'){
+  if(cautionNecessiteRib(data.modeCaution)){
     document.getElementById('ribClientBlock').style.display = '';
     ribTitulaire.value = (data.prenom + ' ' + data.nom).trim();
   }
@@ -2910,7 +2956,7 @@ function initClientView(data){
   // récupère alors par un autre moyen avant la restitution de la caution),
   // jamais un frein à la signature du contrat.
   function synchroniserRibDepuisChamps(){
-    if(data.modeCaution === 'especes'){
+    if(cautionNecessiteRib(data.modeCaution)){
       data.ribIban = ribIban.value.trim();
       data.ribTitulaire = ribTitulaire.value.trim();
     }

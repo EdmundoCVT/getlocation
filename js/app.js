@@ -1314,14 +1314,6 @@ function initReservationPage() {
     });
     mileageCard.classList.toggle("is-selected", !!selectedKm);
     mileageCard.appendChild(mileageChoices);
-    const mileageDetails = document.createElement("details");
-    mileageDetails.className = "choice-details mileage-details";
-    const mileageDetailsSummary = document.createElement("summary");
-    mileageDetailsSummary.textContent = "Comparer les forfaits";
-    const mileageDetailsText = document.createElement("p");
-    mileageDetailsText.textContent = "200 km pour une marge ponctuelle, 300 km pour plusieurs escapades, ou 400 km pour un séjour très mobile. Les kilomètres s'ajoutent au forfait déjà inclus dans votre location.";
-    mileageDetails.append(mileageDetailsSummary, mileageDetailsText);
-    mileageCard.appendChild(mileageDetails);
     const moreKm = document.createElement("a");
     moreKm.href = "tel:+33667485430";
     moreKm.className = "more-km-link";
