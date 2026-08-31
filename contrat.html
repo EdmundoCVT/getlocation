@@ -401,6 +401,7 @@
           <button type="button" class="btn" id="copyBtn">📋 Copier</button>
         </div>
         <div class="share-actions hidden" id="shareActions">
+          <a class="btn share-btn" id="openLinkBtn" target="_blank" rel="noopener">🔗 Ouvrir ce lien</a>
           <a class="btn share-btn" id="whatsappBtn" target="_blank" rel="noopener">💬 WhatsApp</a>
           <a class="btn share-btn" id="smsBtn">📱 SMS</a>
           <a class="btn share-btn" id="emailBtn">✉️ E-mail</a>
@@ -2546,6 +2547,12 @@ function initOwnerView(prefill){
     var messageEnc = encodeURIComponent(message);
 
     document.getElementById('shareActions').classList.remove('hidden');
+    // Ouvre directement le lien client dans un nouvel onglet — pour une
+    // signature en face-à-face sur la même tablette/le même téléphone,
+    // sans avoir à passer par WhatsApp/SMS/e-mail. Nouvel onglet (plutôt
+    // que remplacer la page actuelle) pour ne pas perdre le formulaire
+    // agence en cours de saisie.
+    document.getElementById('openLinkBtn').href = url;
     document.getElementById('whatsappBtn').href = 'https://wa.me/?text=' + messageEnc;
     document.getElementById('smsBtn').href = smsHref(messageEnc);
     document.getElementById('emailBtn').href = 'mailto:?subject=' +
