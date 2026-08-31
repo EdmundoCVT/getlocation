@@ -122,7 +122,7 @@ const HEURE_FERMETURE = "23:30";
 // IMPORTANT : cgl.html contient encore des placeholders [à compléter] non
 // résolus (cf. LEGAL-TODO.md) — ce mécanisme trace la version acceptée,
 // il ne garantit pas à lui seul la validité juridique du texte.
-const CGL_VERSION = "2026-07-22";
+const CGL_VERSION = "2026-08-31";
 
 // Réduction selon la durée de location : aucun tarif dégressif en dessous
 // de 5 jours consécutifs ; à partir de 5 jours, réduction fixe de
