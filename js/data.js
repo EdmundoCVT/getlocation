@@ -505,22 +505,15 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
 // calcul serveur faisant foi — voir AUDIT-CROISE-SITE-CONTRAT-2026-08-04.md,
 // finding P0 correspondant). 200 km/jour inchangé.
 //
-// Le tarif de dépassement dépend désormais de l'achat ou non d'un forfait
-// kilométrique supplémentaire (200/300/400 km, voir OPTIONS/KM_PACKAGE_OPTION_IDS
-// ci-dessous) pour CETTE location : 0,65 €/km sans forfait acheté (tarif de
-// base), 0,25 €/km si un forfait a été acheté. Le forfait reste par ailleurs
-// un montant fixe séparé (n'augmente pas kmInclusPourJours) — seul le tarif
-// de dépassement change selon sa présence.
+// Tarif de dépassement unique : 0,65 €/km, que le locataire ait acheté ou
+// non un forfait kilométrique supplémentaire (200/300/400 km, voir OPTIONS/
+// KM_PACKAGE_OPTION_IDS ci-dessous) — ce forfait reste un montant fixe
+// séparé (n'augmente pas kmInclusPourJours et n'influe pas sur ce tarif).
 const KM_INCLUS_PAR_JOUR = 200;
-const SUPPLEMENT_KM_CENTIMES_AVEC_FORFAIT = 25; // 0,25 € / km si un forfait km a été acheté
-const SUPPLEMENT_KM_CENTIMES_SANS_FORFAIT = 65; // 0,65 € / km sinon (tarif de base)
-// Conservé pour compatibilité (ancien tarif unique) : correspond au tarif
-// "avec forfait", jamais utilisé comme tarif faisant foi depuis l'introduction
-// du double tarif ci-dessus — utiliser getSupplementKmCentimes(aForfaitKm).
-const SUPPLEMENT_KM_CENTIMES = SUPPLEMENT_KM_CENTIMES_AVEC_FORFAIT;
+const SUPPLEMENT_KM_CENTIMES = 65; // 0,65 € / km, en centimes pour éviter l'arrondi flottant
 // Identifiants des forfaits kilométriques supplémentaires (voir OPTIONS) —
-// centralisés ici pour que le calcul du tarif de dépassement et l'UI de
-// sélection du forfait (reservation.html, contrat.html) ne divergent jamais.
+// centralisés ici pour que l'UI de sélection du forfait (reservation.html,
+// contrat.html) ne divergue jamais de OPTIONS.
 const KM_PACKAGE_OPTION_IDS = ["km-200", "km-supplementaire", "km-400"];
 
 // Kilomètres inclus dans une location à partir de sa durée facturable (en
@@ -537,17 +530,8 @@ function kmInclusPourJours(jours) {
 function getKmInclusParJour() {
   return KM_INCLUS_PAR_JOUR;
 }
-// aForfaitKm : true si un forfait kilométrique supplémentaire (voir
-// KM_PACKAGE_OPTION_IDS) a été acheté pour CETTE location — détermine le
-// tarif de dépassement applicable (0,25 €/km avec, 0,65 €/km sans).
-function getSupplementKmCentimes(aForfaitKm) {
-  return aForfaitKm ? SUPPLEMENT_KM_CENTIMES_AVEC_FORFAIT : SUPPLEMENT_KM_CENTIMES_SANS_FORFAIT;
-}
-// Détermine si une liste d'options achetées (identifiants ou objets {id})
-// contient un forfait kilométrique supplémentaire.
-function aForfaitKmSupplementaire(options) {
-  if (!Array.isArray(options)) return false;
-  return options.some((o) => KM_PACKAGE_OPTION_IDS.includes(typeof o === "string" ? o : o && o.id));
+function getSupplementKmCentimes() {
+  return SUPPLEMENT_KM_CENTIMES;
 }
 function getCglVersion() {
   return CGL_VERSION;
@@ -564,16 +548,11 @@ function getAgence() {
 // src/api/contract-dossier-agency.js) pour recalculer et faire foi, jamais
 // une valeur transmise telle quelle par le navigateur.
 //
-// aForfaitKm : true si un forfait kilométrique supplémentaire a été acheté
-// pour cette location (voir aForfaitKmSupplementaire()) — détermine le tarif
-// de dépassement appliqué (0,25 €/km avec, 0,65 €/km sans, valeur par défaut
-// si omis : sans forfait, le cas de base).
-//
 // Retourne { valid: false, error } si les relevés sont manquants ou
 // incohérents (retour inférieur au départ) ; sinon { valid: true, kmInclus,
 // kmParcourus, kmDepasses, supplementKmCentimes, supplementCentimes,
 // supplement }.
-function calculerKilometrage({ kmDepart, kmRetour, jours, aForfaitKm }) {
+function calculerKilometrage({ kmDepart, kmRetour, jours }) {
   if (!Number.isFinite(kmDepart) || kmDepart < 0) {
     return { valid: false, error: "Kilométrage de départ manquant ou invalide" };
   }
@@ -589,7 +568,7 @@ function calculerKilometrage({ kmDepart, kmRetour, jours, aForfaitKm }) {
   const kmInclus = kmInclusPourJours(jours);
   const kmParcourus = kmRetour - kmDepart;
   const kmDepasses = Math.max(kmParcourus - kmInclus, 0);
-  const supplementKmCentimes = getSupplementKmCentimes(aForfaitKm);
+  const supplementKmCentimes = SUPPLEMENT_KM_CENTIMES;
   const supplementCentimes = Math.round(kmDepasses * supplementKmCentimes);
   return {
     valid: true,
@@ -643,13 +622,10 @@ if (typeof module !== "undefined" && module.exports) {
     calculerPrixTotal,
     KM_INCLUS_PAR_JOUR,
     SUPPLEMENT_KM_CENTIMES,
-    SUPPLEMENT_KM_CENTIMES_AVEC_FORFAIT,
-    SUPPLEMENT_KM_CENTIMES_SANS_FORFAIT,
     KM_PACKAGE_OPTION_IDS,
     kmInclusPourJours,
     getKmInclusParJour,
     getSupplementKmCentimes,
-    aForfaitKmSupplementaire,
     getCglVersion,
     getAgence,
     calculerKilometrage

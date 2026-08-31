@@ -155,8 +155,7 @@ test("construirePayload : km départ+retour cohérents => calcul via calculerKil
   assert.equal(r.kmInclus, win.getKmInclusParJour() * 2); // 2 jours facturables
   assert.equal(r.kmDepasses, 840 - win.getKmInclusParJour() * 2);
   assert.ok(r.kmDepasses > 0);
-  // Aucun forfait km sélectionné dans donneesBase => tarif "sans forfait" (0,65 €/km).
-  assert.equal(r.supplement, Math.round(r.kmDepasses * win.getSupplementKmCentimes(false)) / 100);
+  assert.equal(r.supplement, Math.round(r.kmDepasses * win.getSupplementKmCentimes()) / 100);
 });
 
 test("construirePayload : km retour < départ => resultat.valid=false avec message, aucun crash", () => {
@@ -169,8 +168,5 @@ test("construirePayload : km retour < départ => resultat.valid=false avec messa
 test("kilometrageManuel utilise le tarif canonique de js/data.js, pas une valeur recodée en dur", () => {
   const win = buildWindow();
   assert.equal(win.getKmInclusParJour(), 200);
-  // Double tarif de dépassement : 0,25 €/km avec un forfait km acheté,
-  // 0,65 €/km sans (tarif de base).
-  assert.equal(win.getSupplementKmCentimes(true), 25);
-  assert.equal(win.getSupplementKmCentimes(false), 65);
+  assert.equal(win.getSupplementKmCentimes(), 65);
 });

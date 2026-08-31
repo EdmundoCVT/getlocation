@@ -274,7 +274,7 @@
           <div class="field full">
             <label for="kmForfait">Forfait kilométrique supplémentaire acheté</label>
             <select id="kmForfait"></select>
-            <small>Détermine le tarif de dépassement appliqué au-delà du kilométrage inclus (voir CGL).</small>
+            <small>Montant fixe facturé en plus, sans lien avec le tarif de dépassement (0,65 €/km au-delà du kilométrage inclus, voir CGL).</small>
           </div>
           <div class="field">
             <label for="kmDepart">Kilométrage départ</label>
@@ -1004,12 +1004,6 @@ function construirePayload(data, sigData, stamp){
     detailFinancier.push(['TOTAL', formatEUR(total)]);
   }
 
-  // Tarif de dépassement applicable à CETTE location (voir
-  // aForfaitKmSupplementaire()/getSupplementKmCentimes() dans js/data.js) :
-  // 0,25 €/km si un forfait km a été acheté (selectKmForfait), 0,65 €/km
-  // sinon.
-  var aForfaitKm = aForfaitKmSupplementaire(optionsDepuisFormulaire(data));
-
   // État kilométrique manuel (nom délibérément distinct de
   // `kilometrageResultat`, réservé au flux "dossier" des réservations
   // payées, pour garantir qu'aucun des deux flux ne puisse jamais afficher
@@ -1021,7 +1015,7 @@ function construirePayload(data, sigData, stamp){
       kmDepart: data.kmDepart,
       kmRetour: data.kmRetour || '',
       resultat: (data.kmRetour !== undefined && data.kmRetour !== '')
-        ? calculerKilometrage({ kmDepart: Number(data.kmDepart), kmRetour: Number(data.kmRetour), jours: jours, aForfaitKm: aForfaitKm })
+        ? calculerKilometrage({ kmDepart: Number(data.kmDepart), kmRetour: Number(data.kmRetour), jours: jours })
         : null
     };
   }
@@ -1040,7 +1034,7 @@ function construirePayload(data, sigData, stamp){
     duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
     detailFinancier: detailFinancier,
     kilometrageManuel: kilometrageManuel,
-    supplementKmCentimes: getSupplementKmCentimes(aForfaitKm),
+    supplementKmCentimes: getSupplementKmCentimes(),
     total: formatEUR(total),
     montantRegle: formatEUR(montantRegleNombre),
     soldeRestant: formatEUR(soldeNombre),
@@ -1103,7 +1097,7 @@ function remplirTexteArticles(payload){
   setFill('modeCaution', (payload.mode_reglement_caution || '').toLowerCase());
   setFill('kmInclus', payload.kmInclus);
   setFill('kmInclusParJour', getKmInclusParJour().toLocaleString('fr-FR'));
-  setFill('supplementKm', formatEURPrecis((payload.supplementKmCentimes !== undefined ? payload.supplementKmCentimes : getSupplementKmCentimes(false)) / 100));
+  setFill('supplementKm', formatEURPrecis((payload.supplementKmCentimes !== undefined ? payload.supplementKmCentimes : getSupplementKmCentimes()) / 100));
   setFill('cglVersion', payload.cglVersion || getCglVersion());
   if(payload.second_conducteur === 'Oui'){
     setFill('nom2', (payload.second_conducteur_prenom + ' ' + payload.second_conducteur_nom).trim());
@@ -2185,9 +2179,9 @@ function initOwnerView(prefill){
   LIEUX_CONTRAT.forEach(function(l){ selectLieu.add(new Option(l, l)); });
 
   var selectKmForfait = document.getElementById('kmForfait');
-  selectKmForfait.add(new Option('Aucun forfait — ' + formatEURPrecis(getSupplementKmCentimes(false) / 100) + ' / km au-delà du forfait inclus', ''));
+  selectKmForfait.add(new Option('Aucun forfait', ''));
   KM_PACKAGE_OPTION_IDS.map(getOptionParId).filter(Boolean).forEach(function(o){
-    selectKmForfait.add(new Option(o.nom + ' (' + formatEUR(o.prix) + ', puis ' + formatEURPrecis(getSupplementKmCentimes(true) / 100) + ' / km)', o.id));
+    selectKmForfait.add(new Option(o.nom + ' (' + formatEUR(o.prix) + ')', o.id));
   });
 
   function appliquerPlaque(){
@@ -2933,8 +2927,7 @@ function initClientView(data){
   setFill('modeCaution', libelleModeCaution(data.modeCaution).toLowerCase());
   setFill('kmInclus', kmInclus.toLocaleString('fr-FR'));
   setFill('kmInclusParJour', getKmInclusParJour().toLocaleString('fr-FR'));
-  var aForfaitKmClient = aForfaitKmSupplementaire(optionsDepuisFormulaire(data));
-  setFill('supplementKm', formatEURPrecis(getSupplementKmCentimes(aForfaitKmClient) / 100));
+  setFill('supplementKm', formatEURPrecis(getSupplementKmCentimes() / 100));
   setFill('cglVersion', getCglVersion());
   if(data.secondConducteur){
     setFill('nom2', data.prenom2 + ' ' + data.nom2);
