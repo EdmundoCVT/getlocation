@@ -372,6 +372,24 @@
       </div>
 
       <div class="card">
+        <h2>État des lieux — photos</h2>
+        <p class="lead" style="margin-bottom:10px;">Ajoutez des photos au départ et au retour du véhicule (depuis la photothèque ou directement avec l'appareil photo) — elles sont intégrées en pages supplémentaires du PDF du contrat, jamais envoyées ni stockées ailleurs.</p>
+        <p class="hint-text" style="margin-bottom:10px;">JPG ou PNG, 8 Mo maximum par photo, 20 photos maximum au total.</p>
+        <div class="grid">
+          <div class="field">
+            <label for="photosDepart">Photos — départ</label>
+            <input type="file" id="photosDepart" accept="image/*" multiple>
+          </div>
+          <div class="field">
+            <label for="photosRetour">Photos — retour</label>
+            <input type="file" id="photosRetour" accept="image/*" multiple>
+          </div>
+        </div>
+        <p class="meta-line" id="photosEtatDesLieuxCompte" style="margin-top:8px;"></p>
+        <p class="meta-line error-text" id="photosEtatDesLieuxErreur" style="display:none;"></p>
+      </div>
+
+      <div class="card">
         <h2>Aperçu PDF</h2>
         <p class="lead" style="margin-bottom:10px;">Téléchargez un aperçu du contrat à tout moment, avec les informations déjà saisies ci-dessus — pas besoin d'attendre que le client ait ouvert le lien ni qu'il ait signé.</p>
         <button type="button" class="btn btn-primary" id="downloadPdfBtn">📄 Télécharger le PDF</button>
@@ -444,6 +462,7 @@
         <p>Un dépôt de garantie de <span class="fill" data-fill="caution">…</span> est prélevé avant remise des clés, réglé par <span class="fill" data-fill="modeCaution">…</span>. Le véhicule est couvert par une assurance responsabilité civile et les garanties complémentaires en vigueur, souscrites auprès d'Allianz Assurance ; les franchises applicables en cas de sinistre responsable, de vol ou de bris de glace ne sont pas nécessairement égales à ce dépôt de garantie — leurs montants sont précisés dans les Conditions Générales de Location. Un état des lieux (photos, kilométrage, niveau de carburant) est réalisé au départ et à la restitution ; toute dégradation non mentionnée au départ sera facturée sur devis.</p>
         <p>À la restitution du véhicule et après validation de l'état des lieux de retour contradictoire : pour une caution réglée par empreinte bancaire (pré-autorisation), la mainlevée est ordonnée par GETLOCATION sous 7 jours ouvrables. Pour une caution réglée en espèces, le dépôt de garantie est restitué par virement bancaire, sur le RIB fourni par le locataire, sous 7 jours ouvrables minimum — aucun remboursement en espèces n'est effectué sur place au moment du retour. En cas de dégradation, de nettoyage requis, de carburant manquant ou d'infraction constatée, GETLOCATION peut conserver tout ou partie du dépôt de garantie le temps d'évaluer les frais, dans la limite de 30 jours (voir le détail complet dans les Conditions Générales de Location).</p>
         <p id="secondConducteurClause" style="display:none;">Un second conducteur, <span class="fill" data-fill="nom2">…</span> (permis n° <span class="fill" data-fill="permis2">…</span>), est autorisé à conduire le véhicule dans les mêmes conditions que le locataire principal, qui reste seul responsable vis-à-vis du présent contrat.</p>
+        <p id="ribClientClause" style="display:none;">Coordonnées bancaires communiquées par le locataire pour la restitution du dépôt de garantie : IBAN <span class="fill" data-fill="ribIban">…</span>, titulaire <span class="fill" data-fill="ribTitulaire">…</span>.</p>
         <h3>Article 5 — Restitution, retard et incidents</h3>
         <p>Le véhicule doit être restitué au lieu, à la date et à l'heure convenus. Tout retard non signalé au préalable est facturé conformément au barème prévu par les Conditions Générales de Location — aucun montant n'est fixé unilatéralement en dehors de ce barème. En cas d'accident, de panne, de vol ou de tout autre incident, le locataire contacte immédiatement GETLOCATION au <a href="tel:+33667485430">+33 6 67 48 54 30</a> et suit la procédure décrite dans les Conditions Générales de Location.</p>
         <h3>Article 6 — Acceptation des Conditions Générales de Location</h3>
@@ -455,6 +474,21 @@
         <p style="display:none;">
           <label>Ne pas remplir : <input name="site-web"></label>
         </p>
+
+        <div id="ribClientBlock" style="display:none;margin-top:22px;padding-top:22px;border-top:1px dashed var(--ligne);">
+          <h2 style="margin:0 0 10px;">Coordonnées bancaires (restitution de la caution)</h2>
+          <p class="meta-line" style="margin-bottom:12px;">Le dépôt de garantie étant réglé en espèces, indiquez le RIB sur lequel il devra vous être restitué (voir Article 4).</p>
+          <div class="grid">
+            <div class="field">
+              <label for="ribIban">IBAN</label>
+              <input type="text" id="ribIban" placeholder="FR76 XXXX XXXX XXXX XXXX XXXX XXX" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="ribTitulaire">Titulaire du compte</label>
+              <input type="text" id="ribTitulaire" placeholder="Nom Prénom">
+            </div>
+          </div>
+        </div>
 
         <h2 style="margin-top:22px;padding-top:22px;border-top:1px dashed var(--ligne);">Signature</h2>
         <div class="check-row">
@@ -996,7 +1030,10 @@ function construirePayload(data, sigData, stamp){
     notes: data.notes || '',
     cglVersion: getCglVersion(),
     horodatage_signature: stamp || '',
-    signature_image: sigData || ''
+    signature_image: sigData || '',
+    rib_iban: data.ribIban || '',
+    rib_titulaire: data.ribTitulaire || '',
+    photosEtatDesLieux: data.photosEtatDesLieux || []
   };
 }
 
@@ -1035,6 +1072,12 @@ function remplirTexteArticles(payload){
     setFill('permis2', payload.second_conducteur_permis);
     var clause = document.getElementById('secondConducteurClause');
     if(clause) clause.style.display = '';
+  }
+  if(payload.rib_iban){
+    setFill('ribIban', payload.rib_iban);
+    setFill('ribTitulaire', payload.rib_titulaire || (payload.locataire_prenom + ' ' + payload.locataire_nom).trim());
+    var ribClause = document.getElementById('ribClientClause');
+    if(ribClause) ribClause.style.display = '';
   }
 }
 
@@ -1363,6 +1406,25 @@ function genererPDF(payload, estApercu){
     doc.setFont('helvetica','italic'); doc.setFontSize(9.5); doc.setTextColor(242,118,12);
     doc.text('En attente de signature du client.', margin, y);
   }
+
+  // ---- Pages photos état des lieux (une page par photo, image
+  // pré-redimensionnée et convertie en dataURL côté agence — voir
+  // lireImagesEnDataUrl()/ajouterPhotosAuPayload() plus bas). Jamais
+  // envoyées à un serveur : uniquement embarquées dans ce PDF. ----
+  (payload.photosEtatDesLieux || []).forEach(function(photo){
+    doc.addPage(); y = margin;
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(26,47,82);
+    doc.text('État des lieux — ' + photo.label, margin, y);
+    y += 16;
+    try{
+      var maxW = pageWidth - margin * 2;
+      var maxH = pageHeight - y - margin;
+      var ratio = Math.min(maxW / photo.width, maxH / photo.height);
+      var w = photo.width * ratio, h = photo.height * ratio;
+      var x = margin + (maxW - w) / 2;
+      doc.addImage(photo.dataUrl, 'JPEG', x, y, w, h, undefined, 'FAST');
+    } catch(e){}
+  });
 
   // ---- Pied de page + numérotation, appliqués une fois le nombre total de
   // pages connu (impossible de le savoir avant la fin du document). Le
@@ -2014,6 +2076,54 @@ if(agencyToken){
   initOwnerView(prefillEncoded ? decodeData(prefillEncoded) : null);
 }
 
+// Lit une liste de fichiers image et les convertit en dataURL JPEG
+// redimensionnées (côté navigateur, jamais envoyées à un serveur) pour
+// garder un PDF de taille raisonnable même avec plusieurs photos issues
+// directement de l'appareil photo (plusieurs Mo chacune à l'origine) — voir
+// genererPDF(), section "Pages photos état des lieux".
+var PHOTO_MAX_DIMENSION = 1600;
+var PHOTO_MAX_SIZE = 8 * 1024 * 1024;
+var PHOTO_MAX_COUNT = 20;
+
+function redimensionnerImage(file, label){
+  return new Promise(function(resolve, reject){
+    if(!file.type || file.type.indexOf('image/') !== 0){ reject(new Error(file.name + ' : format non supporté (photo attendue)')); return; }
+    if(file.size > PHOTO_MAX_SIZE){ reject(new Error(file.name + ' dépasse 8 Mo')); return; }
+    var reader = new FileReader();
+    reader.onerror = function(){ reject(new Error(file.name + ' : lecture impossible')); };
+    reader.onload = function(){
+      var img = new Image();
+      img.onerror = function(){ reject(new Error(file.name + ' : image invalide')); };
+      img.onload = function(){
+        var ratio = Math.min(1, PHOTO_MAX_DIMENSION / Math.max(img.width, img.height));
+        var w = Math.round(img.width * ratio), h = Math.round(img.height * ratio);
+        var canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.82), width: w, height: h, label: label });
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Lit les deux champs "Photos — départ/retour" de la vue AGENCE et renvoie
+// une promesse résolue avec le tableau attendu par genererPDF()
+// (payload.photosEtatDesLieux). Rejetée avec un message lisible si un
+// fichier est invalide ou si la limite de 20 photos est dépassée.
+function lireImagesEtatDesLieux(){
+  var inputDepart = document.getElementById('photosDepart');
+  var inputRetour = document.getElementById('photosRetour');
+  if(!inputDepart || !inputRetour) return Promise.resolve([]);
+  var fichiers = [];
+  Array.prototype.forEach.call(inputDepart.files || [], function(f){ fichiers.push({ file: f, label: 'Départ' }); });
+  Array.prototype.forEach.call(inputRetour.files || [], function(f){ fichiers.push({ file: f, label: 'Retour' }); });
+  if(fichiers.length === 0) return Promise.resolve([]);
+  if(fichiers.length > PHOTO_MAX_COUNT) return Promise.reject(new Error('20 photos maximum au total (départ + retour)'));
+  return Promise.all(fichiers.map(function(f){ return redimensionnerImage(f.file, f.label); }));
+}
+
 function initOwnerView(prefill){
   var selectVehicule = document.getElementById('vehicule');
   var inputImmat = document.getElementById('immat');
@@ -2279,9 +2389,41 @@ function initOwnerView(prefill){
     };
   }
 
+  // Partagé par "Télécharger le PDF" et "Générer le contrat officiel" : lit
+  // les photos état des lieux sélectionnées (asynchrone — FileReader) avant
+  // de générer le PDF, avec un message d'erreur clair en cas de fichier
+  // invalide plutôt qu'un échec silencieux.
+  function avecPhotosEtatDesLieux(callback){
+    var erreurEl = document.getElementById('photosEtatDesLieuxErreur');
+    erreurEl.style.display = 'none';
+    return lireImagesEtatDesLieux().then(function(photos){
+      callback(photos);
+    }).catch(function(err){
+      erreurEl.textContent = err.message;
+      erreurEl.style.display = '';
+    });
+  }
+
   document.getElementById('downloadPdfBtn').addEventListener('click', function(){
-    genererPDF(construirePayload(lireDonneesFormulaire(), null, null), true);
+    var btn = this;
+    btn.disabled = true;
+    avecPhotosEtatDesLieux(function(photos){
+      var data = lireDonneesFormulaire();
+      data.photosEtatDesLieux = photos;
+      genererPDF(construirePayload(data, null, null), true);
+    }).finally(function(){ btn.disabled = false; });
   });
+
+  function majCompteurPhotos(){
+    var depart = (document.getElementById('photosDepart').files || []).length;
+    var retour = (document.getElementById('photosRetour').files || []).length;
+    var total = depart + retour;
+    document.getElementById('photosEtatDesLieuxCompte').textContent = total
+      ? total + ' photo' + (total > 1 ? 's' : '') + ' sélectionnée' + (total > 1 ? 's' : '') + ' (' + depart + ' départ, ' + retour + ' retour)'
+      : '';
+  }
+  document.getElementById('photosDepart').addEventListener('change', majCompteurPhotos);
+  document.getElementById('photosRetour').addEventListener('change', majCompteurPhotos);
 
   function escapeHtml(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
@@ -2421,31 +2563,37 @@ function initOwnerView(prefill){
       alert('Le kilométrage de retour doit être supérieur ou égal au kilométrage de départ.');
       return;
     }
-    var rawData = lireDonneesFormulaire();
     var btn = document.getElementById('genererContratBtn');
     btn.disabled = true;
 
-    var enEdition = !!contratEnCoursId;
-    var url = enEdition ? '/api/contracts-manual-update' : '/api/contracts-manual-create';
-    var corps = enEdition ? { id: contratEnCoursId, rawData: rawData } : { rawData: rawData };
+    // Les photos état des lieux ne sont jamais envoyées à
+    // /api/contracts-manual-create|update (rawData) : uniquement embarquées
+    // dans le PDF généré localement — voir genererPDF().
+    avecPhotosEtatDesLieux(function(photos){
+      var rawData = lireDonneesFormulaire();
 
-    appelApiContrat(url, corps)
-      .then(function(result){
-        var payload = construirePayload(rawData, null, null);
-        payload.numero = result.numero;
-        genererPDF(payload, false);
-        var msg = document.getElementById('numeroGenereMsg');
-        msg.textContent = enEdition
-          ? 'Contrat ' + result.numero + ' mis à jour ✓'
-          : 'Contrat ' + result.numero + ' généré ✓';
-        msg.classList.remove('hidden');
-        if(enEdition) sortirModeEdition();
-        chargerHistorique();
-      })
-      .catch(function(err){
-        alert(decrireEchecRequete(err));
-      })
-      .finally(function(){ btn.disabled = false; });
+      var enEdition = !!contratEnCoursId;
+      var url = enEdition ? '/api/contracts-manual-update' : '/api/contracts-manual-create';
+      var corps = enEdition ? { id: contratEnCoursId, rawData: rawData } : { rawData: rawData };
+
+      appelApiContrat(url, corps)
+        .then(function(result){
+          var payload = construirePayload(rawData, null, null);
+          payload.numero = result.numero;
+          payload.photosEtatDesLieux = photos;
+          genererPDF(payload, false);
+          var msg = document.getElementById('numeroGenereMsg');
+          msg.textContent = enEdition
+            ? 'Contrat ' + result.numero + ' mis à jour ✓'
+            : 'Contrat ' + result.numero + ' généré ✓';
+          msg.classList.remove('hidden');
+          if(enEdition) sortirModeEdition();
+          chargerHistorique();
+        })
+        .catch(function(err){
+          alert(decrireEchecRequete(err));
+        });
+    }).finally(function(){ btn.disabled = false; });
   });
 
   var historiqueContrats = [];
@@ -2629,6 +2777,7 @@ function initClientView(data){
   }
 
   document.getElementById('previewPdfBtn').addEventListener('click', function(){
+    synchroniserRibDepuisChamps();
     genererPDF(construirePayload(data, null, null), true);
   });
 
@@ -2682,6 +2831,28 @@ function initClientView(data){
     setFill('nom2', data.prenom2 + ' ' + data.nom2);
     setFill('permis2', data.permis2);
     document.getElementById('secondConducteurClause').style.display = '';
+  }
+
+  // Coordonnées bancaires pour la restitution de la caution : uniquement
+  // pertinent pour une caution réglée en espèces (voir cgl.html, article 4
+  // — une caution par carte est libérée par simple mainlevée de la
+  // pré-autorisation, sans virement).
+  var ribIban = document.getElementById('ribIban');
+  var ribTitulaire = document.getElementById('ribTitulaire');
+  if(data.modeCaution === 'especes'){
+    document.getElementById('ribClientBlock').style.display = '';
+    ribIban.required = true;
+    ribTitulaire.value = (data.prenom + ' ' + data.nom).trim();
+  }
+  function synchroniserRibDepuisChamps(){
+    if(data.modeCaution === 'especes'){
+      data.ribIban = ribIban.value.trim();
+      data.ribTitulaire = ribTitulaire.value.trim();
+    }
+  }
+  function ibanPlausible(valeur){
+    var normalise = String(valeur || '').replace(/\s+/g, '').toUpperCase();
+    return /^[A-Z]{2}[0-9A-Z]{13,32}$/.test(normalise);
   }
 
   var canvas = document.getElementById('pad');
@@ -2754,6 +2925,12 @@ function initClientView(data){
   form.addEventListener('submit', function(e){
     e.preventDefault();
     if(!hasSignature || !accept.checked){ updateSubmitState(); return; }
+    if(data.modeCaution === 'especes' && !ibanPlausible(ribIban.value)){
+      alert('Merci de saisir un IBAN valide pour la restitution de la caution en espèces.');
+      ribIban.focus();
+      return;
+    }
+    synchroniserRibDepuisChamps();
 
     var now = new Date();
     var stamp = now.toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' }) +
