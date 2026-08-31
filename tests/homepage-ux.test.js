@@ -38,7 +38,11 @@ test("la homepage ne présente pas de section d'avis tant qu'ils ne sont pas dis
 test("les CTA principaux utilisent des libellés cohérents", () => {
   const availabilityCtas = [...document.querySelectorAll("a, button")]
     .filter((element) => element.textContent.trim() === "Voir les véhicules disponibles");
-  assert.equal(availabilityCtas.length, 3);
+  // Le CTA principal du hero utilise désormais "Trouver mon véhicule"
+  // (positionnement §12 de la mission catalogue v2) ; les deux autres CTA
+  // de recherche/disponibilités restent inchangés.
+  assert.equal(availabilityCtas.length, 2);
+  assert.equal(document.querySelector(".hero-cta .btn-primary").textContent.trim(), "Trouver mon véhicule");
   assert.doesNotMatch(document.body.textContent, /Réserver maintenant|Voir la flotte|>Découvrir</);
 });
 
@@ -56,7 +60,9 @@ test("les détails tarifaires ne sont pas affichés avant la recherche", () => {
 
 test("le sélecteur de véhicule utilise des icônes vectorielles sans emoji", () => {
   const toggle = document.getElementById("vehicle-type-toggle");
-  assert.equal(toggle.querySelectorAll(".vt-icon svg").length, 2);
+  // Trois familles désormais : Voitures / Utilitaires / Sans permis (voir
+  // FAMILLES_VEHICULE dans js/data.js et la mission catalogue v2, §2).
+  assert.equal(toggle.querySelectorAll(".vt-icon svg").length, 3);
   assert.doesNotMatch(toggle.textContent, /🚗|🚐/);
 });
 

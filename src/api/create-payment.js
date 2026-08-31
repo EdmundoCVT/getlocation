@@ -153,6 +153,18 @@ async function handleCreatePayment(request, env) {
     return new Response(JSON.stringify({ error: "Requête invalide", details: errors }), { status: 400, headers });
   }
 
+  // Garde bookingMode (voir js/data.js) : un véhicule qui n'est pas en
+  // réservation immédiate ne doit jamais pouvoir initier un paiement, quoi
+  // que le client envoie (URL, localStorage, requête forgée). Tous les
+  // véhicules actuels sont en "instant" — ce contrôle protège l'ajout futur
+  // de véhicules en "request" (demande de réservation, sans paiement).
+  if (vehicule.bookingMode && vehicule.bookingMode !== "instant") {
+    return new Response(
+      JSON.stringify({ error: "Ce véhicule nécessite une demande de réservation : le paiement en ligne n'est pas disponible.", code: "booking_mode_not_instant" }),
+      { status: 403, headers }
+    );
+  }
+
   // Le prix qui fait foi est recalculé uniquement à partir des champs déjà
   // validés/normalisés ci-dessus (options, codePromo) — jamais depuis
   // `payload.options`/`payload.codePromo` bruts, qui pourraient contenir des
