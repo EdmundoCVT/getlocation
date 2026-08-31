@@ -68,6 +68,45 @@ function libelleAdresseLivraison(value) {
 
 const CATEGORIES = ["Citadine", "SUV", "Utilitaire"];
 
+// Nouvelle architecture commerciale à deux niveaux (famille -> type),
+// utilisée par le moteur de recherche et les filtres de la page véhicules
+// (voir js/app.js). S'ajoute aux champs historiques ci-dessus
+// (categorie/carburant/hybride/transmission), qui restent la source de
+// vérité pour les contrats et les grilles HTML en dur
+// (scripts/check-vehicle-grid-sync.js) — jamais renommés ni supprimés.
+// Centralisée ici : ajouter un type ou une famille se fait à un seul
+// endroit, sans reconstruire le moteur de recherche ni les filtres.
+const FAMILLES_VEHICULE = [
+  { id: "car", label: "Voitures" },
+  { id: "utility", label: "Utilitaires" },
+  { id: "license-free", label: "Sans permis" }
+];
+
+// Types de voitures (niveau 2, uniquement pour vehicleFamily = "car").
+// Liste volontairement extensible : un type sans véhicule associé reste
+// affiché comme filtre (le client voit l'étendue de l'offre), il retourne
+// simplement une liste vide tant qu'aucun véhicule ne lui correspond.
+const TYPES_VOITURE = [
+  { id: "citadine", label: "Citadine" },
+  { id: "suv", label: "SUV / 4x4" },
+  { id: "berline", label: "Berline" },
+  { id: "minibus", label: "Minibus" },
+  { id: "premium", label: "Premium" }
+];
+
+// Motorisation — critère transversal aux types de voitures (ex. SUV
+// électrique, citadine hybride), plutôt qu'une catégorie en soi.
+const CARBURANTS = [
+  { id: "petrol", label: "Essence" },
+  { id: "diesel", label: "Diesel" },
+  { id: "hybrid", label: "Hybride" },
+  { id: "electric", label: "Électrique" }
+];
+
+function getFamillesVehicule() { return FAMILLES_VEHICULE; }
+function getTypesVoiture() { return TYPES_VOITURE; }
+function getCarburants() { return CARBURANTS; }
+
 // Horaires de prise en charge / restitution : disponible 24h/24 sur
 // rendez-vous (évolution prévue vers un système de déverrouillage par
 // smartphone, sans horaires fixes à terme).
@@ -175,6 +214,18 @@ const VEHICULES = [
     immatriculation: "HJ-967-KQ",
     annee: 2026,
     categorie: "Citadine",
+    // Nouvelle architecture (voir FAMILLES_VEHICULE/TYPES_VOITURE/CARBURANTS
+    // plus haut) : vehicleFamily/type/fuel sont dérivés des champs
+    // historiques ci-dessus, jamais divergents. source="internal" (véhicule
+    // exploité directement par GET LOCATION) et bookingMode="instant"
+    // (paiement en ligne immédiat) décrivent une réalité opérationnelle
+    // interne, jamais affichée telle quelle au client (voir js/app.js).
+    vehicleFamily: "car",
+    type: "citadine",
+    fuel: "petrol",
+    source: "internal",
+    bookingMode: "instant",
+    modelGuaranteed: true,
     emoji: "🚗",
     photo: "images/opel-corsa.jpg",
     photoCutout: "images/opel-corsa-cutout.webp",
@@ -206,6 +257,12 @@ const VEHICULES = [
     immatriculation: "HK-493-ZN",
     annee: 2026,
     categorie: "SUV",
+    vehicleFamily: "car",
+    type: "suv",
+    fuel: "hybrid",
+    source: "internal",
+    bookingMode: "instant",
+    modelGuaranteed: true,
     emoji: "🚙",
     photo: "images/peugeot-2008-hybrid.jpg",
     photoCutout: "images/peugeot-2008-hybrid-cutout.webp",
@@ -233,6 +290,12 @@ const VEHICULES = [
     immatriculation: "HK-085-LQ",
     annee: 2026,
     categorie: "SUV",
+    vehicleFamily: "car",
+    type: "suv",
+    fuel: "hybrid",
+    source: "internal",
+    bookingMode: "instant",
+    modelGuaranteed: true,
     emoji: "🚙",
     photo: "images/peugeot-3008.jpg",
     photoCutout: "images/peugeot-3008-cutout-veh.webp",
@@ -260,6 +323,15 @@ const VEHICULES = [
     immatriculation: "HK-619-XA",
     annee: 2026,
     categorie: "Utilitaire",
+    // Famille "utility" : pas de sous-type standardisé pour l'instant (voir
+    // TYPES_VOITURE — l'équivalent utilitaire reste à définir, cf. mission
+    // §6). "type" reste donc null plutôt qu'une valeur inventée.
+    vehicleFamily: "utility",
+    type: null,
+    fuel: null,
+    source: "internal",
+    bookingMode: "instant",
+    modelGuaranteed: true,
     emoji: "🚐",
     photo: "images/toyota-proace-city.jpg",
     photos: [
@@ -511,6 +583,12 @@ if (typeof module !== "undefined" && module.exports) {
     VILLES_LIVRAISON,
     LIEUX,
     CATEGORIES,
+    FAMILLES_VEHICULE,
+    TYPES_VOITURE,
+    CARBURANTS,
+    getFamillesVehicule,
+    getTypesVoiture,
+    getCarburants,
     VEHICULES,
     HEURE_OUVERTURE,
     HEURE_FERMETURE,

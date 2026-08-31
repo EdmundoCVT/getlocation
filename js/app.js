@@ -286,10 +286,11 @@ function initSearchForm() {
   const selectAdresseRetour = document.getElementById("adresse-retour");
   const toggleTypeVehicule = document.getElementById("vehicle-type-toggle");
 
-  // Sélecteur "Voiture / Utilitaire" : choix exclusif, "voiture" par défaut
-  // (regroupe Citadine + SUV). Pré-filtre la catégorie affichée sur
-  // vehicules.html (voir initVehiculesPage) sans dupliquer le catalogue.
-  let typeVehicule = "voiture";
+  // Sélecteur de famille (Voitures / Utilitaires / Sans permis, voir
+  // FAMILLES_VEHICULE dans js/data.js) : choix exclusif, "car" par défaut.
+  // Pré-filtre la famille affichée sur vehicules.html (voir
+  // initVehiculesPage) sans dupliquer le catalogue.
+  let typeVehicule = "car";
   if (toggleTypeVehicule) {
     const optionsType = toggleTypeVehicule.querySelectorAll(".vt-option");
     optionsType.forEach(btn => {
@@ -548,36 +549,139 @@ function initVehiculesPage() {
   updateInfoBar();
 
   const filterBar = document.getElementById("filter-bar");
-  // Pré-sélectionne la catégorie "Utilitaire" si c'est le choix fait dans le
-  // sélecteur "Voiture / Utilitaire" de la page de recherche (voir
-  // initSearchForm) ; sinon on part de "Toutes" comme avant, le client garde
-  // la main via les puces de filtre ci-dessous.
-  let activeCategorie = recherche.typeVehicule === "utilitaire" ? "Utilitaire" : "Toutes";
+
+  // Famille (Voitures/Utilitaires/Sans permis, voir FAMILLES_VEHICULE dans
+  // js/data.js) : pré-sélectionnée depuis le choix fait sur la page de
+  // recherche (voir initSearchForm). Compatibilité avec les anciennes
+  // valeurs stockées ("voiture"/"utilitaire") pour ne pas casser une
+  // recherche déjà en cours dans le navigateur d'un client au moment de la
+  // mise en ligne de cette nouvelle architecture.
+  const FAMILY_COMPAT = { voiture: "car", utilitaire: "utility" };
+  let activeFamily = FAMILY_COMPAT[recherche.typeVehicule]
+    || (FAMILLES_VEHICULE.some(f => f.id === recherche.typeVehicule) ? recherche.typeVehicule : "car");
+  // Filtres additionnels, uniquement pertinents pour la famille "car" (voir
+  // mission §5/§6/§7 : les utilitaires et les sans-permis ont une
+  // expérience plus simple, sans ces filtres).
+  let activeType = null;
+  let activeFuel = null; // "petrol-diesel" | "hybrid" | "electric"
+  let activeAutoOnly = false;
+  let activeSeats = null;
+  let filtersWereOpen = false;
 
   if (vehiculeCible && filterBar) filterBar.hidden = true;
 
-  function renderChips() {
-    filterBar.innerHTML = "";
-    ["Toutes", ...CATEGORIES].forEach(cat => {
-      const chip = document.createElement("button");
-      chip.className = "filter-chip" + (cat === activeCategorie ? " active" : "");
-      chip.textContent = cat;
-      chip.addEventListener("click", () => {
-        activeCategorie = cat;
-        renderChips();
+  function correspondFiltresVoiture(v) {
+    if (activeType && v.type !== activeType) return false;
+    if (activeFuel === "petrol-diesel" && v.fuel !== "petrol" && v.fuel !== "diesel") return false;
+    if (activeFuel === "hybrid" && v.fuel !== "hybrid") return false;
+    if (activeFuel === "electric" && v.fuel !== "electric") return false;
+    if (activeAutoOnly && v.transmission !== "Automatique") return false;
+    if (activeSeats && v.places !== activeSeats) return false;
+    return true;
+  }
+
+  function vehiculesFiltres() {
+    return VEHICULES.filter(v => v.vehicleFamily === activeFamily && (activeFamily !== "car" || correspondFiltresVoiture(v)));
+  }
+
+  function renderFamilyTabs() {
+    const wrap = document.createElement("div");
+    wrap.className = "vehicle-type-toggle family-tabs";
+    wrap.setAttribute("role", "group");
+    wrap.setAttribute("aria-label", "Choisir une famille de véhicule");
+    FAMILLES_VEHICULE.forEach(f => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "vt-option" + (f.id === activeFamily ? " active" : "");
+      btn.setAttribute("aria-pressed", String(f.id === activeFamily));
+      btn.textContent = f.label;
+      btn.addEventListener("click", () => {
+        if (activeFamily === f.id) return;
+        activeFamily = f.id;
+        activeType = null;
+        activeFuel = null;
+        activeAutoOnly = false;
+        activeSeats = null;
+        renderFilterBar();
         renderGrid();
       });
-      filterBar.appendChild(chip);
+      wrap.appendChild(btn);
     });
+    return wrap;
+  }
+
+  // Groupe de puces de filtre générique (Type, Motorisation, Places...) —
+  // évite de dupliquer le rendu des puces à chaque catégorie de filtre.
+  function renderFilterGroup(label, options, valeurDe, valeurActive, onSelect) {
+    const groupe = document.createElement("div");
+    groupe.className = "filter-group";
+    const titre = document.createElement("span");
+    titre.className = "filter-group-label";
+    titre.textContent = label;
+    groupe.appendChild(titre);
+    const ligne = document.createElement("div");
+    ligne.className = "filter-bar";
+    options.forEach(opt => {
+      const valeur = valeurDe(opt);
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "filter-chip" + (valeur === valeurActive ? " active" : "");
+      chip.textContent = opt.label;
+      chip.addEventListener("click", () => {
+        onSelect(valeur === valeurActive ? null : valeur);
+        renderFilterBar();
+        renderGrid();
+      });
+      ligne.appendChild(chip);
+    });
+    groupe.appendChild(ligne);
+    return groupe;
+  }
+
+  // Filtres véhicules (uniquement famille "car") : repliés dans un panneau
+  // "Filtres" simple (<details>), pratique aussi bien sur mobile que sur
+  // desktop, sans bibliothèque JS supplémentaire (voir mission §10).
+  function renderCarFilters() {
+    const details = document.createElement("details");
+    details.className = "filters-drawer";
+    details.open = filtersWereOpen;
+    const summary = document.createElement("summary");
+    summary.textContent = "Filtres";
+    details.appendChild(summary);
+
+    details.appendChild(renderFilterGroup("Type", TYPES_VOITURE, o => o.id, activeType, v => { activeType = v; }));
+    details.appendChild(renderFilterGroup("Motorisation", [
+      { id: "petrol-diesel", label: "Essence / Diesel" },
+      { id: "hybrid", label: "Hybride" },
+      { id: "electric", label: "Électrique" }
+    ], o => o.id, activeFuel, v => { activeFuel = v; }));
+    details.appendChild(renderFilterGroup("Boîte de vitesses", [
+      { id: true, label: "Automatique seulement" }
+    ], o => o.id, activeAutoOnly, v => { activeAutoOnly = Boolean(v); }));
+    details.appendChild(renderFilterGroup("Nombre de places", [2, 4, 5, 7, 9].map(n => ({ id: n, label: String(n) })), o => o.id, activeSeats, v => { activeSeats = v; }));
+
+    return details;
+  }
+
+  function renderFilterBar() {
+    if (!filterBar) return;
+    const existingDetails = filterBar.querySelector(".filters-drawer");
+    if (existingDetails) filtersWereOpen = existingDetails.open;
+    filterBar.innerHTML = "";
+    filterBar.appendChild(renderFamilyTabs());
+    if (activeFamily === "car") {
+      filterBar.appendChild(renderCarFilters());
+    }
   }
 
   function renderGrid() {
-    const liste = vehiculeCible
-      ? [vehiculeCible]
-      : VEHICULES.filter(v => activeCategorie === "Toutes" || v.categorie === activeCategorie);
+    const liste = vehiculeCible ? [vehiculeCible] : vehiculesFiltres();
     grid.innerHTML = "";
     if (liste.length === 0) {
-      grid.innerHTML = `<div class="empty-state">Aucun véhicule dans cette catégorie pour le moment.</div>`;
+      const message = activeFamily === "license-free"
+        ? "Aucun véhicule sans permis n'est disponible pour le moment. Contactez-nous, nous pouvons vous proposer une solution adaptée."
+        : "Aucun véhicule ne correspond à cette recherche pour le moment.";
+      grid.innerHTML = `<div class="empty-state">${message}</div>`;
       return;
     }
     liste.forEach(v => {
@@ -593,6 +697,12 @@ function initVehiculesPage() {
       });
       const total = prixInfo ? prixInfo.total : v.prixJour * jours;
       const remise = prixInfo && prixInfo.reductionDuree ? prixInfo.reductionDuree : null;
+      // bookingMode (voir js/data.js) : "instant" = paiement en ligne
+      // immédiat (parcours inchangé) ; "request" = demande sans paiement.
+      // Aucun véhicule n'est "request" aujourd'hui — ce chemin est prêt pour
+      // un futur véhicule nécessitant confirmation, sans jamais exposer la
+      // provenance interne/externe au client.
+      const estInstant = v.bookingMode !== "request";
       const card = document.createElement("div");
       card.className = "vehicle-card";
       card.id = `vehicule-${v.id}`;
@@ -605,7 +715,8 @@ function initVehiculesPage() {
         </div>
         <div class="vehicle-body">
           <div class="vehicle-category">${v.categorie}</div>
-          <div class="vehicle-name">${v.nom}</div>
+          <div class="vehicle-name">${v.nom}${v.modelGuaranteed === false ? ' <span class="hint-text">ou similaire</span>' : ""}</div>
+          <div class="booking-mode-badge ${estInstant ? "is-instant" : "is-request"}">${estInstant ? "Réservation immédiate" : "Disponibilité à confirmer"}</div>
           <div class="vehicle-specs">
             <span>${v.places} places</span>
             <span>${v.transmission}</span>
@@ -614,26 +725,36 @@ function initVehiculesPage() {
             <span>Caution ${formatEUR(v.caution)}</span>
           </div>
           <p class="hint-text">${v.description}</p>
+          ${v.modelGuaranteed === false ? '<p class="hint-text">Le modèle présenté est indicatif. Un véhicule de catégorie équivalente peut être proposé.</p>' : ""}
           <div class="vehicle-footer">
             <div class="price"><span class="price-from">À partir de</span>${formatEUR(prixJourMinimum(v))}<small> / jour</small></div>
-            <button class="btn btn-primary btn-sm" data-id="${v.id}">Réserver</button>
+            <button class="btn btn-primary btn-sm" data-id="${v.id}">${estInstant ? "Réserver" : "Faire une demande"}</button>
           </div>
-          <div class="hint-text">Total pour ${jours} jour${jours > 1 ? "s" : ""} : ${formatEUR(total)}${remise ? ` <span class="badge-remise">-${formatEUR(remise.montantParJour)}/jour dès ${remise.libelle.toLowerCase()}</span>` : ""}</div>
+          ${estInstant ? `<div class="hint-text">Total pour ${jours} jour${jours > 1 ? "s" : ""} : ${formatEUR(total)}${remise ? ` <span class="badge-remise">-${formatEUR(remise.montantParJour)}/jour dès ${remise.libelle.toLowerCase()}</span>` : ""}</div>` : ""}
         </div>
       `;
       card.querySelector("button").addEventListener("click", () => {
-        writeReservationLocal({
-          vehiculeId: v.id,
-          ...recherche,
-          jours
-        });
-        window.location.href = "reservation.html";
+        if (estInstant) {
+          writeReservationLocal({
+            vehiculeId: v.id,
+            ...recherche,
+            jours
+          });
+          window.location.href = "reservation.html";
+        } else {
+          // Aucune réservation "sur demande" n'existe encore aujourd'hui :
+          // repli simple par e-mail plutôt qu'un nouveau parcours serveur
+          // non testé (voir points restants du compte rendu final).
+          const sujet = `Demande de réservation — ${v.nom}`;
+          const corps = `Bonjour,\n\nJe souhaite faire une demande de réservation pour : ${v.nom}\nDu ${recherche.dateDebut} au ${recherche.dateFin}.\n\nMerci de me recontacter.`;
+          window.location.href = `mailto:contact@getlocation.fr?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+        }
       });
       grid.appendChild(card);
     });
   }
 
-  renderChips();
+  renderFilterBar();
   renderGrid();
 
   // Barre de dates persistante : le client peut ajuster ses dates ici même

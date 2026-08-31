@@ -62,7 +62,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="css/style.css?v=21">
+<link rel="stylesheet" href="css/style.css?v=25">
 </head>
 <body>
 
@@ -89,9 +89,9 @@
 <section class="hero">
   <div class="container hero-inner">
     <div class="hero-text">
-      <span class="hero-eyebrow">Location &amp; livraison sur la Côte d'Azur</span>
-      <h1>Votre véhicule de location, livré où vous voulez sur la Côte d'Azur</h1>
-      <p class="hero-subtitle">Citadine, SUV ou utilitaire : choisissez votre véhicule et faites-vous livrer à domicile, à votre hôtel ou à l'aéroport, de Grasse à Monaco.</p>
+      <span class="hero-eyebrow">La location simplifiée</span>
+      <h1>Le véhicule qu'il vous faut, livré où vous voulez.</h1>
+      <p class="hero-subtitle">Choisissez vos dates et votre véhicule. GETLOCATION s'occupe du reste — livraison à domicile, à l'hôtel ou à l'aéroport, sur toute la Côte d'Azur.</p>
       <div class="hero-badges">
         <span class="badge-item">Entreprise locale</span>
         <span class="badge-item">Véhicules 2026</span>
@@ -99,7 +99,7 @@
         <span class="badge-item">Assurance incluse</span>
       </div>
       <div class="hero-cta">
-        <a href="#search-form" class="btn btn-primary" data-conversion="hero_disponibilites">Voir les véhicules disponibles</a>
+        <a href="#search-form" class="btn btn-primary" data-conversion="hero_disponibilites">Trouver mon véhicule</a>
         <a href="vehicules.html" class="btn btn-secondary">Voir les véhicules</a>
       </div>
     </div>
@@ -113,13 +113,16 @@
       <p>Choisissez vos dates et votre lieu de livraison pour consulter les disponibilités.</p>
     </div>
     <div class="field field-full">
-      <label id="vehicle-type-label">Quel type de véhicule ?</label>
+      <label id="vehicle-type-label">Quel véhicule recherchez-vous ?</label>
       <div class="vehicle-type-toggle" id="vehicle-type-toggle" role="group" aria-labelledby="vehicle-type-label">
-        <button type="button" class="vt-option active" data-type="voiture" aria-pressed="true">
-          <span class="vt-icon" aria-hidden="true"><svg viewBox="0 0 32 20" fill="none"><path d="M5 14.5h22l-1.5-6-5-4h-9l-4 4-2.5 6Z"/><path d="M9 8.5h14M3 14.5h26"/><circle cx="9" cy="15" r="2.5"/><circle cx="23" cy="15" r="2.5"/></svg></span> Voiture
+        <button type="button" class="vt-option active" data-type="car" aria-pressed="true">
+          <span class="vt-icon" aria-hidden="true"><svg viewBox="0 0 32 20" fill="none"><path d="M5 14.5h22l-1.5-6-5-4h-9l-4 4-2.5 6Z"/><path d="M9 8.5h14M3 14.5h26"/><circle cx="9" cy="15" r="2.5"/><circle cx="23" cy="15" r="2.5"/></svg></span> Voitures
         </button>
-        <button type="button" class="vt-option" data-type="utilitaire" aria-pressed="false">
-          <span class="vt-icon" aria-hidden="true"><svg viewBox="0 0 32 20" fill="none"><path d="M3 5h17v10H3zM20 9h5l4 4v2h-9z"/><path d="M7 9h8M3 15h26"/><circle cx="8" cy="15" r="2.5"/><circle cx="24" cy="15" r="2.5"/></svg></span> Utilitaire
+        <button type="button" class="vt-option" data-type="utility" aria-pressed="false">
+          <span class="vt-icon" aria-hidden="true"><svg viewBox="0 0 32 20" fill="none"><path d="M3 5h17v10H3zM20 9h5l4 4v2h-9z"/><path d="M7 9h8M3 15h26"/><circle cx="8" cy="15" r="2.5"/><circle cx="24" cy="15" r="2.5"/></svg></span> Utilitaires
+        </button>
+        <button type="button" class="vt-option" data-type="license-free" aria-pressed="false">
+          <span class="vt-icon" aria-hidden="true"><svg viewBox="0 0 32 20" fill="none"><path d="M4 14.5h16l-1.3-5.5-4-3.5H8l-3 3.5-1.9 5.5Z"/><path d="M7.5 9h9M2 14.5h20"/><circle cx="7.5" cy="15" r="2.2"/><circle cx="17.5" cy="15" r="2.2"/><path d="M24 4l6 12M30 4l-6 12" stroke-width="1.8"/></svg></span> Sans permis
         </button>
       </div>
     </div>
@@ -215,8 +218,8 @@
 
 <section class="section section-alt">
   <div class="container">
-    <span class="section-eyebrow">Notre flotte</span>
-    <h2 class="section-title">Notre flotte 2026</h2>
+    <span class="section-eyebrow">Nos offres</span>
+    <h2 class="section-title">Les véhicules disponibles</h2>
     <p class="section-subtitle">Citadine, SUV et utilitaire — assurance et assistance incluses.</p>
     <div class="vehicle-grid">
       <div class="vehicle-card vehicle-card-clickable" data-vehicle-link="vehicules.html?vehicule=opel-corsa" role="link" tabindex="0" aria-label="Découvrir l'Opel Corsa Business 1.2T">
@@ -311,14 +314,14 @@
     <div class="how-step-arrow" aria-hidden="true">→</div>
     <div class="how-step">
       <div class="how-step-num">3</div>
-      <h3>Payez en ligne</h3>
-      <p>Paiement sécurisé par carte via Mollie.</p>
+      <h3>Réservez ou envoyez votre demande</h3>
+      <p>Paiement sécurisé immédiat par carte via Mollie, ou demande sans engagement selon le véhicule.</p>
     </div>
     <div class="how-step-arrow" aria-hidden="true">→</div>
     <div class="how-step">
       <div class="how-step-num">4</div>
       <h3>Récupérez votre véhicule</h3>
-      <p>À l'adresse ou au point de rendez-vous choisi sur la Côte d'Azur.</p>
+      <p>GETLOCATION organise votre location et la livraison à l'adresse ou au point de rendez-vous choisi.</p>
     </div>
   </div>
 </section>
@@ -449,7 +452,7 @@
   </div>
 </footer>
 
-<script src="js/data.js?v=12"></script>
-<script src="js/app.js?v=22"></script>
+<script src="js/data.js?v=13"></script>
+<script src="js/app.js?v=26"></script>
 </body>
 </html>
