@@ -150,6 +150,7 @@
     .rr-table td:first-child{width:auto;padding-bottom:2px;}
   }
   .missing-fields{color:#c0392b;font-size:13px;margin-top:8px;}
+  .champ-manquant{border-color:#c0392b !important;box-shadow:0 0 0 3px rgba(192,57,43,0.15) !important;}
   .badge-statut{display:inline-block;font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;margin-left:8px;vertical-align:middle;}
   .badge-statut.draft{background:var(--sable-clair);color:var(--bleu-ocean);}
   .badge-statut.sent{background:#fff3cd;color:#8a6d00;}
@@ -477,10 +478,10 @@
 
         <div id="ribClientBlock" style="display:none;margin-top:22px;padding-top:22px;border-top:1px dashed var(--ligne);">
           <h2 style="margin:0 0 10px;">Coordonnées bancaires (restitution de la caution)</h2>
-          <p class="meta-line" style="margin-bottom:12px;">Le dépôt de garantie étant réglé en espèces, indiquez le RIB sur lequel il devra vous être restitué (voir Article 4).</p>
+          <p class="meta-line" style="margin-bottom:12px;">Facultatif : le dépôt de garantie étant réglé en espèces, vous pouvez dès maintenant indiquer le RIB sur lequel il devra vous être restitué (voir Article 4) — sinon l'agence le récupérera plus tard.</p>
           <div class="grid">
             <div class="field">
-              <label for="ribIban">IBAN</label>
+              <label for="ribIban">IBAN (facultatif)</label>
               <input type="text" id="ribIban" placeholder="FR76 XXXX XXXX XXXX XXXX XXXX XXX" autocomplete="off">
             </div>
             <div class="field">
@@ -2281,9 +2282,10 @@ function initOwnerView(prefill){
       : ('<span>Aucun dépassement (' + km.kmParcourus + ' km parcourus, ' + km.kmInclus + ' km inclus)</span>');
   }
 
-  document.getElementById('ownerForm').addEventListener('input', function(){
+  document.getElementById('ownerForm').addEventListener('input', function(e){
     updateSummary();
     regenererLien();
+    if(e.target.value) e.target.classList.remove('champ-manquant');
   });
   updateSummary();
 
@@ -2325,12 +2327,24 @@ function initOwnerView(prefill){
     regenererLien();
   }
 
+  // Marque en rouge les champs obligatoires vides (et enlève la marque des
+  // champs désormais remplis, en cas de nouvel essai) — sans ça, l'agence
+  // ne pouvait pas savoir lequel des nombreux champs du formulaire posait
+  // problème. Fait défiler jusqu'au premier champ manquant.
   function tousLesChampsRequisRemplis(){
     var required = document.querySelectorAll('#ownerForm [required]');
+    var manquants = [];
     for(var i=0;i<required.length;i++){
-      if(!required[i].value) return false;
+      var champ = required[i];
+      var vide = !champ.value;
+      champ.classList.toggle('champ-manquant', vide);
+      if(vide) manquants.push(champ);
     }
-    return true;
+    if(manquants.length){
+      manquants[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      manquants[0].focus();
+    }
+    return manquants.length === 0;
   }
 
   // Le kilométrage retour est facultatif (peut être complété plus tard via
@@ -2403,6 +2417,46 @@ function initOwnerView(prefill){
       erreurEl.style.display = '';
     });
   }
+
+  // "Ouvrir ce lien" (signature en face-à-face, voir openLinkBtn plus haut)
+  // ouvre le lien client dans un NOUVEL ONGLET : les fichiers sélectionnés
+  // dans les champs photos de cet onglet-ci ne le traversent pas tout
+  // seuls (deux documents distincts, deux DOM distincts). On les fait donc
+  // transiter par sessionStorage (même origine, partagé entre onglets du
+  // même navigateur) juste avant l'ouverture — initClientView() les
+  // récupère et les consomme une seule fois. Ne s'applique qu'à cet
+  // onglet/appareil : un lien envoyé par WhatsApp/SMS/e-mail à un autre
+  // appareil ne peut évidemment pas embarquer les photos de celui-ci.
+  var PHOTOS_SESSION_KEY = 'gl_contrat_photos_etat_des_lieux';
+
+  document.getElementById('openLinkBtn').addEventListener('click', function(e){
+    e.preventDefault();
+    var url = document.getElementById('linkOutput').value;
+    if(!url) return;
+    var erreurEl = document.getElementById('photosEtatDesLieuxErreur');
+    erreurEl.style.display = 'none';
+    // Pas de "noopener" ici : ce lien pointe vers cette même application
+    // (jamais un site externe), et "noopener" isolerait aussi
+    // sessionStorage entre les deux onglets — ce qui empêcherait
+    // précisément le transfert des photos qu'on cherche à faire ici.
+    function ouvrir(){ window.open(url, '_blank'); }
+    lireImagesEtatDesLieux().then(function(photos){
+      try{
+        if(photos.length) sessionStorage.setItem(PHOTOS_SESSION_KEY, JSON.stringify(photos));
+        else sessionStorage.removeItem(PHOTOS_SESSION_KEY);
+      } catch(err){
+        erreurEl.textContent = 'Les photos sont trop volumineuses pour être transmises à l\'onglet de signature (utilisez plutôt "Télécharger le PDF" depuis cet écran). Le lien s\'ouvre sans elles.';
+        erreurEl.style.display = '';
+        sessionStorage.removeItem(PHOTOS_SESSION_KEY);
+      }
+      ouvrir();
+    }).catch(function(err){
+      erreurEl.textContent = err.message + ' — le lien s\'ouvre sans les photos.';
+      erreurEl.style.display = '';
+      sessionStorage.removeItem(PHOTOS_SESSION_KEY);
+      ouvrir();
+    });
+  });
 
   document.getElementById('downloadPdfBtn').addEventListener('click', function(){
     var btn = this;
@@ -2759,6 +2813,19 @@ function initOwnerView(prefill){
 }
 
 function initClientView(data){
+  // Récupère les photos état des lieux transmises par l'onglet agence, si
+  // le lien a été ouvert via "Ouvrir ce lien" sur le même appareil (voir
+  // initOwnerView). Consommation à usage unique : on retire l'entrée pour
+  // qu'un lien ouvert plus tard dans ce même onglet ne récupère pas par
+  // erreur les photos d'un contrat précédent.
+  try{
+    var photosStockees = sessionStorage.getItem('gl_contrat_photos_etat_des_lieux');
+    if(photosStockees){
+      data.photosEtatDesLieux = JSON.parse(photosStockees);
+      sessionStorage.removeItem('gl_contrat_photos_etat_des_lieux');
+    }
+  } catch(e){ /* sessionStorage indisponible ou donnée corrompue : sans photos, sans bloquer la signature */ }
+
   var v = getVehiculeParId(data.vehiculeId);
   if(!v) v = VEHICULES[0];
   var heures = dureeHeures(data.depart, data.retour);
@@ -2841,18 +2908,16 @@ function initClientView(data){
   var ribTitulaire = document.getElementById('ribTitulaire');
   if(data.modeCaution === 'especes'){
     document.getElementById('ribClientBlock').style.display = '';
-    ribIban.required = true;
     ribTitulaire.value = (data.prenom + ' ' + data.nom).trim();
   }
+  // Facultatif : le RIB peut être communiqué plus tard (l'agence le
+  // récupère alors par un autre moyen avant la restitution de la caution),
+  // jamais un frein à la signature du contrat.
   function synchroniserRibDepuisChamps(){
     if(data.modeCaution === 'especes'){
       data.ribIban = ribIban.value.trim();
       data.ribTitulaire = ribTitulaire.value.trim();
     }
-  }
-  function ibanPlausible(valeur){
-    var normalise = String(valeur || '').replace(/\s+/g, '').toUpperCase();
-    return /^[A-Z]{2}[0-9A-Z]{13,32}$/.test(normalise);
   }
 
   var canvas = document.getElementById('pad');
@@ -2925,11 +2990,6 @@ function initClientView(data){
   form.addEventListener('submit', function(e){
     e.preventDefault();
     if(!hasSignature || !accept.checked){ updateSubmitState(); return; }
-    if(data.modeCaution === 'especes' && !ibanPlausible(ribIban.value)){
-      alert('Merci de saisir un IBAN valide pour la restitution de la caution en espèces.');
-      ribIban.focus();
-      return;
-    }
     synchroniserRibDepuisChamps();
 
     var now = new Date();
