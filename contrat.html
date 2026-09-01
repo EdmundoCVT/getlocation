@@ -399,6 +399,16 @@
       </div>
 
       <div class="card">
+        <h2>Remarques particulières</h2>
+        <p class="lead" style="margin-bottom:10px;">Imprimées telles quelles sur le contrat officiel, visibles par le client (accord commercial, état du véhicule, consigne spécifique...). Laissez vide pour ne pas afficher cette section sur le contrat.</p>
+        <div class="field full">
+          <label for="remarques">Remarques particulières (visibles sur le contrat)</label>
+          <textarea id="remarques" rows="7" maxlength="1500" placeholder="Indiquez ici toute information particulière concernant cette location (accord commercial, état du véhicule, consigne spécifique, etc.)."></textarea>
+          <p class="meta-line" id="remarquesCompteur" style="text-align:right;margin:4px 0 0;">0 / 1500</p>
+        </div>
+      </div>
+
+      <div class="card">
         <h2>Aperçu PDF</h2>
         <p class="lead" style="margin-bottom:10px;">Téléchargez un aperçu du contrat à tout moment, avec les informations déjà saisies ci-dessus — pas besoin d'attendre que le client ait ouvert le lien ni qu'il ait signé.</p>
         <button type="button" class="btn btn-primary" id="downloadPdfBtn">📄 Télécharger le PDF</button>
@@ -476,6 +486,8 @@
         <p>Le véhicule doit être restitué au lieu, à la date et à l'heure convenus. Tout retard non signalé au préalable est facturé conformément au barème prévu par les Conditions Générales de Location — aucun montant n'est fixé unilatéralement en dehors de ce barème. En cas d'accident, de panne, de vol ou de tout autre incident, le locataire contacte immédiatement GETLOCATION au <a href="tel:+33667485430">+33 6 67 48 54 30</a> et suit la procédure décrite dans les Conditions Générales de Location.</p>
         <h3>Article 6 — Acceptation des Conditions Générales de Location</h3>
         <p>Le présent contrat reprend les points essentiels de la location ; les règles complètes (conducteur et permis, annulation, contraventions, usage du véhicule, territoire, prolongation, non-présentation, responsabilité en cas de sinistre, droit applicable...) figurent dans les Conditions Générales de Location — version <span class="fill" data-fill="cglVersion">…</span>, disponibles sur <a href="cgl.html" target="_blank" rel="noopener">cgl.html</a> et portées à la connaissance du locataire avant signature. Le locataire reconnaît en avoir pris connaissance et les accepter sans réserve, ainsi que l'ensemble des informations ci-dessus. Le présent contrat est soumis au droit français.</p>
+        <h3 id="remarquesTitre" style="display:none">Remarques particulières</h3>
+        <p id="remarquesClause" data-fill="remarques" style="display:none;white-space:pre-wrap;"></p>
       </div>
 
       <form id="contractForm" name="contrat-signature" method="POST" data-netlify="true" netlify-honeypot="site-web">
@@ -1060,6 +1072,12 @@ function construirePayload(data, sigData, stamp){
     second_conducteur_permis_date: data.permis2Date || '',
     kmInclus: kmInclusPourJours(jours).toLocaleString('fr-FR'),
     notes: data.notes || '',
+    // slice(0,1500) : garde-fou serveur-équivalent (même logique que le
+    // reste du contrat — jamais confiance aveugle dans data), au cas où ce
+    // texte arriverait via un lien ?data= trafiqué plutôt que saisi dans le
+    // textarea (déjà borné par maxlength côté formulaire, mais maxlength ne
+    // protège qu'une saisie manuelle, pas une valeur assignée par script).
+    remarques: (data.remarques || '').trim().slice(0, 1500),
     cglVersion: getCglVersion(),
     horodatage_signature: stamp || '',
     signature_image: sigData || '',
@@ -1110,6 +1128,24 @@ function remplirTexteArticles(payload){
     setFill('ribTitulaire', payload.rib_titulaire || (payload.locataire_prenom + ' ' + payload.locataire_nom).trim());
     var ribClause = document.getElementById('ribClientClause');
     if(ribClause) ribClause.style.display = '';
+  }
+  // Remarques particulières : section absente du contrat (titre + paragraphe
+  // masqués) tant qu'aucun texte n'est saisi — jamais de "…" non rempli
+  // imprimé. Bascule explicitement dans les deux sens (contrairement aux
+  // clauses ci-dessus, qui ne sont jamais censées redevenir vides une fois
+  // affichées) : cette fonction peut être appelée plusieurs fois de suite
+  // sur le même DOM #contractText (aperçus PDF répétés côté agence pendant
+  // la saisie), et une remarque effacée après un premier aperçu ne doit pas
+  // rester visible sur les aperçus suivants.
+  var remarquesTitre = document.getElementById('remarquesTitre');
+  var remarquesClauseEl = document.getElementById('remarquesClause');
+  if(payload.remarques){
+    setFill('remarques', payload.remarques);
+    if(remarquesTitre) remarquesTitre.style.display = '';
+    if(remarquesClauseEl) remarquesClauseEl.style.display = '';
+  } else {
+    if(remarquesTitre) remarquesTitre.style.display = 'none';
+    if(remarquesClauseEl) remarquesClauseEl.style.display = 'none';
   }
 }
 
@@ -2259,6 +2295,15 @@ function initOwnerView(prefill){
 
   function currentVehicule(){ return getVehiculeParId(selectVehicule.value); }
 
+  // Compteur discret sous le champ "Remarques particulières" — la limite
+  // réelle est déjà imposée par l'attribut maxlength du textarea, ceci
+  // n'est qu'un retour visuel.
+  var REMARQUES_MAX = 1500;
+  function mettreAJourCompteurRemarques(){
+    var longueur = document.getElementById('remarques').value.length;
+    document.getElementById('remarquesCompteur').textContent = longueur + ' / ' + REMARQUES_MAX;
+  }
+
   function updateSummary(){
     var v = currentVehicule();
     if(!v || !inputDepart.value || !inputRetour.value) return;
@@ -2323,8 +2368,10 @@ function initOwnerView(prefill){
     updateSummary();
     regenererLien();
     if(e.target.value) e.target.classList.remove('champ-manquant');
+    if(e.target.id === 'remarques') mettreAJourCompteurRemarques();
   });
   updateSummary();
+  mettreAJourCompteurRemarques();
 
   // Pré-remplissage depuis une réservation payée (voir ?prefill= plus haut) :
   // n'écrase que les champs connus au moment de la réservation (véhicule,
@@ -2428,6 +2475,7 @@ function initOwnerView(prefill){
       livraisonCP: document.getElementById('livraisonCP').value,
       livraisonVille: document.getElementById('livraisonVille').value,
       notes: document.getElementById('notes').value,
+      remarques: document.getElementById('remarques').value,
       tarifManuel: tarifManuelToggle.checked,
       montantFinalConvenu: document.getElementById('montantFinalConvenu').value,
       tarifMotif: document.getElementById('tarifMotif').value,
@@ -2556,6 +2604,8 @@ function initOwnerView(prefill){
     document.getElementById('permisPays').value = rawData.permisPays || '';
     document.getElementById('permisValidite').value = rawData.permisValidite || '';
     document.getElementById('notes').value = rawData.notes || '';
+    document.getElementById('remarques').value = rawData.remarques || '';
+    mettreAJourCompteurRemarques();
 
     secondToggle.checked = !!rawData.secondConducteur;
     secondBlock.classList.toggle('show', secondToggle.checked);
@@ -2933,6 +2983,12 @@ function initClientView(data){
     setFill('nom2', data.prenom2 + ' ' + data.nom2);
     setFill('permis2', data.permis2);
     document.getElementById('secondConducteurClause').style.display = '';
+  }
+  var remarquesSaisies = (data.remarques || '').trim().slice(0, 1500);
+  if(remarquesSaisies){
+    setFill('remarques', remarquesSaisies);
+    document.getElementById('remarquesTitre').style.display = '';
+    document.getElementById('remarquesClause').style.display = '';
   }
 
   // Coordonnées bancaires pour la restitution de la caution : uniquement
