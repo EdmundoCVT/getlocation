@@ -149,6 +149,23 @@
     .rr-table tr{margin-bottom:14px;border-bottom:2px solid var(--ligne);padding-bottom:10px;}
     .rr-table td:first-child{width:auto;padding-bottom:2px;}
   }
+  .dmg-souscarte-titre{font-size:13px;margin:18px 0 10px;color:var(--bleu-nuit);}
+  .dmg-souscarte-titre-retour{padding-top:16px;border-top:1px dashed var(--ligne);}
+  .dmg-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .dmg-tool{font:inherit;font-size:12.5px;font-weight:600;padding:7px 11px;border-radius:9px;border:1px solid var(--ligne);background:var(--blanc);color:#6b6478;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+  .dmg-tool.active{background:var(--sable-clair);border-color:var(--bleu-ocean);color:var(--bleu-ocean);}
+  .dmg-tool-symbol{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1.5px solid currentColor;font-size:10px;font-weight:800;line-height:1;}
+  .dmg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  @media(max-width:640px){.dmg-grid{grid-template-columns:repeat(2,1fr);}}
+  .dmg-view{display:flex;flex-direction:column;gap:4px;}
+  .dmg-view-label{font-size:11px;font-weight:700;color:#6b6478;text-align:center;}
+  .dmg-canvas{position:relative;background:var(--gris-clair);border:1px solid var(--ligne);border-radius:8px;overflow:hidden;cursor:crosshair;touch-action:manipulation;}
+  .dmg-canvas svg{display:block;width:100%;height:100%;}
+  .dmg-canvas svg .dmg-shape{fill:none;stroke:#9b93a8;stroke-width:2.5;}
+  .dmg-mark{position:absolute;transform:translate(-50%,-50%);width:20px;height:20px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;cursor:pointer;color:#fff;background:#c0392b;box-shadow:0 0 0 2px #fff;padding:0;line-height:1;}
+  .dmg-mark[data-type="bosse"]{background:#f2760c;}
+  .dmg-mark[data-type="eclat"]{background:#1a2f52;}
+  .dmg-observations{margin-top:14px;}
   .missing-fields{color:#c0392b;font-size:13px;margin-top:8px;}
   .champ-manquant{border-color:#c0392b !important;box-shadow:0 0 0 3px rgba(192,57,43,0.15) !important;}
   .badge-statut{display:inline-block;font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;margin-left:8px;vertical-align:middle;}
@@ -378,6 +395,16 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <div class="card">
+        <h2>État du véhicule (schéma de dommages)</h2>
+        <p class="lead" style="margin-bottom:10px;">Choisissez un type de marque ci-dessous puis cliquez sur le schéma à l'endroit d'un dommage. Cliquez sur une marque déjà placée pour la supprimer (aucune confirmation demandée).</p>
+        <h3 class="dmg-souscarte-titre">État au départ</h3>
+        <div id="etatDepartContainer"></div>
+        <h3 class="dmg-souscarte-titre dmg-souscarte-titre-retour">État au retour</h3>
+        <p class="meta-line" style="margin:0 0 10px;">Peut rester vide tant que le véhicule n'est pas restitué.</p>
+        <div id="etatRetourContainer"></div>
       </div>
 
       <div class="card">
@@ -930,6 +957,338 @@ function cautionNecessiteRib(mode){
   return mode === 'especes' || mode === 'virement';
 }
 
+// ---------------------------------------------------------------------
+// Schéma interactif d'état des lieux (dommages départ/retour) — demandé
+// le 01/09/2026. Un seul schéma générique "voiture" et un générique
+// "utilitaire" (voir VEHICULES[].vehicleFamily dans js/data.js), jamais un
+// schéma par modèle. Chaque vue (dessus/côté gauche/côté droit/avant/
+// arrière) est décrite comme une petite liste de primitives géométriques
+// (rect/ellipse/line/poly, coordonnées dans un repère fixe par vue) : cette
+// même description sert à la fois à construire le SVG affiché à l'écran
+// (construireSvgSchema) ET à redessiner le même schéma dans le PDF avec les
+// primitives vectorielles de jsPDF (dessinerSchemaPdf) — une seule source de
+// vérité, jamais une image bitmap ni une bibliothèque graphique. "Côté
+// droit" réutilise le schéma "side" simplement mirroré (voir mirror ci-
+// dessous), pas une géométrie redessinée.
+var DMG_TYPES = [
+  { id: 'rayure', label: 'Rayure', symbole: 'X' },
+  { id: 'bosse', label: 'Bosse / impact', symbole: 'O' },
+  { id: 'eclat', label: 'Éclat / petit impact', symbole: '●' }
+];
+
+var DMG_VIEWS = [
+  { key: 'top', label: 'Dessus', shape: 'top' },
+  { key: 'left', label: 'Côté gauche', shape: 'side' },
+  { key: 'right', label: 'Côté droit', shape: 'side', mirror: true },
+  { key: 'front', label: 'Avant', shape: 'front' },
+  { key: 'rear', label: 'Arrière', shape: 'rear' }
+];
+
+// Primitives : ['rect',x,y,w,h,rx] | ['ellipse',cx,cy,rx,ry] | ['line',x1,y1,x2,y2] | ['poly',[[x,y],...]]
+// (rayon rx omis = 0). w/h identiques entre "car" et "utility" pour une même
+// vue : seul le contenu diffère, jamais le ratio (proportions stables à
+// l'écran quel que soit le véhicule choisi).
+var DMG_SHAPES = {
+  car: {
+    top: { w: 120, h: 220, shapes: [
+      ['rect', 15, 10, 90, 200, 26],
+      ['line', 15, 55, 105, 55],
+      ['line', 15, 165, 105, 165],
+      ['rect', 3, 46, 10, 16, 3],
+      ['rect', 107, 46, 10, 16, 3],
+      ['rect', 0, 35, 10, 32, 3],
+      ['rect', 110, 35, 10, 32, 3],
+      ['rect', 0, 153, 10, 32, 3],
+      ['rect', 110, 153, 10, 32, 3]
+    ] },
+    side: { w: 220, h: 100, shapes: [
+      ['poly', [[8,72],[8,52],[28,36],[54,20],[142,20],[168,36],[212,52],[212,72]]],
+      ['line', 8, 72, 212, 72],
+      ['line', 96, 26, 96, 72],
+      ['ellipse', 46, 76, 19, 19],
+      ['ellipse', 174, 76, 19, 19]
+    ] },
+    front: { w: 140, h: 100, shapes: [
+      ['rect', 18, 18, 104, 52, 14],
+      ['line', 18, 32, 122, 32],
+      ['rect', 24, 38, 20, 14, 3],
+      ['rect', 96, 38, 20, 14, 3],
+      ['ellipse', 36, 86, 22, 12],
+      ['ellipse', 104, 86, 22, 12]
+    ] },
+    rear: { w: 140, h: 100, shapes: [
+      ['rect', 18, 18, 104, 52, 14],
+      ['line', 22, 30, 118, 30],
+      ['rect', 20, 40, 16, 20, 3],
+      ['rect', 104, 40, 16, 20, 3],
+      ['ellipse', 36, 86, 22, 12],
+      ['ellipse', 104, 86, 22, 12]
+    ] }
+  },
+  utility: {
+    top: { w: 120, h: 220, shapes: [
+      ['rect', 14, 8, 92, 204, 10],
+      ['line', 14, 50, 106, 50],
+      ['rect', 2, 40, 10, 16, 3],
+      ['rect', 108, 40, 10, 16, 3],
+      ['rect', 0, 32, 10, 30, 3],
+      ['rect', 110, 32, 10, 30, 3],
+      ['rect', 0, 158, 10, 30, 3],
+      ['rect', 110, 158, 10, 30, 3]
+    ] },
+    side: { w: 220, h: 100, shapes: [
+      ['poly', [[8,72],[8,34],[18,24],[46,24],[46,14],[204,14],[212,24],[212,72]]],
+      ['line', 8, 72, 212, 72],
+      ['line', 46, 24, 46, 72],
+      ['ellipse', 44, 76, 19, 19],
+      ['ellipse', 176, 76, 19, 19]
+    ] },
+    front: { w: 140, h: 100, shapes: [
+      ['rect', 16, 10, 108, 62, 8],
+      ['line', 16, 26, 124, 26],
+      ['rect', 22, 34, 20, 14, 3],
+      ['rect', 98, 34, 20, 14, 3],
+      ['ellipse', 36, 88, 22, 12],
+      ['ellipse', 104, 88, 22, 12]
+    ] },
+    rear: { w: 140, h: 100, shapes: [
+      ['rect', 16, 10, 108, 62, 8],
+      ['line', 70, 10, 70, 72],
+      ['ellipse', 36, 88, 22, 12],
+      ['ellipse', 104, 88, 22, 12]
+    ] }
+  }
+};
+
+var DMG_MARKS_MAX = 200;
+var DMG_OBSERVATIONS_MAX = 1000;
+
+// Normalise un état (départ ou retour) reçu depuis `data` — jamais confiance
+// aveugle dans sa forme (peut venir d'un lien ?data= reconstruit à la main) :
+// vue/type filtrés sur les valeurs connues, x/y bornés 0-100, listes et
+// texte tronqués (même logique que `remarques`, voir construirePayload).
+function normaliserEtatVehicule(etat){
+  var brut = (etat && Array.isArray(etat.marks)) ? etat.marks : [];
+  var marks = brut.slice(0, DMG_MARKS_MAX).map(function(m){
+    return {
+      id: String((m && m.id) || ''),
+      view: DMG_VIEWS.some(function(v){ return v.key === (m && m.view); }) ? m.view : 'top',
+      x: Math.max(0, Math.min(100, Number(m && m.x) || 0)),
+      y: Math.max(0, Math.min(100, Number(m && m.y) || 0)),
+      type: DMG_TYPES.some(function(t){ return t.id === (m && m.type); }) ? m.type : 'rayure'
+    };
+  });
+  return {
+    marks: marks,
+    observations: String((etat && etat.observations) || '').trim().slice(0, DMG_OBSERVATIONS_MAX)
+  };
+}
+
+function svgEl(tag, attrs){
+  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  Object.keys(attrs).forEach(function(k){ el.setAttribute(k, attrs[k]); });
+  return el;
+}
+
+// Construit le <svg> de fond (silhouette seule, sans marque) pour une vue
+// donnée. `mirror` retourne horizontalement le contenu (utilisé pour "Côté
+// droit", qui réutilise la géométrie "side" de "Côté gauche").
+function construireSvgSchema(shapeKey, vehicleFamily, mirror){
+  var groupe = DMG_SHAPES[vehicleFamily === 'utility' ? 'utility' : 'car'];
+  var spec = groupe[shapeKey];
+  var svg = svgEl('svg', { viewBox: '0 0 ' + spec.w + ' ' + spec.h, preserveAspectRatio: 'xMidYMid meet' });
+  var g = svgEl('g', mirror ? { transform: 'translate(' + spec.w + ',0) scale(-1,1)' } : {});
+  spec.shapes.forEach(function(prim){
+    if(prim[0] === 'rect'){
+      g.appendChild(svgEl('rect', { class: 'dmg-shape', x: prim[1], y: prim[2], width: prim[3], height: prim[4], rx: prim[5] || 0 }));
+    } else if(prim[0] === 'ellipse'){
+      g.appendChild(svgEl('ellipse', { class: 'dmg-shape', cx: prim[1], cy: prim[2], rx: prim[3], ry: prim[4] }));
+    } else if(prim[0] === 'line'){
+      g.appendChild(svgEl('line', { class: 'dmg-shape', x1: prim[1], y1: prim[2], x2: prim[3], y2: prim[4] }));
+    } else if(prim[0] === 'poly'){
+      var points = prim[1].map(function(p){ return p[0] + ',' + p[1]; }).join(' ');
+      g.appendChild(svgEl('polyline', { class: 'dmg-shape', points: points, fill: 'none' }));
+    }
+  });
+  svg.appendChild(g);
+  return svg;
+}
+
+// Redessine la même silhouette dans le PDF (jsPDF), à l'intérieur du
+// rectangle [boxX,boxY,boxW,boxH] — mêmes primitives que construireSvgSchema,
+// jamais une capture d'écran ni une image : le PDF reste net à toute échelle
+// et très léger. Pour un rect mirroré, le bord gauche affiché correspond au
+// bord droit d'origine (W - (x+w)) — un simple point mirroré (tx) ne suffit
+// pas pour un rectangle, contrairement à line/ellipse/poly.
+function dessinerSchemaPdf(doc, shapeKey, vehicleFamily, mirror, boxX, boxY, boxW, boxH){
+  var groupe = DMG_SHAPES[vehicleFamily === 'utility' ? 'utility' : 'car'];
+  var spec = groupe[shapeKey];
+  var scaleX = boxW / spec.w, scaleY = boxH / spec.h;
+  function tx(px){ return boxX + (mirror ? (spec.w - px) : px) * scaleX; }
+  function ty(py){ return boxY + py * scaleY; }
+  doc.setDrawColor(150, 150, 150);
+  doc.setLineWidth(0.7);
+  spec.shapes.forEach(function(prim){
+    if(prim[0] === 'rect'){
+      var rx = prim[1], ry = prim[2], rw = prim[3], rh = prim[4], rr = prim[5] || 0;
+      var leftRaw = mirror ? (spec.w - (rx + rw)) : rx;
+      var rrPt = rr * Math.min(scaleX, scaleY);
+      doc.roundedRect(boxX + leftRaw * scaleX, ty(ry), rw * scaleX, rh * scaleY, rrPt, rrPt, 'S');
+    } else if(prim[0] === 'ellipse'){
+      doc.ellipse(tx(prim[1]), ty(prim[2]), prim[3] * scaleX, prim[4] * scaleY, 'S');
+    } else if(prim[0] === 'line'){
+      doc.line(tx(prim[1]), ty(prim[2]), tx(prim[3]), ty(prim[4]));
+    } else if(prim[0] === 'poly'){
+      var pts = prim[1];
+      for(var i = 0; i < pts.length - 1; i++){
+        doc.line(tx(pts[i][0]), ty(pts[i][1]), tx(pts[i + 1][0]), ty(pts[i + 1][1]));
+      }
+    }
+  });
+}
+
+// Dessine une marque de dommage dans le PDF, toujours en noir/gris foncé et
+// distinguée par la FORME (croix/cercle vide/point plein), jamais par la
+// seule couleur — lisible même imprimé en noir et blanc (voir mission §8).
+function dessinerMarquePdf(doc, type, px, py){
+  var r = 3.2;
+  doc.setDrawColor(20, 20, 20);
+  doc.setFillColor(20, 20, 20);
+  doc.setLineWidth(1.1);
+  if(type === 'bosse'){
+    doc.ellipse(px, py, r, r, 'S');
+  } else if(type === 'eclat'){
+    doc.ellipse(px, py, r * 0.6, r * 0.6, 'F');
+  } else {
+    doc.line(px - r, py - r, px + r, py + r);
+    doc.line(px - r, py + r, px + r, py - r);
+  }
+}
+
+// Construit et pilote un bloc "État au départ"/"État au retour" du
+// formulaire agence : barre d'outils (type de marque courant), les 5 vues
+// cliquables et le champ observations. `vehicleFamilyGetter` est appelé à
+// chaque redessin du schéma (jamais mémorisé) pour refléter le véhicule
+// actuellement sélectionné, y compris s'il change après coup.
+function creerGestionEtat(container, vehicleFamilyGetter){
+  var marks = [];
+  var typeActuel = DMG_TYPES[0].id;
+  var nextId = 1;
+  var canvases = {};
+
+  var toolbar = document.createElement('div');
+  toolbar.className = 'dmg-toolbar';
+  DMG_TYPES.forEach(function(t){
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'dmg-tool' + (t.id === typeActuel ? ' active' : '');
+    btn.innerHTML = '<span class="dmg-tool-symbol">' + t.symbole + '</span>' + t.label;
+    btn.addEventListener('click', function(){
+      typeActuel = t.id;
+      Array.prototype.forEach.call(toolbar.querySelectorAll('.dmg-tool'), function(b){ b.classList.toggle('active', b === btn); });
+    });
+    toolbar.appendChild(btn);
+  });
+  container.appendChild(toolbar);
+
+  var grid = document.createElement('div');
+  grid.className = 'dmg-grid';
+  container.appendChild(grid);
+
+  DMG_VIEWS.forEach(function(vue){
+    var wrap = document.createElement('div');
+    wrap.className = 'dmg-view';
+    var label = document.createElement('div');
+    label.className = 'dmg-view-label';
+    label.textContent = vue.label;
+    var canvas = document.createElement('div');
+    canvas.className = 'dmg-canvas';
+    var dims = DMG_SHAPES.car[vue.shape];
+    canvas.style.aspectRatio = dims.w + ' / ' + dims.h;
+    // Clic sur le fond = ajoute une marque ; un clic sur une marque
+    // existante est intercepté par son propre gestionnaire (stopPropagation)
+    // et n'atteint donc jamais ce niveau.
+    canvas.addEventListener('click', function(e){
+      var rect = canvas.getBoundingClientRect();
+      if(!rect.width || !rect.height) return;
+      var x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+      var y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+      marks.push({ id: 'm' + (nextId++), view: vue.key, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, type: typeActuel });
+      redessinerMarques();
+    });
+    wrap.appendChild(label);
+    wrap.appendChild(canvas);
+    grid.appendChild(wrap);
+    canvases[vue.key] = canvas;
+  });
+
+  var obsWrap = document.createElement('div');
+  obsWrap.className = 'field full dmg-observations';
+  var obsLabel = document.createElement('label');
+  obsLabel.textContent = 'Observations état du véhicule';
+  var observationsEl = document.createElement('textarea');
+  observationsEl.rows = 3;
+  observationsEl.maxLength = DMG_OBSERVATIONS_MAX;
+  observationsEl.placeholder = 'Ex. Rayure légère porte arrière droite. Petit impact pare-chocs avant. Jante avant gauche frottée.';
+  obsWrap.appendChild(obsLabel);
+  obsWrap.appendChild(observationsEl);
+  container.appendChild(obsWrap);
+
+  function redessinerSchemas(){
+    var famille = vehicleFamilyGetter() === 'utility' ? 'utility' : 'car';
+    DMG_VIEWS.forEach(function(vue){
+      var canvas = canvases[vue.key];
+      var ancien = canvas.querySelector('svg');
+      if(ancien) ancien.remove();
+      canvas.insertBefore(construireSvgSchema(vue.shape, famille, !!vue.mirror), canvas.firstChild);
+    });
+  }
+
+  function redessinerMarques(){
+    DMG_VIEWS.forEach(function(vue){
+      Array.prototype.forEach.call(canvases[vue.key].querySelectorAll('.dmg-mark'), function(m){ m.remove(); });
+    });
+    marks.forEach(function(m){
+      var canvas = canvases[m.view];
+      if(!canvas) return;
+      var infoType = DMG_TYPES.filter(function(t){ return t.id === m.type; })[0] || DMG_TYPES[0];
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dmg-mark';
+      btn.dataset.type = m.type;
+      btn.style.left = m.x + '%';
+      btn.style.top = m.y + '%';
+      btn.textContent = infoType.symbole;
+      btn.title = infoType.label + ' — cliquer pour supprimer';
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        marks = marks.filter(function(x){ return x.id !== m.id; });
+        redessinerMarques();
+      });
+      canvas.appendChild(btn);
+    });
+  }
+
+  redessinerSchemas();
+  redessinerMarques();
+
+  return {
+    obtenirDonnees: function(){
+      return {
+        marks: marks.map(function(m){ return { id: m.id, view: m.view, x: m.x, y: m.y, type: m.type }; }),
+        observations: observationsEl.value
+      };
+    },
+    charger: function(data){
+      var norm = normaliserEtatVehicule(data);
+      marks = norm.marks.map(function(m){ return { id: m.id || ('m' + (nextId++)), view: m.view, x: m.x, y: m.y, type: m.type }; });
+      observationsEl.value = norm.observations;
+      redessinerMarques();
+    },
+    actualiserSchema: redessinerSchemas
+  };
+}
+
 // Construit les lignes du détail financier (voir genererPDF) à partir d'un
 // objet au format renvoyé par calculerPrixTotal() de js/data.js — utilisé
 // aussi bien pour un contrat manuel (calcul local, voir
@@ -1035,6 +1394,7 @@ function construirePayload(data, sigData, stamp){
   return {
     'form-name': 'contrat-signature',
     vehicule: v.nom,
+    vehicleFamily: v.vehicleFamily || 'car',
     carburant: v.carburant || '',
     vin: v.vin || '',
     immatriculation: data.immat,
@@ -1078,6 +1438,8 @@ function construirePayload(data, sigData, stamp){
     // textarea (déjà borné par maxlength côté formulaire, mais maxlength ne
     // protège qu'une saisie manuelle, pas une valeur assignée par script).
     remarques: (data.remarques || '').trim().slice(0, 1500),
+    etatDepart: normaliserEtatVehicule(data.etatDepart),
+    etatRetour: normaliserEtatVehicule(data.etatRetour),
     cglVersion: getCglVersion(),
     horodatage_signature: stamp || '',
     signature_image: sigData || '',
@@ -1335,6 +1697,68 @@ function genererPDF(payload, estApercu){
     ligne('Permis n°', payload.second_conducteur_permis);
     if(payload.second_conducteur_permis_pays){ ligne('Pays de délivrance', payload.second_conducteur_permis_pays); }
     if(payload.second_conducteur_permis_date){ ligne("Date d'obtention", payload.second_conducteur_permis_date); }
+  }
+
+  // ---- Schéma d'état des lieux (dommages départ/retour, voir
+  // creerGestionEtat) — une page dédiée, uniquement si l'agence a placé au
+  // moins une marque ou saisi une observation (jamais de page ajoutée pour
+  // un contrat qui n'utilise pas cette fonctionnalité). ----
+  var etatDepartPdf = payload.etatDepart || { marks: [], observations: '' };
+  var etatRetourPdf = payload.etatRetour || { marks: [], observations: '' };
+  var etatVehiculeAAfficher = (etatDepartPdf.marks && etatDepartPdf.marks.length) || etatDepartPdf.observations ||
+    (etatRetourPdf.marks && etatRetourPdf.marks.length) || etatRetourPdf.observations;
+  if(etatVehiculeAAfficher){
+    doc.addPage(); y = margin;
+    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(26,47,82);
+    doc.text('État du véhicule', margin, y); y += 16;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(107,100,120);
+    doc.text('X = rayure  —  cercle = bosse / impact  —  point plein = éclat / petit impact', margin, y); y += 18;
+
+    function dessinerBlocEtat(titre, etat){
+      sautDePageSiBesoin(120);
+      doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(26,47,82);
+      doc.text(titre, margin, y); y += 14;
+
+      if(!etat.marks.length && !etat.observations){
+        doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(107,100,120);
+        doc.text('Non renseigné.', margin, y); y += 18;
+        return;
+      }
+
+      var ecart = 10;
+      var diagW = (maxWidth - 4 * ecart) / 5;
+      var diagH = diagW * 0.85;
+      sautDePageSiBesoin(diagH + 26);
+      var xCursor = margin;
+      DMG_VIEWS.forEach(function(vue){
+        doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(107,100,120);
+        doc.text(vue.label, xCursor, y);
+        var boxY = y + 6;
+        doc.setDrawColor(210,206,218);
+        doc.rect(xCursor, boxY, diagW, diagH, 'S');
+        dessinerSchemaPdf(doc, vue.shape, payload.vehicleFamily, !!vue.mirror, xCursor + 2, boxY + 2, diagW - 4, diagH - 4);
+        etat.marks.filter(function(m){ return m.view === vue.key; }).forEach(function(m){
+          dessinerMarquePdf(doc, m.type, xCursor + 2 + (m.x / 100) * (diagW - 4), boxY + 2 + (m.y / 100) * (diagH - 4));
+        });
+        xCursor += diagW + ecart;
+      });
+      y += diagH + 18;
+
+      if(etat.observations){
+        sautDePageSiBesoin(30);
+        doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(107,100,120);
+        doc.text('Observations', margin, y); y += 12;
+        doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(42,36,56);
+        doc.splitTextToSize(etat.observations, maxWidth).forEach(function(l){
+          sautDePageSiBesoin(12);
+          doc.text(l, margin, y); y += 11;
+        });
+      }
+      y += 10;
+    }
+
+    dessinerBlocEtat('État au départ', etatDepartPdf);
+    dessinerBlocEtat('État au retour', etatRetourPdf);
   }
 
   // ---- Page 2 : remise et restitution du véhicule (dossier sécurisé
@@ -2227,6 +2651,8 @@ function initOwnerView(prefill){
   selectVehicule.addEventListener('change', function(){
     appliquerPlaque();
     updateSummary();
+    gestionEtatDepart.actualiserSchema();
+    gestionEtatRetour.actualiserSchema();
   });
   appliquerPlaque();
 
@@ -2294,6 +2720,16 @@ function initOwnerView(prefill){
   });
 
   function currentVehicule(){ return getVehiculeParId(selectVehicule.value); }
+
+  // Schéma interactif d'état des lieux (dommages départ/retour) — voir
+  // creerGestionEtat(). `vehicleFamilyGetter` relit currentVehicule() à
+  // chaque redessin (jamais mémorisé) pour suivre le véhicule sélectionné.
+  function vehicleFamilyCourante(){
+    var v = currentVehicule();
+    return v ? v.vehicleFamily : 'car';
+  }
+  var gestionEtatDepart = creerGestionEtat(document.getElementById('etatDepartContainer'), vehicleFamilyCourante);
+  var gestionEtatRetour = creerGestionEtat(document.getElementById('etatRetourContainer'), vehicleFamilyCourante);
 
   // Compteur discret sous le champ "Remarques particulières" — la limite
   // réelle est déjà imposée par l'attribut maxlength du textarea, ceci
@@ -2481,7 +2917,9 @@ function initOwnerView(prefill){
       tarifMotif: document.getElementById('tarifMotif').value,
       kmDepart: document.getElementById('kmDepart').value,
       kmRetour: document.getElementById('kmRetour').value,
-      kmForfait: selectKmForfait.value
+      kmForfait: selectKmForfait.value,
+      etatDepart: gestionEtatDepart.obtenirDonnees(),
+      etatRetour: gestionEtatRetour.obtenirDonnees()
     };
   }
 
@@ -2636,6 +3074,15 @@ function initOwnerView(prefill){
     document.getElementById('kmDepart').value = inclureDonneesInstance ? (rawData.kmDepart || '') : '';
     document.getElementById('kmRetour').value = inclureDonneesInstance ? (rawData.kmRetour || '') : '';
     selectKmForfait.value = inclureDonneesInstance ? (rawData.kmForfait || '') : '';
+
+    // Schéma de dommages : propre à une location précise (comme kmDepart/
+    // tarifManuel ci-dessus), donc jamais recopié sur "Dupliquer" — un
+    // nouveau contrat démarre avec un état des lieux vierge, jamais les
+    // dommages du précédent locataire.
+    gestionEtatDepart.charger(inclureDonneesInstance ? rawData.etatDepart : null);
+    gestionEtatRetour.charger(inclureDonneesInstance ? rawData.etatRetour : null);
+    gestionEtatDepart.actualiserSchema();
+    gestionEtatRetour.actualiserSchema();
 
     updateSummary();
     regenererLien();
