@@ -228,7 +228,6 @@ const VEHICULES = [
     modelGuaranteed: true,
     emoji: "🚗",
     photo: "images/opel-corsa.jpg",
-    photoCutout: "images/opel-corsa-cutout.webp",
     photos: [
       { webp: "images/gallery/opel-corsa-1.webp", jpg: "images/gallery/opel-corsa-1.jpg", thumbWebp: "images/gallery/opel-corsa-1-700w.webp", thumbJpg: "images/gallery/opel-corsa-1-700w.jpg", legende: "Vue 3/4 avant" },
       { webp: "images/gallery/opel-corsa-2.webp", jpg: "images/gallery/opel-corsa-2.jpg", thumbWebp: "images/gallery/opel-corsa-2-700w.webp", thumbJpg: "images/gallery/opel-corsa-2-700w.jpg", legende: "Vue 3/4 avant droit" },
@@ -298,7 +297,6 @@ const VEHICULES = [
     modelGuaranteed: true,
     emoji: "🚙",
     photo: "images/peugeot-3008.jpg",
-    photoCutout: "images/peugeot-3008-cutout-veh.webp",
     photos: [
       { webp: "images/gallery/peugeot-3008-1.webp", jpg: "images/gallery/peugeot-3008-1.jpg", thumbWebp: "images/gallery/peugeot-3008-1-700w.webp", thumbJpg: "images/gallery/peugeot-3008-1-700w.jpg", legende: "Vue 3/4 avant" },
       { webp: "images/gallery/peugeot-3008-2.webp", jpg: "images/gallery/peugeot-3008-2.jpg", thumbWebp: "images/gallery/peugeot-3008-2-700w.webp", thumbJpg: "images/gallery/peugeot-3008-2-700w.jpg", legende: "Vue 3/4 avant (variante)" },

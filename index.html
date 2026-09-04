@@ -224,8 +224,10 @@
     <div class="vehicle-grid">
       <div class="vehicle-card vehicle-card-clickable" data-vehicle-link="vehicules.html?vehicule=opel-corsa" role="link" tabindex="0" aria-label="Découvrir l'Opel Corsa Business 1.2T">
         <div class="vehicle-media" data-gallery="opel-corsa">
-          <img src="images/opel-corsa-cutout.webp" alt="Opel Corsa Business 1.2T" class="vehicle-photo is-cutout" loading="lazy" decoding="async" width="900" height="612" onerror="this.classList.remove('is-cutout')">
-          <span class="vehicle-photo-count">8</span>
+          <picture>
+            <source srcset="images/gallery/opel-corsa-1-700w.webp 700w, images/gallery/opel-corsa-1.webp 1400w" sizes="(max-width: 480px) 90vw, 340px" type="image/webp">
+            <img src="images/gallery/opel-corsa-1-700w.jpg" alt="Opel Corsa Business 1.2T" class="vehicle-photo" loading="lazy" decoding="async" width="1400" height="1050" onerror="this.remove()">
+          </picture>
           <span class="vehicle-emoji-fallback">🚗</span>
         </div>
         <div class="vehicle-body">
@@ -258,8 +260,10 @@
       </div>
       <div class="vehicle-card vehicle-card-clickable" data-vehicle-link="vehicules.html?vehicule=peugeot-3008" role="link" tabindex="0" aria-label="Découvrir le Peugeot 3008">
         <div class="vehicle-media" data-gallery="peugeot-3008">
-          <img src="images/peugeot-3008-cutout-veh.webp" alt="Peugeot 3008" class="vehicle-photo is-cutout" loading="lazy" decoding="async" width="900" height="616" onerror="this.classList.remove('is-cutout')">
-          <span class="vehicle-photo-count">8</span>
+          <picture>
+            <source srcset="images/gallery/peugeot-3008-1-700w.webp 700w, images/gallery/peugeot-3008-1.webp 1400w" sizes="(max-width: 480px) 90vw, 340px" type="image/webp">
+            <img src="images/gallery/peugeot-3008-1-700w.jpg" alt="Peugeot 3008" class="vehicle-photo" loading="lazy" decoding="async" width="1400" height="1050" onerror="this.remove()">
+          </picture>
           <span class="vehicle-emoji-fallback">🚙</span>
         </div>
         <div class="vehicle-body">
@@ -454,7 +458,7 @@
   </div>
 </footer>
 
-<script src="js/data.js?v=19"></script>
+<script src="js/data.js?v=20"></script>
 <script src="js/app.js?v=26"></script>
 </body>
 </html>
