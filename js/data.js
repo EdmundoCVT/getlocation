@@ -231,11 +231,16 @@ const VEHICULES = [
     photoCutout: "images/opel-corsa-cutout.webp",
     photos: [
       { webp: "images/gallery/opel-corsa-1.webp", jpg: "images/gallery/opel-corsa-1.jpg", thumbWebp: "images/gallery/opel-corsa-1-700w.webp", thumbJpg: "images/gallery/opel-corsa-1-700w.jpg", legende: "Vue 3/4 avant" },
-      { webp: "images/gallery/opel-corsa-2.webp", jpg: "images/gallery/opel-corsa-2.jpg", thumbWebp: "images/gallery/opel-corsa-2-700w.webp", thumbJpg: "images/gallery/opel-corsa-2-700w.jpg", legende: "Profil" },
-      { webp: "images/gallery/opel-corsa-3.webp", jpg: "images/gallery/opel-corsa-3.jpg", thumbWebp: "images/gallery/opel-corsa-3-700w.webp", thumbJpg: "images/gallery/opel-corsa-3-700w.jpg", legende: "Arrière" },
-      { webp: "images/gallery/opel-corsa-4.webp", jpg: "images/gallery/opel-corsa-4.jpg", thumbWebp: "images/gallery/opel-corsa-4-700w.webp", thumbJpg: "images/gallery/opel-corsa-4-700w.jpg", legende: "Tableau de bord" },
-      { webp: "images/gallery/opel-corsa-5.webp", jpg: "images/gallery/opel-corsa-5.jpg", thumbWebp: "images/gallery/opel-corsa-5-700w.webp", thumbJpg: "images/gallery/opel-corsa-5-700w.jpg", legende: "Sièges avant" },
-      { webp: "images/gallery/opel-corsa-6.webp", jpg: "images/gallery/opel-corsa-6.jpg", thumbWebp: "images/gallery/opel-corsa-6-700w.webp", thumbJpg: "images/gallery/opel-corsa-6-700w.jpg", legende: "Coffre" }
+      { webp: "images/gallery/opel-corsa-2.webp", jpg: "images/gallery/opel-corsa-2.jpg", thumbWebp: "images/gallery/opel-corsa-2-700w.webp", thumbJpg: "images/gallery/opel-corsa-2-700w.jpg", legende: "Vue 3/4 avant droit" },
+      { webp: "images/gallery/opel-corsa-3.webp", jpg: "images/gallery/opel-corsa-3.jpg", thumbWebp: "images/gallery/opel-corsa-3-700w.webp", thumbJpg: "images/gallery/opel-corsa-3-700w.jpg", legende: "Profil gauche" },
+      { webp: "images/gallery/opel-corsa-4.webp", jpg: "images/gallery/opel-corsa-4.jpg", thumbWebp: "images/gallery/opel-corsa-4-700w.webp", thumbJpg: "images/gallery/opel-corsa-4-700w.jpg", legende: "Profil droit" },
+      { webp: "images/gallery/opel-corsa-5.webp", jpg: "images/gallery/opel-corsa-5.jpg", thumbWebp: "images/gallery/opel-corsa-5-700w.webp", thumbJpg: "images/gallery/opel-corsa-5-700w.jpg", legende: "Arrière 3/4" },
+      { webp: "images/gallery/opel-corsa-6.webp", jpg: "images/gallery/opel-corsa-6.jpg", thumbWebp: "images/gallery/opel-corsa-6-700w.webp", thumbJpg: "images/gallery/opel-corsa-6-700w.jpg", legende: "Arrière 3/4 droit" },
+      { webp: "images/gallery/opel-corsa-7.webp", jpg: "images/gallery/opel-corsa-7.jpg", thumbWebp: "images/gallery/opel-corsa-7-700w.webp", thumbJpg: "images/gallery/opel-corsa-7-700w.jpg", legende: "Face avant" },
+      { webp: "images/gallery/opel-corsa-8.webp", jpg: "images/gallery/opel-corsa-8.jpg", thumbWebp: "images/gallery/opel-corsa-8-700w.webp", thumbJpg: "images/gallery/opel-corsa-8-700w.jpg", legende: "Face arrière" },
+      { webp: "images/gallery/opel-corsa-9.webp", jpg: "images/gallery/opel-corsa-9.jpg", thumbWebp: "images/gallery/opel-corsa-9-700w.webp", thumbJpg: "images/gallery/opel-corsa-9-700w.jpg", legende: "Tableau de bord" },
+      { webp: "images/gallery/opel-corsa-10.webp", jpg: "images/gallery/opel-corsa-10.jpg", thumbWebp: "images/gallery/opel-corsa-10-700w.webp", thumbJpg: "images/gallery/opel-corsa-10-700w.jpg", legende: "Sièges avant" },
+      { webp: "images/gallery/opel-corsa-11.webp", jpg: "images/gallery/opel-corsa-11.jpg", thumbWebp: "images/gallery/opel-corsa-11-700w.webp", thumbJpg: "images/gallery/opel-corsa-11-700w.jpg", legende: "Coffre" }
     ],
     places: 5,
     portes: 5,
@@ -299,11 +304,16 @@ const VEHICULES = [
     photoCutout: "images/peugeot-3008-cutout-veh.webp",
     photos: [
       { webp: "images/gallery/peugeot-3008-1.webp", jpg: "images/gallery/peugeot-3008-1.jpg", thumbWebp: "images/gallery/peugeot-3008-1-700w.webp", thumbJpg: "images/gallery/peugeot-3008-1-700w.jpg", legende: "Vue 3/4 avant" },
-      { webp: "images/gallery/peugeot-3008-2.webp", jpg: "images/gallery/peugeot-3008-2.jpg", thumbWebp: "images/gallery/peugeot-3008-2-700w.webp", thumbJpg: "images/gallery/peugeot-3008-2-700w.jpg", legende: "Profil" },
-      { webp: "images/gallery/peugeot-3008-3.webp", jpg: "images/gallery/peugeot-3008-3.jpg", thumbWebp: "images/gallery/peugeot-3008-3-700w.webp", thumbJpg: "images/gallery/peugeot-3008-3-700w.jpg", legende: "Arrière 3/4" },
-      { webp: "images/gallery/peugeot-3008-4.webp", jpg: "images/gallery/peugeot-3008-4.jpg", thumbWebp: "images/gallery/peugeot-3008-4-700w.webp", thumbJpg: "images/gallery/peugeot-3008-4-700w.jpg", legende: "Tableau de bord" },
-      { webp: "images/gallery/peugeot-3008-5.webp", jpg: "images/gallery/peugeot-3008-5.jpg", thumbWebp: "images/gallery/peugeot-3008-5-700w.webp", thumbJpg: "images/gallery/peugeot-3008-5-700w.jpg", legende: "Sièges" },
-      { webp: "images/gallery/peugeot-3008-6.webp", jpg: "images/gallery/peugeot-3008-6.jpg", thumbWebp: "images/gallery/peugeot-3008-6-700w.webp", thumbJpg: "images/gallery/peugeot-3008-6-700w.jpg", legende: "Coffre" }
+      { webp: "images/gallery/peugeot-3008-2.webp", jpg: "images/gallery/peugeot-3008-2.jpg", thumbWebp: "images/gallery/peugeot-3008-2-700w.webp", thumbJpg: "images/gallery/peugeot-3008-2-700w.jpg", legende: "Vue 3/4 avant (variante)" },
+      { webp: "images/gallery/peugeot-3008-3.webp", jpg: "images/gallery/peugeot-3008-3.jpg", thumbWebp: "images/gallery/peugeot-3008-3-700w.webp", thumbJpg: "images/gallery/peugeot-3008-3-700w.jpg", legende: "Profil gauche" },
+      { webp: "images/gallery/peugeot-3008-4.webp", jpg: "images/gallery/peugeot-3008-4.jpg", thumbWebp: "images/gallery/peugeot-3008-4-700w.webp", thumbJpg: "images/gallery/peugeot-3008-4-700w.jpg", legende: "Profil droit" },
+      { webp: "images/gallery/peugeot-3008-5.webp", jpg: "images/gallery/peugeot-3008-5.jpg", thumbWebp: "images/gallery/peugeot-3008-5-700w.webp", thumbJpg: "images/gallery/peugeot-3008-5-700w.jpg", legende: "Arrière 3/4" },
+      { webp: "images/gallery/peugeot-3008-6.webp", jpg: "images/gallery/peugeot-3008-6.jpg", thumbWebp: "images/gallery/peugeot-3008-6-700w.webp", thumbJpg: "images/gallery/peugeot-3008-6-700w.jpg", legende: "Arrière 3/4 droit" },
+      { webp: "images/gallery/peugeot-3008-7.webp", jpg: "images/gallery/peugeot-3008-7.jpg", thumbWebp: "images/gallery/peugeot-3008-7-700w.webp", thumbJpg: "images/gallery/peugeot-3008-7-700w.jpg", legende: "Face avant" },
+      { webp: "images/gallery/peugeot-3008-8.webp", jpg: "images/gallery/peugeot-3008-8.jpg", thumbWebp: "images/gallery/peugeot-3008-8-700w.webp", thumbJpg: "images/gallery/peugeot-3008-8-700w.jpg", legende: "Face arrière" },
+      { webp: "images/gallery/peugeot-3008-9.webp", jpg: "images/gallery/peugeot-3008-9.jpg", thumbWebp: "images/gallery/peugeot-3008-9-700w.webp", thumbJpg: "images/gallery/peugeot-3008-9-700w.jpg", legende: "Tableau de bord" },
+      { webp: "images/gallery/peugeot-3008-10.webp", jpg: "images/gallery/peugeot-3008-10.jpg", thumbWebp: "images/gallery/peugeot-3008-10-700w.webp", thumbJpg: "images/gallery/peugeot-3008-10-700w.jpg", legende: "Sièges" },
+      { webp: "images/gallery/peugeot-3008-11.webp", jpg: "images/gallery/peugeot-3008-11.jpg", thumbWebp: "images/gallery/peugeot-3008-11-700w.webp", thumbJpg: "images/gallery/peugeot-3008-11-700w.jpg", legende: "Coffre" }
     ],
     places: 5,
     portes: 5,
@@ -334,11 +344,14 @@ const VEHICULES = [
     photo: "images/toyota-proace-city.jpg",
     photos: [
       { webp: "images/gallery/toyota-proace-city-1.webp", jpg: "images/gallery/toyota-proace-city-1.jpg", thumbWebp: "images/gallery/toyota-proace-city-1-700w.webp", thumbJpg: "images/gallery/toyota-proace-city-1-700w.jpg", legende: "Vue 3/4 avant" },
-      { webp: "images/gallery/toyota-proace-city-2.webp", jpg: "images/gallery/toyota-proace-city-2.jpg", thumbWebp: "images/gallery/toyota-proace-city-2-700w.webp", thumbJpg: "images/gallery/toyota-proace-city-2-700w.jpg", legende: "Face avant" },
-      { webp: "images/gallery/toyota-proace-city-3.webp", jpg: "images/gallery/toyota-proace-city-3.jpg", thumbWebp: "images/gallery/toyota-proace-city-3-700w.webp", thumbJpg: "images/gallery/toyota-proace-city-3-700w.jpg", legende: "Profil" },
-      { webp: "images/gallery/toyota-proace-city-4.webp", jpg: "images/gallery/toyota-proace-city-4.jpg", thumbWebp: "images/gallery/toyota-proace-city-4-700w.webp", thumbJpg: "images/gallery/toyota-proace-city-4-700w.jpg", legende: "Arrière 3/4" },
-      { webp: "images/gallery/toyota-proace-city-5.webp", jpg: "images/gallery/toyota-proace-city-5.jpg", thumbWebp: "images/gallery/toyota-proace-city-5-700w.webp", thumbJpg: "images/gallery/toyota-proace-city-5-700w.jpg", legende: "Face arrière" },
-      { webp: "images/gallery/toyota-proace-city-6.webp", jpg: "images/gallery/toyota-proace-city-6.jpg", thumbWebp: "images/gallery/toyota-proace-city-6-700w.webp", thumbJpg: "images/gallery/toyota-proace-city-6-700w.jpg", legende: "Intérieur" }
+      { webp: "images/gallery/toyota-proace-city-2.webp", jpg: "images/gallery/toyota-proace-city-2.jpg", thumbWebp: "images/gallery/toyota-proace-city-2-700w.webp", thumbJpg: "images/gallery/toyota-proace-city-2-700w.jpg", legende: "Vue 3/4 avant (variante)" },
+      { webp: "images/gallery/toyota-proace-city-3.webp", jpg: "images/gallery/toyota-proace-city-3.jpg", thumbWebp: "images/gallery/toyota-proace-city-3-700w.webp", thumbJpg: "images/gallery/toyota-proace-city-3-700w.jpg", legende: "Face avant" },
+      { webp: "images/gallery/toyota-proace-city-4.webp", jpg: "images/gallery/toyota-proace-city-4.jpg", thumbWebp: "images/gallery/toyota-proace-city-4-700w.webp", thumbJpg: "images/gallery/toyota-proace-city-4-700w.jpg", legende: "Profil gauche" },
+      { webp: "images/gallery/toyota-proace-city-5.webp", jpg: "images/gallery/toyota-proace-city-5.jpg", thumbWebp: "images/gallery/toyota-proace-city-5-700w.webp", thumbJpg: "images/gallery/toyota-proace-city-5-700w.jpg", legende: "Profil droit" },
+      { webp: "images/gallery/toyota-proace-city-6.webp", jpg: "images/gallery/toyota-proace-city-6.jpg", thumbWebp: "images/gallery/toyota-proace-city-6-700w.webp", thumbJpg: "images/gallery/toyota-proace-city-6-700w.jpg", legende: "Arrière 3/4" },
+      { webp: "images/gallery/toyota-proace-city-7.webp", jpg: "images/gallery/toyota-proace-city-7.jpg", thumbWebp: "images/gallery/toyota-proace-city-7-700w.webp", thumbJpg: "images/gallery/toyota-proace-city-7-700w.jpg", legende: "Arrière 3/4 droit" },
+      { webp: "images/gallery/toyota-proace-city-8.webp", jpg: "images/gallery/toyota-proace-city-8.jpg", thumbWebp: "images/gallery/toyota-proace-city-8-700w.webp", thumbJpg: "images/gallery/toyota-proace-city-8-700w.jpg", legende: "Face arrière" },
+      { webp: "images/gallery/toyota-proace-city-9.webp", jpg: "images/gallery/toyota-proace-city-9.jpg", thumbWebp: "images/gallery/toyota-proace-city-9-700w.webp", thumbJpg: "images/gallery/toyota-proace-city-9-700w.jpg", legende: "Intérieur" }
     ],
     places: 5,
     portes: 5,
