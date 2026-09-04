@@ -138,7 +138,7 @@ function buildConfirmationEmailContent(reservation, siteUrl) {
 
   const checklistHtml = checklistLignes.map((l) => `<li>${escapeHtml(l)}</li>`).join("");
   const documentsHtml = documentsUrl
-    ? `<p><a href="${escapeHtml(documentsUrl)}" style="display:inline-block;padding:10px 18px;background:#f2760c;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;">Compléter mon dossier</a></p>`
+    ? `<p><a href="${escapeHtml(documentsUrl)}" style="display:inline-block;padding:10px 18px;background:#fd5301;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;">Compléter mon dossier</a></p>`
     : "";
 
   const html = `<p>Bonjour ${escapeHtml(prenom)},</p>

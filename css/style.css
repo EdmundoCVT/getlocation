@@ -13,15 +13,17 @@
 :root {
   /* Identité GETLOCATION : blanc dominant, orange + bleu (charte du logo), gris très clair.
      Noms de variables historiques (--violet, --bleu-ocean, --turquoise, --sable) conservés
-     pour ne pas casser les ~40 usages existants dans ce fichier — seules les valeurs changent. */
-  --violet: #f2760c;         /* orange de marque (ex-violet) */
-  --violet-dark: #d9640a;
-  --violet-light: #fde7d2;
+     pour ne pas casser les ~40 usages existants dans ce fichier — seules les valeurs changent.
+     Nouvelle charte (logo pin/G) appliquée le 04/09/2026, couleurs extraites directement
+     des fichiers logo fournis (pas du PDF, converti CMJN → RVB donc légèrement différent). */
+  --violet: #fd5301;         /* orange de marque (ex-violet) */
+  --violet-dark: #d94700;
+  --violet-light: #feede5;
   --bleu-nuit: #12101a;      /* noir/texte fort (nom conservé pour compat) */
-  --bleu-ocean: #1d6fe0;     /* bleu de marque (accent secondaire, logo) */
-  --turquoise: #1d6fe0;      /* alias bleu de marque (nom conservé pour compat) */
-  --sable: #f8cfa0;
-  --sable-clair: #fef3e7;
+  --bleu-ocean: #0067fc;     /* bleu de marque (accent secondaire, logo) */
+  --turquoise: #0067fc;      /* alias bleu de marque (nom conservé pour compat) */
+  --sable: #feceb7;
+  --sable-clair: #fef4ef;
   --gris-fonce: #1a1a1f;
   --gris-clair: #f7f7f9;
   --blanc: #ffffff;
@@ -105,14 +107,8 @@ textarea:focus-visible,
 .logo-mark {
   width: 38px;
   height: 38px;
-  border-radius: 11px;
-  background: linear-gradient(135deg, var(--violet), var(--bleu-ocean));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 1.1rem;
-  font-weight: 800;
+  object-fit: contain;
+  flex: none;
 }
 
 .main-nav {
@@ -908,7 +904,7 @@ textarea:focus-visible,
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: var(--violet);
+  background: var(--bleu-ocean);
   color: white;
   font-weight: 800;
   font-size: 1.1rem;
@@ -921,6 +917,7 @@ textarea:focus-visible,
 .how-step h3 {
   font-size: 1rem;
   margin: 0 0 6px;
+  color: var(--bleu-ocean);
 }
 
 .how-step p {
@@ -929,9 +926,15 @@ textarea:focus-visible,
   font-size: 0.9rem;
 }
 
+/* Alterne bleu/orange sur l'étape centrale, comme sur le flyer papier
+   (1 COMMANDEZ bleu, 2 LIVRAISON orange, 3 ROULEZ bleu) — cohérence
+   charte imprimé/site plutôt qu'une couleur unique pour les 3 étapes. */
+.how-step-alt .how-step-num { background: var(--violet); }
+.how-step-alt h3 { color: var(--violet); }
+
 .how-step-arrow {
   flex: 0 0 auto;
-  color: #d6d0f5;
+  color: var(--sable);
   font-size: 1.5rem;
   padding-top: 10px;
 }
