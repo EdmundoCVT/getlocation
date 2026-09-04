@@ -237,10 +237,7 @@ const VEHICULES = [
       { webp: "images/gallery/opel-corsa-5.webp", jpg: "images/gallery/opel-corsa-5.jpg", thumbWebp: "images/gallery/opel-corsa-5-700w.webp", thumbJpg: "images/gallery/opel-corsa-5-700w.jpg", legende: "Arrière 3/4" },
       { webp: "images/gallery/opel-corsa-6.webp", jpg: "images/gallery/opel-corsa-6.jpg", thumbWebp: "images/gallery/opel-corsa-6-700w.webp", thumbJpg: "images/gallery/opel-corsa-6-700w.jpg", legende: "Arrière 3/4 droit" },
       { webp: "images/gallery/opel-corsa-7.webp", jpg: "images/gallery/opel-corsa-7.jpg", thumbWebp: "images/gallery/opel-corsa-7-700w.webp", thumbJpg: "images/gallery/opel-corsa-7-700w.jpg", legende: "Face avant" },
-      { webp: "images/gallery/opel-corsa-8.webp", jpg: "images/gallery/opel-corsa-8.jpg", thumbWebp: "images/gallery/opel-corsa-8-700w.webp", thumbJpg: "images/gallery/opel-corsa-8-700w.jpg", legende: "Face arrière" },
-      { webp: "images/gallery/opel-corsa-9.webp", jpg: "images/gallery/opel-corsa-9.jpg", thumbWebp: "images/gallery/opel-corsa-9-700w.webp", thumbJpg: "images/gallery/opel-corsa-9-700w.jpg", legende: "Tableau de bord" },
-      { webp: "images/gallery/opel-corsa-10.webp", jpg: "images/gallery/opel-corsa-10.jpg", thumbWebp: "images/gallery/opel-corsa-10-700w.webp", thumbJpg: "images/gallery/opel-corsa-10-700w.jpg", legende: "Sièges avant" },
-      { webp: "images/gallery/opel-corsa-11.webp", jpg: "images/gallery/opel-corsa-11.jpg", thumbWebp: "images/gallery/opel-corsa-11-700w.webp", thumbJpg: "images/gallery/opel-corsa-11-700w.jpg", legende: "Coffre" }
+      { webp: "images/gallery/opel-corsa-8.webp", jpg: "images/gallery/opel-corsa-8.jpg", thumbWebp: "images/gallery/opel-corsa-8-700w.webp", thumbJpg: "images/gallery/opel-corsa-8-700w.jpg", legende: "Face arrière" }
     ],
     places: 5,
     portes: 5,
@@ -310,10 +307,7 @@ const VEHICULES = [
       { webp: "images/gallery/peugeot-3008-5.webp", jpg: "images/gallery/peugeot-3008-5.jpg", thumbWebp: "images/gallery/peugeot-3008-5-700w.webp", thumbJpg: "images/gallery/peugeot-3008-5-700w.jpg", legende: "Arrière 3/4" },
       { webp: "images/gallery/peugeot-3008-6.webp", jpg: "images/gallery/peugeot-3008-6.jpg", thumbWebp: "images/gallery/peugeot-3008-6-700w.webp", thumbJpg: "images/gallery/peugeot-3008-6-700w.jpg", legende: "Arrière 3/4 droit" },
       { webp: "images/gallery/peugeot-3008-7.webp", jpg: "images/gallery/peugeot-3008-7.jpg", thumbWebp: "images/gallery/peugeot-3008-7-700w.webp", thumbJpg: "images/gallery/peugeot-3008-7-700w.jpg", legende: "Face avant" },
-      { webp: "images/gallery/peugeot-3008-8.webp", jpg: "images/gallery/peugeot-3008-8.jpg", thumbWebp: "images/gallery/peugeot-3008-8-700w.webp", thumbJpg: "images/gallery/peugeot-3008-8-700w.jpg", legende: "Face arrière" },
-      { webp: "images/gallery/peugeot-3008-9.webp", jpg: "images/gallery/peugeot-3008-9.jpg", thumbWebp: "images/gallery/peugeot-3008-9-700w.webp", thumbJpg: "images/gallery/peugeot-3008-9-700w.jpg", legende: "Tableau de bord" },
-      { webp: "images/gallery/peugeot-3008-10.webp", jpg: "images/gallery/peugeot-3008-10.jpg", thumbWebp: "images/gallery/peugeot-3008-10-700w.webp", thumbJpg: "images/gallery/peugeot-3008-10-700w.jpg", legende: "Sièges" },
-      { webp: "images/gallery/peugeot-3008-11.webp", jpg: "images/gallery/peugeot-3008-11.jpg", thumbWebp: "images/gallery/peugeot-3008-11-700w.webp", thumbJpg: "images/gallery/peugeot-3008-11-700w.jpg", legende: "Coffre" }
+      { webp: "images/gallery/peugeot-3008-8.webp", jpg: "images/gallery/peugeot-3008-8.jpg", thumbWebp: "images/gallery/peugeot-3008-8-700w.webp", thumbJpg: "images/gallery/peugeot-3008-8-700w.jpg", legende: "Face arrière" }
     ],
     places: 5,
     portes: 5,
