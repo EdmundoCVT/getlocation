@@ -69,11 +69,24 @@ async function generateContractNumero(env) {
 // / hasOverlappingReservation, qui ne regardent que ces statuts-là. Stocké
 // SANS TTL (contrairement à createReservation) : c'est un document
 // commercial à conserver, pas une réservation à durée de vie limitée.
-async function createManualContract(env, rawData) {
+// `operator` : nom de l'opérateur connecté (session agence vérifiée, voir
+// src/lib/agency-auth.js), JAMAIS une valeur envoyée par le navigateur —
+// placé après le spread de rawData pour ne jamais pouvoir être écrasé par
+// un champ du même nom dans le formulaire.
+async function createManualContract(env, rawData, operator) {
   const id = generateReservationId();
   const numero = await generateContractNumero(env);
   const now = new Date().toISOString();
-  const record = { ...rawData, id, contractNumero: numero, status: "manual_contract", createdAt: now, updatedAt: now };
+  const record = {
+    ...rawData,
+    id,
+    contractNumero: numero,
+    status: "manual_contract",
+    createdAt: now,
+    updatedAt: now,
+    createdBy: operator || null,
+    updatedBy: operator || null
+  };
   await env.RESERVATIONS_KV.put(id, JSON.stringify(record));
   return record;
 }
@@ -84,7 +97,9 @@ async function createManualContract(env, rawData) {
 // données métier (le formulaire renvoie toujours son état complet, jamais
 // un patch partiel — même convention que createManualContract). Renvoie
 // null si l'id est introuvable ou ne correspond pas à un contrat manuel.
-async function updateManualContract(env, id, rawData) {
+// Même règle que createManualContract pour `operator` : jamais depuis le
+// payload. createdBy n'est jamais réécrit (on garde l'auteur d'origine).
+async function updateManualContract(env, id, rawData, operator) {
   const record = await getReservation(env, id);
   if (!record || record.status !== "manual_contract") return null;
   const updated = {
@@ -93,7 +108,9 @@ async function updateManualContract(env, id, rawData) {
     contractNumero: record.contractNumero,
     status: "manual_contract",
     createdAt: record.createdAt,
-    updatedAt: new Date().toISOString()
+    createdBy: record.createdBy || null,
+    updatedAt: new Date().toISOString(),
+    updatedBy: operator || null
   };
   await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
   return updated;
@@ -275,9 +292,9 @@ async function listReservations(env) {
 // dates, statut) — jamais permis/naissance/téléphone/adresse/signature —
 // car cette liste, contrairement à l'accès par jeton du dossier, n'est pas
 // protégée individuellement par un secret. Vue complète pour les contrats
-// manuels (nécessaire à "Ouvrir"/"Dupliquer" côté formulaire), qui restent
-// dans le même modèle de confiance qu'avant (page /contrat non
-// authentifiée, choix assumé — voir CLAUDE.md).
+// manuels (nécessaire à "Ouvrir"/"Dupliquer" côté formulaire) — accessible
+// uniquement à une session agence valide depuis le Lot 1 (voir
+// src/api/contracts-history.js, src/lib/agency-auth.js, CLAUDE.md).
 async function listContractsHistory(env, limit = 30) {
   const records = await listReservations(env);
   const avecNumero = records.filter((r) => r.contractNumero);

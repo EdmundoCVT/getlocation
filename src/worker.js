@@ -26,6 +26,9 @@ const { handleContractDossierClient } = require("./api/contract-dossier-client.j
 const { handleContractsManualCreate } = require("./api/contracts-manual-create.js");
 const { handleContractsManualUpdate } = require("./api/contracts-manual-update.js");
 const { handleContractsHistory } = require("./api/contracts-history.js");
+const { handleAgencyLogin } = require("./api/agency-login.js");
+const { handleAgencyLogout } = require("./api/agency-logout.js");
+const { handleAgencySession } = require("./api/agency-session.js");
 const { runScheduledTasks } = require("./lib/scheduled-tasks.js");
 
 const ROUTES = {
@@ -41,7 +44,11 @@ const ROUTES = {
   "/api/contract-dossier-client": handleContractDossierClient,
   "/api/contracts-manual-create": handleContractsManualCreate,
   "/api/contracts-manual-update": handleContractsManualUpdate,
-  "/api/contracts-history": handleContractsHistory
+  "/api/contracts-history": handleContractsHistory,
+  // Lot 1 (voir CLAUDE.md) : authentification agence (Edmundo/Antonio).
+  "/api/agency-login": handleAgencyLogin,
+  "/api/agency-logout": handleAgencyLogout,
+  "/api/agency-session": handleAgencySession
 };
 
 export default {

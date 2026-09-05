@@ -26,9 +26,14 @@ const { runDocumentReminders } = require("./document-reminders.js");
 const { runPickupReminders } = require("./pickup-reminders.js");
 const { runReturnReminders } = require("./return-reminders.js");
 const { runAgencyDailySummary } = require("./agency-daily-summary.js");
+const { purgeAgencyAuthData } = require("./agency-auth.js");
 
 const CRON_STEPS = [
   { name: "document-retention", run: runDocumentRetentionPurge },
+  // Lot 1 (voir CLAUDE.md) : purge des sessions agence expirées/révoquées et
+  // des tentatives de connexion de plus de 24h — indépendant des autres
+  // étapes (D1, pas KV réservations), l'ordre n'a pas d'importance ici.
+  { name: "agency-auth-purge", run: purgeAgencyAuthData },
   { name: "document-reminders", run: runDocumentReminders },
   { name: "pickup-reminders", run: runPickupReminders },
   { name: "return-reminders", run: runReturnReminders },

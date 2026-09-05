@@ -75,3 +75,17 @@ test("les deux espaces de noms KV attendus par src/lib/*.js sont déclarés", ()
     assert.ok(typeof ns.id === "string" && ns.id.length > 0, `l'espace de noms KV "${ns.binding}" doit avoir un id`);
   }
 });
+
+test("le Worker route l'authentification agence (Lot 1)", () => {
+  const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
+  assert.match(worker, /"\/api\/agency-login"\s*:\s*handleAgencyLogin/);
+  assert.match(worker, /"\/api\/agency-logout"\s*:\s*handleAgencyLogout/);
+  assert.match(worker, /"\/api\/agency-session"\s*:\s*handleAgencySession/);
+});
+
+test("la base D1 de l'authentification agence (AGENCY_DB) est déclarée (Lot 1)", () => {
+  assert.ok(Array.isArray(config.d1_databases) && config.d1_databases.length > 0, "d1_databases manquant");
+  const db = config.d1_databases.find((d) => d.binding === "AGENCY_DB");
+  assert.ok(db, "binding AGENCY_DB manquant (voir src/lib/agency-auth.js)");
+  assert.ok(typeof db.database_id === "string" && db.database_id.length > 0);
+});

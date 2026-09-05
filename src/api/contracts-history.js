@@ -9,6 +9,7 @@
 
 const { listContractsHistory } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
+const { requireAgencySession } = require("../lib/agency-auth.js");
 
 function getAllowedOrigins(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -48,6 +49,13 @@ async function handleContractsHistory(request, env) {
   if (request.method !== "GET") {
     return new Response(JSON.stringify({ error: "Méthode non autorisée" }), { status: 405, headers });
   }
+
+  // Lecture seule : session agence requise, mais ni CSRF ni vérification
+  // stricte de l'origine (voir src/lib/agency-auth.js) — ce sont des
+  // protections pour les écritures, pas pour un GET protégé par cookie
+  // SameSite=Lax.
+  const auth = await requireAgencySession(request, env);
+  if (auth.error) return auth.error;
 
   const rate = await checkRateLimit(env, `contracts-history:${clientIp(request)}`, { windowMs: 60000, maxRequests: 60 });
   if (!rate.allowed) {

@@ -5,12 +5,14 @@
 // contrat officiel") — client sans réservation en ligne, ou contrat
 // recréé après une location déjà effectuée. Assigne un numéro unique et
 // persiste les données du formulaire (voir src/lib/reservation-store.js,
-// createManualContract). Page /contrat non authentifiée (choix assumé par
-// l'agence) : même niveau de confiance que le reste du formulaire,
-// protégé uniquement par une limite de débit best-effort.
+// createManualContract). Depuis le Lot 1 (voir CLAUDE.md), nécessite une
+// session agence valide (Edmundo/Antonio, src/lib/agency-auth.js) — la
+// limite de débit ci-dessous reste une protection best-effort
+// complémentaire, pas le seul rempart.
 
 const { createManualContract } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
+const { requireAgencySession } = require("../lib/agency-auth.js");
 
 function getAllowedOrigins(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -68,6 +70,13 @@ async function handleContractsManualCreate(request, env) {
     return new Response(JSON.stringify({ error: "Méthode non autorisée" }), { status: 405, headers });
   }
 
+  // Lot 1 (voir CLAUDE.md) : cet endpoint n'est plus accessible sans session
+  // agence valide (Edmundo/Antonio) — remplace le modèle de confiance décrit
+  // ci-dessus ("page /contrat non authentifiée"). Vérifié AVANT le
+  // rate-limit/le corps de la requête.
+  const auth = await requireAgencySession(request, env, { requireCsrf: true, requireOrigin: true });
+  if (auth.error) return auth.error;
+
   const rate = await checkRateLimit(env, `contracts-manual-create:${clientIp(request)}`, { windowMs: 60000, maxRequests: 30 });
   if (!rate.allowed) {
     return new Response(JSON.stringify({ error: "Trop de requêtes, veuillez réessayer dans un instant." }), {
@@ -90,7 +99,7 @@ async function handleContractsManualCreate(request, env) {
     return new Response(JSON.stringify({ error: "Champs requis manquants (véhicule, dates, nom, prénom)" }), { status: 400, headers });
   }
 
-  const record = await createManualContract(env, rawData);
+  const record = await createManualContract(env, rawData, auth.session.operator);
   return new Response(JSON.stringify({ id: record.id, numero: record.contractNumero, createdAt: record.createdAt }), { status: 200, headers });
 }
 

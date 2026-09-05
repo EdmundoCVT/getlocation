@@ -185,8 +185,28 @@
   </div>
   <p class="brand-sub">Location de véhicules — TLST SAS · Grasse, Alpes-Maritimes</p>
 
+  <!-- ================= CONNEXION AGENCE (Lot 1) ================= -->
+  <div id="agencyLoginView" class="hidden">
+    <h1>Espace agence</h1>
+    <p class="lead">Connexion réservée à l'agence GETLOCATION.</p>
+    <div class="card">
+      <form id="agencyLoginForm">
+        <div class="field">
+          <label for="agencyLoginCode">Code personnel</label>
+          <input id="agencyLoginCode" type="password" autocomplete="off" required>
+        </div>
+        <p class="missing-fields hidden" id="agencyLoginError"></p>
+        <button type="submit" class="btn btn-primary" id="agencyLoginBtn">Se connecter</button>
+      </form>
+    </div>
+  </div>
+
   <!-- ================= MODE AGENCE (remplissage) ================= -->
-  <div id="ownerView">
+  <div id="ownerView" class="hidden">
+    <div class="historique-row" id="agencyUserBar" style="margin-bottom:14px;">
+      <div class="info"><span class="details">Connecté : <strong id="agencyUserName"></strong></span></div>
+      <div class="actions"><button type="button" class="btn" id="agencyLogoutBtn">Se déconnecter</button></div>
+    </div>
     <h1>Préparer un contrat de location</h1>
     <p class="lead">Remplissez les informations de la location. Un lien sera généré pour l'envoyer au client, qui n'aura plus qu'à vérifier et signer.</p>
 
@@ -2560,8 +2580,7 @@ if(agencyToken){
   document.getElementById('clientView').classList.remove('hidden');
   initClientView(decodeData(encoded));
 } else {
-  document.getElementById('ownerView').classList.remove('hidden');
-  initOwnerView(prefillEncoded ? decodeData(prefillEncoded) : null);
+  initEcranAgence();
 }
 
 // Lit une liste de fichiers image et les convertit en dataURL JPEG
@@ -3122,7 +3141,8 @@ function initOwnerView(prefill){
     try {
       reponse = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-Agency-Csrf': agenceCsrfToken || '' },
         body: JSON.stringify(corps)
       });
     } catch(e){
@@ -3244,7 +3264,7 @@ function initOwnerView(prefill){
   }
 
   function chargerHistorique(){
-    fetch('/api/contracts-history')
+    fetch('/api/contracts-history', { credentials: 'same-origin' })
       .then(function(r){ return r.ok ? r.json() : { contracts: [] }; })
       .then(function(res){
         historiqueContrats = res.contracts || [];
@@ -3339,6 +3359,92 @@ function initOwnerView(prefill){
     }
   });
 }
+
+// ================= Connexion agence (Lot 1, voir CLAUDE.md) =================
+// Protège la vue AGENCE (ownerView) : code personnel Edmundo/Antonio,
+// vérifié côté serveur (src/api/agency-login.js) — jamais comparé ni stocké
+// côté navigateur. Le cookie de session est HttpOnly (invisible en JS) ;
+// seul le jeton CSRF (nécessaire pour les écritures, voir appelApiContrat)
+// est gardé en mémoire ici, jamais persisté (sessionStorage/localStorage) —
+// une simple actualisation de page revérifie la session via
+// /api/agency-session, qui renvoie un jeton CSRF à jour sans redemander le
+// code.
+var agenceCsrfToken = null;
+
+function afficherBandeauAgence(operateur){
+  document.getElementById('agencyUserName').textContent = operateur;
+}
+
+function afficherFormulaireAgence(){
+  document.getElementById('agencyLoginView').classList.add('hidden');
+  document.getElementById('ownerView').classList.remove('hidden');
+  initOwnerView(prefillEncoded ? decodeData(prefillEncoded) : null);
+}
+
+function afficherEcranConnexion(messageErreur){
+  document.getElementById('ownerView').classList.add('hidden');
+  document.getElementById('agencyLoginView').classList.remove('hidden');
+  var erreurEl = document.getElementById('agencyLoginError');
+  if(messageErreur){
+    erreurEl.textContent = messageErreur;
+    erreurEl.classList.remove('hidden');
+  } else {
+    erreurEl.classList.add('hidden');
+  }
+}
+
+function initEcranAgence(){
+  fetch('/api/agency-session', { credentials: 'same-origin' })
+    .then(function(r){ return r.ok ? r.json() : { authenticated: false }; })
+    .then(function(res){
+      if(res.authenticated){
+        agenceCsrfToken = res.csrfToken;
+        afficherBandeauAgence(res.operator);
+        afficherFormulaireAgence();
+      } else {
+        afficherEcranConnexion();
+      }
+    })
+    .catch(function(){ afficherEcranConnexion('Connexion au serveur impossible. Réessayez.'); });
+}
+
+document.getElementById('agencyLoginForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  var input = document.getElementById('agencyLoginCode');
+  var btn = document.getElementById('agencyLoginBtn');
+  if(!input.value) return;
+  btn.disabled = true;
+  fetch('/api/agency-login', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: input.value })
+  })
+    .then(function(r){ return r.json().then(function(json){ return { ok: r.ok, json: json }; }); })
+    .then(function(res){
+      if(!res.ok){
+        afficherEcranConnexion(res.json && res.json.error ? res.json.error : 'Code incorrect.');
+        input.value = '';
+        return;
+      }
+      agenceCsrfToken = res.json.csrfToken;
+      afficherBandeauAgence(res.json.operator);
+      afficherFormulaireAgence();
+    })
+    .catch(function(){ afficherEcranConnexion('Connexion au serveur impossible. Réessayez.'); })
+    .finally(function(){ btn.disabled = false; });
+});
+
+document.getElementById('agencyLogoutBtn').addEventListener('click', function(){
+  fetch('/api/agency-logout', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'X-Agency-Csrf': agenceCsrfToken || '' }
+  }).finally(function(){
+    agenceCsrfToken = null;
+    window.location.reload();
+  });
+});
 
 function initClientView(data){
   // Récupère les photos état des lieux transmises par l'onglet agence, si

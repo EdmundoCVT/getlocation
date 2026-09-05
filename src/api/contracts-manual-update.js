@@ -5,10 +5,12 @@
 // restitution) — déclenché quand l'agence rouvre un contrat depuis
 // l'historique de contrat.html ("Ouvrir") puis clique sur "Mettre à jour
 // le contrat". L'id et le numéro sont conservés (voir
-// src/lib/reservation-store.js, updateManualContract).
+// src/lib/reservation-store.js, updateManualContract). Depuis le Lot 1
+// (voir CLAUDE.md), nécessite une session agence valide.
 
 const { updateManualContract } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
+const { requireAgencySession } = require("../lib/agency-auth.js");
 
 function getAllowedOrigins(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -63,6 +65,9 @@ async function handleContractsManualUpdate(request, env) {
     return new Response(JSON.stringify({ error: "Méthode non autorisée" }), { status: 405, headers });
   }
 
+  const auth = await requireAgencySession(request, env, { requireCsrf: true, requireOrigin: true });
+  if (auth.error) return auth.error;
+
   const rate = await checkRateLimit(env, `contracts-manual-update:${clientIp(request)}`, { windowMs: 60000, maxRequests: 30 });
   if (!rate.allowed) {
     return new Response(JSON.stringify({ error: "Trop de requêtes, veuillez réessayer dans un instant." }), {
@@ -84,7 +89,7 @@ async function handleContractsManualUpdate(request, env) {
     return new Response(JSON.stringify({ error: "Identifiant de contrat ou données manquantes/invalides" }), { status: 400, headers });
   }
 
-  const record = await updateManualContract(env, body.id, body.rawData);
+  const record = await updateManualContract(env, body.id, body.rawData, auth.session.operator);
   if (!record) {
     return new Response(JSON.stringify({ error: "Contrat manuel introuvable" }), { status: 404, headers });
   }
