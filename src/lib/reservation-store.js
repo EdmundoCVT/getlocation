@@ -39,28 +39,16 @@ function generateReservationId() {
   return `res_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
 
-function pad2(n) {
-  return String(n).padStart(2, "0");
-}
-
 // Numéro de contrat lisible GL-AAAAMMJJ-NNNN (distinct de l'id KV opaque
 // res_<hex> et de la "référence de réservation" GL-<8 derniers hex>
 // affichée au client sur confirmation.html — ni l'un ni l'autre n'est
-// séquentiel). Compteur journalier stocké dans RESERVATIONS_KV (clé
-// "contract_counter_AAAAMMJJ", préfixe disjoint de tous les autres déjà
-// utilisés dans ce fichier : res_/pay_/doc_/agency_doc_/contract_agency_/
-// contract_client_). Lecture-puis-écriture non atomique — limite acceptée
-// pour une petite agence à faible volume (même compromis que
-// RESERVATION_HOLD_MS ci-dessus).
-async function generateContractNumero(env) {
-  const now = new Date();
-  const datePart = `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}`;
-  const counterKey = `contract_counter_${datePart}`;
-  const current = await env.RESERVATIONS_KV.get(counterKey);
-  const next = (current ? parseInt(current, 10) : 0) + 1;
-  await env.RESERVATIONS_KV.put(counterKey, String(next));
-  return `GL-${datePart}-${String(next).padStart(4, "0")}`;
-}
+// séquentiel). Depuis le Lot 2 (voir CLAUDE.md), délègue à
+// src/lib/contract-numero.js : compteur D1 atomique (UPSERT SQLite), partagé
+// avec les nouvelles locations (src/lib/rentals.js) pour ne jamais avoir
+// deux compteurs indépendants sur le même format. Remplace l'ancien
+// compteur Cloudflare KV lecture-puis-écriture (non garanti unique en cas de
+// double écriture quasi simultanée).
+const { generateContractNumero } = require("./contract-numero.js");
 
 // Contrat créé à la main par l'agence (client sans réservation en ligne, ou
 // contrat recréé après une location déjà effectuée) — statut dédié

@@ -9,6 +9,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { createFakeKv } = require("./helpers/fake-kv.js");
+const { createFakeD1 } = require("./helpers/fake-d1.js");
 const {
   generateContractNumero,
   createManualContract,
@@ -19,7 +20,10 @@ const {
 } = require("../src/lib/reservation-store.js");
 
 function makeEnv() {
-  return { RESERVATIONS_KV: createFakeKv() };
+  // Depuis le Lot 2 : generateContractNumero() délègue à un compteur D1
+  // atomique (voir src/lib/contract-numero.js) au lieu du compteur KV
+  // lecture-puis-écriture.
+  return { RESERVATIONS_KV: createFakeKv(), AGENCY_DB: createFakeD1() };
 }
 
 const rawDataValide = {

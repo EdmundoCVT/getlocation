@@ -29,6 +29,10 @@ const { handleContractsHistory } = require("./api/contracts-history.js");
 const { handleAgencyLogin } = require("./api/agency-login.js");
 const { handleAgencyLogout } = require("./api/agency-logout.js");
 const { handleAgencySession } = require("./api/agency-session.js");
+const { handleAgencyClients } = require("./api/agency-clients.js");
+const { handleAgencyRentals } = require("./api/agency-rentals.js");
+const { handleAgencyPayments } = require("./api/agency-payments.js");
+const { handleAgencyDeposits } = require("./api/agency-deposits.js");
 const { runScheduledTasks } = require("./lib/scheduled-tasks.js");
 
 const ROUTES = {
@@ -48,7 +52,12 @@ const ROUTES = {
   // Lot 1 (voir CLAUDE.md) : authentification agence (Edmundo/Antonio).
   "/api/agency-login": handleAgencyLogin,
   "/api/agency-logout": handleAgencyLogout,
-  "/api/agency-session": handleAgencySession
+  "/api/agency-session": handleAgencySession,
+  // Lot 2 (voir CLAUDE.md) : clients, locations, paiements, cautions.
+  "/api/agency-clients": handleAgencyClients,
+  "/api/agency-rentals": handleAgencyRentals,
+  "/api/agency-payments": handleAgencyPayments,
+  "/api/agency-deposits": handleAgencyDeposits
 };
 
 export default {

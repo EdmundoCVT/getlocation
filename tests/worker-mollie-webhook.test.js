@@ -18,12 +18,17 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { createFakeKv } = require("./helpers/fake-kv.js");
+const { createFakeD1 } = require("./helpers/fake-d1.js");
 const { handleMollieWebhook, processPaymentStatus } = require("../src/api/mollie-webhook.js");
 const { createReservation, getReservation, updateReservationStatus } = require("../src/lib/reservation-store.js");
 
 function makeEnv(overrides = {}) {
   return {
     RESERVATIONS_KV: createFakeKv(),
+    // Depuis le Lot 2 : generateContractNumero() (appelé ici à la
+    // confirmation du paiement) délègue à un compteur D1 atomique — voir
+    // src/lib/contract-numero.js.
+    AGENCY_DB: createFakeD1(),
     DOCUMENT_TOKEN_PEPPER: "pepper-de-test-ne-jamais-utiliser-en-production",
     ...overrides
   };

@@ -23,6 +23,7 @@ const {
   hasAllowedOrigin,
   LOGIN_ATTEMPT_MAX
 } = require("../lib/agency-auth.js");
+const { recordAuditEvent } = require("../lib/audit-log.js");
 
 const SESSION_LIFETIME_SECONDS = 30 * 24 * 60 * 60;
 
@@ -73,11 +74,18 @@ async function handleAgencyLogin(request, env) {
   await recordLoginAttempt(env, ipHash, Boolean(match));
 
   if (!match) {
+    // Traçabilité (voir CLAUDE.md, "Traçabilité des opérateurs") : actor
+    // null (l'identité n'est délibérément jamais révélée sur un échec —
+    // voir hashCode) ; login_attempts ci-dessus reste réservé à la
+    // limitation de débit (purgé après 24h), ce journal est le seul
+    // durable.
+    await recordAuditEvent(env, { actor: null, eventType: "login_failed" });
     return new Response(JSON.stringify({ error: "Code incorrect." }), { status: 401, headers: jsonHeaders() });
   }
 
   const session = await createSession(env, match.name, match.codeHash);
   const csrfToken = await deriveCsrfToken(session.id, env.AGENCY_AUTH_PEPPER);
+  await recordAuditEvent(env, { actor: match.name, eventType: "login_succeeded" });
 
   return new Response(
     JSON.stringify({ operator: match.name, csrfToken, expiresAt: session.expiresAt.toISOString() }),
