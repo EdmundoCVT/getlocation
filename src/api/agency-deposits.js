@@ -14,6 +14,7 @@ const {
 } = require("../lib/deposits.js");
 const { getRentalById } = require("../lib/rentals.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
+const { attemptSync } = require("../lib/sheet-sync-outbox.js");
 
 function corsHeaders(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -59,17 +60,20 @@ async function handlePost(request, env, headers) {
       if (!rental) return new Response(JSON.stringify({ error: "Location introuvable" }), { status: 404, headers });
       const deposit = await createDepositRequest(env, body.rentalId, body.data || {}, auth.session.operator);
       await recordAuditEvent(env, { actor: auth.session.operator, eventType: "deposit_requested", entityType: "deposit", entityId: deposit.id });
+      await attemptSync(env, deposit.rentalId, auth.session.operator);
       return new Response(JSON.stringify({ deposit }), { status: 200, headers });
     }
     if (body.action === "update-request") {
       const deposit = await updateDepositRequest(env, body.id, body.data || {}, auth.session.operator);
       if (!deposit) return new Response(JSON.stringify({ error: "Caution introuvable" }), { status: 404, headers });
+      await attemptSync(env, deposit.rentalId, auth.session.operator);
       return new Response(JSON.stringify({ deposit }), { status: 200, headers });
     }
     if (body.action === "receive") {
       const deposit = await receiveDeposit(env, body.id, auth.session.operator);
       if (!deposit) return new Response(JSON.stringify({ error: "Caution introuvable" }), { status: 404, headers });
       await recordAuditEvent(env, { actor: auth.session.operator, eventType: "deposit_received", entityType: "deposit", entityId: deposit.id });
+      await attemptSync(env, deposit.rentalId, auth.session.operator);
       return new Response(JSON.stringify({ deposit }), { status: 200, headers });
     }
     if (body.action === "return") {
@@ -82,6 +86,7 @@ async function handlePost(request, env, headers) {
         entityId: deposit.id,
         metadata: { returnedAmountCents: deposit.returnedAmountCents, retainedAmountCents: deposit.retainedAmountCents }
       });
+      await attemptSync(env, deposit.rentalId, auth.session.operator);
       return new Response(JSON.stringify({ deposit }), { status: 200, headers });
     }
     return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers });

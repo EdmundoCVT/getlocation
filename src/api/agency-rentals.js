@@ -10,6 +10,7 @@ const { requireAgencySession } = require("../lib/agency-auth.js");
 const { createRental, updateRental, getRentalById, generateRentalContract, listRentalsByClient } = require("../lib/rentals.js");
 const { getClientById } = require("../lib/clients.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
+const { attemptSync } = require("../lib/sheet-sync-outbox.js");
 
 function corsHeaders(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -62,12 +63,14 @@ async function handlePost(request, env, headers) {
       if (!client) return new Response(JSON.stringify({ error: "Client introuvable" }), { status: 404, headers });
       const rental = await createRental(env, body.clientId, body.data || {}, auth.session.operator);
       await recordAuditEvent(env, { actor: auth.session.operator, eventType: "rental_created", entityType: "rental", entityId: rental.id });
+      await attemptSync(env, rental.id, auth.session.operator);
       return new Response(JSON.stringify({ rental }), { status: 200, headers });
     }
     if (body.action === "update") {
       const rental = await updateRental(env, body.id, body.data || {}, auth.session.operator);
       if (!rental) return new Response(JSON.stringify({ error: "Location introuvable" }), { status: 404, headers });
       await recordAuditEvent(env, { actor: auth.session.operator, eventType: "rental_updated", entityType: "rental", entityId: rental.id });
+      await attemptSync(env, rental.id, auth.session.operator);
       return new Response(JSON.stringify({ rental }), { status: 200, headers });
     }
     if (body.action === "generate-contract") {
@@ -80,6 +83,7 @@ async function handlePost(request, env, headers) {
         entityId: rental.id,
         metadata: { contractNumero: rental.contractNumero }
       });
+      await attemptSync(env, rental.id, auth.session.operator);
       return new Response(JSON.stringify({ rental }), { status: 200, headers });
     }
     return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers });

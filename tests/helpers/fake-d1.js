@@ -19,12 +19,13 @@ function createFakeD1() {
   const auditLog = []; // { id, actor, event_type, entity_type, entity_id, metadata, created_at }
   const contractCounters = new Map(); // date_part -> seq
 
-  // Tables génériques du Lot 2 : clé = nom de table, valeur = Map(id -> row).
+  // Tables génériques (Lot 2 + Lot 3) : clé = nom de table, valeur = Map(id -> row).
   const tables = {
     clients: new Map(),
     rentals: new Map(),
     payments: new Map(),
-    deposits: new Map()
+    deposits: new Map(),
+    sheet_sync_outbox: new Map()
   };
 
   function genericInsert(norm, args) {
@@ -42,15 +43,32 @@ function createFakeD1() {
     return { success: true };
   }
 
+  // Chaque segment "col = ?" consomme un argument positionnel ; un segment
+  // "col = col + N" (ex. attempt_count = attempt_count + 1, voir
+  // sheet-sync-outbox.js) est calculé directement sans consommer
+  // d'argument — comme le ferait réellement D1/SQLite.
   function genericUpdate(norm, args) {
     const m = /^UPDATE (\w+) SET (.+) WHERE id = \?$/.exec(norm);
     if (!m) return undefined;
     const [, table, setClause] = m;
     if (!tables[table]) return undefined;
-    const setCols = setClause.split(",").map((s) => s.trim().split("=")[0].trim());
     const id = args[args.length - 1];
     const row = tables[table].get(id);
-    if (row) setCols.forEach((col, i) => { row[col] = args[i]; });
+    if (row) {
+      let argIndex = 0;
+      for (const segment of setClause.split(",").map((s) => s.trim())) {
+        const eq = segment.indexOf("=");
+        const col = segment.slice(0, eq).trim();
+        const rhs = segment.slice(eq + 1).trim();
+        if (rhs === "?") {
+          row[col] = args[argIndex++];
+        } else {
+          const incr = /^(\w+)\s*\+\s*(\d+)$/.exec(rhs);
+          if (!incr || incr[1] !== col) throw new Error("fake-d1: expression SET non reconnue : " + segment);
+          row[col] = (Number(row[col]) || 0) + Number(incr[2]);
+        }
+      }
+    }
     return { success: true };
   }
 

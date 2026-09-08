@@ -10,6 +10,7 @@ const { requireAgencySession } = require("../lib/agency-auth.js");
 const { addPayment, voidPayment, listPaymentsForRental, summarizePayments } = require("../lib/payments.js");
 const { getRentalById } = require("../lib/rentals.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
+const { attemptSync } = require("../lib/sheet-sync-outbox.js");
 
 function corsHeaders(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -65,6 +66,7 @@ async function handlePost(request, env, headers) {
         entityId: payment.id,
         metadata: { rentalId: rental.id, amountCents: payment.amountCents, method: payment.method }
       });
+      await attemptSync(env, rental.id, auth.session.operator);
       return new Response(JSON.stringify({ payment }), { status: 200, headers });
     }
     if (body.action === "void") {
@@ -77,6 +79,7 @@ async function handlePost(request, env, headers) {
         entityId: payment.id,
         metadata: { amountCents: payment.amountCents }
       });
+      await attemptSync(env, payment.rentalId, auth.session.operator);
       return new Response(JSON.stringify({ payment }), { status: 200, headers });
     }
     return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers });

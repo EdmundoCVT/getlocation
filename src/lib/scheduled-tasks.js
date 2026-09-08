@@ -27,6 +27,7 @@ const { runPickupReminders } = require("./pickup-reminders.js");
 const { runReturnReminders } = require("./return-reminders.js");
 const { runAgencyDailySummary } = require("./agency-daily-summary.js");
 const { purgeAgencyAuthData } = require("./agency-auth.js");
+const { retryPendingSheetSyncs } = require("./sheet-sync-outbox.js");
 
 const CRON_STEPS = [
   { name: "document-retention", run: runDocumentRetentionPurge },
@@ -34,6 +35,10 @@ const CRON_STEPS = [
   // des tentatives de connexion de plus de 24h — indépendant des autres
   // étapes (D1, pas KV réservations), l'ordre n'a pas d'importance ici.
   { name: "agency-auth-purge", run: purgeAgencyAuthData },
+  // Lot 3 : relance quotidienne des synchronisations Google Sheets restées
+  // en attente ou en échec (voir sheet-sync-outbox.js) — best-effort, une
+  // panne Google ne doit jamais faire échouer le reste du cron.
+  { name: "sheet-sync-retry", run: retryPendingSheetSyncs },
   { name: "document-reminders", run: runDocumentReminders },
   { name: "pickup-reminders", run: runPickupReminders },
   { name: "return-reminders", run: runReturnReminders },

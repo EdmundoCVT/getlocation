@@ -14,7 +14,7 @@ const { runScheduledTasks, CRON_STEPS } = require("../src/lib/scheduled-tasks.js
 test("CRON_STEPS : ordre attendu (purge documentaire en premier)", () => {
   assert.deepEqual(
     CRON_STEPS.map((step) => step.name),
-    ["document-retention", "agency-auth-purge", "document-reminders", "pickup-reminders", "return-reminders", "agency-daily-summary"]
+    ["document-retention", "agency-auth-purge", "sheet-sync-retry", "document-reminders", "pickup-reminders", "return-reminders", "agency-daily-summary"]
   );
 });
 
