@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Espace agence — GETLOCATION</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="css/style.css?v=26">
+<style>
+  /* Écran interne agence (Lot 4) : réutilise les classes partagées
+     (.card/.field/.form-grid/.btn/.summary-row/.empty-state/.hint-text/
+     .error-text) — seuls les badges de statut ci-dessous sont propres à
+     cette page, pas de nouveau design system. */
+  .field textarea {
+    width: 100%; min-width: 0; padding: 12px 14px; border: 1px solid #e4e4e9;
+    border-radius: 8px; font: inherit; background: var(--gris-clair); color: var(--gris-fonce); resize: vertical;
+  }
+  .status-pill {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 0.8rem; font-weight: 700; background: #eee; color: #555; white-space: nowrap;
+  }
+  .status-brouillon { background: #eee; color: #555; }
+  .status-contrat_genere { background: #e5edff; color: #2d4fa3; }
+  .status-en_cours { background: #fff3cd; color: #8a6d00; }
+  .status-terminee { background: #e6f7ec; color: #1e7d43; }
+  .status-annulee { background: #fde2e1; color: #9c2b26; }
+  .sync-ok { background: #e6f7ec; color: #1e7d43; }
+  .sync-pending { background: #fff3cd; color: #8a6d00; }
+  .sync-error { background: #fde2e1; color: #9c2b26; }
+  .result-card { margin-top: 10px; }
+  .result-card .summary-row { align-items: center; }
+  .top-bar { margin-bottom: 20px; align-items: center; }
+  .section-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
+  .rentals-list > * + * { margin-top: 10px; }
+</style>
+</head>
+<body>
+<header class="site-header"><div class="header-inner container"><a href="index.html" class="logo"><img src="images/logo-icon.png" alt="" class="logo-mark" width="38" height="38"> GETLOCATION</a></div></header>
+
+<main class="section container" style="max-width:900px">
+
+  <!-- ================= CONNEXION ================= -->
+  <div id="loginView">
+    <h1 class="section-title">Espace agence</h1>
+    <p class="section-subtitle">Connexion réservée à l'agence GETLOCATION.</p>
+    <div class="card">
+      <form id="loginForm">
+        <div class="field"><label for="loginCode">Code personnel</label><input type="password" id="loginCode" autocomplete="off" required></div>
+        <p class="error-text" id="loginError" hidden></p>
+        <button type="submit" class="btn btn-primary btn-block" id="loginBtn" style="margin-top:14px;">Se connecter</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= ESPACE AGENCE (après connexion) ================= -->
+  <div id="mainView" hidden>
+    <div class="summary-row top-bar">
+      <span>Connecté : <strong id="operatorName"></strong></span>
+      <button type="button" class="btn btn-sm" id="logoutBtn">Se déconnecter</button>
+    </div>
+
+    <!-- ---- Recherche client ---- -->
+    <section id="searchSection">
+      <h1 class="section-title">Rechercher un client</h1>
+      <p class="section-subtitle">Téléphone ou email en priorité ; nom/prénom en dernier recours.</p>
+      <div class="card">
+        <form id="searchForm" class="form-grid">
+          <div class="field"><label for="searchPhone">Téléphone</label><input type="text" id="searchPhone"></div>
+          <div class="field"><label for="searchEmail">Email</label><input type="text" id="searchEmail"></div>
+          <div class="field"><label for="searchLastName">Nom</label><input type="text" id="searchLastName"></div>
+          <div class="field"><label for="searchFirstName">Prénom</label><input type="text" id="searchFirstName"></div>
+          <div class="field full section-actions" style="margin:0;">
+            <button type="submit" class="btn btn-primary" id="searchBtn">Rechercher</button>
+            <button type="button" class="btn btn-secondary" id="newClientBtn">+ Nouveau client</button>
+          </div>
+        </form>
+      </div>
+      <div id="searchResults"></div>
+    </section>
+
+    <!-- ---- Formulaire client (création / modification) ---- -->
+    <section id="clientFormSection" hidden>
+      <h1 class="section-title" id="clientFormTitle">Nouveau client</h1>
+      <div class="card">
+        <form id="clientForm">
+          <div class="form-grid">
+            <div class="field"><label for="cf-firstName">Prénom</label><input id="cf-firstName" maxlength="100" required></div>
+            <div class="field"><label for="cf-lastName">Nom</label><input id="cf-lastName" maxlength="100" required></div>
+            <div class="field"><label for="cf-phone">Téléphone</label><input id="cf-phone" maxlength="40"></div>
+            <div class="field"><label for="cf-email">Email</label><input id="cf-email" type="email" maxlength="200"></div>
+            <div class="field"><label for="cf-birthDate">Date de naissance</label><input id="cf-birthDate" type="text" placeholder="AAAA-MM-JJ" maxlength="10"></div>
+            <div class="field"><label for="cf-permitNumber">Numéro de permis</label><input id="cf-permitNumber" maxlength="50"></div>
+            <div class="field full"><label for="cf-postalAddress">Adresse postale</label><input id="cf-postalAddress" maxlength="300"></div>
+            <div class="field full"><label for="cf-notes">Notes</label><textarea id="cf-notes" rows="3" maxlength="2000"></textarea></div>
+            <div class="field full" style="flex-direction:row; align-items:center; gap:10px;">
+              <input type="checkbox" id="cf-marketingConsent" style="width:auto;">
+              <label for="cf-marketingConsent" style="margin:0; text-transform:none; font-weight:400; font-size:0.9rem;">Accepte d'être contacté à des fins marketing (jamais coché par défaut)</label>
+            </div>
+          </div>
+          <div id="duplicateWarning" class="hint-text" hidden style="margin-top:14px; background:#fff3cd; padding:12px 14px; border-radius:8px;"></div>
+          <p class="error-text" id="clientFormError" hidden></p>
+          <div class="section-actions">
+            <button type="submit" class="btn btn-primary" id="clientFormSubmit">Enregistrer</button>
+            <button type="button" class="btn btn-secondary" id="clientFormCancel">Annuler</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ---- Fiche client ---- -->
+    <section id="clientSheetSection" hidden>
+      <button type="button" class="btn btn-sm" id="backToSearchBtn">← Recherche</button>
+      <h1 class="section-title" id="clientSheetName"></h1>
+      <div class="card" id="clientSheetIdentity"></div>
+      <div class="section-actions">
+        <button type="button" class="btn btn-secondary" id="editClientBtn">Modifier le client</button>
+        <button type="button" class="btn btn-primary" id="newRentalBtn">+ Nouvelle location</button>
+      </div>
+      <h2>Locations</h2>
+      <div id="clientRentalsList" class="rentals-list"></div>
+    </section>
+
+    <!-- ---- Formulaire location (création / modification) ---- -->
+    <section id="rentalFormSection" hidden>
+      <h1 class="section-title" id="rentalFormTitle">Nouvelle location</h1>
+      <div class="card">
+        <form id="rentalForm">
+          <div class="form-grid">
+            <div class="field full"><label for="rf-vehicule">Véhicule</label><select id="rf-vehicule" required></select></div>
+            <div class="field"><label for="rf-immat">Immatriculation</label><input id="rf-immat" maxlength="20"></div>
+            <div class="field"><label for="rf-price">Tarif total (€)</label><input id="rf-price" type="number" min="0" step="0.01"></div>
+            <div class="field"><label for="rf-dateDebut">Date début</label><input id="rf-dateDebut" type="date" required></div>
+            <div class="field"><label for="rf-heureDebut">Heure début</label><input id="rf-heureDebut" type="time" required></div>
+            <div class="field"><label for="rf-dateFin">Date fin</label><input id="rf-dateFin" type="date" required></div>
+            <div class="field"><label for="rf-heureFin">Heure fin</label><input id="rf-heureFin" type="time" required></div>
+            <div class="field"><label for="rf-lieuPrise">Lieu de prise en charge</label><input id="rf-lieuPrise" maxlength="200"></div>
+            <div class="field"><label for="rf-lieuRetour">Lieu de retour</label><input id="rf-lieuRetour" maxlength="200"></div>
+            <div class="field"><label for="rf-adressePrise">Adresse de prise en charge</label><input id="rf-adressePrise" maxlength="300"></div>
+            <div class="field"><label for="rf-adresseRetour">Adresse de retour</label><input id="rf-adresseRetour" maxlength="300"></div>
+            <div class="field"><label for="rf-kmDepart">Km départ</label><input id="rf-kmDepart" type="number" min="0"></div>
+            <div class="field"><label for="rf-kmRetour">Km retour</label><input id="rf-kmRetour" type="number" min="0"></div>
+            <div class="field full"><label for="rf-notes">Notes</label><textarea id="rf-notes" rows="3" maxlength="2000"></textarea></div>
+          </div>
+          <p class="error-text" id="rentalFormError" hidden></p>
+          <div class="section-actions">
+            <button type="submit" class="btn btn-primary" id="rentalFormSubmit">Enregistrer</button>
+            <button type="button" class="btn btn-secondary" id="rentalFormCancel">Annuler</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ---- Détail location ---- -->
+    <section id="rentalDetailSection" hidden>
+      <button type="button" class="btn btn-sm" id="backToClientBtn">← Fiche client</button>
+      <div class="summary-row" style="margin:14px 0 6px;">
+        <h1 class="section-title" style="margin:0;" id="rentalDetailTitle"></h1>
+        <span id="rentalStatusBadge"></span>
+      </div>
+      <div class="card" id="rentalRecap"></div>
+      <div class="section-actions">
+        <button type="button" class="btn btn-secondary" id="editRentalBtn">Modifier</button>
+        <button type="button" class="btn btn-primary" id="generateContractBtn">Générer le numéro de contrat</button>
+        <select id="rentalStatusSelect"></select>
+      </div>
+
+      <h2>Synchronisation Google Sheets</h2>
+      <div class="card" id="syncStatusCard"></div>
+
+      <h2>Paiements</h2>
+      <div class="card">
+        <div id="paymentsSummary" class="summary-row"></div>
+        <div id="paymentsList" style="margin-top:10px;"></div>
+        <form id="paymentForm" class="form-grid" style="margin-top:16px;">
+          <div class="field"><label for="pf-amount">Montant (€)</label><input id="pf-amount" type="number" min="0.01" step="0.01" required></div>
+          <div class="field"><label for="pf-method">Moyen</label>
+            <select id="pf-method"><option value="carte">Carte bancaire</option><option value="especes">Espèces</option><option value="virement">Virement</option></select>
+          </div>
+          <div class="field"><label for="pf-reference">Référence (facultatif)</label><input id="pf-reference" maxlength="200"></div>
+          <div class="field full"><button type="submit" class="btn btn-primary" id="paymentFormSubmit">Ajouter le paiement</button></div>
+        </form>
+      </div>
+
+      <h2>Caution</h2>
+      <div class="card" id="depositCard"></div>
+    </section>
+  </div>
+</main>
+
+<script src="js/data.js?v=20"></script>
+<script>
+(function(){
+'use strict';
+
+// ================= Utilitaires ================= //
+function escapeHtml(s){
+  var map = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+  return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function(c){ return map[c]; });
+}
+function formatDateFR(iso){
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? (m[3] + '/' + m[2] + '/' + m[1]) : (iso || '—');
+}
+function euros(cents){
+  if(cents === null || cents === undefined || isNaN(cents)) return '—';
+  return (cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+function row(label, value){
+  return '<div class="summary-row"><span>' + escapeHtml(label) + '</span><span>' + escapeHtml(value === '' || value === null || value === undefined ? '—' : value) + '</span></div>';
+}
+function showError(id, msg){ var el = document.getElementById(id); el.textContent = msg; el.hidden = false; }
+function clearError(id){ var el = document.getElementById(id); el.hidden = true; el.textContent = ''; }
+
+var RENTAL_STATUS_LABELS = { brouillon: 'Brouillon', contrat_genere: 'Contrat généré', en_cours: 'En cours', terminee: 'Terminée', annulee: 'Annulée' };
+var PAYMENT_METHOD_LABELS = { carte: 'Carte bancaire', especes: 'Espèces', virement: 'Virement' };
+var PAYMENT_STATUS_LABELS = { impaye: 'Impayé', partiel: 'Partiel', solde: 'Soldé' };
+var DEPOSIT_STATUS_LABELS = { attendue: 'Attendue', recue: 'Reçue', restituee: 'Restituée', retenue_partielle: 'Retenue partielle', retenue_totale: 'Retenue totale' };
+var SYNC_STATUS_LABELS = { pending: 'En attente', synced: 'Synchronisé', error: 'Erreur' };
+
+function statusBadge(status){
+  return '<span class="status-pill status-' + escapeHtml(status) + '">' + escapeHtml(RENTAL_STATUS_LABELS[status] || status) + '</span>';
+}
+function syncBadge(syncStatus){
+  var s = syncStatus ? syncStatus.status : null;
+  var label = s ? (SYNC_STATUS_LABELS[s] || s) : 'Non synchronisé';
+  var cls = s === 'synced' ? 'sync-ok' : (s === 'error' ? 'sync-error' : 'sync-pending');
+  return '<span class="status-pill ' + cls + '">' + escapeHtml(label) + '</span>';
+}
+
+// Exposées pour les tests (extraction jsdom, voir tests/back-office.test.js)
+// — jamais utilisées en dehors de ce fichier.
+window.__backOffice = { escapeHtml: escapeHtml, formatDateFR: formatDateFR, euros: euros, statusBadge: statusBadge, syncBadge: syncBadge };
+
+// ================= Appels API agence ================= //
+var agenceCsrfToken = null;
+
+function apiGet(url){
+  return fetch(url, { credentials: 'same-origin' }).then(function(r){
+    return r.json().catch(function(){ return null; }).then(function(json){ return { ok: r.ok, status: r.status, json: json || {} }; });
+  });
+}
+function apiPost(url, body){
+  return fetch(url, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-Agency-Csrf': agenceCsrfToken || '' },
+    body: JSON.stringify(body)
+  }).then(function(r){
+    return r.json().catch(function(){ return null; }).then(function(json){ return { ok: r.ok, status: r.status, json: json || {} }; });
+  });
+}
+function alerteConnexion(){ alert('Connexion au serveur impossible. Vérifiez votre connexion et réessayez.'); }
+
+// ================= Connexion ================= //
+function showSection(id){
+  ['searchSection', 'clientFormSection', 'clientSheetSection', 'rentalFormSection', 'rentalDetailSection'].forEach(function(s){
+    document.getElementById(s).hidden = (s !== id);
+  });
+}
+
+function afficherApresConnexion(operator){
+  document.getElementById('operatorName').textContent = operator;
+  document.getElementById('loginView').hidden = true;
+  document.getElementById('mainView').hidden = false;
+  showSection('searchSection');
+}
+
+function initSession(){
+  apiGet('/api/agency-session').then(function(res){
+    if(res.json.authenticated){
+      agenceCsrfToken = res.json.csrfToken;
+      afficherApresConnexion(res.json.operator);
+    }
+  }).catch(function(){ /* reste sur l'écran de connexion */ });
+}
+
+document.getElementById('loginForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  var input = document.getElementById('loginCode');
+  var btn = document.getElementById('loginBtn');
+  if(!input.value) return;
+  btn.disabled = true;
+  apiPost('/api/agency-login', { code: input.value }).then(function(res){
+    if(!res.ok){
+      showError('loginError', res.json.error || 'Code incorrect.');
+      input.value = '';
+      return;
+    }
+    clearError('loginError');
+    agenceCsrfToken = res.json.csrfToken;
+    afficherApresConnexion(res.json.operator);
+  }).catch(function(){ showError('loginError', 'Connexion au serveur impossible.'); })
+  .finally(function(){ btn.disabled = false; });
+});
+
+document.getElementById('logoutBtn').addEventListener('click', function(){
+  var btn = this;
+  btn.disabled = true;
+  apiPost('/api/agency-logout', {}).finally(function(){ window.location.reload(); });
+});
+
+initSession();
+
+// ================= Recherche client ================= //
+var currentClient = null;
+var currentRental = null;
+var editingClientId = null;
+var editingRentalId = null;
+var clientFormSuppressDuplicateCheck = false;
+
+document.getElementById('searchForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  var phone = document.getElementById('searchPhone').value.trim();
+  var email = document.getElementById('searchEmail').value.trim();
+  var lastName = document.getElementById('searchLastName').value.trim();
+  var firstName = document.getElementById('searchFirstName').value.trim();
+  if(!phone && !email && !lastName && !firstName){
+    document.getElementById('searchResults').innerHTML = '<p class="hint-text">Renseignez au moins un critère de recherche.</p>';
+    return;
+  }
+  var params = new URLSearchParams();
+  if(phone) params.set('phone', phone);
+  if(email) params.set('email', email);
+  if(lastName) params.set('lastName', lastName);
+  if(firstName) params.set('firstName', firstName);
+  apiGet('/api/agency-clients?' + params.toString()).then(function(res){
+    if(!res.ok){ alert(res.json.error || 'Erreur de recherche'); return; }
+    renderSearchResults(res.json.clients || []);
+  }).catch(alerteConnexion);
+});
+
+function renderSearchResults(clients){
+  var container = document.getElementById('searchResults');
+  if(!clients.length){ container.innerHTML = '<div class="empty-state">Aucun client trouvé — vous pouvez en créer un nouveau.</div>'; return; }
+  container.innerHTML = '';
+  clients.forEach(function(c){
+    var card = document.createElement('div');
+    card.className = 'card result-card';
+    card.innerHTML = '<div class="summary-row"><span><strong>' + escapeHtml(c.firstName + ' ' + c.lastName) + '</strong><br><small>' +
+      escapeHtml([c.phone, c.email].filter(Boolean).join(' · ') || 'Aucun contact renseigné') + '</small></span></div>';
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'btn btn-secondary'; btn.textContent = 'Ouvrir la fiche';
+    btn.addEventListener('click', function(){ openClientSheet(c.id); });
+    card.querySelector('.summary-row').appendChild(btn);
+    container.appendChild(card);
+  });
+}
+
+document.getElementById('backToSearchBtn').addEventListener('click', function(){ showSection('searchSection'); });
+
+// ================= Formulaire client ================= //
+function resetClientForm(){
+  ['cf-firstName', 'cf-lastName', 'cf-phone', 'cf-email', 'cf-birthDate', 'cf-permitNumber', 'cf-postalAddress', 'cf-notes'].forEach(function(id){
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('cf-marketingConsent').checked = false;
+  document.getElementById('duplicateWarning').hidden = true;
+  clearError('clientFormError');
+  clientFormSuppressDuplicateCheck = false;
+}
+
+document.getElementById('newClientBtn').addEventListener('click', function(){
+  editingClientId = null;
+  resetClientForm();
+  document.getElementById('clientFormTitle').textContent = 'Nouveau client';
+  showSection('clientFormSection');
+});
+
+document.getElementById('editClientBtn').addEventListener('click', function(){
+  if(!currentClient) return;
+  editingClientId = currentClient.id;
+  document.getElementById('cf-firstName').value = currentClient.firstName || '';
+  document.getElementById('cf-lastName').value = currentClient.lastName || '';
+  document.getElementById('cf-phone').value = currentClient.phone || '';
+  document.getElementById('cf-email').value = currentClient.email || '';
+  document.getElementById('cf-birthDate').value = currentClient.birthDate || '';
+  document.getElementById('cf-permitNumber').value = currentClient.permitNumber || '';
+  document.getElementById('cf-postalAddress').value = currentClient.postalAddress || '';
+  document.getElementById('cf-notes').value = currentClient.notes || '';
+  document.getElementById('cf-marketingConsent').checked = !!currentClient.marketingConsent;
+  document.getElementById('duplicateWarning').hidden = true;
+  clearError('clientFormError');
+  document.getElementById('clientFormTitle').textContent = 'Modifier le client';
+  showSection('clientFormSection');
+});
+
+document.getElementById('clientFormCancel').addEventListener('click', function(){
+  if(editingClientId) openClientSheet(editingClientId);
+  else showSection('searchSection');
+});
+
+document.getElementById('clientForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  var data = {
+    firstName: document.getElementById('cf-firstName').value,
+    lastName: document.getElementById('cf-lastName').value,
+    phone: document.getElementById('cf-phone').value,
+    email: document.getElementById('cf-email').value,
+    birthDate: document.getElementById('cf-birthDate').value,
+    permitNumber: document.getElementById('cf-permitNumber').value,
+    postalAddress: document.getElementById('cf-postalAddress').value,
+    notes: document.getElementById('cf-notes').value,
+    marketingConsent: document.getElementById('cf-marketingConsent').checked
+  };
+  clearError('clientFormError');
+
+  function enregistrer(){
+    var btn = document.getElementById('clientFormSubmit');
+    btn.disabled = true;
+    var appel = editingClientId
+      ? apiPost('/api/agency-clients', { action: 'update', id: editingClientId, data: data })
+      : apiPost('/api/agency-clients', { action: 'create', data: data });
+    appel.then(function(res){
+      if(!res.ok){ showError('clientFormError', res.json.error || "Erreur lors de l'enregistrement."); return; }
+      openClientSheet(res.json.client.id);
+    }).catch(function(){ showError('clientFormError', 'Connexion au serveur impossible.'); })
+    .finally(function(){ btn.disabled = false; });
+  }
+
+  // Signale les ressemblances avant de créer un NOUVEAU client — jamais de
+  // fusion automatique (voir cahier des charges) : uniquement à la
+  // création, jamais lors d'une simple modification.
+  if(!editingClientId && !clientFormSuppressDuplicateCheck && (data.phone || data.email)){
+    var params = new URLSearchParams();
+    if(data.phone) params.set('phone', data.phone);
+    if(data.email) params.set('email', data.email);
+    apiGet('/api/agency-clients?' + params.toString()).then(function(res){
+      var matches = res.json.clients || [];
+      if(!matches.length){ enregistrer(); return; }
+      var warn = document.getElementById('duplicateWarning');
+      warn.hidden = false;
+      warn.innerHTML = '<strong>Client(s) similaire(s) déjà enregistré(s) :</strong><br>' +
+        matches.map(function(c){ return escapeHtml(c.firstName + ' ' + c.lastName + ' — ' + (c.phone || c.email || '')); }).join('<br>') +
+        '<br><button type="button" class="btn btn-sm" id="confirmNewClientBtn" style="margin-top:8px;">Ce n\'est pas la même personne — créer quand même</button>';
+      document.getElementById('confirmNewClientBtn').addEventListener('click', function(){
+        clientFormSuppressDuplicateCheck = true;
+        enregistrer();
+      });
+    }).catch(alerteConnexion);
+  } else {
+    enregistrer();
+  }
+});
+
+// ================= Fiche client ================= //
+function openClientSheet(clientId){
+  apiGet('/api/agency-clients?id=' + encodeURIComponent(clientId)).then(function(res){
+    if(!res.ok){ alert(res.json.error || 'Client introuvable'); return null; }
+    currentClient = res.json.client;
+    renderClientSheet();
+    return apiGet('/api/agency-rentals?clientId=' + encodeURIComponent(clientId));
+  }).then(function(res){
+    if(res) renderClientRentals(res.json.rentals || []);
+  }).catch(alerteConnexion);
+}
+
+function renderClientSheet(){
+  document.getElementById('clientSheetName').textContent = currentClient.firstName + ' ' + currentClient.lastName;
+  document.getElementById('clientSheetIdentity').innerHTML =
+    row('Téléphone', currentClient.phone) +
+    row('Email', currentClient.email) +
+    row('Date de naissance', currentClient.birthDate) +
+    row('Numéro de permis', currentClient.permitNumber) +
+    row('Adresse', currentClient.postalAddress) +
+    row('Consentement marketing', currentClient.marketingConsent ? 'Oui' : 'Non') +
+    (currentClient.notes ? row('Notes', currentClient.notes) : '');
+  showSection('clientSheetSection');
+}
+
+function renderClientRentals(rentals){
+  var container = document.getElementById('clientRentalsList');
+  if(!rentals.length){ container.innerHTML = '<div class="empty-state">Aucune location pour ce client.</div>'; return; }
+  container.innerHTML = '';
+  rentals.forEach(function(r){
+    var v = typeof getVehiculeParId === 'function' ? getVehiculeParId(r.vehiculeId) : null;
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = '<div class="summary-row"><span><strong>' + escapeHtml(v ? v.nom : r.vehiculeId) + '</strong><br><small>' +
+      escapeHtml(formatDateFR(r.dateDebut) + ' → ' + formatDateFR(r.dateFin)) + '</small></span>' +
+      '<span>' + statusBadge(r.status) + ' ' + syncBadge(r.syncStatus) + '</span></div>';
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'btn btn-secondary'; btn.style.marginTop = '10px';
+    btn.textContent = 'Ouvrir';
+    btn.addEventListener('click', function(){ openRentalDetail(r.id); });
+    card.appendChild(btn);
+    container.appendChild(card);
+  });
+}
+
+// ================= Formulaire location ================= //
+function populateVehiculeSelect(){
+  var sel = document.getElementById('rf-vehicule');
+  if(typeof VEHICULES === 'undefined') return;
+  sel.innerHTML = '';
+  VEHICULES.forEach(function(v){ sel.add(new Option(v.nom + ' — ' + v.prixJour + ' €/jour', v.id)); });
+}
+populateVehiculeSelect();
+
+function resetRentalForm(){
+  document.getElementById('rf-vehicule').selectedIndex = 0;
+  ['rf-immat', 'rf-price', 'rf-dateDebut', 'rf-heureDebut', 'rf-dateFin', 'rf-heureFin', 'rf-lieuPrise', 'rf-lieuRetour', 'rf-adressePrise', 'rf-adresseRetour', 'rf-kmDepart', 'rf-kmRetour', 'rf-notes'].forEach(function(id){
+    document.getElementById(id).value = '';
+  });
+  clearError('rentalFormError');
+}
+
+document.getElementById('newRentalBtn').addEventListener('click', function(){
+  editingRentalId = null;
+  resetRentalForm();
+  document.getElementById('rentalFormTitle').textContent = 'Nouvelle location';
+  showSection('rentalFormSection');
+});
+
+document.getElementById('editRentalBtn').addEventListener('click', function(){
+  if(!currentRental) return;
+  editingRentalId = currentRental.id;
+  document.getElementById('rf-vehicule').value = currentRental.vehiculeId;
+  document.getElementById('rf-immat').value = currentRental.immatriculation || '';
+  document.getElementById('rf-price').value = currentRental.priceTotalCents != null ? (currentRental.priceTotalCents / 100) : '';
+  document.getElementById('rf-dateDebut').value = currentRental.dateDebut || '';
+  document.getElementById('rf-heureDebut').value = currentRental.heureDebut || '';
+  document.getElementById('rf-dateFin').value = currentRental.dateFin || '';
+  document.getElementById('rf-heureFin').value = currentRental.heureFin || '';
+  document.getElementById('rf-lieuPrise').value = currentRental.lieuPrise || '';
+  document.getElementById('rf-lieuRetour').value = currentRental.lieuRetour || '';
+  document.getElementById('rf-adressePrise').value = currentRental.adressePrise || '';
+  document.getElementById('rf-adresseRetour').value = currentRental.adresseRetour || '';
+  document.getElementById('rf-kmDepart').value = currentRental.kmDepart != null ? currentRental.kmDepart : '';
+  document.getElementById('rf-kmRetour').value = currentRental.kmRetour != null ? currentRental.kmRetour : '';
+  document.getElementById('rf-notes').value = currentRental.notes || '';
+  clearError('rentalFormError');
+  document.getElementById('rentalFormTitle').textContent = 'Modifier la location';
+  showSection('rentalFormSection');
+});
+
+document.getElementById('rentalFormCancel').addEventListener('click', function(){
+  if(editingRentalId) openRentalDetail(editingRentalId);
+  else renderClientSheet();
+});
+
+function lireFormulaireLocation(){
+  return {
+    vehiculeId: document.getElementById('rf-vehicule').value,
+    immatriculation: document.getElementById('rf-immat').value,
+    priceTotal: document.getElementById('rf-price').value || undefined,
+    dateDebut: document.getElementById('rf-dateDebut').value,
+    heureDebut: document.getElementById('rf-heureDebut').value,
+    dateFin: document.getElementById('rf-dateFin').value,
+    heureFin: document.getElementById('rf-heureFin').value,
+    lieuPrise: document.getElementById('rf-lieuPrise').value,
+    lieuRetour: document.getElementById('rf-lieuRetour').value,
+    adressePrise: document.getElementById('rf-adressePrise').value,
+    adresseRetour: document.getElementById('rf-adresseRetour').value,
+    kmDepart: document.getElementById('rf-kmDepart').value || undefined,
+    kmRetour: document.getElementById('rf-kmRetour').value || undefined,
+    notes: document.getElementById('rf-notes').value
+  };
+}
+
+document.getElementById('rentalForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  var data = lireFormulaireLocation();
+  // Ne jamais omettre le statut actuel lors d'une modification : le
+  // serveur ne le réinitialiserait pas en "brouillon" de toute façon (voir
+  // rentals.js), mais on reste explicite pour éviter toute ambiguïté.
+  if(editingRentalId && currentRental) data.status = currentRental.status;
+  clearError('rentalFormError');
+  var btn = document.getElementById('rentalFormSubmit');
+  btn.disabled = true;
+  var appel = editingRentalId
+    ? apiPost('/api/agency-rentals', { action: 'update', id: editingRentalId, data: data })
+    : apiPost('/api/agency-rentals', { action: 'create', clientId: currentClient.id, data: data });
+  appel.then(function(res){
+    if(!res.ok){ showError('rentalFormError', res.json.error || "Erreur lors de l'enregistrement."); return; }
+    openRentalDetail(res.json.rental.id);
+  }).catch(function(){ showError('rentalFormError', 'Connexion au serveur impossible.'); })
+  .finally(function(){ btn.disabled = false; });
+});
+
+// ================= Détail location ================= //
+function openRentalDetail(rentalId){
+  apiGet('/api/agency-rentals?id=' + encodeURIComponent(rentalId)).then(function(res){
+    if(!res.ok){ alert(res.json.error || 'Location introuvable'); return null; }
+    currentRental = res.json.rental;
+    renderRentalDetail();
+    return Promise.all([
+      apiGet('/api/agency-payments?rentalId=' + encodeURIComponent(rentalId)),
+      apiGet('/api/agency-deposits?rentalId=' + encodeURIComponent(rentalId))
+    ]);
+  }).then(function(results){
+    if(!results) return;
+    renderPayments(results[0].json.payments || [], results[0].json.summary || { totalDueCents: 0, totalPaidCents: 0, balanceCents: 0, status: 'impaye' });
+    renderDeposit(results[1].json.deposit);
+  }).catch(alerteConnexion);
+}
+
+function renderRentalDetail(){
+  var v = typeof getVehiculeParId === 'function' ? getVehiculeParId(currentRental.vehiculeId) : null;
+  document.getElementById('rentalDetailTitle').textContent = (v ? v.nom : currentRental.vehiculeId) + (currentRental.contractNumero ? ' — ' + currentRental.contractNumero : '');
+  document.getElementById('rentalStatusBadge').innerHTML = statusBadge(currentRental.status);
+  document.getElementById('rentalRecap').innerHTML =
+    row('Client', currentClient.firstName + ' ' + currentClient.lastName) +
+    row('Dates', formatDateFR(currentRental.dateDebut) + ' ' + currentRental.heureDebut + ' → ' + formatDateFR(currentRental.dateFin) + ' ' + currentRental.heureFin) +
+    row('Immatriculation', currentRental.immatriculation) +
+    row('Lieu de prise en charge', currentRental.lieuPrise) +
+    row('Lieu de retour', currentRental.lieuRetour) +
+    row('Kilométrage', (currentRental.kmDepart != null ? currentRental.kmDepart : '—') + ' → ' + (currentRental.kmRetour != null ? currentRental.kmRetour : '—')) +
+    row('Tarif total', currentRental.priceTotalCents != null ? euros(currentRental.priceTotalCents) : 'Non renseigné') +
+    (currentRental.notes ? row('Notes', currentRental.notes) : '');
+
+  document.getElementById('generateContractBtn').hidden = !!currentRental.contractNumero;
+
+  var statusSelect = document.getElementById('rentalStatusSelect');
+  statusSelect.innerHTML = '';
+  Object.keys(RENTAL_STATUS_LABELS).forEach(function(s){ statusSelect.add(new Option(RENTAL_STATUS_LABELS[s], s)); });
+  statusSelect.value = currentRental.status;
+
+  renderSyncStatus();
+  showSection('rentalDetailSection');
+}
+
+function renderSyncStatus(){
+  var s = currentRental.syncStatus;
+  var html = row('État', syncBadge(s));
+  if(s && s.status === 'error' && s.lastError) html += row('Détail de l\'erreur', s.lastError);
+  document.getElementById('syncStatusCard').innerHTML = html +
+    '<button type="button" class="btn btn-secondary" id="retrySyncBtn" style="margin-top:10px;">Relancer la synchronisation</button>';
+  document.getElementById('retrySyncBtn').addEventListener('click', function(){
+    var btn = document.getElementById('retrySyncBtn');
+    btn.disabled = true;
+    apiPost('/api/agency-rentals', { action: 'retry-sync', id: currentRental.id }).then(function(res){
+      if(!res.ok){ alert(res.json.error || 'Échec de la relance'); return; }
+      currentRental = res.json.rental;
+      renderSyncStatus();
+    }).catch(alerteConnexion)
+    .finally(function(){ btn.disabled = false; });
+  });
+}
+
+document.getElementById('backToClientBtn').addEventListener('click', function(){ openClientSheet(currentClient.id); });
+
+document.getElementById('generateContractBtn').addEventListener('click', function(){
+  if(!confirm('Générer le numéro de contrat pour cette location ? Cette action est définitive.')) return;
+  var btn = this;
+  btn.disabled = true;
+  apiPost('/api/agency-rentals', { action: 'generate-contract', id: currentRental.id }).then(function(res){
+    if(!res.ok){ alert(res.json.error || 'Erreur'); return; }
+    currentRental = res.json.rental;
+    renderRentalDetail();
+  }).catch(alerteConnexion)
+  .finally(function(){ btn.disabled = false; });
+});
+
+document.getElementById('rentalStatusSelect').addEventListener('change', function(){
+  var select = this;
+  var nouveauStatut = select.value;
+  if(!currentRental || nouveauStatut === currentRental.status) return;
+  if(!confirm('Changer le statut de la location en « ' + RENTAL_STATUS_LABELS[nouveauStatut] + ' » ?')){
+    select.value = currentRental.status;
+    return;
+  }
+  var data = lireDonneesLocationCourante();
+  data.status = nouveauStatut;
+  select.disabled = true;
+  apiPost('/api/agency-rentals', { action: 'update', id: currentRental.id, data: data }).then(function(res){
+    if(!res.ok){ alert(res.json.error || 'Erreur'); select.value = currentRental.status; return; }
+    currentRental = res.json.rental;
+    renderRentalDetail();
+  }).catch(function(){ alerteConnexion(); select.value = currentRental.status; })
+  .finally(function(){ select.disabled = false; });
+});
+
+function lireDonneesLocationCourante(){
+  var r = currentRental;
+  return {
+    vehiculeId: r.vehiculeId, immatriculation: r.immatriculation,
+    priceTotal: r.priceTotalCents != null ? r.priceTotalCents / 100 : undefined,
+    dateDebut: r.dateDebut, heureDebut: r.heureDebut, dateFin: r.dateFin, heureFin: r.heureFin,
+    lieuPrise: r.lieuPrise, lieuRetour: r.lieuRetour, adressePrise: r.adressePrise, adresseRetour: r.adresseRetour,
+    kmDepart: r.kmDepart, kmRetour: r.kmRetour, notes: r.notes, status: r.status
+  };
+}
+
+// ================= Paiements ================= //
+function renderPayments(payments, summary){
+  document.getElementById('paymentsSummary').innerHTML =
+    '<span>Total dû : ' + euros(summary.totalDueCents) + ' — Encaissé : ' + euros(summary.totalPaidCents) + ' — Solde : ' + euros(summary.balanceCents) + '</span>' +
+    '<span class="status-pill">' + escapeHtml(PAYMENT_STATUS_LABELS[summary.status] || summary.status) + '</span>';
+
+  var list = document.getElementById('paymentsList');
+  if(!payments.length){ list.innerHTML = '<p class="hint-text">Aucun paiement enregistré.</p>'; return; }
+  list.innerHTML = '';
+  payments.forEach(function(p){
+    var line = document.createElement('div');
+    line.className = 'summary-row';
+    var libelle = '<strong>' + escapeHtml(euros(p.amountCents)) + '</strong> — ' + escapeHtml(PAYMENT_METHOD_LABELS[p.method] || p.method) + (p.reference ? ' (' + escapeHtml(p.reference) + ')' : '');
+    if(p.status === 'annule') libelle += ' <em>— annulé : ' + escapeHtml(p.voidReason) + '</em>';
+    line.innerHTML = '<span>' + libelle + '</span>';
+    if(p.status === 'valide'){
+      var btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'btn btn-sm'; btn.textContent = 'Annuler';
+      btn.addEventListener('click', function(){ voidPayment(p.id); });
+      line.appendChild(btn);
+    }
+    list.appendChild(line);
+  });
+}
+
+function rafraichirPaiements(){
+  return apiGet('/api/agency-payments?rentalId=' + encodeURIComponent(currentRental.id)).then(function(res){
+    renderPayments(res.json.payments || [], res.json.summary || { totalDueCents: 0, totalPaidCents: 0, balanceCents: 0, status: 'impaye' });
+  });
+}
+
+function voidPayment(paymentId){
+  var reason = prompt("Motif de l'annulation (obligatoire) :");
+  if(reason === null) return;
+  if(!reason.trim()){ alert('Un motif est obligatoire pour annuler un paiement.'); return; }
+  apiPost('/api/agency-payments', { action: 'void', id: paymentId, reason: reason }).then(function(res){
+    if(!res.ok){ alert(res.json.error || 'Erreur'); return; }
+    return rafraichirPaiements();
+  }).catch(alerteConnexion);
+}
+
+document.getElementById('paymentForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  var amount = document.getElementById('pf-amount').value;
+  if(!amount) return;
+  var method = document.getElementById('pf-method').value;
+  var reference = document.getElementById('pf-reference').value;
+  var btn = document.getElementById('paymentFormSubmit');
+  btn.disabled = true;
+  apiPost('/api/agency-payments', { action: 'add', rentalId: currentRental.id, data: { amount: Number(amount), method: method, reference: reference } }).then(function(res){
+    if(!res.ok){ alert(res.json.error || 'Erreur'); return; }
+    document.getElementById('pf-amount').value = '';
+    document.getElementById('pf-reference').value = '';
+    return rafraichirPaiements();
+  }).catch(alerteConnexion)
+  .finally(function(){ btn.disabled = false; });
+});
+
+// ================= Caution ================= //
+function renderDeposit(deposit){
+  var box = document.getElementById('depositCard');
+
+  if(!deposit){
+    box.innerHTML =
+      '<p class="hint-text">Aucune caution enregistrée pour cette location.</p>' +
+      '<form id="depositCreateForm" class="form-grid" style="margin-top:10px;">' +
+        '<div class="field"><label for="dep-amount">Montant (€)</label><input id="dep-amount" type="number" min="0.01" step="0.01" required></div>' +
+        '<div class="field"><label for="dep-method">Mode de remise</label><select id="dep-method"><option value="carte">Carte bancaire</option><option value="especes">Espèces</option><option value="virement">Virement</option></select></div>' +
+        '<div class="field full"><button type="submit" class="btn btn-primary">Enregistrer la demande de caution</button></div>' +
+      '</form>';
+    document.getElementById('depositCreateForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      var amount = document.getElementById('dep-amount').value;
+      var method = document.getElementById('dep-method').value;
+      apiPost('/api/agency-deposits', { action: 'create', rentalId: currentRental.id, data: { amount: Number(amount), method: method } }).then(function(res){
+        if(!res.ok){ alert(res.json.error || 'Erreur'); return; }
+        renderDeposit(res.json.deposit);
+      }).catch(alerteConnexion);
+    });
+    return;
+  }
+
+  var html = row('Montant demandé', euros(deposit.amountRequestedCents)) +
+    row('Mode de remise', PAYMENT_METHOD_LABELS[deposit.method] || deposit.method) +
+    row('Statut', DEPOSIT_STATUS_LABELS[deposit.status] || deposit.status);
+
+  if(deposit.status === 'attendue'){
+    html += '<button type="button" class="btn btn-primary" id="receiveDepositBtn" style="margin-top:10px;">Marquer comme reçue</button>';
+  } else if(deposit.status === 'recue'){
+    html +=
+      '<form id="returnDepositForm" class="form-grid" style="margin-top:14px;">' +
+        '<div class="field"><label for="ret-returned">Montant restitué (€)</label><input id="ret-returned" type="number" min="0" step="0.01" required></div>' +
+        '<div class="field"><label for="ret-retained">Montant retenu (€)</label><input id="ret-retained" type="number" min="0" step="0.01" value="0" required></div>' +
+        '<div class="field full"><label for="ret-reason">Motif de retenue (si montant retenu)</label><input id="ret-reason" maxlength="1000"></div>' +
+        '<div class="field full"><button type="submit" class="btn btn-primary">Enregistrer la restitution</button></div>' +
+      '</form>';
+  } else {
+    html += row('Montant restitué', euros(deposit.returnedAmountCents)) + row('Montant retenu', euros(deposit.retainedAmountCents)) +
+      (deposit.retainedReason ? row('Motif de la retenue', deposit.retainedReason) : '');
+  }
+  box.innerHTML = html;
+
+  if(deposit.status === 'attendue'){
+    document.getElementById('receiveDepositBtn').addEventListener('click', function(){
+      if(!confirm('Confirmer la réception de la caution ?')) return;
+      apiPost('/api/agency-deposits', { action: 'receive', id: deposit.id }).then(function(res){
+        if(!res.ok){ alert(res.json.error || 'Erreur'); return; }
+        renderDeposit(res.json.deposit);
+      }).catch(alerteConnexion);
+    });
+  }
+  if(deposit.status === 'recue'){
+    document.getElementById('returnDepositForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      if(!confirm('Confirmer la restitution de la caution ?')) return;
+      var returned = Number(document.getElementById('ret-returned').value || 0);
+      var retained = Number(document.getElementById('ret-retained').value || 0);
+      var reason = document.getElementById('ret-reason').value;
+      apiPost('/api/agency-deposits', { action: 'return', id: deposit.id, data: { returnedAmount: returned, retainedAmount: retained, retainedReason: reason } }).then(function(res){
+        if(!res.ok){ alert(res.json.error || 'Erreur'); return; }
+        renderDeposit(res.json.deposit);
+      }).catch(alerteConnexion);
+    });
+  }
+}
+})();
+</script>
+</body>
+</html>

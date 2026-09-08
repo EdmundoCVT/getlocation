@@ -10,7 +10,7 @@ const { requireAgencySession } = require("../lib/agency-auth.js");
 const { createRental, updateRental, getRentalById, generateRentalContract, listRentalsByClient } = require("../lib/rentals.js");
 const { getClientById } = require("../lib/clients.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
-const { attemptSync } = require("../lib/sheet-sync-outbox.js");
+const { attemptSync, getSyncStatusForRental } = require("../lib/sheet-sync-outbox.js");
 
 function corsHeaders(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -34,12 +34,14 @@ async function handleGet(request, env, headers) {
   if (id) {
     const rental = await getRentalById(env, id.slice(0, 100));
     if (!rental) return new Response(JSON.stringify({ error: "Location introuvable" }), { status: 404, headers });
-    return new Response(JSON.stringify({ rental }), { status: 200, headers });
+    const syncStatus = await getSyncStatusForRental(env, rental.id);
+    return new Response(JSON.stringify({ rental: { ...rental, syncStatus } }), { status: 200, headers });
   }
   const clientId = url.searchParams.get("clientId");
   if (clientId) {
     const rentals = await listRentalsByClient(env, clientId.slice(0, 100));
-    return new Response(JSON.stringify({ rentals }), { status: 200, headers });
+    const withSyncStatus = await Promise.all(rentals.map(async (r) => ({ ...r, syncStatus: await getSyncStatusForRental(env, r.id) })));
+    return new Response(JSON.stringify({ rentals: withSyncStatus }), { status: 200, headers });
   }
   return new Response(JSON.stringify({ error: "Paramètre id ou clientId requis" }), { status: 400, headers });
 }
@@ -64,14 +66,16 @@ async function handlePost(request, env, headers) {
       const rental = await createRental(env, body.clientId, body.data || {}, auth.session.operator);
       await recordAuditEvent(env, { actor: auth.session.operator, eventType: "rental_created", entityType: "rental", entityId: rental.id });
       await attemptSync(env, rental.id, auth.session.operator);
-      return new Response(JSON.stringify({ rental }), { status: 200, headers });
+      const syncStatus = await getSyncStatusForRental(env, rental.id);
+      return new Response(JSON.stringify({ rental: { ...rental, syncStatus } }), { status: 200, headers });
     }
     if (body.action === "update") {
       const rental = await updateRental(env, body.id, body.data || {}, auth.session.operator);
       if (!rental) return new Response(JSON.stringify({ error: "Location introuvable" }), { status: 404, headers });
       await recordAuditEvent(env, { actor: auth.session.operator, eventType: "rental_updated", entityType: "rental", entityId: rental.id });
       await attemptSync(env, rental.id, auth.session.operator);
-      return new Response(JSON.stringify({ rental }), { status: 200, headers });
+      const syncStatus = await getSyncStatusForRental(env, rental.id);
+      return new Response(JSON.stringify({ rental: { ...rental, syncStatus } }), { status: 200, headers });
     }
     if (body.action === "generate-contract") {
       const rental = await generateRentalContract(env, body.id, auth.session.operator);
@@ -84,7 +88,15 @@ async function handlePost(request, env, headers) {
         metadata: { contractNumero: rental.contractNumero }
       });
       await attemptSync(env, rental.id, auth.session.operator);
-      return new Response(JSON.stringify({ rental }), { status: 200, headers });
+      const syncStatus = await getSyncStatusForRental(env, rental.id);
+      return new Response(JSON.stringify({ rental: { ...rental, syncStatus } }), { status: 200, headers });
+    }
+    if (body.action === "retry-sync") {
+      const rental = await getRentalById(env, body.id);
+      if (!rental) return new Response(JSON.stringify({ error: "Location introuvable" }), { status: 404, headers });
+      await attemptSync(env, rental.id, auth.session.operator);
+      const syncStatus = await getSyncStatusForRental(env, rental.id);
+      return new Response(JSON.stringify({ rental: { ...rental, syncStatus } }), { status: 200, headers });
     }
     return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers });
   } catch (err) {

@@ -92,4 +92,16 @@ async function retryPendingSheetSyncs(env) {
   }
 }
 
-module.exports = { enqueueSync, attemptSync, retryPendingSheetSyncs };
+// État de synchronisation le plus récent d'une location, pour affichage
+// (Lot 4 : "Synchronisé" / "En attente" / "Erreur") — null si elle n'a
+// jamais été soumise à synchronisation (ex. juste créée, avant le premier
+// appel best-effort).
+async function getSyncStatusForRental(env, rentalId) {
+  if (!env.AGENCY_DB || !rentalId) return null;
+  const res = await env.AGENCY_DB.prepare("SELECT * FROM sheet_sync_outbox WHERE rental_id = ? ORDER BY created_at DESC").bind(rentalId).all();
+  const row = (res.results || [])[0];
+  if (!row) return null;
+  return { status: row.status, lastError: row.last_error || null, lastAttemptAt: row.last_attempt_at || null, syncedAt: row.synced_at || null };
+}
+
+module.exports = { enqueueSync, attemptSync, retryPendingSheetSyncs, getSyncStatusForRental };

@@ -71,6 +71,17 @@ test("updateRental : corrige en place, jamais de doublon, ne modifie jamais le c
   assert.equal(rentals.length, 1, "aucune location supplémentaire créée par la correction");
 });
 
+test("updateRental : conserve le statut actuel si non explicitement fourni (ne réinitialise jamais en brouillon)", async () => {
+  const env = makeEnv();
+  const client = await creerClient(env);
+  const created = await createRental(env, client.id, dataValide, "Edmundo");
+  await env.AGENCY_DB.prepare("UPDATE rentals SET status = ? WHERE id = ?").bind("en_cours", created.id).run();
+
+  const { status, ...sansStatus } = dataValide;
+  const updated = await updateRental(env, created.id, { ...sansStatus, kmDepart: 100 }, "Edmundo");
+  assert.equal(updated.status, "en_cours", "le statut ne doit jamais revenir à brouillon si l'appelant ne l'a pas envoyé");
+});
+
 test("updateRental : renvoie null si la location est introuvable", async () => {
   const env = makeEnv();
   assert.equal(await updateRental(env, "rnt_inconnu", dataValide, "Edmundo"), null);

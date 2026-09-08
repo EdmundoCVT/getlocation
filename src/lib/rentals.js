@@ -74,7 +74,13 @@ function rowToRental(row) {
   };
 }
 
-function buildRentalFields(data) {
+// `defaultStatus` : "brouillon" pour une création, le statut ACTUEL de la
+// location pour une correction (voir updateRental) — jamais "brouillon" par
+// défaut sur une mise à jour, qui réinitialiserait silencieusement le
+// statut d'une location déjà en cours/terminée si l'appelant omettait le
+// champ (l'interface agence renvoie toujours le statut affiché, mais le
+// serveur ne doit jamais dépendre de cette discipline côté client).
+function buildRentalFields(data, defaultStatus = "brouillon") {
   const vehiculeId = text(data.vehiculeId, 100);
   if (!vehiculeId || !getVehiculeParId(vehiculeId)) throw new Error("Véhicule inconnu");
 
@@ -91,7 +97,7 @@ function buildRentalFields(data) {
     throw new Error("La date de retour doit être postérieure à la date de départ");
   }
 
-  const status = STATUTS_VALIDES.includes(data.status) ? data.status : "brouillon";
+  const status = STATUTS_VALIDES.includes(data.status) ? data.status : defaultStatus;
 
   return {
     vehicule_id: vehiculeId,
@@ -143,7 +149,7 @@ async function getRentalById(env, id) {
 async function updateRental(env, id, data, operator) {
   const existing = await getRentalById(env, id);
   if (!existing) return null;
-  const fields = buildRentalFields(data);
+  const fields = buildRentalFields(data, existing.status);
   const now = new Date().toISOString();
   await env.AGENCY_DB.prepare(
     `UPDATE rentals SET vehicule_id = ?, immatriculation = ?, date_debut = ?, heure_debut = ?, date_fin = ?, heure_fin = ?, lieu_prise = ?, lieu_retour = ?, adresse_prise = ?, adresse_retour = ?, km_depart = ?, km_retour = ?, price_total_cents = ?, status = ?, notes = ?, updated_at = ?, updated_by = ? WHERE id = ?`

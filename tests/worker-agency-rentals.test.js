@@ -91,3 +91,48 @@ test("cas nominal : création, lecture par id, par client, mise à jour, génér
 
   assert.equal(env.AGENCY_DB._raw.auditLog.some((e) => e.event_type === "contract_generated"), true);
 });
+
+test("GET par id : inclut syncStatus (null tant qu'aucune tentative n'a eu lieu)", async () => {
+  const env = makeAgencyEnv();
+  const session = await loginAgency(env);
+  const client = await creerClient(env, session);
+  // Pas de secret Google configuré dans makeAgencyEnv() : la tentative de
+  // synchronisation best-effort déclenchée par "create" échoue, donc
+  // syncStatus passe à "error" plutôt que de rester null après création.
+  const createRes = await handleAgencyRentals(
+    agencyRequest("https://getlocation.fr/api/agency-rentals", { method: "POST", session, body: { action: "create", clientId: client.id, data: dataValide } }),
+    env
+  );
+  const { rental } = await createRes.json();
+  assert.equal(rental.syncStatus.status, "error");
+});
+
+test("retry-sync : relance la synchronisation et renvoie l'état à jour", async () => {
+  const env = makeAgencyEnv();
+  const session = await loginAgency(env);
+  const client = await creerClient(env, session);
+  const createRes = await handleAgencyRentals(
+    agencyRequest("https://getlocation.fr/api/agency-rentals", { method: "POST", session, body: { action: "create", clientId: client.id, data: dataValide } }),
+    env
+  );
+  const { rental } = await createRes.json();
+
+  const retryRes = await handleAgencyRentals(
+    agencyRequest("https://getlocation.fr/api/agency-rentals", { method: "POST", session, body: { action: "retry-sync", id: rental.id } }),
+    env
+  );
+  assert.equal(retryRes.status, 200);
+  const { rental: retried } = await retryRes.json();
+  assert.equal(retried.syncStatus.status, "error");
+  assert.ok(retried.syncStatus.lastError);
+});
+
+test("retry-sync : 404 si la location est introuvable", async () => {
+  const env = makeAgencyEnv();
+  const session = await loginAgency(env);
+  const res = await handleAgencyRentals(
+    agencyRequest("https://getlocation.fr/api/agency-rentals", { method: "POST", session, body: { action: "retry-sync", id: "rnt_inconnu" } }),
+    env
+  );
+  assert.equal(res.status, 404);
+});

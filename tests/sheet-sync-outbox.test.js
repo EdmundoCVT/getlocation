@@ -13,7 +13,7 @@ const { createFakeGoogleSheets, withFakeGoogleSheets } = require("./helpers/goog
 const { createClient } = require("../src/lib/clients.js");
 const { createRental } = require("../src/lib/rentals.js");
 const { EXPECTED_HEADERS } = require("../src/lib/sheet-sync.js");
-const { enqueueSync, attemptSync, retryPendingSheetSyncs } = require("../src/lib/sheet-sync-outbox.js");
+const { enqueueSync, attemptSync, retryPendingSheetSyncs, getSyncStatusForRental } = require("../src/lib/sheet-sync-outbox.js");
 
 function makeEnv() {
   const { keyJson } = makeServiceAccountFixture();
@@ -108,4 +108,16 @@ test("retryPendingSheetSyncs : reprend les entrées pending ET error, une panne 
 
 test("attemptSync : sans AGENCY_DB, renvoie un échec propre sans lever", async () => {
   await assert.doesNotReject(attemptSync({}, "rnt_x", null));
+});
+
+test("getSyncStatusForRental : null si jamais synchronisée, sinon l'état le plus récent", async () => {
+  const env = makeEnv();
+  const rental = await creerLocation(env);
+  assert.equal(await getSyncStatusForRental(env, rental.id), null);
+
+  const fake = createFakeGoogleSheets({ headers: EXPECTED_HEADERS });
+  await withFakeGoogleSheets(fake, () => attemptSync(env, rental.id, "Edmundo"));
+  const status = await getSyncStatusForRental(env, rental.id);
+  assert.equal(status.status, "synced");
+  assert.ok(status.syncedAt);
 });
