@@ -175,3 +175,35 @@ test("forfait kilométrique (200 km/jour, 0,65 €/km) reflète js/data.js (getK
   // "0 €/km" corrigé sur le contrat, voir formatEURPrecis dans js/data.js).
   assert.match(texte, new RegExp(win.formatEURPrecis(win.getSupplementKmCentimes() / 100).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " / km"));
 });
+
+// Régression Lot 5 (09/09/2026) : initClientView() (vue ouverte via "Ouvrir
+// ce lien") avait SA PROPRE logique acompte/solde, câblée en dur sur "payé
+// en totalité, solde 0" — d'où un contrat client incohérent avec l'aperçu
+// PDF agence dès qu'un acompte partiel était saisi. calculerDetailPaiement()
+// centralise désormais ce calcul pour construirePayload() ET initClientView().
+test("calculerDetailPaiement : distingue acompte/solde réglés ou en attente, jamais réglé par défaut si explicitement false", () => {
+  const win = buildWindow();
+  const total = 665;
+
+  const toutReglé = win.calculerDetailPaiement(total, { montantRegle: "50", modePaiement: "carte", modePaiementSolde: "especes" });
+  assert.equal(toutReglé.montantRegleNombre, 50);
+  assert.equal(toutReglé.soldeNombre, 615);
+  assert.match(toutReglé.detailAcompte, /^réglé par carte bancaire$/);
+  assert.match(toutReglé.detailSolde, /^réglé par espèces$/, "acompteRegle/soldeRegle absents (undefined) : réglé par défaut, comme avant l'ajout de ce statut");
+
+  const soldeEnAttente = win.calculerDetailPaiement(total, { montantRegle: "50", modePaiement: "carte", modePaiementSolde: "especes", acompteRegle: true, soldeRegle: false });
+  assert.match(soldeEnAttente.detailAcompte, /^réglé par carte bancaire$/);
+  assert.equal(soldeEnAttente.detailSolde, "à régler par espèces (en attente)");
+});
+
+test("article 2 du contrat : reflète le vrai statut acompte/solde, identique pour construirePayload() (agence) et initClientView() (lien client)", () => {
+  const win = buildWindow();
+  const data = makeReservationData({ montantRegle: "50", modePaiement: "carte", modePaiementSolde: "especes", acompteRegle: true, soldeRegle: false });
+  const payload = win.construirePayload(data, null, null);
+  win.remplirTexteArticles(payload);
+  const texte = win.texteConditionsLocation();
+
+  assert.match(texte, /Acompte de 50\s?€ : réglé par carte bancaire\./);
+  assert.match(texte, /Solde restant de [\d.,]+\s?€ : à régler par espèces \(en attente\)\./,
+    "le statut 'en attente' doit toujours apparaître sur le document, y compris envoyé/imprimé au client");
+});

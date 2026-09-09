@@ -280,7 +280,7 @@
           </div>
         </div>
         <div class="field full" style="margin-top:16px;">
-          <label>Mode de paiement de la location</label>
+          <label>Moyen de paiement de l'acompte</label>
           <div class="tabs" id="paiementTabs">
             <button type="button" class="tab-btn active" data-mode="carte">Carte bancaire</button>
             <button type="button" class="tab-btn" data-mode="especes">Espèces</button>
@@ -288,8 +288,24 @@
           </div>
         </div>
         <div class="field" style="margin-top:12px;">
-          <label for="montantRegle">Montant déjà réglé (optionnel, laisser vide si payé en totalité)</label>
+          <label for="montantRegle">Montant de l'acompte (optionnel, laisser vide si payé en totalité)</label>
           <input id="montantRegle" type="number" min="0" step="0.01" placeholder="Total si vide">
+        </div>
+        <div class="check-row" style="margin-top:8px;">
+          <input type="checkbox" id="acompteRegle-toggle" checked>
+          <label for="acompteRegle-toggle">Acompte réglé (décocher si encore en attente)</label>
+        </div>
+        <div class="field full" style="margin-top:16px;">
+          <label>Moyen de paiement du solde</label>
+          <div class="tabs" id="soldeTabs">
+            <button type="button" class="tab-btn active" data-mode="carte">Carte bancaire</button>
+            <button type="button" class="tab-btn" data-mode="especes">Espèces</button>
+            <button type="button" class="tab-btn" data-mode="virement">Virement</button>
+          </div>
+        </div>
+        <div class="check-row" style="margin-top:8px;">
+          <input type="checkbox" id="soldeRegle-toggle" checked>
+          <label for="soldeRegle-toggle">Solde réglé (décocher si encore en attente)</label>
         </div>
         <div class="field full" style="margin-top:16px;">
           <label>Mode de règlement de la caution</label>
@@ -517,7 +533,7 @@
         <h3>Article 1 — Objet et durée</h3>
         <p>GETLOCATION (TLST SAS) loue au locataire désigné ci-dessus le véhicule <span class="fill" data-fill="vehicule">…</span>, immatriculé <span class="fill" data-fill="immat">…</span>, du <span class="fill" data-fill="depart">…</span> au <span class="fill" data-fill="retour">…</span> (<span class="fill" data-fill="duree">…</span>). Lieu : <span class="fill" data-fill="lieu">…</span>.</p>
         <h3>Article 2 — Prix et règlement</h3>
-        <p>Montant total de la location : <span class="fill" data-fill="total">…</span>. Le détail (tarif journalier, réduction éventuelle, options) figure au récapitulatif financier ci-dessus. Montant déjà réglé : <span class="fill" data-fill="montantRegle">…</span> — solde restant : <span class="fill" data-fill="soldeRestant">…</span>, réglé par <span class="fill" data-fill="modePaiement">…</span>.</p>
+        <p>Montant total de la location : <span class="fill" data-fill="total">…</span>. Le détail (tarif journalier, réduction éventuelle, options) figure au récapitulatif financier ci-dessus. Acompte de <span class="fill" data-fill="montantRegle">…</span> : <span class="fill" data-fill="detailAcompte">…</span>. Solde restant de <span class="fill" data-fill="soldeRestant">…</span> : <span class="fill" data-fill="detailSolde">…</span>.</p>
         <h3>Article 3 — Kilométrage et carburant</h3>
         <p>Le véhicule est loué avec un forfait de <strong><span class="fill" data-fill="kmInclusParJour">…</span> km inclus par jour de location</strong>, soit <span class="fill" data-fill="kmInclus">…</span> km au total pour la durée du contrat. Tout kilomètre parcouru au-delà de ce forfait est facturé <strong><span class="fill" data-fill="supplementKm">…</span> / km</strong> (voir le tableau de remise et restitution du véhicule pour le relevé kilométrique départ/retour). Le véhicule doit être restitué avec le même niveau de carburant qu'au départ.</p>
         <h3>Article 4 — Dépôt de garantie et assurance</h3>
@@ -965,6 +981,24 @@ function libelleModeCaution(mode){
   return mode === 'especes' ? 'Espèces' : (mode === 'virement' ? 'Virement bancaire' : 'Carte bancaire');
 }
 
+// Seul et unique calcul acompte/solde du fichier — utilisé À LA FOIS par
+// construirePayload() (PDF agence/client, lien ?data=) ET initClientView()
+// (affichage immédiat à l'ouverture d'un lien client, avant tout clic sur
+// un bouton). Avant l'existence de cette fonction, initClientView() avait
+// SA PROPRE logique, câblée en dur sur "payé en totalité, solde 0" —
+// exactement le bug remonté le 09/09/2026 ("le lien n'est pas à jour").
+// `false` explicite seul compte comme "en attente" — `undefined` (contrats
+// créés avant l'ajout de ce statut) reste "réglé", comme le comportement
+// d'avant.
+function calculerDetailPaiement(total, data){
+  var montantRegleNombre = (data.montantRegle !== undefined && data.montantRegle !== '' && isFinite(Number(data.montantRegle)))
+    ? Number(data.montantRegle) : total;
+  var soldeNombre = (isFinite(total) && isFinite(montantRegleNombre)) ? Math.max(Math.round((total - montantRegleNombre) * 100) / 100, 0) : NaN;
+  var detailAcompte = (data.acompteRegle === false ? 'à régler par ' : 'réglé par ') + libelleModePaiement(data.modePaiement).toLowerCase() + (data.acompteRegle === false ? ' (en attente)' : '');
+  var detailSolde = (data.soldeRegle === false ? 'à régler par ' : 'réglé par ') + libelleModePaiement(data.modePaiementSolde).toLowerCase() + (data.soldeRegle === false ? ' (en attente)' : '');
+  return { montantRegleNombre: montantRegleNombre, soldeNombre: soldeNombre, detailAcompte: detailAcompte, detailSolde: detailSolde };
+}
+
 // La caution nécessite un RIB de restitution (voir #ribClientBlock) pour
 // tout mode qui n'est pas une pré-autorisation carte : espèces (remboursée
 // par virement) et virement (déjà réglée par virement, donc déjà un RIB
@@ -1369,9 +1403,11 @@ function construirePayload(data, sigData, stamp){
   var jours = prix ? prix.jours : NaN;
   var tarif = appliquerTarifManuel(prix, data);
   var total = tarif.total;
-  var montantRegleNombre = (data.montantRegle !== undefined && data.montantRegle !== '' && isFinite(Number(data.montantRegle)))
-    ? Number(data.montantRegle) : total;
-  var soldeNombre = (isFinite(total) && isFinite(montantRegleNombre)) ? Math.max(Math.round((total - montantRegleNombre) * 100) / 100, 0) : NaN;
+  var detailPaiement = calculerDetailPaiement(total, data);
+  var montantRegleNombre = detailPaiement.montantRegleNombre;
+  var soldeNombre = detailPaiement.soldeNombre;
+  var detailAcompte = detailPaiement.detailAcompte;
+  var detailSolde = detailPaiement.detailSolde;
   var adresseComplete = [data.adresse, [data.codePostal, data.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
   var lieuAffiche = data.livraison
     ? 'Livraison à ' + (data.livraisonRue || '') + ', ' + (data.livraisonCP || '') + ' ' + (data.livraisonVille || '')
@@ -1427,6 +1463,9 @@ function construirePayload(data, sigData, stamp){
     montantRegle: formatEUR(montantRegleNombre),
     soldeRestant: formatEUR(soldeNombre),
     modePaiement: libelleModePaiement(data.modePaiement),
+    modePaiementSolde: libelleModePaiement(data.modePaiementSolde),
+    detailAcompte: detailAcompte,
+    detailSolde: detailSolde,
     caution: formatEUR(v.caution),
     mode_reglement_caution: libelleModeCaution(data.modeCaution),
     locataire_prenom: data.prenom,
@@ -1489,6 +1528,8 @@ function remplirTexteArticles(payload){
   setFill('montantRegle', payload.montantRegle || payload.total);
   setFill('soldeRestant', payload.soldeRestant || formatEUR(0));
   setFill('modePaiement', payload.modePaiement || 'carte bancaire');
+  setFill('detailAcompte', payload.detailAcompte || ('réglé par ' + (payload.modePaiement || 'carte bancaire').toLowerCase()));
+  setFill('detailSolde', payload.detailSolde || ('réglé par ' + (payload.modePaiementSolde || payload.modePaiement || 'carte bancaire').toLowerCase()));
   setFill('caution', payload.caution);
   setFill('modeCaution', (payload.mode_reglement_caution || '').toLowerCase());
   setFill('kmInclus', payload.kmInclus);
@@ -1676,9 +1717,8 @@ function genererPDF(payload, estApercu){
   doc.text('Récapitulatif financier', margin, y); y += 16;
   (payload.detailFinancier || []).forEach(function(l){ ligne(l[0], l[1]); });
   if(!payload.detailFinancier || !payload.detailFinancier.length){ ligne('Total', payload.total); }
-  ligne('Montant réglé', payload.montantRegle || payload.total);
-  ligne('Solde restant', payload.soldeRestant || formatEUR(0));
-  ligne('Mode de paiement', payload.modePaiement || 'Carte bancaire');
+  ligne('Acompte', (payload.montantRegle || payload.total) + ' — ' + (payload.detailAcompte || ('réglé par ' + (payload.modePaiement || 'carte bancaire').toLowerCase())));
+  ligne('Solde restant', (payload.soldeRestant || formatEUR(0)) + ' — ' + (payload.detailSolde || ('réglé par ' + (payload.modePaiementSolde || payload.modePaiement || 'carte bancaire').toLowerCase())));
   ligne('Dépôt de garantie', payload.caution + ' — réglé par ' + payload.mode_reglement_caution);
   var franchises = getFranchises();
   if(franchises.dommages || franchises.vol || franchises.brisDeGlace){
@@ -2641,6 +2681,10 @@ function initOwnerView(prefill){
   var modeCaution = 'carte';
   var paiementTabs = document.getElementById('paiementTabs');
   var modePaiement = 'carte';
+  var soldeTabs = document.getElementById('soldeTabs');
+  var modePaiementSolde = 'carte';
+  var acompteRegleToggle = document.getElementById('acompteRegle-toggle');
+  var soldeRegleToggle = document.getElementById('soldeRegle-toggle');
   var secondToggle = document.getElementById('second-conducteur-toggle');
   var secondBlock = document.getElementById('secondConducteurBlock');
   var livraisonToggle = document.getElementById('livraison-toggle');
@@ -2722,6 +2766,21 @@ function initOwnerView(prefill){
     paiementTabs.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
     btn.classList.add('active');
     modePaiement = btn.dataset.mode;
+    regenererLien();
+  });
+
+  // Comme paiementTabs/cautionTabs ci-dessus : des <button>, pas des
+  // <input>, ne déclenchent jamais l'événement "input" délégué sur
+  // #ownerForm (ligne ~2818) — d'où cet écouteur "click" dédié, même
+  // principe. Les checkboxes acompteRegle-toggle/soldeRegle-toggle, elles,
+  // sont de vrais <input> et sont donc déjà couvertes par ce délégué (comme
+  // tarifManuel-toggle plus haut) : aucun écouteur supplémentaire requis.
+  soldeTabs.addEventListener('click', function(e){
+    var btn = e.target.closest('.tab-btn');
+    if(!btn) return;
+    soldeTabs.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    modePaiementSolde = btn.dataset.mode;
     regenererLien();
   });
 
@@ -2851,8 +2910,11 @@ function initOwnerView(prefill){
     if(prefill.permis) document.getElementById('permis').value = prefill.permis;
     // montantRegle (voir back-office.html#contratPrefillUrl) : 0 est une
     // valeur transmise volontairement (location pas encore payée) — jamais
-    // ignorée comme le ferait un simple `if(prefill.montantRegle)`.
+    // ignorée comme le ferait un simple `if(prefill.montantRegle)`. Même
+    // remarque pour acompteRegle/soldeRegle (false est une valeur voulue).
     if(prefill.montantRegle !== undefined) document.getElementById('montantRegle').value = prefill.montantRegle;
+    if(prefill.acompteRegle !== undefined) acompteRegleToggle.checked = !!prefill.acompteRegle;
+    if(prefill.soldeRegle !== undefined) soldeRegleToggle.checked = !!prefill.soldeRegle;
     if(prefill.secondConducteur){
       secondToggle.checked = true;
       secondBlock.classList.add('show');
@@ -2914,6 +2976,9 @@ function initOwnerView(prefill){
       modeCaution: modeCaution,
       modePaiement: modePaiement,
       montantRegle: document.getElementById('montantRegle').value,
+      acompteRegle: acompteRegleToggle.checked,
+      modePaiementSolde: modePaiementSolde,
+      soldeRegle: soldeRegleToggle.checked,
       prenom: document.getElementById('prenom').value,
       nom: document.getElementById('nom').value,
       naissance: document.getElementById('naissance').value,
@@ -3055,6 +3120,15 @@ function initOwnerView(prefill){
       b.classList.toggle('active', b.dataset.mode === modePaiement);
     });
     document.getElementById('montantRegle').value = rawData.montantRegle || '';
+    // Valeur historique par défaut (contrats créés avant l'ajout de ce
+    // statut) : `undefined` -> réglé, comme le comportement d'avant (voir
+    // construirePayload, même logique de repli).
+    acompteRegleToggle.checked = rawData.acompteRegle === undefined ? true : !!rawData.acompteRegle;
+    modePaiementSolde = (rawData.modePaiementSolde === 'especes' || rawData.modePaiementSolde === 'virement') ? rawData.modePaiementSolde : 'carte';
+    soldeTabs.querySelectorAll('.tab-btn').forEach(function(b){
+      b.classList.toggle('active', b.dataset.mode === modePaiementSolde);
+    });
+    soldeRegleToggle.checked = rawData.soldeRegle === undefined ? true : !!rawData.soldeRegle;
 
     document.getElementById('prenom').value = rawData.prenom || '';
     document.getElementById('nom').value = rawData.nom || '';
@@ -3531,9 +3605,12 @@ function initClientView(data){
   setFill('duree', formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours));
   setFill('lieu', lieuAffiche);
   setFill('total', formatEUR(total));
-  setFill('montantRegle', formatEUR(total));
-  setFill('soldeRestant', formatEUR(0));
+  var detailPaiementClient = calculerDetailPaiement(total, data);
+  setFill('montantRegle', formatEUR(detailPaiementClient.montantRegleNombre));
+  setFill('soldeRestant', formatEUR(detailPaiementClient.soldeNombre));
   setFill('modePaiement', libelleModePaiement(data.modePaiement).toLowerCase());
+  setFill('detailAcompte', detailPaiementClient.detailAcompte);
+  setFill('detailSolde', detailPaiementClient.detailSolde);
   setFill('caution', formatEUR(v.caution));
   setFill('modeCaution', libelleModeCaution(data.modeCaution).toLowerCase());
   setFill('kmInclus', kmInclus.toLocaleString('fr-FR'));

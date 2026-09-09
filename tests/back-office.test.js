@@ -139,8 +139,35 @@ test("contratPrefillUrl : produit un lien ?prefill= décodable par decodeData() 
   const urlAvecPaiement = window.__backOffice.contratPrefillUrl(rental, client, 5000);
   const decodedAvecPaiement = window.decodeData(urlAvecPaiement.split("?prefill=")[1]);
   assert.equal(decodedAvecPaiement.montantRegle, 50, "50,00 € déjà encaissés, jamais le total par défaut");
+  assert.equal(decodedAvecPaiement.acompteRegle, true, "un montant encaissé est par définition déjà réglé");
 
   const urlImpayee = window.__backOffice.contratPrefillUrl(rental, client, 0);
   const decodedImpayee = window.decodeData(urlImpayee.split("?prefill=")[1]);
   assert.equal(decodedImpayee.montantRegle, 0, "régression : une location non payée ne doit jamais afficher un solde à 0 sur le contrat");
+  assert.equal(decodedImpayee.acompteRegle, false, "0 € encaissé : rien n'est encore réglé");
+});
+
+test("contratPrefillUrl : déduit acompteRegle/soldeRegle du vrai statut de paiement (jamais réglé par défaut)", () => {
+  const window = buildWindow();
+  const client = { firstName: "Jean", lastName: "Dupont" };
+  const rentalAvecTotal = { vehiculeId: "opel-corsa", priceTotalCents: 24000 };
+
+  const contratHtml = fs.readFileSync(path.join(__dirname, "..", "contrat.html"), "utf8");
+  const decodeMatch = contratHtml.match(/function decodeData\(str\)\{[\s\S]*?\n\}/);
+  window.eval(decodeMatch[0] + "\nwindow.decodeData = decodeData;");
+
+  const partiel = window.decodeData(window.__backOffice.contratPrefillUrl(rentalAvecTotal, client, 12000).split("?prefill=")[1]);
+  assert.equal(partiel.acompteRegle, true, "50 % encaissés : l'acompte déjà perçu est réglé");
+  assert.equal(partiel.soldeRegle, false, "50 % encaissés : il reste un solde, jamais marqué réglé par défaut");
+
+  const soldeComplet = window.decodeData(
+    window.__backOffice.contratPrefillUrl(rentalAvecTotal, client, 24000).split("?prefill=")[1]
+  );
+  assert.equal(soldeComplet.soldeRegle, true, "montant encaissé = total : le solde est bien réglé");
+
+  const rentalSansTotal = { vehiculeId: "opel-corsa" };
+  const sansTotal = window.decodeData(
+    window.__backOffice.contratPrefillUrl(rentalSansTotal, client, 12000).split("?prefill=")[1]
+  );
+  assert.equal(sansTotal.soldeRegle, undefined, "total inconnu : impossible de savoir si le solde est réglé, ne jamais deviner");
 });

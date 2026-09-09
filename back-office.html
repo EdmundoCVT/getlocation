@@ -252,7 +252,14 @@ function contratPrefillUrl(rental, client, paidCents){
   };
   if(rental.dateDebut && rental.heureDebut) data.depart = rental.dateDebut + 'T' + rental.heureDebut;
   if(rental.dateFin && rental.heureFin) data.retour = rental.dateFin + 'T' + rental.heureFin;
-  if(Number.isFinite(paidCents)) data.montantRegle = paidCents / 100;
+  if(Number.isFinite(paidCents)){
+    data.montantRegle = paidCents / 100;
+    // Ce qui est déjà encaissé (paidCents) est par définition "réglé" ; le
+    // solde n'est "réglé" que si tout a déjà été perçu — jamais déduit
+    // autrement (jamais de solde "réglé" par défaut tant qu'il en reste).
+    data.acompteRegle = paidCents > 0;
+    if(Number.isFinite(rental.priceTotalCents)) data.soldeRegle = paidCents >= rental.priceTotalCents;
+  }
   return '/contrat.html?prefill=' + encodeContratPrefill(data);
 }
 function showError(id, msg){ var el = document.getElementById(id); el.textContent = msg; el.hidden = false; }
