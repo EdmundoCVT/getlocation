@@ -163,6 +163,7 @@
       <div class="section-actions">
         <button type="button" class="btn btn-secondary" id="editRentalBtn">Modifier</button>
         <button type="button" class="btn btn-primary" id="generateContractBtn">Générer le numéro de contrat</button>
+        <a class="btn btn-secondary" id="openContratBtn" target="_blank" rel="noopener">Ouvrir dans l'outil de contrat</a>
         <select id="rentalStatusSelect"></select>
       </div>
 
@@ -210,6 +211,34 @@ function euros(cents){
 function row(label, value){
   return '<div class="summary-row"><span>' + escapeHtml(label) + '</span><span>' + escapeHtml(value === '' || value === null || value === undefined ? '—' : value) + '</span></div>';
 }
+// Même encodage que encodeData()/decodeData() dans contrat.html (base64url
+// d'un JSON, voir son commentaire) — à garder synchronisé avec les deux, ce
+// n'est PAS un jeton d'accès (rien de sensible dedans, juste un
+// préremplissage de formulaire) : ouvrir /contrat sans être connecté à
+// l'espace agence affiche de toute façon l'écran de connexion de contrat.html.
+function encodeContratPrefill(obj){
+  var standard = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+  return standard.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+// Ne préremplit que les champs qui correspondent de façon fiable entre les
+// deux modèles de données (fiche client/location ici, formulaire libre de
+// contrat.html) — "lieu"/livraison ne sont pas inclus : lieuPrise est un
+// texte libre côté location, alors que contrat.html attend une valeur
+// précise parmi une liste déroulante fixe ; les inclure prérempirait
+// silencieusement le mauvais choix plutôt que de laisser vide.
+function contratPrefillUrl(rental, client){
+  var data = {
+    prenom: client.firstName || '',
+    nom: client.lastName || '',
+    tel: client.phone || '',
+    email: client.email || '',
+    naissance: client.birthDate || '',
+    vehiculeId: rental.vehiculeId || ''
+  };
+  if(rental.dateDebut && rental.heureDebut) data.depart = rental.dateDebut + 'T' + rental.heureDebut;
+  if(rental.dateFin && rental.heureFin) data.retour = rental.dateFin + 'T' + rental.heureFin;
+  return '/contrat.html?prefill=' + encodeContratPrefill(data);
+}
 function showError(id, msg){ var el = document.getElementById(id); el.textContent = msg; el.hidden = false; }
 function clearError(id){ var el = document.getElementById(id); el.hidden = true; el.textContent = ''; }
 
@@ -241,6 +270,7 @@ window.__backOffice = {
   euros: euros,
   statusBadge: statusBadge,
   syncBadge: syncBadge,
+  contratPrefillUrl: contratPrefillUrl,
   renderSyncStatusForTest: function(rental){ currentRental = rental; renderSyncStatus(); }
 };
 
@@ -622,6 +652,7 @@ function renderRentalDetail(){
     (currentRental.notes ? row('Notes', currentRental.notes) : '');
 
   document.getElementById('generateContractBtn').hidden = !!currentRental.contractNumero;
+  document.getElementById('openContratBtn').href = contratPrefillUrl(currentRental, currentClient);
 
   var statusSelect = document.getElementById('rentalStatusSelect');
   statusSelect.innerHTML = '';

@@ -101,3 +101,33 @@ test("renderSyncStatus : insère le badge de synchronisation comme HTML, jamais 
   assert.equal(card.querySelectorAll(".status-pill.sync-ok").length, 1);
   assert.ok(!card.innerHTML.includes("&lt;span"), "le badge ne doit jamais apparaître échappé");
 });
+
+// Régression Lot 5 (lien "Ouvrir dans l'outil de contrat") : le lien
+// ?prefill= produit ici doit rester décodable par le VRAI decodeData() de
+// contrat.html — même approche que
+// worker-send-contract-email.test.js#"encodeContractData : produit un
+// base64 décodable par decodeData()".
+test("contratPrefillUrl : produit un lien ?prefill= décodable par decodeData() de contrat.html", () => {
+  const contratHtml = fs.readFileSync(path.join(__dirname, "..", "contrat.html"), "utf8");
+  const decodeMatch = contratHtml.match(/function decodeData\(str\)\{[\s\S]*?\n\}/);
+  assert.ok(decodeMatch, "decodeData() introuvable dans contrat.html (structure du fichier changée ?)");
+
+  const window = buildWindow();
+  window.eval(decodeMatch[0] + "\nwindow.decodeData = decodeData;");
+
+  const rental = { vehiculeId: "opel-corsa", dateDebut: "2026-09-10", heureDebut: "10:00", dateFin: "2026-09-12", heureFin: "10:00" };
+  const client = { firstName: "Jean", lastName: "Dupont", phone: "0601020304", email: "jean@example.com", birthDate: "1990-05-20" };
+  const url = window.__backOffice.contratPrefillUrl(rental, client);
+
+  assert.match(url, /^\/contrat\.html\?prefill=/);
+  const encoded = url.split("?prefill=")[1];
+  const decoded = window.decodeData(encoded);
+  assert.equal(decoded.prenom, "Jean");
+  assert.equal(decoded.nom, "Dupont");
+  assert.equal(decoded.tel, "0601020304");
+  assert.equal(decoded.email, "jean@example.com");
+  assert.equal(decoded.naissance, "1990-05-20");
+  assert.equal(decoded.vehiculeId, "opel-corsa");
+  assert.equal(decoded.depart, "2026-09-10T10:00");
+  assert.equal(decoded.retour, "2026-09-12T10:00");
+});
