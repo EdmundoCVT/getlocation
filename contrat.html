@@ -2849,6 +2849,10 @@ function initOwnerView(prefill){
     if(prefill.codePostal) document.getElementById('codePostal').value = prefill.codePostal;
     if(prefill.ville) document.getElementById('ville').value = prefill.ville;
     if(prefill.permis) document.getElementById('permis').value = prefill.permis;
+    // montantRegle (voir back-office.html#contratPrefillUrl) : 0 est une
+    // valeur transmise volontairement (location pas encore payée) — jamais
+    // ignorée comme le ferait un simple `if(prefill.montantRegle)`.
+    if(prefill.montantRegle !== undefined) document.getElementById('montantRegle').value = prefill.montantRegle;
     if(prefill.secondConducteur){
       secondToggle.checked = true;
       secondBlock.classList.add('show');
