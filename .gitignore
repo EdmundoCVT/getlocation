@@ -2,3 +2,4 @@ node_modules/
 .DS_Store
 deployer.command
 .wrangler/
+.dev.vars
