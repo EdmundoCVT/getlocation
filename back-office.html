@@ -230,8 +230,19 @@ function syncBadge(syncStatus){
 }
 
 // Exposées pour les tests (extraction jsdom, voir tests/back-office.test.js)
-// — jamais utilisées en dehors de ce fichier.
-window.__backOffice = { escapeHtml: escapeHtml, formatDateFR: formatDateFR, euros: euros, statusBadge: statusBadge, syncBadge: syncBadge };
+// — jamais utilisées en dehors de ce fichier. renderSyncStatusForTest pose
+// currentRental (privée à cette IIFE, donc inatteignable autrement depuis les
+// tests) puis appelle le vrai renderSyncStatus, pour couvrir en régression le
+// bug du Lot 5 (badge de synchronisation affiché en HTML échappé au lieu
+// d'être rendu).
+window.__backOffice = {
+  escapeHtml: escapeHtml,
+  formatDateFR: formatDateFR,
+  euros: euros,
+  statusBadge: statusBadge,
+  syncBadge: syncBadge,
+  renderSyncStatusForTest: function(rental){ currentRental = rental; renderSyncStatus(); }
+};
 
 // ================= Appels API agence ================= //
 var agenceCsrfToken = null;
@@ -623,7 +634,11 @@ function renderRentalDetail(){
 
 function renderSyncStatus(){
   var s = currentRental.syncStatus;
-  var html = row('État', syncBadge(s));
+  // Pas row() ici : syncBadge() renvoie du HTML de confiance (le badge coloré),
+  // que row() échapperait (il échappe systématiquement sa valeur, correct pour
+  // du texte utilisateur) — l'affichage montrerait alors le balisage brut au
+  // lieu du badge, comme statusBadge() ci-dessus (ligne 602), jamais passé par row().
+  var html = '<div class="summary-row"><span>État</span><span>' + syncBadge(s) + '</span></div>';
   if(s && s.status === 'error' && s.lastError) html += row('Détail de l\'erreur', s.lastError);
   document.getElementById('syncStatusCard').innerHTML = html +
     '<button type="button" class="btn btn-secondary" id="retrySyncBtn" style="margin-top:10px;">Relancer la synchronisation</button>';

@@ -88,3 +88,16 @@ test("syncBadge : distingue non synchronisé / en attente / synchronisé / erreu
 test("chargement complet de la page sans exception (tous les écouteurs s'attachent)", () => {
   assert.doesNotThrow(() => buildWindow());
 });
+
+// Régression Lot 5 : renderSyncStatus utilisait row(), qui échappe
+// systématiquement sa valeur (correct pour du texte utilisateur) — appliqué
+// au HTML de confiance renvoyé par syncBadge(), il affichait le balisage
+// brut ("<span class=...>Synchronisé</span>") au lieu du badge coloré,
+// repéré lors de la validation manuelle du Lot 5 (voir compte rendu).
+test("renderSyncStatus : insère le badge de synchronisation comme HTML, jamais échappé", () => {
+  const window = buildWindow();
+  window.__backOffice.renderSyncStatusForTest({ id: "r1", syncStatus: { status: "synced" } });
+  const card = window.document.getElementById("syncStatusCard");
+  assert.equal(card.querySelectorAll(".status-pill.sync-ok").length, 1);
+  assert.ok(!card.innerHTML.includes("&lt;span"), "le badge ne doit jamais apparaître échappé");
+});
