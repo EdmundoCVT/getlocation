@@ -116,7 +116,7 @@ test("contratPrefillUrl : produit un lien ?prefill= décodable par decodeData() 
   window.eval(decodeMatch[0] + "\nwindow.decodeData = decodeData;");
 
   const rental = { vehiculeId: "opel-corsa", dateDebut: "2026-09-10", heureDebut: "10:00", dateFin: "2026-09-12", heureFin: "10:00" };
-  const client = { firstName: "Jean", lastName: "Dupont", phone: "0601020304", email: "jean@example.com", birthDate: "1990-05-20" };
+  const client = { firstName: "Jean", lastName: "Dupont", phone: "0601020304", email: "jean@example.com", birthDate: "1990-05-20", postalAddress: "12 rue des Lilas, 06130 Grasse", permitNumber: "123456789" };
   const url = window.__backOffice.contratPrefillUrl(rental, client);
 
   assert.match(url, /^\/contrat\.html\?prefill=/);
@@ -127,6 +127,8 @@ test("contratPrefillUrl : produit un lien ?prefill= décodable par decodeData() 
   assert.equal(decoded.tel, "0601020304");
   assert.equal(decoded.email, "jean@example.com");
   assert.equal(decoded.naissance, "1990-05-20");
+  assert.equal(decoded.adresse, "12 rue des Lilas, 06130 Grasse");
+  assert.equal(decoded.permis, "123456789");
   assert.equal(decoded.vehiculeId, "opel-corsa");
   assert.equal(decoded.depart, "2026-09-10T10:00");
   assert.equal(decoded.retour, "2026-09-12T10:00");

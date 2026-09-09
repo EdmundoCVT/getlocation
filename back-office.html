@@ -235,6 +235,11 @@ function encodeContratPrefill(obj){
 // partiellement réglée : on transmet donc toujours le montant RÉEL déjà
 // encaissé (0 compris) dès qu'on le connaît, plutôt que de laisser
 // contrat.html deviner à tort un solde à zéro.
+// adresse/permis : contrat.html attend l'adresse en 3 champs séparés
+// (rue/code postal/ville), alors que la fiche client n'a qu'un champ libre
+// "Adresse postale" — on transmet ce texte tel quel dans le champ "Adresse
+// (n° et rue)" (mieux que rien, jamais réparti au hasard dans code
+// postal/ville, qui resteront à compléter à la main).
 function contratPrefillUrl(rental, client, paidCents){
   var data = {
     prenom: client.firstName || '',
@@ -242,6 +247,8 @@ function contratPrefillUrl(rental, client, paidCents){
     tel: client.phone || '',
     email: client.email || '',
     naissance: client.birthDate || '',
+    adresse: client.postalAddress || '',
+    permis: client.permitNumber || '',
     vehiculeId: rental.vehiculeId || ''
   };
   if(rental.dateDebut && rental.heureDebut) data.depart = rental.dateDebut + 'T' + rental.heureDebut;
@@ -512,7 +519,7 @@ function renderClientSheet(){
   document.getElementById('clientSheetIdentity').innerHTML =
     row('Téléphone', currentClient.phone) +
     row('Email', currentClient.email) +
-    row('Date de naissance', currentClient.birthDate) +
+    row('Date de naissance', formatDateFR(currentClient.birthDate)) +
     row('Numéro de permis', currentClient.permitNumber) +
     row('Adresse', currentClient.postalAddress) +
     row('Consentement marketing', currentClient.marketingConsent ? 'Oui' : 'Non') +

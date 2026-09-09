@@ -2841,6 +2841,12 @@ function initOwnerView(prefill){
     document.getElementById('naissance').value = isoVersJourMoisAnnee(prefill.naissance);
     document.getElementById('tel').value = prefill.tel || '';
     document.getElementById('email').value = prefill.email || '';
+    // adresse/permis (voir back-office.html#contratPrefillUrl) : jamais
+    // collectés pendant une réservation en ligne, seulement transmis par le
+    // back-office agence — absents (donc laissés vides) pour les anciens
+    // liens envoyés après paiement.
+    if(prefill.adresse) document.getElementById('adresse').value = prefill.adresse;
+    if(prefill.permis) document.getElementById('permis').value = prefill.permis;
     if(prefill.secondConducteur){
       secondToggle.checked = true;
       secondBlock.classList.add('show');
