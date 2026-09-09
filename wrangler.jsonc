@@ -31,17 +31,17 @@
     { "binding": "RESERVATIONS_KV", "id": "3ca8121a81df4b7c91772f1579b62cdf" },
     { "binding": "RATE_LIMITS_KV", "id": "8c4fc8e9a1e643b6907168639c1617ca" }
   ],
-  // Base D1 du mini-back-office agence (Lot 1, voir CLAUDE.md) : sessions et
-  // tentatives de connexion (migrations/0001_agency_auth.sql). "database_id"
-  // ci-dessous est un PLACEHOLDER — même convention que les kv_namespaces
-  // ci-dessus : le déploiement échoue tant qu'il n'a pas été remplacé par le
-  // vrai id renvoyé par `wrangler d1 create getlocation-agency`, pour ne
-  // jamais déployer silencieusement contre une base inexistante.
+  // Base D1 du mini-back-office agence (Lots 1-3, voir CLAUDE.md) :
+  // sessions/connexions (0001), clients/locations/paiements/cautions
+  // (0002), file de synchronisation Google Sheets (0003). database_id réel
+  // (créée via `wrangler d1 create getlocation-agency`, confirmée par
+  // `wrangler d1 list` le 2026-09-09) — migrations pas encore appliquées à
+  // ce stade (num_tables=0 à la création).
   "d1_databases": [
     {
       "binding": "AGENCY_DB",
       "database_name": "getlocation-agency",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "0434ec7b-2b20-4dd6-8408-96e027dc0dbd",
       "migrations_dir": "migrations"
     }
   ],
