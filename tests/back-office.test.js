@@ -130,4 +130,13 @@ test("contratPrefillUrl : produit un lien ?prefill= décodable par decodeData() 
   assert.equal(decoded.vehiculeId, "opel-corsa");
   assert.equal(decoded.depart, "2026-09-10T10:00");
   assert.equal(decoded.retour, "2026-09-12T10:00");
+  assert.equal(decoded.montantRegle, undefined, "sans montant connu, laisse contrat.html à son propre défaut (payé en totalité)");
+
+  const urlAvecPaiement = window.__backOffice.contratPrefillUrl(rental, client, 5000);
+  const decodedAvecPaiement = window.decodeData(urlAvecPaiement.split("?prefill=")[1]);
+  assert.equal(decodedAvecPaiement.montantRegle, 50, "50,00 € déjà encaissés, jamais le total par défaut");
+
+  const urlImpayee = window.__backOffice.contratPrefillUrl(rental, client, 0);
+  const decodedImpayee = window.decodeData(urlImpayee.split("?prefill=")[1]);
+  assert.equal(decodedImpayee.montantRegle, 0, "régression : une location non payée ne doit jamais afficher un solde à 0 sur le contrat");
 });

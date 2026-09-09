@@ -226,7 +226,16 @@ function encodeContratPrefill(obj){
 // texte libre côté location, alors que contrat.html attend une valeur
 // précise parmi une liste déroulante fixe ; les inclure prérempirait
 // silencieusement le mauvais choix plutôt que de laisser vide.
-function contratPrefillUrl(rental, client){
+// paidCents (optionnel, en centimes comme partout ailleurs dans ce fichier) :
+// le formulaire de contrat.html, laissé sans indication, suppose que la
+// location est payée EN TOTALITÉ (comportement voulu pour son usage
+// d'origine : un contrat rempli sur place, réglé à la signature — voir son
+// champ "Montant déjà réglé ... laisser vide si payé en totalité"). Une
+// location du back-office peut au contraire être encore impayée ou
+// partiellement réglée : on transmet donc toujours le montant RÉEL déjà
+// encaissé (0 compris) dès qu'on le connaît, plutôt que de laisser
+// contrat.html deviner à tort un solde à zéro.
+function contratPrefillUrl(rental, client, paidCents){
   var data = {
     prenom: client.firstName || '',
     nom: client.lastName || '',
@@ -237,6 +246,7 @@ function contratPrefillUrl(rental, client){
   };
   if(rental.dateDebut && rental.heureDebut) data.depart = rental.dateDebut + 'T' + rental.heureDebut;
   if(rental.dateFin && rental.heureFin) data.retour = rental.dateFin + 'T' + rental.heureFin;
+  if(Number.isFinite(paidCents)) data.montantRegle = paidCents / 100;
   return '/contrat.html?prefill=' + encodeContratPrefill(data);
 }
 function showError(id, msg){ var el = document.getElementById(id); el.textContent = msg; el.hidden = false; }
@@ -632,8 +642,12 @@ function openRentalDetail(rentalId){
     ]);
   }).then(function(results){
     if(!results) return;
-    renderPayments(results[0].json.payments || [], results[0].json.summary || { totalDueCents: 0, totalPaidCents: 0, balanceCents: 0, status: 'impaye' });
+    var summary = results[0].json.summary || { totalDueCents: 0, totalPaidCents: 0, balanceCents: 0, status: 'impaye' };
+    renderPayments(results[0].json.payments || [], summary);
     renderDeposit(results[1].json.deposit);
+    // Recalcule le lien avec le VRAI montant déjà encaissé, connu seulement
+    // une fois les paiements chargés (voir le commentaire de contratPrefillUrl).
+    document.getElementById('openContratBtn').href = contratPrefillUrl(currentRental, currentClient, summary.totalPaidCents);
   }).catch(alerteConnexion);
 }
 
