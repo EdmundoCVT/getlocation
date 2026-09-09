@@ -29,14 +29,21 @@ const { getDepositForRental } = require("./deposits.js");
 const { getValues, updateValues, appendValues, getRowMeta } = require("./google-sheets-client.js");
 
 const SHEET_NAME = "Réservations";
-const LAST_COLUMN = "W"; // 23 colonnes, voir EXPECTED_HEADERS
+// 24 colonnes gérées (A à X, voir EXPECTED_HEADERS) — la colonne suivante
+// ("Caution a rendre le", confirmée par l'utilisateur sur le fichier réel)
+// est volontairement EXCLUE de cette plage : c'est une date renseignée à la
+// main par l'agence, jamais suivie par ce système ; l'inclure risquerait de
+// l'effacer à chaque synchronisation (voir computeWritableRuns, qui ne
+// protège que les formules/validations, pas une simple valeur manuelle).
+const LAST_COLUMN = "X";
 const MAX_SCAN_ROWS = 5000; // largement suffisant pour une petite agence
 
-// Ordre exact confirmé sur la copie de test (voir compte rendu du Lot 0) —
-// l'entrée vide représente la colonne sans en-tête ("moyen de paiement de
-// la caution", confirmé par l'utilisateur).
+// Ordre exact confirmé sur le fichier réel (voir compte rendu du Lot 5,
+// structure mise à jour depuis la copie de test du Lot 0 : ajout de la
+// colonne "EMAIL") — l'entrée vide représente la colonne sans en-tête
+// ("moyen de paiement de la caution", confirmé par l'utilisateur).
 const EXPECTED_HEADERS = [
-  "N° résa", "Num contrat", "Prénom client", "Nom client", "Téléphone", "Véhicule",
+  "N° résa", "Num contrat", "Prénom client", "Nom client", "Téléphone", "EMAIL", "Véhicule",
   "Date début", "Heure début", "Date fin", "Heure fin", "Nb jours",
   "Tarif / jour (€)", "Tarif total (€)", "Acompte versé (€)", "Solde restant (€)",
   "Moyen de paiement Location", "Caution", "", "Caution retenue", "Raisons",
@@ -92,6 +99,7 @@ function buildRowValues({ rental, client, vehicule, paymentsSummary, methodesUti
     client ? client.firstName : "",
     client ? client.lastName : "",
     client ? client.phone : "",
+    client ? client.email || "" : "",
     vehicule ? vehicule.nom : rental.vehiculeId,
     formatDateFR(rental.dateDebut),
     rental.heureDebut || "",

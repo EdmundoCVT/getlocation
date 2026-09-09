@@ -57,27 +57,28 @@ test("verifyHeaders : passe si les en-têtes correspondent exactement, y compris
   await assert.doesNotReject(withFakeGoogleSheets(fake, () => verifyHeaders(env)));
 });
 
-test("buildRowValues : mappe les champs vers les 23 colonnes attendues", () => {
+test("buildRowValues : mappe les champs vers les 24 colonnes attendues", () => {
   const values = buildRowValues({
     rental: { id: "rnt_" + "a".repeat(32), contractNumero: "GL-20260910-0001", dateDebut: "2026-09-10", heureDebut: "10:00", dateFin: "2026-09-12", heureFin: "10:00", priceTotalCents: 24000, notes: "RAS", vehiculeId: "opel-corsa" },
-    client: { firstName: "Jean", lastName: "Dupont", phone: "0601020304" },
+    client: { firstName: "Jean", lastName: "Dupont", phone: "0601020304", email: "jean.dupont@example.com" },
     vehicule: { nom: "Opel Corsa", prixJour: 59 },
     paymentsSummary: { totalPaidCents: 5000, balanceCents: 19000, status: "partiel" },
     methodesUtilisees: ["carte"],
     deposit: null
   });
-  assert.equal(values.length, 23);
+  assert.equal(values.length, 24);
   assert.equal(values[1], "GL-20260910-0001");
   assert.equal(values[2], "Jean");
   assert.equal(values[3], "Dupont");
-  assert.equal(values[6], "10/09/2026");
-  assert.equal(values[10], 2, "2 jours facturables");
-  assert.equal(values[12], 240);
-  assert.equal(values[13], 50);
-  assert.equal(values[14], 190);
-  assert.equal(values[15], "Carte bancaire");
-  assert.equal(values[20], "Partiel");
-  assert.equal(values[21], "Agence");
+  assert.equal(values[5], "jean.dupont@example.com");
+  assert.equal(values[7], "10/09/2026");
+  assert.equal(values[11], 2, "2 jours facturables");
+  assert.equal(values[13], 240);
+  assert.equal(values[14], 50);
+  assert.equal(values[15], 190);
+  assert.equal(values[16], "Carte bancaire");
+  assert.equal(values[21], "Partiel");
+  assert.equal(values[22], "Agence");
 });
 
 test("computeWritableRuns : saute une cellule contenant déjà une formule", () => {
@@ -121,7 +122,7 @@ test("syncRentalToSheet : une seconde synchronisation MET À JOUR la même ligne
 
   assert.equal(result.action, "updated");
   assert.equal(fake.state.rows.length, 1, "toujours une seule ligne pour cette location");
-  assert.equal(fake.state.rows[0][13], 100, "acompte versé mis à jour");
+  assert.equal(fake.state.rows[0][14], 100, "acompte versé mis à jour");
 });
 
 test("syncRentalToSheet : synchronise dès le brouillon (avant génération du contrat), Num contrat vide", async () => {
@@ -144,22 +145,22 @@ test("syncRentalToSheet : ne remplace jamais une formule existante sur une ligne
   const fake = createFakeGoogleSheets({ headers: EXPECTED_HEADERS });
   await withFakeGoogleSheets(fake, () => syncRentalToSheet(env, rental.id));
 
-  // Simule une formule saisie à la main par l'agence dans "Nb jours" (colonne index 10).
-  fake.state.cellMeta["2:10"] = { formulaValue: "=J2-G2" };
-  fake.state.rows[0][10] = 99; // valeur actuellement affichée par la formule
+  // Simule une formule saisie à la main par l'agence dans "Nb jours" (colonne index 11).
+  fake.state.cellMeta["2:11"] = { formulaValue: "=J2-G2" };
+  fake.state.rows[0][11] = 99; // valeur actuellement affichée par la formule
 
   await addPayment(env, rental.id, { amount: 50, method: "especes" }, "Edmundo");
   await withFakeGoogleSheets(fake, () => syncRentalToSheet(env, rental.id));
 
-  assert.equal(fake.state.rows[0][10], 99, "la formule existante n'a pas été écrasée");
-  assert.equal(fake.state.rows[0][13], 50, "les autres colonnes ont bien été mises à jour");
+  assert.equal(fake.state.rows[0][11], 99, "la formule existante n'a pas été écrasée");
+  assert.equal(fake.state.rows[0][14], 50, "les autres colonnes ont bien été mises à jour");
 });
 
 test("syncRentalToSheet : refuse si la structure de l'onglet a changé", async () => {
   const env = makeEnv();
   const rental = await creerLocation(env);
   const headers = EXPECTED_HEADERS.slice();
-  headers[5] = "Modèle";
+  headers[6] = "Modèle";
   const fake = createFakeGoogleSheets({ headers });
   await assert.rejects(withFakeGoogleSheets(fake, () => syncRentalToSheet(env, rental.id)), SheetStructureError);
   assert.equal(fake.state.rows.length, 0, "aucune écriture tentée si la structure est invalide");
