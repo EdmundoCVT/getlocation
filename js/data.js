@@ -319,7 +319,7 @@ const VEHICULES = [
   },
   {
     id: "toyota-proace-city",
-    nom: "Toyota Proace City",
+    nom: "Toyota Proace Medium",
     immatriculation: "HK-619-XA",
     annee: 2026,
     categorie: "Utilitaire",

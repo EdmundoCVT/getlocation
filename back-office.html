@@ -90,7 +90,7 @@
             <div class="field"><label for="cf-lastName">Nom</label><input id="cf-lastName" maxlength="100" required></div>
             <div class="field"><label for="cf-phone">Téléphone</label><input id="cf-phone" maxlength="40"></div>
             <div class="field"><label for="cf-email">Email</label><input id="cf-email" type="email" maxlength="200"></div>
-            <div class="field"><label for="cf-birthDate">Date de naissance</label><input id="cf-birthDate" type="text" placeholder="AAAA-MM-JJ" maxlength="10"></div>
+            <div class="field"><label for="cf-birthDate">Date de naissance</label><input id="cf-birthDate" type="text" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" pattern="\d{2}/\d{2}/\d{4}"></div>
             <div class="field"><label for="cf-permitNumber">Numéro de permis</label><input id="cf-permitNumber" maxlength="50"></div>
             <div class="field full"><label for="cf-postalAddress">Adresse (n° et rue)</label><input id="cf-postalAddress" maxlength="300"></div>
             <div class="field"><label for="cf-postalCode">Code postal</label><input id="cf-postalCode" maxlength="10"></div>
@@ -192,7 +192,7 @@
   </div>
 </main>
 
-<script src="js/data.js?v=20"></script>
+<script src="js/data.js?v=21"></script>
 <script>
 (function(){
 'use strict';
@@ -205,6 +205,15 @@ function escapeHtml(s){
 function formatDateFR(iso){
   var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
   return m ? (m[3] + '/' + m[2] + '/' + m[1]) : (iso || '—');
+}
+// Inverse de formatDateFR, pour le champ ÉDITABLE "Date de naissance" (JJ/MM/AAAA
+// à l'écran, AAAA-MM-JJ en base — même convention ISO que le reste du
+// projet, voir migrations/0002). Une saisie qui ne suit pas ce format
+// (incomplète, mal tapée) est renvoyée telle quelle plutôt que perdue :
+// buildClientFields() côté serveur la tronque/stocke sans jamais planter.
+function jourMoisAnneeVersIso(str){
+  var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(str || '');
+  return m ? (m[3] + '-' + m[2] + '-' + m[1]) : (str || '');
 }
 function euros(cents){
   if(cents === null || cents === undefined || isNaN(cents)) return '—';
@@ -290,6 +299,7 @@ function syncBadge(syncStatus){
 window.__backOffice = {
   escapeHtml: escapeHtml,
   formatDateFR: formatDateFR,
+  jourMoisAnneeVersIso: jourMoisAnneeVersIso,
   euros: euros,
   statusBadge: statusBadge,
   syncBadge: syncBadge,
@@ -439,7 +449,7 @@ document.getElementById('editClientBtn').addEventListener('click', function(){
   document.getElementById('cf-lastName').value = currentClient.lastName || '';
   document.getElementById('cf-phone').value = currentClient.phone || '';
   document.getElementById('cf-email').value = currentClient.email || '';
-  document.getElementById('cf-birthDate').value = currentClient.birthDate || '';
+  document.getElementById('cf-birthDate').value = currentClient.birthDate ? formatDateFR(currentClient.birthDate) : '';
   document.getElementById('cf-permitNumber').value = currentClient.permitNumber || '';
   document.getElementById('cf-postalAddress').value = currentClient.postalAddress || '';
   document.getElementById('cf-postalCode').value = currentClient.postalCode || '';
@@ -464,7 +474,7 @@ document.getElementById('clientForm').addEventListener('submit', function(e){
     lastName: document.getElementById('cf-lastName').value,
     phone: document.getElementById('cf-phone').value,
     email: document.getElementById('cf-email').value,
-    birthDate: document.getElementById('cf-birthDate').value,
+    birthDate: jourMoisAnneeVersIso(document.getElementById('cf-birthDate').value),
     permitNumber: document.getElementById('cf-permitNumber').value,
     postalAddress: document.getElementById('cf-postalAddress').value,
     postalCode: document.getElementById('cf-postalCode').value,

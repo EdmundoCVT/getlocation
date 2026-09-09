@@ -58,6 +58,14 @@ test("formatDateFR : convertit AAAA-MM-JJ en JJ/MM/AAAA", () => {
   assert.equal(window.__backOffice.formatDateFR(null), "—");
 });
 
+test("jourMoisAnneeVersIso : convertit JJ/MM/AAAA en AAAA-MM-JJ (inverse de formatDateFR, champ éditable)", () => {
+  const window = buildWindow();
+  assert.equal(window.__backOffice.jourMoisAnneeVersIso("10/09/2026"), "2026-09-10");
+  assert.equal(window.__backOffice.jourMoisAnneeVersIso(""), "");
+  assert.equal(window.__backOffice.jourMoisAnneeVersIso(null), "");
+  assert.equal(window.__backOffice.jourMoisAnneeVersIso("pas une date"), "pas une date", "saisie invalide renvoyée telle quelle, jamais perdue");
+});
+
 test("euros : convertit des centimes en libellé français, gère l'absence de valeur", () => {
   const window = buildWindow();
   assert.equal(window.__backOffice.euros(24000), "240,00 €");
