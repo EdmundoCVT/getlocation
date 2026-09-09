@@ -50,6 +50,21 @@ test("createClient : rejette un prénom ou un nom manquant", async () => {
   await assert.rejects(createClient(env, { firstName: "Jean", lastName: "" }, "Edmundo"));
 });
 
+test("createClient : adresse en 3 champs séparés (rue/code postal/ville, Lot 5)", async () => {
+  const env = makeEnv();
+  const client = await createClient(env, {
+    firstName: "Jean", lastName: "Dupont",
+    postalAddress: "12 rue des Lilas", postalCode: "06130", city: "Grasse"
+  }, "Edmundo");
+  assert.equal(client.postalAddress, "12 rue des Lilas");
+  assert.equal(client.postalCode, "06130");
+  assert.equal(client.city, "Grasse");
+
+  const reloaded = await getClientById(env, client.id);
+  assert.equal(reloaded.postalCode, "06130");
+  assert.equal(reloaded.city, "Grasse");
+});
+
 test("updateClient : corrige en place (même id), renvoie null si introuvable", async () => {
   const env = makeEnv();
   const created = await createClient(env, { firstName: "Jean", lastName: "Dupont", phone: "0601020304" }, "Edmundo");

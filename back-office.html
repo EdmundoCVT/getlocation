@@ -92,7 +92,9 @@
             <div class="field"><label for="cf-email">Email</label><input id="cf-email" type="email" maxlength="200"></div>
             <div class="field"><label for="cf-birthDate">Date de naissance</label><input id="cf-birthDate" type="text" placeholder="AAAA-MM-JJ" maxlength="10"></div>
             <div class="field"><label for="cf-permitNumber">Numéro de permis</label><input id="cf-permitNumber" maxlength="50"></div>
-            <div class="field full"><label for="cf-postalAddress">Adresse postale</label><input id="cf-postalAddress" maxlength="300"></div>
+            <div class="field full"><label for="cf-postalAddress">Adresse (n° et rue)</label><input id="cf-postalAddress" maxlength="300"></div>
+            <div class="field"><label for="cf-postalCode">Code postal</label><input id="cf-postalCode" maxlength="10"></div>
+            <div class="field"><label for="cf-city">Ville</label><input id="cf-city" maxlength="100"></div>
             <div class="field full"><label for="cf-notes">Notes</label><textarea id="cf-notes" rows="3" maxlength="2000"></textarea></div>
             <div class="field full" style="flex-direction:row; align-items:center; gap:10px;">
               <input type="checkbox" id="cf-marketingConsent" style="width:auto;">
@@ -235,11 +237,6 @@ function encodeContratPrefill(obj){
 // partiellement réglée : on transmet donc toujours le montant RÉEL déjà
 // encaissé (0 compris) dès qu'on le connaît, plutôt que de laisser
 // contrat.html deviner à tort un solde à zéro.
-// adresse/permis : contrat.html attend l'adresse en 3 champs séparés
-// (rue/code postal/ville), alors que la fiche client n'a qu'un champ libre
-// "Adresse postale" — on transmet ce texte tel quel dans le champ "Adresse
-// (n° et rue)" (mieux que rien, jamais réparti au hasard dans code
-// postal/ville, qui resteront à compléter à la main).
 function contratPrefillUrl(rental, client, paidCents){
   var data = {
     prenom: client.firstName || '',
@@ -248,6 +245,8 @@ function contratPrefillUrl(rental, client, paidCents){
     email: client.email || '',
     naissance: client.birthDate || '',
     adresse: client.postalAddress || '',
+    codePostal: client.postalCode || '',
+    ville: client.city || '',
     permis: client.permitNumber || '',
     vehiculeId: rental.vehiculeId || ''
   };
@@ -410,7 +409,7 @@ document.getElementById('backToSearchBtn').addEventListener('click', function(){
 
 // ================= Formulaire client ================= //
 function resetClientForm(){
-  ['cf-firstName', 'cf-lastName', 'cf-phone', 'cf-email', 'cf-birthDate', 'cf-permitNumber', 'cf-postalAddress', 'cf-notes'].forEach(function(id){
+  ['cf-firstName', 'cf-lastName', 'cf-phone', 'cf-email', 'cf-birthDate', 'cf-permitNumber', 'cf-postalAddress', 'cf-postalCode', 'cf-city', 'cf-notes'].forEach(function(id){
     document.getElementById(id).value = '';
   });
   document.getElementById('cf-marketingConsent').checked = false;
@@ -436,6 +435,8 @@ document.getElementById('editClientBtn').addEventListener('click', function(){
   document.getElementById('cf-birthDate').value = currentClient.birthDate || '';
   document.getElementById('cf-permitNumber').value = currentClient.permitNumber || '';
   document.getElementById('cf-postalAddress').value = currentClient.postalAddress || '';
+  document.getElementById('cf-postalCode').value = currentClient.postalCode || '';
+  document.getElementById('cf-city').value = currentClient.city || '';
   document.getElementById('cf-notes').value = currentClient.notes || '';
   document.getElementById('cf-marketingConsent').checked = !!currentClient.marketingConsent;
   document.getElementById('duplicateWarning').hidden = true;
@@ -459,6 +460,8 @@ document.getElementById('clientForm').addEventListener('submit', function(e){
     birthDate: document.getElementById('cf-birthDate').value,
     permitNumber: document.getElementById('cf-permitNumber').value,
     postalAddress: document.getElementById('cf-postalAddress').value,
+    postalCode: document.getElementById('cf-postalCode').value,
+    city: document.getElementById('cf-city').value,
     notes: document.getElementById('cf-notes').value,
     marketingConsent: document.getElementById('cf-marketingConsent').checked
   };
@@ -521,7 +524,7 @@ function renderClientSheet(){
     row('Email', currentClient.email) +
     row('Date de naissance', formatDateFR(currentClient.birthDate)) +
     row('Numéro de permis', currentClient.permitNumber) +
-    row('Adresse', currentClient.postalAddress) +
+    row('Adresse', [currentClient.postalAddress, currentClient.postalCode, currentClient.city].filter(Boolean).join(', ')) +
     row('Consentement marketing', currentClient.marketingConsent ? 'Oui' : 'Non') +
     (currentClient.notes ? row('Notes', currentClient.notes) : '');
   showSection('clientSheetSection');

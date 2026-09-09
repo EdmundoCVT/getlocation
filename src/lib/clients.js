@@ -45,6 +45,8 @@ function rowToClient(row) {
     email: row.email_raw,
     birthDate: row.birth_date || "",
     postalAddress: row.postal_address || "",
+    postalCode: row.postal_code || "",
+    city: row.city || "",
     permitNumber: row.permit_number || "",
     permitDate: row.permit_date || "",
     marketingConsent: Boolean(row.marketing_consent),
@@ -74,6 +76,8 @@ function buildClientFields(data) {
     email_normalized: normalizeEmail(emailRaw),
     birth_date: text(data.birthDate, 10),
     postal_address: text(data.postalAddress, 300),
+    postal_code: text(data.postalCode, 10),
+    city: text(data.city, 100),
     permit_number: text(data.permitNumber, 50),
     permit_date: text(data.permitDate, 10),
     // Case à cocher explicite uniquement : toute valeur autre que `true`
@@ -88,12 +92,12 @@ async function createClient(env, data, operator) {
   const id = generateId("clt");
   const now = new Date().toISOString();
   await env.AGENCY_DB.prepare(
-    `INSERT INTO clients (id, first_name, last_name, phone_normalized, phone_raw, email_normalized, email_raw, birth_date, postal_address, permit_number, permit_date, marketing_consent, notes, created_at, updated_at, created_by, updated_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO clients (id, first_name, last_name, phone_normalized, phone_raw, email_normalized, email_raw, birth_date, postal_address, postal_code, city, permit_number, permit_date, marketing_consent, notes, created_at, updated_at, created_by, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     id, fields.first_name, fields.last_name, fields.phone_normalized, fields.phone_raw,
     fields.email_normalized, fields.email_raw, fields.birth_date, fields.postal_address,
-    fields.permit_number, fields.permit_date, fields.marketing_consent, fields.notes,
+    fields.postal_code, fields.city, fields.permit_number, fields.permit_date, fields.marketing_consent, fields.notes,
     now, now, operator, operator
   ).run();
   return getClientById(env, id);
@@ -114,11 +118,11 @@ async function updateClient(env, id, data, operator) {
   const fields = buildClientFields(data);
   const now = new Date().toISOString();
   await env.AGENCY_DB.prepare(
-    `UPDATE clients SET first_name = ?, last_name = ?, phone_normalized = ?, phone_raw = ?, email_normalized = ?, email_raw = ?, birth_date = ?, postal_address = ?, permit_number = ?, permit_date = ?, marketing_consent = ?, notes = ?, updated_at = ?, updated_by = ? WHERE id = ?`
+    `UPDATE clients SET first_name = ?, last_name = ?, phone_normalized = ?, phone_raw = ?, email_normalized = ?, email_raw = ?, birth_date = ?, postal_address = ?, postal_code = ?, city = ?, permit_number = ?, permit_date = ?, marketing_consent = ?, notes = ?, updated_at = ?, updated_by = ? WHERE id = ?`
   ).bind(
     fields.first_name, fields.last_name, fields.phone_normalized, fields.phone_raw,
     fields.email_normalized, fields.email_raw, fields.birth_date, fields.postal_address,
-    fields.permit_number, fields.permit_date, fields.marketing_consent, fields.notes,
+    fields.postal_code, fields.city, fields.permit_number, fields.permit_date, fields.marketing_consent, fields.notes,
     now, operator, id
   ).run();
   return getClientById(env, id);
