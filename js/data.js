@@ -156,7 +156,13 @@ function prixJourMinimum(vehicule) {
 // Codes promo — liste simple codée en dur (pas d'interface d'administration
 // pour l'instant). Codes insensibles à la casse/espaces (voir
 // getCodePromo). Valeurs d'exemple à ajuster ici.
+//
+// Deux formes possibles : `pourcentage` (remise proportionnelle au total
+// avant promo) OU `montant` (remise fixe en euros, plafonnée au total avant
+// promo dans calculerPrixTotal — jamais de total négatif). Un code ne
+// déclare jamais les deux à la fois.
 const CODES_PROMO = {
+  BIENVENUE20: { montant: 20, description: "20 € de réduction" },
   GETLOC95: { pourcentage: 95, description: "95 % de réduction" },
   GETLOC90: { pourcentage: 90, description: "90 % de réduction" },
   GETLOC85: { pourcentage: 85, description: "85 % de réduction" },
@@ -184,7 +190,7 @@ function getCodePromo(code) {
   const normalise = String(code).trim().toUpperCase();
   if (!normalise || !CODES_PROMO[normalise]) return null;
   const promo = CODES_PROMO[normalise];
-  return { code: normalise, pourcentage: promo.pourcentage, description: promo.description };
+  return { code: normalise, pourcentage: promo.pourcentage, montant: promo.montant, description: promo.description };
 }
 
 // Catalogue des options proposées pendant la réservation (avant paiement).
@@ -482,7 +488,14 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
 
   const baseAvantPromo = sousTotal + optionsMontant;
   const promo = getCodePromo(codePromo);
-  const reductionPromoMontant = promo ? Math.round(baseAvantPromo * promo.pourcentage) / 100 : 0;
+  // `montant` (remise fixe) plafonné à baseAvantPromo : un total ne devient
+  // jamais négatif, même si le code promo excède le montant de la
+  // location (ex. BIENVENUE20 sur une très courte location).
+  const reductionPromoMontant = !promo
+    ? 0
+    : promo.montant !== undefined
+      ? Math.min(promo.montant, baseAvantPromo)
+      : Math.round(baseAvantPromo * promo.pourcentage) / 100;
 
   const total = baseAvantPromo - reductionPromoMontant;
 

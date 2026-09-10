@@ -793,7 +793,7 @@
 
 </div>
 
-<script src="js/data.js?v=21"></script>
+<script src="js/data.js?v=22"></script>
 <script>
 // VEHICULES, formatEUR, joursFacturablesDepuisHeures, getVehiculeParId et
 // getOptionParId viennent de js/data.js (chargé juste avant ce script) —
@@ -1360,7 +1360,10 @@ function lignesDetailFinancier(prix){
     lignes.push(['Sous-total', formatEUR(prix.baseAvantPromo)]);
   }
   if(prix.codePromo){
-    lignes.push(['Code promo ' + prix.codePromo.code + ' (-' + prix.codePromo.pourcentage + ' %)', '− ' + formatEUR(prix.reductionPromoMontant)]);
+    // .pourcentage OU .montant selon le type de code (voir CODES_PROMO,
+    // js/data.js) — jamais les deux à la fois.
+    var suffixePromo = prix.codePromo.pourcentage !== undefined ? ('-' + prix.codePromo.pourcentage + ' %') : ('-' + formatEUR(prix.codePromo.montant));
+    lignes.push(['Code promo ' + prix.codePromo.code + ' (' + suffixePromo + ')', '− ' + formatEUR(prix.reductionPromoMontant)]);
   }
   lignes.push(['Total', formatEUR(prix.total)]);
   return lignes;

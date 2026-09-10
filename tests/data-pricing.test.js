@@ -187,6 +187,22 @@ test("calculerPrixTotal : applique un code promo valide sur le total (options in
   assert.equal(result.total, baseAvantPromo - result.reductionPromoMontant);
 });
 
+test("calculerPrixTotal : applique un code promo à montant fixe (BIENVENUE20, pas un pourcentage)", () => {
+  const vehicule = getVehiculeParId("opel-corsa");
+  const result = calculerPrixTotal({
+    vehiculeId: "opel-corsa",
+    dateDebut: "2026-08-01", heureDebut: "10:00",
+    dateFin: "2026-08-04", heureFin: "10:00", // 3 jours, pas de remise durée
+    codePromo: "bienvenue20"
+  });
+  const baseAvantPromo = vehicule.prixJour * 3;
+  assert.equal(result.codePromo.code, "BIENVENUE20");
+  assert.equal(result.codePromo.montant, 20);
+  assert.equal(result.codePromo.pourcentage, undefined);
+  assert.equal(result.reductionPromoMontant, 20, "remise fixe, jamais proportionnelle au total");
+  assert.equal(result.total, baseAvantPromo - 20);
+});
+
 test("calculerPrixTotal : un code promo invalide est ignoré (aucune erreur, aucune remise)", () => {
   const vehicule = getVehiculeParId("opel-corsa");
   const result = calculerPrixTotal({

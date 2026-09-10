@@ -1852,7 +1852,10 @@ function appendBreakdownRows(container, prix) {
   });
 
   if (prix.codePromo) {
-    const row = summaryRow(`Code promo ${prix.codePromo.code} (-${prix.codePromo.pourcentage}%)`, `− ${formatEUR(prix.reductionPromoMontant)}`);
+    // .pourcentage OU .montant selon le type de code (voir CODES_PROMO,
+    // js/data.js) — jamais les deux à la fois.
+    const suffixePromo = prix.codePromo.pourcentage !== undefined ? `-${prix.codePromo.pourcentage}%` : `-${formatEUR(prix.codePromo.montant)}`;
+    const row = summaryRow(`Code promo ${prix.codePromo.code} (${suffixePromo})`, `− ${formatEUR(prix.reductionPromoMontant)}`);
     row.classList.add("discount");
     container.appendChild(row);
   }
