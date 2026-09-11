@@ -893,6 +893,26 @@ function isoVersJourMoisAnnee(iso){
   var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
   return m ? (m[3] + '/' + m[2] + '/' + m[1]) : (iso || '');
 }
+// Les champs JJ/MM/AAAA de ce formulaire utilisent inputmode="numeric" pour
+// afficher un clavier numérique sur mobile — mais ce clavier (iOS/Android)
+// n'a pas de touche "/", rendant le format demandé impossible à saisir
+// (constaté le 11/09/2026). Insère automatiquement les "/" à la frappe :
+// l'utilisateur ne tape que des chiffres, la mise en forme suit toute
+// seule. Ne touche jamais un champ déjà rempli par ailleurs (prefill,
+// remplirFormulaire...) : ne s'active que sur une frappe utilisateur
+// (événement "input"), jamais sur une affectation directe de .value.
+function activerSaisieDateAuto(input){
+  if(!input) return;
+  input.addEventListener('input', function(){
+    var chiffres = input.value.replace(/\D/g, '').slice(0, 8);
+    if(chiffres.length > 4) input.value = chiffres.slice(0,2) + '/' + chiffres.slice(2,4) + '/' + chiffres.slice(4);
+    else if(chiffres.length > 2) input.value = chiffres.slice(0,2) + '/' + chiffres.slice(2);
+    else input.value = chiffres;
+  });
+}
+['naissance', 'permisDate', 'permisValidite', 'naissance2', 'permis2Date', 'df-permisDate', 'df-permisValidite', 'df-secondPermisDate'].forEach(function(id){
+  activerSaisieDateAuto(document.getElementById(id));
+});
 // Encodage base64url (RFC 4648 §5) plutôt que le base64 standard : "+" et
 // "/" cassent silencieusement la lecture du lien (URLSearchParams décode
 // "+" en espace, corrompant le base64 avant même atob()), et le "="

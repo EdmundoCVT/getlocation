@@ -215,6 +215,18 @@ function jourMoisAnneeVersIso(str){
   var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(str || '');
   return m ? (m[3] + '-' + m[2] + '-' + m[1]) : (str || '');
 }
+// inputmode="numeric" affiche un clavier numérique sur mobile (iOS/Android)
+// sans touche "/", rendant le format JJ/MM/AAAA demandé impossible à
+// saisir (constaté le 11/09/2026, voir aussi contrat.html/js/app.js#
+// insererSlashesDateFr — même correctif, code dupliqué car ce fichier ne
+// partage pas de module JS avec eux). Insère les "/" automatiquement à la
+// frappe.
+document.getElementById('cf-birthDate').addEventListener('input', function(e){
+  var chiffres = e.target.value.replace(/\D/g, '').slice(0, 8);
+  if(chiffres.length > 4) e.target.value = chiffres.slice(0,2) + '/' + chiffres.slice(2,4) + '/' + chiffres.slice(4);
+  else if(chiffres.length > 2) e.target.value = chiffres.slice(0,2) + '/' + chiffres.slice(2);
+  else e.target.value = chiffres;
+});
 function euros(cents){
   if(cents === null || cents === undefined || isNaN(cents)) return '—';
   return (cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';

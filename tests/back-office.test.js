@@ -66,6 +66,17 @@ test("jourMoisAnneeVersIso : convertit JJ/MM/AAAA en AAAA-MM-JJ (inverse de form
   assert.equal(window.__backOffice.jourMoisAnneeVersIso("pas une date"), "pas une date", "saisie invalide renvoyée telle quelle, jamais perdue");
 });
 
+// inputmode="numeric" affiche un clavier numérique sur mobile (iOS/Android)
+// sans touche "/", rendant JJ/MM/AAAA impossible à saisir (constaté le
+// 11/09/2026) — voir le même correctif dans contrat.html/js/app.js.
+test("cf-birthDate : insère les \"/\" au fil de la frappe (clavier numérique mobile sans touche /)", () => {
+  const window = buildWindow();
+  const input = window.document.getElementById("cf-birthDate");
+  input.value = "10092026";
+  input.dispatchEvent(new window.Event("input", { bubbles: true }));
+  assert.equal(input.value, "10/09/2026");
+});
+
 test("euros : convertit des centimes en libellé français, gère l'absence de valeur", () => {
   const window = buildWindow();
   assert.equal(window.__backOffice.euros(24000), "240,00 €");
