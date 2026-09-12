@@ -1660,10 +1660,67 @@ function livrerPDF(doc, nomFichier){
   // Onglet refusé par le bloqueur de fenêtres : repli sur le comportement
   // d'origine (mieux vaut un PDF qui remplace la page qu'aucun PDF).
   if(!onglet){ doc.save(nomFichier); return; }
-  var url = URL.createObjectURL(doc.output('blob'));
-  onglet.location.href = url;
-  // Libéré tardivement : l'onglet doit avoir eu le temps de charger le PDF.
-  setTimeout(function(){ URL.revokeObjectURL(url); }, 120000);
+  // L'URL du blob n'est jamais révoquée par un minuteur : le navigateur la
+  // libère de lui-même en quittant cette page, alors qu'une révocation
+  // programmée casserait le bouton "Télécharger" de l'onglet si l'agence y
+  // revenait plus tard.
+  ecrireOngletPdf(onglet, URL.createObjectURL(doc.output('blob')), nomFichier);
+}
+
+// Page d'accueil du PDF dans l'onglet séparé : aperçu + bouton de
+// téléchargement PORTANT LE NOM DU CONTRAT. Safari, lui, affiche un PDF brut
+// sans son nom (son partage ne propose qu'un nom générique) — d'où cette
+// page intermédiaire plutôt qu'une navigation directe vers le blob.
+// Construite en DOM (jamais en HTML assemblé à la main) : le nom de fichier
+// vient des données du contrat, il ne doit jamais pouvoir être interprété.
+function ecrireOngletPdf(onglet, url, nomFichier){
+  var d = onglet.document;
+  d.title = nomFichier;
+
+  var style = d.createElement('style');
+  style.textContent = [
+    'html,body{margin:0;height:100%;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#f6f4fb;color:#2a2438;}',
+    'body{display:flex;flex-direction:column;}',
+    'header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 14px;background:#1a2f52;color:#fff;}',
+    '.nom{flex:1 1 180px;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.9;}',
+    'a.btn{display:inline-block;padding:11px 16px;border-radius:14px;font-size:15px;font-weight:700;text-decoration:none;white-space:nowrap;}',
+    'a.telecharger{background:#fd5301;color:#fff;}',
+    'a.plein-ecran{background:rgba(255,255,255,.14);color:#fff;}',
+    'iframe{flex:1;width:100%;border:0;background:#fff;}'
+  ].join('');
+  d.head.appendChild(style);
+
+  var viewport = d.createElement('meta');
+  viewport.name = 'viewport';
+  viewport.content = 'width=device-width, initial-scale=1';
+  d.head.appendChild(viewport);
+
+  var barre = d.createElement('header');
+  var nom = d.createElement('span');
+  nom.className = 'nom';
+  nom.textContent = nomFichier;
+  var telecharger = d.createElement('a');
+  telecharger.className = 'btn telecharger';
+  telecharger.href = url;
+  telecharger.setAttribute('download', nomFichier);
+  telecharger.textContent = '⬇️ Télécharger';
+  // Repli quand l'aperçu intégré ne suffit pas (Safari sur iPhone n'affiche
+  // souvent que la première page dans un cadre) : ouvre le PDF seul, dans la
+  // visionneuse du navigateur, sans quitter cet onglet-ci.
+  var pleinEcran = d.createElement('a');
+  pleinEcran.className = 'btn plein-ecran';
+  pleinEcran.href = url;
+  pleinEcran.textContent = 'Plein écran';
+  barre.appendChild(nom);
+  barre.appendChild(telecharger);
+  barre.appendChild(pleinEcran);
+
+  var apercu = d.createElement('iframe');
+  apercu.src = url;
+  apercu.title = nomFichier;
+
+  d.body.appendChild(barre);
+  d.body.appendChild(apercu);
 }
 
 function genererPDF(payload, estApercu){
