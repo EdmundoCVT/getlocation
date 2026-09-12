@@ -1389,6 +1389,40 @@ function lignesDetailFinancier(prix){
   return lignes;
 }
 
+// Synthèse financière CLIENT du PDF : trois montants seulement (location,
+// remises, total) puis l'état du règlement — le détail ligne à ligne
+// (réduction durée, code promo, remise commerciale...) reste disponible
+// dans detailFinancier, inchangé. AUCUN calcul n'est refait ici : seuls des
+// montants déjà produits par calculerPrixTotal() (js/data.js, seule source
+// de vérité) sont regroupés pour l'affichage.
+// `totalFinal` peut différer de prix.total quand l'agence a fixé un tarif
+// manuel (appliquerTarifManuel) : l'écart devient une remise commerciale,
+// ou une majoration s'il est positif.
+function syntheseFinancierePdf(prix, totalFinal, montantRegleNombre, soldeNombre){
+  if(!prix) return null;
+  var options = prix.optionsSelectionnees || [];
+  var optionsMontant = options.reduce(function(somme, opt){ return somme + opt.montant; }, 0);
+
+  var remises = [];
+  if(prix.reductionDuree) remises.push({ libelle: 'durée', montant: prix.reductionDuree.montant });
+  if(prix.codePromo) remises.push({ libelle: 'code ' + prix.codePromo.code, montant: prix.reductionPromoMontant });
+  var ecartTarifManuel = Math.round((prix.total - totalFinal) * 100) / 100;
+  if(ecartTarifManuel > 0) remises.push({ libelle: 'remise commerciale', montant: ecartTarifManuel });
+
+  return {
+    jours: prix.jours,
+    location: prix.sousTotalBrut,
+    options: options.map(function(opt){ return opt.nom; }),
+    optionsMontant: optionsMontant,
+    remises: remises,
+    remisesTotal: remises.reduce(function(somme, r){ return somme + r.montant; }, 0),
+    majoration: ecartTarifManuel < 0 ? -ecartTarifManuel : 0,
+    totalLocation: totalFinal,
+    dejaRegle: montantRegleNombre,
+    resteAPayer: soldeNombre
+  };
+}
+
 // Reconstruit un objet au format calculerPrixTotal() à partir du détail
 // financier figé côté serveur au moment du paiement d'une réservation en
 // ligne (voir contract-dossier-agency.js/contract-dossier-client.js,
@@ -1432,8 +1466,13 @@ function construirePayload(data, sigData, stamp){
   var detailAcompte = detailPaiement.detailAcompte;
   var detailSolde = detailPaiement.detailSolde;
   var adresseComplete = [data.adresse, [data.codePostal, data.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
-  var lieuAffiche = data.livraison
-    ? 'Livraison à ' + (data.livraisonRue || '') + ', ' + (data.livraisonCP || '') + ' ' + (data.livraisonVille || '')
+  // Adresse de livraison RÉELLE dès qu'elle est renseignée, même si la case
+  // "livraison" n'a pas été cochée : le contrat affichait sinon le seul
+  // libellé du menu ("Livraison à l'adresse de votre choix"), inutilisable
+  // pour le client comme pour l'agence.
+  var adresseLivraison = [data.livraisonRue, [data.livraisonCP, data.livraisonVille].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  var lieuAffiche = adresseLivraison
+    ? 'Livraison à ' + adresseLivraison
     : data.lieu;
 
   // Détail financier : remplace la ligne "Total" calculée automatiquement
@@ -1480,6 +1519,7 @@ function construirePayload(data, sigData, stamp){
     retour: formatDateHeureFR(data.retour),
     duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
     detailFinancier: detailFinancier,
+    syntheseFinanciere: syntheseFinancierePdf(prix, total, montantRegleNombre, soldeNombre),
     kilometrageManuel: kilometrageManuel,
     supplementKmCentimes: getSupplementKmCentimes(),
     total: formatEUR(total),
@@ -1617,8 +1657,12 @@ function champsPdfSuspects(payload){
 // affichent comme un caractère erroné. On les remplace par une espace
 // normale uniquement au moment d'écrire dans le PDF (voir plus bas) — sans
 // toucher à l'affichage HTML, où ces caractères s'affichent correctement.
+// U+2212 (signe moins typographique) : absent lui aussi de l'encodage
+// WinAnsi, il sortait comme un caract\u00E8re vide sur les montants n\u00E9gatifs du
+// PDF ("  50 \u20AC" au lieu de "-50 \u20AC"). Remplac\u00E9 par le tiret ASCII, seul
+// caract\u00E8re s\u00FBr ici \u2014 l'affichage HTML, lui, garde le vrai signe moins.
 function nettoyerTextePdf(t){
-  return String(t).replace(/[\u202F\u00A0]/g, " ");
+  return String(t).replace(/[\u202F\u00A0]/g, " ").replace(/\u2212/g, "-");
 }
 
 // Livraison du PDF généré (signalé le 12/09/2026 : "ça ouvre une nouvelle
@@ -1723,6 +1767,16 @@ function ecrireOngletPdf(onglet, url, nomFichier){
   d.body.appendChild(apercu);
 }
 
+// Génération du contrat PDF (refonte visuelle du 12/09/2026). Trois pages :
+//   1. SYNTHÈSE  — locataire, véhicule, location, tarification, garantie ;
+//   2. CONDITIONS — articles, déclaration du locataire, signatures ;
+//   3. ANNEXE    — état des lieux du véhicule (tableau, schéma, observations).
+// Les Conditions Générales de Location complètes restent un document séparé
+// (cgl.html) : le contrat n'en cite que la version applicable.
+//
+// Aucun calcul métier n'est fait ici : tous les montants viennent du payload
+// (construirePayload / construireDossierPayload), eux-mêmes alimentés par
+// js/data.js — seule source de vérité (voir CLAUDE.md, règle n°1).
 function genererPDF(payload, estApercu){
   var jsPDF = window.jspdf && window.jspdf.jsPDF;
   if(!jsPDF){ libererOngletPdf(); alert("Le générateur de PDF n'a pas pu se charger. Vérifiez votre connexion et réessayez."); return; }
@@ -1745,340 +1799,728 @@ function genererPDF(payload, estApercu){
   doc.splitTextToSize = function(txt, maxW, opts){
     return _docSplit(nettoyerTextePdf(String(txt)), maxW, opts);
   };
-  var margin = 42;
+
+  var margin = 40;
   var pageWidth = doc.internal.pageSize.getWidth();
   var pageHeight = doc.internal.pageSize.getHeight();
-  var maxWidth = pageWidth - margin*2;
+  var maxWidth = pageWidth - margin * 2;
+  var GOUTTIERE = 20;
+  var largeurColonne = (maxWidth - GOUTTIERE) / 2;
+  var xColonneDroite = margin + largeurColonne + GOUTTIERE;
+  var HAUTEUR_PIED = 46;                  // zone réservée au pied de page
+  var basDePage = pageHeight - HAUTEUR_PIED;
   var y = margin;
 
-  function sautDePageSiBesoin(hauteur){
-    if(y + hauteur > pageHeight - margin){ doc.addPage(); y = margin; }
+  // Charte GETLOCATION (orange #FF6B00, bleu #0066FF), employée avec
+  // parcimonie — titres, filets et montants clés — pour rester lisible en
+  // noir et blanc et économique à imprimer.
+  var C = {
+    titre:  [26, 47, 82],
+    texte:  [34, 32, 44],
+    label:  [122, 120, 134],
+    filet:  [214, 219, 226],
+    fond:   [247, 248, 251],
+    orange: [255, 107, 0],
+    bleu:   [0, 102, 255],
+    vert:   [47, 158, 91]
+  };
+
+  function police(style, taille, couleur){
+    doc.setFont('helvetica', style);
+    doc.setFontSize(taille);
+    doc.setTextColor(couleur[0], couleur[1], couleur[2]);
+  }
+  function filet(x1, x2, yFilet, couleur, epaisseur){
+    doc.setDrawColor(couleur[0], couleur[1], couleur[2]);
+    doc.setLineWidth(epaisseur || 0.5);
+    doc.line(x1, yFilet, x2, yFilet);
+    doc.setLineWidth(0.5);
+  }
+  function nouvellePage(){ doc.addPage(); y = margin; }
+  function placePour(hauteur){ if(y + hauteur > basDePage) nouvellePage(); }
+  function valeurOuTiret(v){
+    return (v === undefined || v === null || String(v).trim() === '') ? (estApercu ? 'À compléter' : '—') : String(v);
+  }
+  // Capitales espacées : utilisées pour tous les intitulés (titres de
+  // section, libellés de champ), ce qui distingue nettement un libellé
+  // d'une valeur sans avoir à multiplier les tailles de police.
+  function capitales(texte, x, yTexte, espacement, options){
+    doc.setCharSpace(espacement);
+    doc.text(String(texte).toUpperCase(), x, yTexte, options);
+    doc.setCharSpace(0);
   }
 
+  // --- Titre de section : intitulé en capitales souligné d'un filet orange
+  // court prolongé d'un filet gris, pour séparer franchement les blocs.
+  // `hauteurBloc` : hauteur approximative de ce qui suit le titre, pour que
+  // le titre bascule avec son contenu plutôt que de rester seul en bas de page.
+  function titreSection(texte, hauteurBloc){
+    if(y > margin) y += 8;
+    placePour(24 + (hauteurBloc || 40));
+    police('bold', 11, C.titre);
+    capitales(texte, margin, y, 0.9);
+    y += 7;
+    filet(margin, margin + 44, y, C.orange, 1.4);
+    filet(margin + 44, pageWidth - margin, y, C.filet, 0.6);
+    y += 13;
+  }
+
+  // --- Champ « libellé discret au-dessus, valeur en évidence en dessous ».
+  function hauteurChamp(valeur, largeur, taille){
+    doc.setFont('helvetica','normal'); doc.setFontSize(taille);
+    var nbLignes = doc.splitTextToSize(valeurOuTiret(valeur), largeur).length;
+    return (taille + 2) + (nbLignes - 1) * (taille + 2.5) + 8;
+  }
+  function champ(x, yChamp, largeur, definition){
+    var taille = definition.taille || 9.5;
+    police('normal', 6.8, C.label);
+    capitales(definition.label, x, yChamp, 0.45);
+    police(definition.gras ? 'bold' : 'normal', taille, definition.couleur || C.texte);
+    var lignes = doc.splitTextToSize(valeurOuTiret(definition.valeur), largeur);
+    doc.text(lignes, x, yChamp + taille + 2);
+    return (taille + 2) + (lignes.length - 1) * (taille + 2.5) + 8;
+  }
+  // Grille à deux colonnes ; `pleineLargeur` force un champ sur toute la
+  // largeur (adresse longue, par exemple).
+  function grilleChamps(champs){
+    var i = 0;
+    while(i < champs.length){
+      var gauche = champs[i];
+      var droite = (!gauche.pleineLargeur && champs[i + 1] && !champs[i + 1].pleineLargeur) ? champs[i + 1] : null;
+      var largeurGauche = gauche.pleineLargeur ? maxWidth : largeurColonne;
+      var hauteur = Math.max(
+        hauteurChamp(gauche.valeur, largeurGauche, gauche.taille || 9.5),
+        droite ? hauteurChamp(droite.valeur, largeurColonne, droite.taille || 9.5) : 0
+      );
+      placePour(hauteur);
+      champ(margin, y, largeurGauche, gauche);
+      if(droite) champ(xColonneDroite, y, largeurColonne, droite);
+      y += hauteur;
+      i += droite ? 2 : 1;
+    }
+  }
+
+  // --- Ligne « libellé ............ montant » du bloc tarification.
+  function ligneMontant(libelle, montant, options){
+    options = options || {};
+    var taille = options.taille || 9.5;
+    placePour(taille + 12);
+    police(options.gras ? 'bold' : 'normal', taille, options.couleur || C.texte);
+    doc.text(libelle, margin, y);
+    doc.text(String(montant), pageWidth - margin, y, { align: 'right' });
+    y += taille + (options.espace === undefined ? 6 : options.espace);
+  }
+  // Montant négatif toujours écrit avec le tiret ASCII (voir nettoyerTextePdf).
+  function montantRetranche(texte){
+    return '-' + String(texte).replace(/^[-−]\s*/, '');
+  }
+  function majusculeInitiale(texte){
+    var t = String(texte || '').trim();
+    return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
+  }
+  // "11 septembre 2026 à 20:30" -> { date: "11 septembre 2026", heure: "20:30" }
+  function separerDateHeure(valeur){
+    var texte = String(valeur || '');
+    var separateur = texte.lastIndexOf(' à ');
+    if(separateur === -1) return { date: valeurOuTiret(texte), heure: '' };
+    return { date: texte.slice(0, separateur), heure: texte.slice(separateur + 3) };
+  }
+
+  // =====================================================================
+  // PAGE 1 — SYNTHÈSE
+  // =====================================================================
+
   function enTete(){
-    doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(26,47,82);
-    doc.text('GETLOCATION', margin, y); y += 16;
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(107,100,120);
-    doc.text('TLST SAS — Location de véhicules — Grasse, Alpes-Maritimes', margin, y); y += 14;
-    if(payload.reference){
-      doc.text('Référence de réservation : ' + payload.reference, margin, y); y += 14;
-    }
+    police('bold', 17, C.titre);
+    doc.text('GETLOCATION', margin, y + 6);
+    police('normal', 7.5, C.label);
+    doc.text('TLST SAS — Location de véhicules — Grasse, Alpes-Maritimes', margin, y + 19);
+
+    police('bold', 15, C.titre);
+    capitales('Contrat de location', pageWidth - margin, y + 4, 0.4, { align: 'right' });
+    var yDroite = y + 20;
     if(payload.numero){
-      doc.setFont('helvetica','bold'); doc.setTextColor(26,47,82);
-      doc.text('Contrat n° ' + payload.numero, margin, y); y += 14;
-      doc.setFont('helvetica','normal'); doc.setTextColor(107,100,120);
+      police('bold', 11.5, C.orange);
+      doc.text('N° ' + payload.numero, pageWidth - margin, yDroite, { align: 'right' });
+      yDroite += 12;
+    }
+    if(payload.reference){
+      police('normal', 7.5, C.label);
+      doc.text('Réf. réservation ' + payload.reference, pageWidth - margin, yDroite, { align: 'right' });
     }
 
-    // Page 1 : statut clair (aperçu / envoyé pour signature / signé) — voir
-    // payload.statutDossier (dossier sécurisé) avec repli sur l'ancien
-    // indicateur estApercu/signature_image (lien ?data=/?prefill= historique).
-    var statutTexte, statutCouleur;
+    y += 28;
+    filet(margin, pageWidth - margin, y, C.titre, 1.6);
+    y += 15;
+
+    // Statut : l'avertissement "aperçu" ne doit JAMAIS figurer sur un
+    // contrat définitif — il dépend donc de estApercu, et non plus de la
+    // seule absence de signature (un contrat officiel non encore signé est
+    // "en attente de signature", pas un aperçu).
+    var statut;
     if(payload.signature_image){
-      statutTexte = 'CONTRAT SIGNÉ'; statutCouleur = [47,158,91];
-    } else if(payload.statutDossier === 'sent'){
-      statutTexte = 'ENVOYÉ AU CLIENT — EN ATTENTE DE SIGNATURE'; statutCouleur = [242,118,12];
+      statut = { texte: 'Contrat signé électroniquement', couleur: C.vert };
+    } else if(estApercu){
+      statut = { texte: 'Aperçu — document non contractuel', couleur: C.orange };
     } else {
-      statutTexte = 'APERÇU — DOCUMENT NON CONTRACTUEL'; statutCouleur = [242,118,12];
+      statut = { texte: 'En attente de signature du locataire', couleur: C.orange };
     }
-    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(statutCouleur[0],statutCouleur[1],statutCouleur[2]);
-    doc.text(statutTexte, margin, y); y += 16;
-
-    doc.setDrawColor(227,232,234); doc.line(margin, y, pageWidth - margin, y); y += 20;
+    police('bold', 8, statut.couleur);
+    var largeurStatut = doc.getTextWidth(statut.texte.toUpperCase()) + statut.texte.length * 0.6 + 20;
+    doc.setDrawColor(statut.couleur[0], statut.couleur[1], statut.couleur[2]);
+    doc.setFillColor(C.fond[0], C.fond[1], C.fond[2]);
+    doc.roundedRect(margin, y - 9, largeurStatut, 16, 8, 8, 'FD');
+    capitales(statut.texte, margin + 10, y + 1.5, 0.6);
+    y += 21;
   }
   enTete();
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(26,47,82);
-  doc.text('Contrat de location — Récapitulatif', margin, y); y += 20;
-
-  function ligne(label, valeur){
-    valeur = (valeur === undefined || valeur === null || valeur === '') ? (estApercu ? 'À compléter' : '—') : valeur;
-    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(107,100,120);
-    doc.text(label, margin, y);
-    doc.setFont('helvetica','normal'); doc.setTextColor(42,36,56);
-    var lignes = doc.splitTextToSize(String(valeur), maxWidth - 130);
-    doc.text(lignes, margin + 130, y);
-    y += 13 * lignes.length + 2;
-    sautDePageSiBesoin(40);
+  // --- 1. Locataire / conducteur principal ------------------------------
+  titreSection('Locataire / conducteur principal');
+  grilleChamps([
+    { label: 'Nom / Prénom', valeur: [payload.locataire_prenom, payload.locataire_nom].filter(Boolean).join(' '), gras: true, taille: 12 },
+    { label: 'Date de naissance', valeur: payload.locataire_naissance, taille: 10 },
+    { label: 'Adresse', valeur: payload.locataire_adresse },
+    { label: 'Téléphone', valeur: payload.locataire_tel },
+    { label: 'E-mail', valeur: payload.locataire_email },
+    { label: 'N° de permis', valeur: payload.locataire_permis, gras: true }
+  ]);
+  // Délivrance et validité du permis regroupées sur une seule ligne : trois
+  // informations secondaires n'ont pas à occuper deux lignes de grille sur
+  // la page de synthèse.
+  var detailPermis = [
+    payload.locataire_permis_date ? 'délivré le ' + payload.locataire_permis_date : null,
+    payload.locataire_permis_pays ? 'par ' + payload.locataire_permis_pays : null,
+    payload.locataire_permis_validite ? 'valable jusqu\'au ' + payload.locataire_permis_validite : null
+  ].filter(Boolean).join(' — ');
+  if(detailPermis){
+    placePour(22);
+    police('normal', 6.8, C.label);
+    capitales('Permis de conduire', margin, y, 0.45);
+    y += 10;
+    police('normal', 8.5, C.texte);
+    doc.text(detailPermis, margin, y);
+    y += 9;
   }
 
-  ligne('Véhicule', payload.vehicule);
-  ligne('Immatriculation', payload.immatriculation);
-  if(payload.carburant){ ligne('Carburant', payload.carburant); }
-  if(payload.vin){ ligne('VIN', payload.vin); }
-  if(payload.remise && payload.remise.km !== undefined && payload.remise.km !== null){ ligne('Kilométrage au départ', payload.remise.km + ' km'); }
-  ligne(payload.livraison.indexOf('Oui') === 0 ? 'Livraison (départ)' : 'Lieu de départ', payload.lieu);
-  ligne('Lieu de retour', payload.lieuRetour || payload.lieu);
-  ligne('Départ', payload.depart);
-  ligne('Retour', payload.retour);
-  ligne('Durée', payload.duree);
-  ligne('Livraison à domicile', payload.livraison);
-  if(payload.notes){ ligne('Notes', payload.notes); }
-  y += 6;
-
-  // État kilométrique manuel (contrat créé/modifié à la main par l'agence,
-  // jamais posé par le flux "dossier" des réservations payées — voir
-  // construirePayload) : jamais de double affichage avec le bloc
-  // "Remise et restitution du véhicule" plus bas, réservé à ce dernier.
-  if(payload.kilometrageManuel){
-    var km2 = payload.kilometrageManuel;
-    sautDePageSiBesoin(60);
-    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(26,47,82);
-    doc.text('État kilométrique', margin, y); y += 16;
-    ligne('Kilométrage départ', km2.kmDepart + ' km');
-    if(km2.kmRetour !== ''){ ligne('Kilométrage retour', km2.kmRetour + ' km'); } else { ligne('Kilométrage retour', 'À compléter à la restitution'); }
-    if(km2.resultat && km2.resultat.valid){
-      ligne('Km inclus', km2.resultat.kmInclus + ' km');
-      ligne('Km parcourus', km2.resultat.kmParcourus + ' km');
-      if(km2.resultat.kmDepasses > 0){
-        ligne('Dépassement kilométrique', km2.resultat.kmDepasses + ' km — supplément ' + formatEURPrecis(km2.resultat.supplement));
-      } else {
-        ligne('Dépassement kilométrique', 'Aucun');
-      }
-    }
-    y += 6;
-  }
-
-  sautDePageSiBesoin(60);
-  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(26,47,82);
-  doc.text('Récapitulatif financier', margin, y); y += 16;
-  (payload.detailFinancier || []).forEach(function(l){ ligne(l[0], l[1]); });
-  if(!payload.detailFinancier || !payload.detailFinancier.length){ ligne('Total', payload.total); }
-  ligne('Acompte', (payload.montantRegle || payload.total) + ' — ' + (payload.detailAcompte || ('réglé par ' + (payload.modePaiement || 'carte bancaire').toLowerCase())));
-  ligne('Solde restant', (payload.soldeRestant || formatEUR(0)) + ' — ' + (payload.detailSolde || ('réglé par ' + (payload.modePaiementSolde || payload.modePaiement || 'carte bancaire').toLowerCase())));
-  ligne('Dépôt de garantie', payload.caution + ' — réglé par ' + payload.mode_reglement_caution);
-  var franchises = getFranchises();
-  if(franchises.dommages || franchises.vol || franchises.brisDeGlace){
-    ligne('Franchises assurance', [
-      franchises.dommages ? 'dommages ' + formatEUR(franchises.dommages) : null,
-      franchises.vol ? 'vol ' + formatEUR(franchises.vol) : null,
-      franchises.brisDeGlace ? 'bris de glace ' + formatEUR(franchises.brisDeGlace) : null
-    ].filter(Boolean).join(' — '));
-  } else {
-    ligne('Franchises assurance', 'Voir Conditions Générales de Location (' + getCglVersion() + ')');
-  }
-  y += 6;
-
-  sautDePageSiBesoin(90);
-  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(26,47,82);
-  doc.text('Locataire', margin, y); y += 16;
-  ligne('Nom', (payload.locataire_prenom || payload.locataire_nom) ? (payload.locataire_prenom + ' ' + payload.locataire_nom) : '');
-  ligne('Naissance', payload.locataire_naissance);
-  ligne('Adresse', payload.locataire_adresse);
-  ligne('Téléphone', payload.locataire_tel);
-  ligne('E-mail', payload.locataire_email);
-  ligne('Permis n°', payload.locataire_permis);
-  if(payload.locataire_permis_pays){ ligne('Pays de délivrance', payload.locataire_permis_pays); }
-  if(payload.locataire_permis_date){ ligne("Date d'obtention", payload.locataire_permis_date); }
-  if(payload.locataire_permis_validite){ ligne('Date de validité', payload.locataire_permis_validite); }
+  // Bloc affiché uniquement s'il existe vraiment un second conducteur, et
+  // tenu en une ligne : ses informations sont secondaires, elles ne doivent
+  // pas repousser la tarification et la garantie hors de cette page.
   if(payload.second_conducteur === 'Oui'){
+    var permisSecond = [
+      payload.second_conducteur_permis ? 'permis n° ' + payload.second_conducteur_permis : null,
+      [payload.second_conducteur_permis_pays, payload.second_conducteur_permis_date].filter(Boolean).join(', ')
+    ].filter(Boolean);
+    var resumeSecond = [
+      [payload.second_conducteur_prenom, payload.second_conducteur_nom].filter(Boolean).join(' '),
+      payload.second_conducteur_naissance ? 'né(e) le ' + payload.second_conducteur_naissance : null,
+      permisSecond.length > 1 ? permisSecond[0] + ' (' + permisSecond[1] + ')' : permisSecond[0]
+    ].filter(Boolean).join(' — ');
+    police('normal', 9, C.texte);
+    var lignesSecond = doc.splitTextToSize(valeurOuTiret(resumeSecond), maxWidth);
+    placePour(14 + lignesSecond.length * 11);
     y += 4;
-    sautDePageSiBesoin(30);
-    doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(26,47,82);
-    doc.text('Conducteur supplémentaire', margin, y); y += 14;
-    ligne('Nom', payload.second_conducteur_prenom + ' ' + payload.second_conducteur_nom);
-    ligne('Permis n°', payload.second_conducteur_permis);
-    if(payload.second_conducteur_permis_pays){ ligne('Pays de délivrance', payload.second_conducteur_permis_pays); }
-    if(payload.second_conducteur_permis_date){ ligne("Date d'obtention", payload.second_conducteur_permis_date); }
+    police('bold', 8, C.bleu);
+    capitales('Conducteur supplémentaire', margin, y, 0.7);
+    y += 12;
+    police('normal', 9, C.texte);
+    doc.text(lignesSecond, margin, y);
+    y += lignesSecond.length * 11;
+  }
+  y += 3;
+
+  // --- 2. Véhicule -------------------------------------------------------
+  titreSection('Véhicule', 62);
+  placePour(46);
+  police('bold', 13.5, C.titre);
+  doc.text(valeurOuTiret(payload.vehicule), margin, y);
+  y += 18;
+  var champsVehicule = [
+    { label: 'Immatriculation', valeur: payload.immatriculation, gras: true, taille: 11 },
+    { label: 'Carburant', valeur: payload.carburant, taille: 10 }
+  ];
+  if(payload.vin) champsVehicule.push({ label: 'N° de série (VIN)', valeur: payload.vin, taille: 8.5 });
+  grilleChamps(champsVehicule);
+  y += 3;
+
+  // --- 3. Location -------------------------------------------------------
+  titreSection('Location', 110);
+  var depart = separerDateHeure(payload.depart);
+  var retour = separerDateHeure(payload.retour);
+  var lieuDepart = valeurOuTiret(payload.lieu);
+  var lieuRetour = valeurOuTiret(payload.lieuRetour || payload.lieu);
+  police('normal', 9, C.texte);
+  var lignesLieuDepart = doc.splitTextToSize(lieuDepart, largeurColonne);
+  var lignesLieuRetour = doc.splitTextToSize(lieuRetour, largeurColonne);
+  placePour(72 + Math.max(lignesLieuDepart.length, lignesLieuRetour.length) * 11);
+
+  police('bold', 8, C.orange);
+  capitales('Départ', margin, y, 0.8);
+  capitales('Retour', xColonneDroite, y, 0.8);
+  y += 6;
+  filet(margin, margin + largeurColonne, y, C.filet, 0.6);
+  filet(xColonneDroite, xColonneDroite + largeurColonne, y, C.filet, 0.6);
+  y += 17;
+  police('bold', 12.5, C.titre);
+  doc.text(depart.date, margin, y);
+  doc.text(retour.date, xColonneDroite, y);
+  y += 15;
+  police('normal', 11, C.texte);
+  doc.text(depart.heure, margin, y);
+  doc.text(retour.heure, xColonneDroite, y);
+  y += 17;
+  police('normal', 6.8, C.label);
+  if(lieuRetour === lieuDepart){
+    // Même lieu au départ et au retour : une seule mention, sur toute la
+    // largeur — jamais la même adresse imprimée deux fois côte à côte.
+    capitales('Lieu de départ et de retour', margin, y, 0.45);
+    y += 11;
+    police('normal', 9, C.texte);
+    var lignesLieuUnique = doc.splitTextToSize(lieuDepart, maxWidth);
+    doc.text(lignesLieuUnique, margin, y);
+    y += lignesLieuUnique.length * 11 + 9;
+  } else {
+    capitales('Lieu', margin, y, 0.45);
+    capitales('Lieu', xColonneDroite, y, 0.45);
+    y += 11;
+    police('normal', 9, C.texte);
+    doc.text(lignesLieuDepart, margin, y);
+    doc.text(lignesLieuRetour, xColonneDroite, y);
+    y += Math.max(lignesLieuDepart.length, lignesLieuRetour.length) * 11 + 9;
   }
 
-  // ---- Schéma d'état des lieux (dommages départ/retour, voir
-  // creerGestionEtat) — une page dédiée, uniquement si l'agence a placé au
-  // moins une marque ou saisi une observation (jamais de page ajoutée pour
-  // un contrat qui n'utilise pas cette fonctionnalité). ----
-  var etatDepartPdf = payload.etatDepart || { marks: [], observations: '' };
-  var etatRetourPdf = payload.etatRetour || { marks: [], observations: '' };
-  var etatVehiculeAAfficher = (etatDepartPdf.marks && etatDepartPdf.marks.length) || etatDepartPdf.observations ||
-    (etatRetourPdf.marks && etatRetourPdf.marks.length) || etatRetourPdf.observations;
-  if(etatVehiculeAAfficher){
-    doc.addPage(); y = margin;
-    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(26,47,82);
-    doc.text('État du véhicule', margin, y); y += 16;
-    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(107,100,120);
-    doc.text('X = rayure  —  cercle = bosse / impact  —  point plein = éclat / petit impact', margin, y); y += 18;
+  grilleChamps([
+    { label: 'Durée', valeur: payload.duree, gras: true, taille: 10 },
+    { label: 'Kilométrage inclus', valeur: getKmInclusParJour().toLocaleString('fr-FR') + ' km / jour — ' + payload.kmInclus + ' km au total', taille: 10 }
+  ]);
+  y += 3;
 
-    function dessinerBlocEtat(titre, etat){
-      sautDePageSiBesoin(120);
-      doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(26,47,82);
-      doc.text(titre, margin, y); y += 14;
-
-      if(!etat.marks.length && !etat.observations){
-        doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(107,100,120);
-        doc.text('Non renseigné.', margin, y); y += 18;
-        return;
-      }
-
-      var ecart = 10;
-      var diagW = (maxWidth - 4 * ecart) / 5;
-      var diagH = diagW * 0.85;
-      sautDePageSiBesoin(diagH + 26);
-      var xCursor = margin;
-      DMG_VIEWS.forEach(function(vue){
-        doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(107,100,120);
-        doc.text(vue.label, xCursor, y);
-        var boxY = y + 6;
-        doc.setDrawColor(210,206,218);
-        doc.rect(xCursor, boxY, diagW, diagH, 'S');
-        dessinerSchemaPdf(doc, vue.shape, payload.vehicleFamily, !!vue.mirror, xCursor + 2, boxY + 2, diagW - 4, diagH - 4);
-        etat.marks.filter(function(m){ return m.view === vue.key; }).forEach(function(m){
-          dessinerMarquePdf(doc, m.type, xCursor + 2 + (m.x / 100) * (diagW - 4), boxY + 2 + (m.y / 100) * (diagH - 4));
-        });
-        xCursor += diagW + ecart;
-      });
-      y += diagH + 18;
-
-      if(etat.observations){
-        sautDePageSiBesoin(30);
-        doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(107,100,120);
-        doc.text('Observations', margin, y); y += 12;
-        doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(42,36,56);
-        doc.splitTextToSize(etat.observations, maxWidth).forEach(function(l){
-          sautDePageSiBesoin(12);
-          doc.text(l, margin, y); y += 11;
-        });
-      }
-      y += 10;
+  // --- 4. Tarification ---------------------------------------------------
+  titreSection('Tarification', 120);
+  var synthese = payload.syntheseFinanciere;
+  if(synthese){
+    ligneMontant('Location — ' + formatJoursFactures(synthese.jours), formatEUR(synthese.location));
+    if(synthese.optionsMontant > 0){
+      ligneMontant('Options' + (synthese.options.length ? ' (' + synthese.options.join(', ').toLowerCase() + ')' : ''), formatEUR(synthese.optionsMontant));
     }
-
-    dessinerBlocEtat('État au départ', etatDepartPdf);
-    dessinerBlocEtat('État au retour', etatRetourPdf);
-  }
-
-  // ---- Page 2 : remise et restitution du véhicule (dossier sécurisé
-  // uniquement — jamais présent pour l'ancien flux ?data=/?prefill=, cette
-  // section reste alors simplement absente du PDF, sans changement pour lui). ----
-  if(payload.remise || payload.restitution){
-    doc.addPage(); y = margin;
-    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(26,47,82);
-    doc.text('Remise et restitution du véhicule', margin, y); y += 20;
-
-    var col1 = margin, col2 = margin + (maxWidth-140)/2 + 140, colLabelWidth = 140, colWidth = (maxWidth-140)/2;
-    function ligneEtatDesLieux(label, remiseVal, restitutionVal){
-      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(107,100,120);
-      var lignesLabel = doc.splitTextToSize(label, colLabelWidth - 6);
-      doc.text(lignesLabel, col1, y);
-      doc.setFont('helvetica','normal'); doc.setTextColor(42,36,56);
-      var lR = doc.splitTextToSize(remiseVal || '—', colWidth - 6);
-      var lS = doc.splitTextToSize(restitutionVal || '—', colWidth - 6);
-      doc.text(lR, col1 + colLabelWidth, y);
-      doc.text(lS, col2, y);
-      y += 12 * Math.max(lignesLabel.length, lR.length, lS.length, 1) + 4;
-      sautDePageSiBesoin(20);
-    }
-    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(242,118,12);
-    doc.text('', col1, y);
-    doc.text('Départ', col1 + colLabelWidth, y);
-    doc.text('Retour', col2, y);
-    y += 14;
-    doc.setDrawColor(227,232,234); doc.line(margin, y-6, pageWidth-margin, y-6);
-
-    var r = payload.remise || {}, s = payload.restitution || {};
-    ligneEtatDesLieux('Date et heure', r.dateHeure, s.dateHeure);
-    ligneEtatDesLieux('Kilométrage', r.km !== undefined && r.km !== null ? (r.km + ' km') : '', s.km !== undefined && s.km !== null ? (s.km + ' km') : '');
-    ligneEtatDesLieux('Carburant', formatCarburant(r.carburant), formatCarburant(s.carburant));
-    ligneEtatDesLieux('État de propreté', r.proprete, s.proprete);
-    ligneEtatDesLieux('Dommages / observations', r.dommages, s.dommages);
-    ligneEtatDesLieux('Photos', r.photosRef, s.photosRef);
-    ligneEtatDesLieux('Clés et accessoires', r.clesAccessoires, s.clesAccessoires);
-    ligneEtatDesLieux('Agent', r.agent, s.agent);
-    ligneEtatDesLieux('Signature client', r.clientSigne, s.clientSigne);
-    ligneEtatDesLieux('Signature agence', r.agenceSigne, s.agenceSigne);
-    y += 8;
-
-    sautDePageSiBesoin(70);
-    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(26,47,82);
-    doc.text('Kilométrage — résultat', margin, y); y += 16;
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(42,36,56);
-    var km = payload.kilometrageResultat;
-    if(km && km.valid){
-      ligne('Km inclus', km.kmInclus + ' km');
-      ligne('Km parcourus', km.kmParcourus + ' km');
-      if(km.kmDepasses > 0){
-        ligne('Dépassement', km.kmDepasses + ' km — supplément ' + formatEURPrecis(km.supplement));
+    if(synthese.remisesTotal > 0){
+      ligneMontant('Remises', montantRetranche(formatEUR(synthese.remisesTotal)), { espace: 2 });
+      // Détail des remises : une seule ligne discrète, et seulement quand
+      // il y en a plusieurs (sinon elle ne ferait que répéter la ligne).
+      if(synthese.remises.length > 1){
+        police('normal', 7.5, C.label);
+        doc.text('Détail : ' + synthese.remises.map(function(r){ return r.libelle + ' ' + formatEUR(r.montant); }).join(' + '), margin, y + 8);
+        y += 14;
       } else {
-        doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(47,158,91);
-        doc.text('Aucun dépassement', margin, y); y += 14;
+        y += 5;
       }
-    } else {
-      doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(107,100,120);
-      doc.text('Calcul disponible une fois la remise et la restitution toutes deux complétées.', margin, y); y += 14;
     }
-
-    y += 6;
-    sautDePageSiBesoin(60);
-    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(26,47,82);
-    doc.text('État des lieux — synthèse', margin, y); y += 16;
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(42,36,56);
-    ligne('État des lieux départ', r.dateHeure ? 'Réalisé' : 'À réaliser');
-    ligne('État des lieux retour', s.dateHeure ? 'Réalisé' : 'À réaliser');
-    ligne('Dommages préexistants', (r.dommages || s.dommages) ? 'Oui (voir tableau ci-dessus)' : 'Non');
-
-    if(payload.observationsComplementaires){
-      y += 6;
-      sautDePageSiBesoin(40);
-      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(26,47,82);
-      doc.text('Observations complémentaires', margin, y); y += 14;
-      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(42,36,56);
-      doc.splitTextToSize(payload.observationsComplementaires, maxWidth).forEach(function(l){
-        sautDePageSiBesoin(12);
-        doc.text(l, margin, y); y += 11;
-      });
+    if(synthese.majoration > 0){
+      ligneMontant('Ajustement tarifaire', '+ ' + formatEUR(synthese.majoration));
     }
+    y += 3;
+    filet(margin, pageWidth - margin, y, C.filet, 0.9);
+    y += 18;
+    ligneMontant('TOTAL LOCATION', formatEUR(synthese.totalLocation), { gras: true, taille: 12.5, couleur: C.titre, espace: 12 });
+  } else {
+    // Repli : payload sans synthèse (véhicule ou dates incomplets).
+    (payload.detailFinancier || []).forEach(function(l){ ligneMontant(l[0], l[1]); });
+    ligneMontant('TOTAL LOCATION', payload.total, { gras: true, taille: 12.5, couleur: C.titre, espace: 12 });
   }
 
-  // ---- Pages suivantes : conditions de location (articles), avec un
-  // contrôle simple des veuves/orphelines (titre gardé avec le début de son
-  // texte, jamais isolé seul en bas de page). ----
-  doc.addPage(); y = margin;
-  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(26,47,82);
-  doc.text('Conditions de location', margin, y); y += 20;
+  // État du règlement : séparé du prix de la location, avec le reste à
+  // payer comme montant le plus visible du document.
+  placePour(96);
+  police('bold', 8.5, C.label);
+  capitales('État du règlement', margin, y, 0.7);
+  y += 15;
+  ligneMontant('Acompte déjà réglé', montantRetranche(payload.montantRegle || payload.total), { espace: 1 });
+  police('normal', 7.8, C.label);
+  doc.text(majusculeInitiale(payload.detailAcompte || ('réglé par ' + (payload.modePaiement || 'carte bancaire').toLowerCase())), margin, y + 8);
+  y += 18;
+
+  var hauteurEncadre = 44;
+  placePour(hauteurEncadre + 8);
+  doc.setFillColor(C.fond[0], C.fond[1], C.fond[2]);
+  doc.setDrawColor(C.orange[0], C.orange[1], C.orange[2]);
+  doc.setLineWidth(1.2);
+  doc.roundedRect(margin, y, maxWidth, hauteurEncadre, 7, 7, 'FD');
+  doc.setLineWidth(0.5);
+  police('bold', 11, C.titre);
+  capitales('Reste à payer', margin + 14, y + 20, 0.6);
+  police('normal', 7.8, C.label);
+  doc.text(majusculeInitiale(payload.detailSolde || ''), margin + 14, y + 34);
+  police('bold', 18, C.orange);
+  doc.text(String(payload.soldeRestant || formatEUR(0)), pageWidth - margin - 14, y + 29, { align: 'right' });
+  y += hauteurEncadre + 12;
+
+  // --- 5. Garantie -------------------------------------------------------
+  // Bloc volontairement séparé du récapitulatif de la location : le dépôt de
+  // garantie n'est pas un paiement, il ne doit jamais paraître s'ajouter au
+  // prix de la location.
+  var franchises = getFranchises();
+  var texteFranchises = (franchises.dommages || franchises.vol || franchises.brisDeGlace)
+    ? [
+        franchises.dommages ? 'dommages ' + formatEUR(franchises.dommages) : null,
+        franchises.vol ? 'vol ' + formatEUR(franchises.vol) : null,
+        franchises.brisDeGlace ? 'bris de glace ' + formatEUR(franchises.brisDeGlace) : null
+      ].filter(Boolean).join(' — ')
+    : 'Voir Conditions Générales de Location (version ' + (payload.cglVersion || getCglVersion()) + ').';
+  var largeurDepot = maxWidth * 0.30;
+  var xMode = margin + largeurDepot;
+  var largeurMode = maxWidth * 0.24;
+  var xFranchises = xMode + largeurMode;
+  var largeurFranchises = maxWidth - largeurDepot - largeurMode - 14;
+  police('normal', 8.5, C.texte);
+  var lignesFranchises = doc.splitTextToSize(texteFranchises, largeurFranchises);
+  var hauteurGarantie = Math.max(52, 30 + lignesFranchises.length * 10);
+  titreSection('Garantie', hauteurGarantie + 24);
+  doc.setFillColor(252, 252, 253);
+  doc.setDrawColor(C.filet[0], C.filet[1], C.filet[2]);
+  doc.roundedRect(margin, y, maxWidth, hauteurGarantie, 7, 7, 'FD');
+  police('normal', 6.8, C.label);
+  capitales('Dépôt de garantie', margin + 14, y + 16, 0.45);
+  police('bold', 16, C.titre);
+  doc.text(valeurOuTiret(payload.caution), margin + 14, y + 38);
+  police('normal', 6.8, C.label);
+  capitales('Mode', xMode, y + 16, 0.45);
+  police('normal', 10, C.texte);
+  doc.text(valeurOuTiret(payload.mode_reglement_caution), xMode, y + 36);
+  police('normal', 6.8, C.label);
+  capitales('Franchises assurance', xFranchises, y + 16, 0.45);
+  police('normal', 8.5, C.texte);
+  doc.text(lignesFranchises, xFranchises, y + 29);
+  y += hauteurGarantie + 11;
+  placePour(12);
+  police('italic', 7.8, C.label);
+  doc.text('Le dépôt de garantie ne constitue pas un paiement de la location : il est restitué selon les conditions de l\'article 4.', margin, y);
+  y += 10;
+
+  // =====================================================================
+  // PAGE 2 — CONDITIONS, DÉCLARATION, SIGNATURES
+  // =====================================================================
+  nouvellePage();
+  titreSection('Principales conditions de location');
+  police('normal', 8, C.label);
+  // Version des CGL ASSOCIÉE AU CONTRAT (payload.cglVersion, figée à sa
+  // création) : rééditer un ancien contrat ne doit jamais lui attribuer
+  // après coup la version en vigueur aujourd'hui.
+  var versionCgl = payload.cglVersion || getCglVersion();
+  doc.text('Conditions Générales de Location applicables : version ' + versionCgl + ' — texte complet sur getlocation.fr/cgl.html', margin, y);
+  y += 18;
+
+  // Informations essentielles mises en gras à l'intérieur des articles
+  // (kilométrage, tarif au km, dépôt de garantie, numéro d'urgence) : le
+  // gras guide le regard sans réécrire une seule ligne du texte juridique.
+  var termesEnGras = [
+    getKmInclusParJour().toLocaleString('fr-FR') + ' km',
+    payload.kmInclus + ' km',
+    formatEURPrecis((payload.supplementKmCentimes || getSupplementKmCentimes()) / 100),
+    String(payload.caution || ''),
+    (getAgence().telephone || '')
+  ];
+  function echapperRegex(texte){ return texte.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  function decouperSelonTermes(texte, termes){
+    var valides = termes.map(function(t){ return nettoyerTextePdf(String(t || '')).trim(); })
+      .filter(function(t){ return t.length > 1; })
+      .sort(function(a, b){ return b.length - a.length; });
+    if(!valides.length) return [{ texte: texte, gras: false }];
+    var motif = new RegExp('(' + valides.map(echapperRegex).join('|') + ')', 'g');
+    var segments = [], dernier = 0, trouve;
+    while((trouve = motif.exec(texte)) !== null){
+      if(trouve.index > dernier) segments.push({ texte: texte.slice(dernier, trouve.index), gras: false });
+      segments.push({ texte: trouve[0], gras: true });
+      dernier = trouve.index + trouve[0].length;
+    }
+    if(dernier < texte.length) segments.push({ texte: texte.slice(dernier), gras: false });
+    return segments;
+  }
+  // Rendu d'un paragraphe mot à mot, pour pouvoir passer en gras au milieu
+  // d'une ligne (splitTextToSize ne connaît qu'une seule police à la fois).
+  function ecrireParagraphe(texte, taille, interligne){
+    // Les retours à la ligne saisis par l'agence (remarques particulières)
+    // sont conservés : chaque ligne source est rendue séparément.
+    String(texte).split('\n').forEach(function(ligneSource){
+      ecrireLigneSource(ligneSource, taille, interligne);
+    });
+  }
+  function ecrireLigneSource(texte, taille, interligne){
+    var normalise = nettoyerTextePdf(texte);
+    var mots = [];
+    decouperSelonTermes(normalise, termesEnGras).forEach(function(segment){
+      segment.texte.split(/(\s+)/).forEach(function(mot){
+        if(mot !== '') mots.push({ mot: mot, gras: segment.gras });
+      });
+    });
+    var ligneCourante = [], largeurLigne = 0;
+    function viderLigne(){
+      if(!ligneCourante.length) return;
+      placePour(interligne);
+      var x = margin;
+      ligneCourante.forEach(function(element){
+        police(element.gras ? 'bold' : 'normal', taille, C.texte);
+        doc.text(element.mot, x, y);
+        x += doc.getTextWidth(element.mot);
+      });
+      y += interligne;
+      ligneCourante = []; largeurLigne = 0;
+    }
+    mots.forEach(function(element){
+      doc.setFont('helvetica', element.gras ? 'bold' : 'normal');
+      doc.setFontSize(taille);
+      var largeurMot = doc.getTextWidth(element.mot);
+      var estEspace = /^\s+$/.test(element.mot);
+      if(largeurLigne + largeurMot > maxWidth && !estEspace && ligneCourante.length){
+        viderLigne();
+        if(estEspace) return;
+      }
+      if(estEspace && !ligneCourante.length) return;   // pas d'espace en début de ligne
+      ligneCourante.push(element);
+      largeurLigne += largeurMot;
+    });
+    viderLigne();
+  }
 
   remplirTexteArticles(payload);
-  var sections = sectionsConditionsLocation();
-  sections.forEach(function(section){
-    doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(242,118,12);
-    var lignesTitre = doc.splitTextToSize(section.titre, maxWidth);
-    // Garde le titre avec au moins la première ligne de son texte : un
-    // saut de page ici ne doit jamais laisser un titre seul en bas de page.
-    sautDePageSiBesoin(12 * lignesTitre.length + 24);
-    doc.text(lignesTitre, margin, y);
-    y += 12 * lignesTitre.length + 6;
-
-    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(80,74,94);
+  sectionsConditionsLocation().forEach(function(section){
+    // "Article 3 — Kilométrage et carburant" devient deux lignes :
+    // le numéro d'article, puis son intitulé, nettement plus lisibles.
+    var decoupe = /^Article\s+(\d+)\s*[—–-]\s*(.+)$/i.exec(section.titre);
+    var numero = decoupe ? decoupe[1] : null;
+    var intitule = decoupe ? decoupe[2] : section.titre;
+    placePour(46);
+    if(numero){
+      police('bold', 7.5, C.orange);
+      capitales('Article ' + numero, margin, y, 0.9);
+      y += 12;
+    }
+    police('bold', 11, C.titre);
+    doc.text(intitule, margin, y);
+    y += 14;
     section.paragraphes.forEach(function(paragraphe){
-      var lignes = doc.splitTextToSize(paragraphe, maxWidth);
-      lignes.forEach(function(l){
-        sautDePageSiBesoin(12);
-        doc.text(l, margin, y);
-        y += 11;
-      });
-      y += 4;
+      ecrireParagraphe(paragraphe, 9, 12.5);
+      y += 6;
     });
-    y += 6;
+    y += 10;
   });
 
+  // --- Déclaration du locataire, en points séparés plutôt qu'en bloc -----
+  titreSection('Déclaration du locataire');
+  var declaration = DECLARATION_LOCATAIRE_TEXTE.split(' : ');
+  var introDeclaration = declaration.length > 1 ? declaration[0] + ' :' : '';
+  var pointsDeclaration = (declaration.length > 1 ? declaration.slice(1).join(' : ') : DECLARATION_LOCATAIRE_TEXTE)
+    .replace(/\.$/, '')
+    .split(' ; ')
+    .map(function(point){ return point.trim(); })
+    .filter(Boolean);
+  if(introDeclaration){
+    placePour(16);
+    police('normal', 9, C.texte);
+    doc.text(introDeclaration, margin, y);
+    y += 14;
+  }
+  pointsDeclaration.forEach(function(point){
+    police('normal', 9, C.texte);
+    var lignes = doc.splitTextToSize(majusculeInitiale(point), maxWidth - 16);
+    placePour(lignes.length * 12 + 4);
+    police('bold', 9, C.orange);
+    doc.text('•', margin + 2, y);
+    police('normal', 9, C.texte);
+    doc.text(lignes, margin + 16, y);
+    y += lignes.length * 12 + 4;
+  });
   y += 10;
-  sautDePageSiBesoin(140);
-  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(26,47,82);
-  doc.text('Déclaration du locataire', margin, y); y += 14;
-  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(80,74,94);
-  doc.splitTextToSize(DECLARATION_LOCATAIRE_TEXTE, maxWidth).forEach(function(l){
-    sautDePageSiBesoin(11);
-    doc.text(l, margin, y); y += 11;
-  });
-  y += 8;
 
-  sautDePageSiBesoin(120);
-  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(26,47,82);
-  doc.text('Signature électronique', margin, y); y += 10;
-  if(payload.signature_image){
-    try{ doc.addImage(payload.signature_image, 'PNG', margin, y, 170, 65); } catch(e){}
-    y += 78;
-    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(107,100,120);
-    doc.text('Signé électroniquement le ' + payload.horodatage_signature, margin, y); y += 12;
-    doc.text('Identifiant de signature : ' + payload.signatureId + ' — GETLOCATION (TLST SAS)', margin, y);
+  // --- Signatures --------------------------------------------------------
+  // Hauteur réduite tant qu'aucune signature n'est apposée : la mention
+  // "En attente de signature" ne doit pas ouvrir un grand cadre presque vide.
+  var contratSigne = !!payload.signature_image;
+  var hauteurSignature = contratSigne ? 118 : 86;
+  placePour(hauteurSignature + 40);
+  titreSection('Signatures', hauteurSignature + 10);
+  doc.setDrawColor(C.filet[0], C.filet[1], C.filet[2]);
+  doc.roundedRect(margin, y, largeurColonne, hauteurSignature, 6, 6, 'S');
+  doc.roundedRect(xColonneDroite, y, largeurColonne, hauteurSignature, 6, 6, 'S');
+
+  police('bold', 8, C.titre);
+  capitales('Signature du locataire', margin + 12, y + 18, 0.6);
+  capitales('Validation GETLOCATION', xColonneDroite + 12, y + 18, 0.6);
+
+  police('normal', 6.8, C.label);
+  capitales('Nom', margin + 12, y + 34, 0.45);
+  police('normal', 9.5, C.texte);
+  doc.text(valeurOuTiret([payload.locataire_prenom, payload.locataire_nom].filter(Boolean).join(' ')), margin + 12, y + 46);
+  police('normal', 6.8, C.label);
+  capitales('Date', margin + 12, y + 60, 0.45);
+  police('normal', 9.5, C.texte);
+  doc.text(contratSigne ? valeurOuTiret(payload.horodatage_signature) : 'En attente de signature', margin + 12, y + 72);
+
+  if(contratSigne){
+    // Proportions de la signature conservées (le pavé de signature est large
+    // et bas) : une image étirée ferait douter de son authenticité.
+    try{
+      var cadreSignature = { largeur: 132, hauteur: 34 };
+      var proprietes = doc.getImageProperties(payload.signature_image);
+      var echelle = Math.min(cadreSignature.largeur / proprietes.width, cadreSignature.hauteur / proprietes.height);
+      doc.addImage(payload.signature_image, 'PNG', margin + 12, y + 78, proprietes.width * echelle, proprietes.height * echelle);
+    } catch(e){
+      try{ doc.addImage(payload.signature_image, 'PNG', margin + 12, y + 78, 132, 34); } catch(e2){}
+    }
+  }
+
+  police('normal', 9.5, C.texte);
+  doc.text('GETLOCATION — TLST SAS', xColonneDroite + 12, y + 38);
+  police('normal', 8.5, C.label);
+  doc.text(payload.numero ? ('Contrat n° ' + payload.numero) : 'Contrat établi par l\'agence', xColonneDroite + 12, y + 54);
+  if(contratSigne && payload.signatureId){
+    doc.text('Identifiant de signature :', xColonneDroite + 12, y + 72);
+    police('bold', 8.5, C.texte);
+    doc.text(String(payload.signatureId), xColonneDroite + 12, y + 84);
+  }
+  y += hauteurSignature + 12;
+
+  // =====================================================================
+  // PAGE 3 — ANNEXE : ÉTAT DES LIEUX DU VÉHICULE
+  // =====================================================================
+  nouvellePage();
+  titreSection('Annexe — état des lieux du véhicule');
+  police('italic', 8.5, C.label);
+  doc.text('Cette annexe fait partie intégrante du contrat de location ' + (payload.numero ? ('n° ' + payload.numero) : '') + '.', margin, y);
+  y += 20;
+
+  var remise = payload.remise || {};
+  var restitution = payload.restitution || {};
+  var kmManuel = payload.kilometrageManuel || null;
+  var kmResultat = payload.kilometrageResultat || (kmManuel && kmManuel.resultat) || null;
+
+  // Tableau DÉPART / RETOUR : une colonne de libellés puis deux colonnes.
+  var largeurLibelle = 130;
+  var largeurValeur = (maxWidth - largeurLibelle) / 2;
+  var xDepart = margin + largeurLibelle;
+  var xRetour = xDepart + largeurValeur;
+
+  placePour(40);
+  police('bold', 8, C.orange);
+  capitales('Départ', xDepart, y, 0.8);
+  capitales('Retour', xRetour, y, 0.8);
+  y += 6;
+  filet(margin, pageWidth - margin, y, C.filet, 0.8);
+  y += 15;
+
+  function ligneEtat(libelle, valeurDepart, valeurRetour){
+    police('normal', 9, C.texte);
+    var lignesDepart = doc.splitTextToSize(valeurOuTiret(valeurDepart), largeurValeur - 8);
+    var lignesRetour = doc.splitTextToSize(valeurOuTiret(valeurRetour), largeurValeur - 8);
+    var hauteur = Math.max(lignesDepart.length, lignesRetour.length) * 11 + 9;
+    placePour(hauteur);
+    police('normal', 8, C.label);
+    doc.text(libelle, margin, y);
+    police('normal', 9, C.texte);
+    doc.text(lignesDepart, xDepart, y);
+    doc.text(lignesRetour, xRetour, y);
+    y += hauteur;
+    filet(margin, pageWidth - margin, y - 5, C.filet, 0.3);
+  }
+
+  function formatKm(valeur){
+    if(valeur === undefined || valeur === null || String(valeur).trim() === '') return '';
+    var nombre = Number(valeur);
+    return (isFinite(nombre) ? nombre.toLocaleString('fr-FR') : String(valeur)) + ' km';
+  }
+  ligneEtat('Date et heure', remise.dateHeure, restitution.dateHeure);
+  ligneEtat(
+    'Kilométrage',
+    formatKm(remise.km !== undefined && remise.km !== null ? remise.km : (kmManuel ? kmManuel.kmDepart : '')),
+    formatKm(restitution.km !== undefined && restitution.km !== null ? restitution.km : (kmManuel ? kmManuel.kmRetour : ''))
+  );
+  ligneEtat('Carburant', formatCarburant(remise.carburant), formatCarburant(restitution.carburant));
+  ligneEtat('État intérieur (propreté)', remise.proprete, restitution.proprete);
+  ligneEtat('État extérieur (dommages)', remise.dommages, restitution.dommages);
+  ligneEtat('Clés et accessoires', remise.clesAccessoires, restitution.clesAccessoires);
+  ligneEtat('Agent', remise.agent, restitution.agent);
+  if(remise.clientSigne || restitution.clientSigne || remise.agenceSigne || restitution.agenceSigne){
+    ligneEtat('Signature client', remise.clientSigne, restitution.clientSigne);
+    ligneEtat('Signature agence', remise.agenceSigne, restitution.agenceSigne);
+  }
+  y += 10;
+
+  if(kmResultat && kmResultat.valid){
+    grilleChamps([
+      { label: 'Distance parcourue', valeur: kmResultat.kmParcourus.toLocaleString('fr-FR') + ' km', gras: true },
+      { label: 'Kilométrage inclus', valeur: kmResultat.kmInclus.toLocaleString('fr-FR') + ' km' },
+      {
+        label: 'Kilométrage supplémentaire',
+        valeur: kmResultat.kmDepasses > 0
+          ? (kmResultat.kmDepasses.toLocaleString('fr-FR') + ' km — supplément ' + formatEURPrecis(kmResultat.supplement))
+          : 'Aucun dépassement',
+        gras: true,
+        couleur: kmResultat.kmDepasses > 0 ? C.orange : C.vert,
+        pleineLargeur: true
+      }
+    ]);
   } else {
-    doc.setFont('helvetica','italic'); doc.setFontSize(9.5); doc.setTextColor(242,118,12);
-    doc.text('En attente de signature du client.', margin, y);
+    placePour(16);
+    police('italic', 8.5, C.label);
+    doc.text('Kilométrage parcouru calculé une fois les relevés de départ et de retour renseignés.', margin, y);
+    y += 16;
+  }
+  y += 6;
+
+  // --- Schéma du véhicule (5 vues) + marques relevées -------------------
+  var etatDepartPdf = payload.etatDepart || { marks: [], observations: '' };
+  var etatRetourPdf = payload.etatRetour || { marks: [], observations: '' };
+
+  function blocSchema(titre, etat){
+    var ecart = 10;
+    var largeurVue = (maxWidth - 4 * ecart) / 5;
+    var hauteurVue = largeurVue * 0.85;
+    placePour(hauteurVue + 40);
+    police('bold', 9, C.titre);
+    capitales(titre, margin, y, 0.6);
+    y += 12;
+    var xVue = margin;
+    DMG_VIEWS.forEach(function(vue){
+      police('normal', 6.5, C.label);
+      doc.text(vue.label, xVue, y);
+      var yCadre = y + 5;
+      doc.setDrawColor(C.filet[0], C.filet[1], C.filet[2]);
+      doc.rect(xVue, yCadre, largeurVue, hauteurVue, 'S');
+      dessinerSchemaPdf(doc, vue.shape, payload.vehicleFamily, !!vue.mirror, xVue + 2, yCadre + 2, largeurVue - 4, hauteurVue - 4);
+      (etat.marks || []).filter(function(m){ return m.view === vue.key; }).forEach(function(m){
+        dessinerMarquePdf(doc, m.type, xVue + 2 + (m.x / 100) * (largeurVue - 4), yCadre + 2 + (m.y / 100) * (hauteurVue - 4));
+      });
+      xVue += largeurVue + ecart;
+    });
+    y += hauteurVue + 18;
+  }
+
+  y += 6;
+  placePour(40);
+  police('normal', 7.5, C.label);
+  doc.text('Repères : X = rayure — cercle = bosse / impact — point plein = éclat / petit impact', margin, y);
+  y += 18;
+  blocSchema('Véhicule au départ', etatDepartPdf);
+  blocSchema('Véhicule au retour', etatRetourPdf);
+
+  // --- Observations (distinctes des "Remarques particulières" du contrat)
+  function blocObservations(titre, texte){
+    placePour(34);
+    police('normal', 6.8, C.label);
+    capitales(titre, margin, y, 0.45);
+    y += 12;
+    police('normal', 9, C.texte);
+    var lignes = doc.splitTextToSize(texte && texte.trim() ? texte : (estApercu ? 'À compléter' : '—'), maxWidth);
+    lignes.forEach(function(l){
+      placePour(12);
+      doc.text(l, margin, y);
+      y += 11;
+    });
+    y += 8;
+  }
+  blocObservations('Observations au départ', etatDepartPdf.observations || remise.dommages || '');
+  blocObservations('Observations au retour', etatRetourPdf.observations || restitution.dommages || '');
+  if(payload.observationsComplementaires){
+    blocObservations('Observations complémentaires', payload.observationsComplementaires);
   }
 
   // ---- Pages photos état des lieux (une page par photo, image
@@ -2086,35 +2528,33 @@ function genererPDF(payload, estApercu){
   // lireImagesEnDataUrl()/ajouterPhotosAuPayload() plus bas). Jamais
   // envoyées à un serveur : uniquement embarquées dans ce PDF. ----
   (payload.photosEtatDesLieux || []).forEach(function(photo){
-    doc.addPage(); y = margin;
-    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(26,47,82);
-    doc.text('État des lieux — ' + photo.label, margin, y);
+    nouvellePage();
+    police('bold', 11, C.titre);
+    doc.text('Annexe photo — ' + photo.label, margin, y);
     y += 16;
     try{
-      var maxW = pageWidth - margin * 2;
-      var maxH = pageHeight - y - margin;
-      var ratio = Math.min(maxW / photo.width, maxH / photo.height);
-      var w = photo.width * ratio, h = photo.height * ratio;
-      var x = margin + (maxW - w) / 2;
-      doc.addImage(photo.dataUrl, 'JPEG', x, y, w, h, undefined, 'FAST');
+      var largeurDispo = maxWidth;
+      var hauteurDispo = basDePage - y;
+      var ratio = Math.min(largeurDispo / photo.width, hauteurDispo / photo.height);
+      var largeurPhoto = photo.width * ratio, hauteurPhoto = photo.height * ratio;
+      doc.addImage(photo.dataUrl, 'JPEG', margin + (largeurDispo - largeurPhoto) / 2, y, largeurPhoto, hauteurPhoto, undefined, 'FAST');
     } catch(e){}
   });
 
-  // ---- Pied de page + numérotation, appliqués une fois le nombre total de
-  // pages connu (impossible de le savoir avant la fin du document). Le
-  // numéro de contrat et l'identité légale de l'agence apparaissent sur
-  // CHAQUE page (pas seulement l'en-tête de la page 1).
+  // ---- Pied de page, appliqué une fois le nombre total de pages connu
+  // (impossible de le savoir avant la fin du document). Discret, mais
+  // présent sur chaque page : numéro de contrat, pagination, identité légale.
   var totalPages = doc.internal.getNumberOfPages();
   var agence = getAgence();
-  var identiteLegale = [agence.societe, 'SIRET ' + agence.siret, agence.telephone, agence.email, agence.siteWeb].filter(Boolean).join(' — ');
+  var identiteLegale = [agence.societe, 'SIRET ' + agence.siret, agence.telephone, agence.email, agence.siteWeb].filter(Boolean).join(' · ');
   for(var p = 1; p <= totalPages; p++){
     doc.setPage(p);
-    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(150,144,160);
-    var piedGauche = (payload.numero ? 'Contrat ' + payload.numero : 'GETLOCATION') + (payload.reference ? ' — Réf. ' + payload.reference : '');
-    doc.text(piedGauche, margin, pageHeight - 28);
-    doc.text('Page ' + p + ' / ' + totalPages, pageWidth - margin, pageHeight - 28, { align: 'right' });
+    filet(margin, pageWidth - margin, pageHeight - 36, C.filet, 0.5);
+    police('normal', 7.5, C.label);
+    doc.text((payload.numero ? 'Contrat ' + payload.numero : 'Contrat de location') + (payload.reference ? ' — Réf. ' + payload.reference : ''), margin, pageHeight - 25);
+    doc.text('Page ' + p + ' / ' + totalPages, pageWidth - margin, pageHeight - 25, { align: 'right' });
     doc.setFontSize(6.5);
-    doc.text(identiteLegale, margin, pageHeight - 16);
+    doc.text(identiteLegale, margin, pageHeight - 15);
   }
 
   var suffixe = payload.numero ? ('-' + payload.numero) : (payload.signature_image ? '' : '-apercu');
@@ -2241,6 +2681,10 @@ function initDossierAgencyView(token){
       retour: formatDateHeureFR(retourISO),
       duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
       detailFinancier: lignesDetailFinancier(detailFinancierDepuisReservation(r)),
+      // Réservation payée en ligne : la totalité est déjà réglée, le solde
+      // restant est donc nul (mêmes valeurs que montantRegle/soldeRestant
+      // ci-dessous, simplement sous forme de nombres pour la synthèse PDF).
+      syntheseFinanciere: syntheseFinancierePdf(detailFinancierDepuisReservation(r), r.total, r.total, 0),
       total: formatEUR(r.total),
       montantRegle: formatEUR(r.total),
       soldeRestant: formatEUR(0),
@@ -2549,6 +2993,10 @@ function initDossierClientView(token){
       retour: formatDateHeureFR(retourISO),
       duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
       detailFinancier: lignesDetailFinancier(detailFinancierDepuisReservation(r)),
+      // Réservation payée en ligne : la totalité est déjà réglée, le solde
+      // restant est donc nul (mêmes valeurs que montantRegle/soldeRestant
+      // ci-dessous, simplement sous forme de nombres pour la synthèse PDF).
+      syntheseFinanciere: syntheseFinancierePdf(detailFinancierDepuisReservation(r), r.total, r.total, 0),
       total: formatEUR(r.total),
       montantRegle: formatEUR(r.total),
       soldeRestant: formatEUR(0),
