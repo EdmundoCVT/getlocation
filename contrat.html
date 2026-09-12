@@ -2329,8 +2329,13 @@ function initDossierAgencyView(token){
       document.getElementById('dfLinkOutput').value = body.clientUrl;
       document.getElementById('dfLinkBox').classList.remove('hidden');
       document.getElementById('dfShareActions').classList.remove('hidden');
-      document.getElementById('dfWhatsappBtn').href = 'https://wa.me/?text=' + messageEnc;
-      document.getElementById('dfSmsBtn').href = smsHref(messageEnc);
+      // WhatsApp/SMS : le lien SEUL, jamais noyé dans une phrase — ces deux
+      // canaux reconnaissent le lien comme cliquable beaucoup plus
+      // fiablement ainsi (constaté le 12/09/2026 : un lien précédé de texte
+      // n'était plus reconnu comme cliquable une fois envoyé). L'e-mail
+      // garde le message complet, ce canal n'ayant jamais posé ce problème.
+      document.getElementById('dfWhatsappBtn').href = 'https://wa.me/?text=' + encodeURIComponent(body.clientUrl);
+      document.getElementById('dfSmsBtn').href = smsHref(encodeURIComponent(body.clientUrl));
       document.getElementById('dfEmailBtn').href = 'mailto:?subject=' + encodeURIComponent('Votre contrat de location GETLOCATION') + '&body=' + messageEnc;
     }).catch(function(err){
       var missingEl = document.getElementById('dfMissingFields');
@@ -3413,8 +3418,15 @@ function initOwnerView(prefill){
     // que remplacer la page actuelle) pour ne pas perdre le formulaire
     // agence en cours de saisie.
     document.getElementById('openLinkBtn').href = url;
-    document.getElementById('whatsappBtn').href = 'https://wa.me/?text=' + messageEnc;
-    document.getElementById('smsBtn').href = smsHref(messageEnc);
+    // WhatsApp/SMS : le lien SEUL, jamais noyé dans une phrase — ces deux
+    // canaux reconnaissent le lien comme cliquable beaucoup plus
+    // fiablement ainsi (constaté le 12/09/2026 : un lien précédé de texte
+    // n'était plus reconnu comme cliquable une fois envoyé, alors que
+    // l'e-mail — qui garde le message complet ci-dessous — n'a jamais posé
+    // ce problème). Ce lien peut aussi être bien plus long qu'un lien de
+    // dossier sécurisé (toutes les données du contrat y sont encodées).
+    document.getElementById('whatsappBtn').href = 'https://wa.me/?text=' + encodeURIComponent(url);
+    document.getElementById('smsBtn').href = smsHref(encodeURIComponent(url));
     document.getElementById('emailBtn').href = 'mailto:?subject=' +
       encodeURIComponent('Votre contrat de location GETLOCATION') + '&body=' + messageEnc;
 
