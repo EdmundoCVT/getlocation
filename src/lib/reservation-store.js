@@ -245,6 +245,40 @@ async function findReservationByContractClientTokenHash(env, tokenHash) {
   return id ? getReservation(env, id) : null;
 }
 
+// Index du lien COURT partagé (WhatsApp/SMS/copie) pour un CONTRAT MANUEL
+// (voir contract-dossier-token.js, issueManualClientLinkAccess) — préfixe
+// distinct de contract_client_ ci-dessus, qui concerne uniquement le dossier
+// d'une réservation payée en ligne. Même schéma hash->id que les index
+// ci-dessus.
+async function saveContractManualClientAccessIndex(env, contractId, tokenHash, expiresAt) {
+  if (!contractId || !/^[a-f0-9]{64}$/.test(tokenHash || "")) return false;
+  const expiryMs = new Date(expiresAt).getTime();
+  if (!Number.isFinite(expiryMs)) return false;
+  const expirationTtl = Math.max(60, Math.ceil((expiryMs - Date.now()) / 1000));
+  await env.RESERVATIONS_KV.put(`contract_manual_client_${tokenHash}`, contractId, { expirationTtl });
+  return true;
+}
+
+async function findReservationByContractManualClientTokenHash(env, tokenHash) {
+  if (!/^[a-f0-9]{64}$/.test(tokenHash || "")) return null;
+  const id = await env.RESERVATIONS_KV.get(`contract_manual_client_${tokenHash}`);
+  return id ? getReservation(env, id) : null;
+}
+
+// Attache l'accès CLIENT (jeton court) à un contrat manuel EN PLACE, sans
+// toucher au reste du document (rawData, numéro, dates de création/mise à
+// jour) — appelé juste après création/mise à jour du contrat, jamais à la
+// place de createManualContract/updateManualContract. Renvoie null si l'id
+// est introuvable ou ne correspond pas à un contrat manuel (même garde que
+// updateManualContract).
+async function setManualContractClientAccess(env, id, stored) {
+  const record = await getReservation(env, id);
+  if (!record || record.status !== "manual_contract") return null;
+  const updated = { ...record, manualClientAccess: stored };
+  await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
+  return updated;
+}
+
 // Même garde que updateReservationDocuments (réservation payée uniquement) :
 // le dossier contrat (champs contrat, remise, retour) ne doit jamais pouvoir
 // être modifié sur une réservation qui n'a jamais été payée.
@@ -376,6 +410,9 @@ module.exports = {
   findReservationByContractAgencyTokenHash,
   saveContractClientAccessIndex,
   findReservationByContractClientTokenHash,
+  saveContractManualClientAccessIndex,
+  findReservationByContractManualClientTokenHash,
+  setManualContractClientAccess,
   updateContractDossier,
   listReservations,
   hasOverlappingReservation,

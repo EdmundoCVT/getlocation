@@ -29,6 +29,16 @@ const AGENCY_DOSSIER_DUREE_MIN_MS = 60 * 24 * 60 * 60 * 1000; // 60 jours planch
 // dossier agence si besoin (pas de script de révocation dédié nécessaire).
 const CLIENT_SIGNING_TOKEN_DUREE_MS = 30 * 24 * 60 * 60 * 1000; // 30 jours
 
+// Jeton du lien COURT partagé par WhatsApp/SMS/copie pour un contrat MANUEL
+// (bug signalé le 12/09/2026 : le lien historique `?data=...` embarque tout
+// le formulaire en base64 — plusieurs centaines de caractères sans espace —
+// que WhatsApp ne reconnaît alors comme cliquable que partiellement, voire
+// pas du tout, une fois collé dans un message). Même principe que le jeton
+// CLIENT ci-dessus (fenêtre fixe, régénérable à volonté) : ici, régénéré à
+// chaque nouveau clic sur "Générer/Mettre à jour le contrat officiel" (voir
+// contrat.html, mettreAJourLienCourt()).
+const MANUAL_CLIENT_LINK_TOKEN_DUREE_MS = 30 * 24 * 60 * 60 * 1000; // 30 jours
+
 function base64Url(bytes) {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -57,6 +67,10 @@ function hashContractAgencyToken(token, pepper) {
 
 function hashContractClientToken(token, pepper) {
   return hmacHex(`contract-client:${token}`, pepper);
+}
+
+function hashContractManualClientToken(token, pepper) {
+  return hmacHex(`contract-manual-client:${token}`, pepper);
 }
 
 // Reprend le même repli que documentTokenExpiresAt() : périodeFin si
@@ -102,11 +116,28 @@ async function issueContractClientAccess(env) {
   };
 }
 
+async function issueManualClientLinkAccess(env) {
+  if (!env || !env.DOCUMENT_TOKEN_PEPPER) return null;
+  const token = generateContractDossierToken();
+  const tokenHash = await hashContractManualClientToken(token, env.DOCUMENT_TOKEN_PEPPER);
+  return {
+    token,
+    stored: {
+      tokenHash,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + MANUAL_CLIENT_LINK_TOKEN_DUREE_MS).toISOString(),
+      revokedAt: null
+    }
+  };
+}
+
 module.exports = {
   generateContractDossierToken,
   hashContractAgencyToken,
   hashContractClientToken,
+  hashContractManualClientToken,
   contractAgencyTokenExpiresAt,
   issueContractAgencyAccess,
-  issueContractClientAccess
+  issueContractClientAccess,
+  issueManualClientLinkAccess
 };

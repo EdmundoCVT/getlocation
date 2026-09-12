@@ -2630,6 +2630,12 @@ var prefillEncoded = params.get('prefill');
 var hashParams = new URLSearchParams(window.location.hash.slice(1));
 var agencyToken = hashParams.get('agencyToken');
 var clientToken = hashParams.get('clientToken');
+// #manualToken= : lien COURT (jeton) partagé par WhatsApp/SMS/copie pour un
+// contrat MANUEL — remplace le lien historique `?data=...` (voir
+// mettreAJourLienCourt() plus bas) pour les contrats déjà enregistrés
+// côté serveur. Même fragment (jamais un paramètre de requête) que
+// agencyToken/clientToken ci-dessus, pour la même raison.
+var manualToken = hashParams.get('manualToken');
 
 if(agencyToken){
   history.replaceState(null, '', window.location.pathname);
@@ -2643,6 +2649,11 @@ if(agencyToken){
   document.getElementById('clientView').classList.add('hidden');
   document.getElementById('dossierClientView').classList.remove('hidden');
   initDossierClientView(clientToken);
+} else if(manualToken){
+  history.replaceState(null, '', window.location.pathname);
+  document.getElementById('ownerView').classList.add('hidden');
+  document.getElementById('clientView').classList.remove('hidden');
+  initManualClientView(manualToken);
 } else if(encoded){
   document.getElementById('ownerView').classList.add('hidden');
   document.getElementById('clientView').classList.remove('hidden');
@@ -3224,6 +3235,34 @@ function initOwnerView(prefill){
   // met à jour l'existant en place (même numéro, même id).
   var contratEnCoursId = null;
 
+  // Lien COURT (jeton) le plus récent obtenu pour ce contrat, tant que les
+  // données du formulaire n'ont pas changé depuis son émission — voir
+  // regenererLien() plus bas, qui compare dataJson à l'état courant du
+  // formulaire avant de l'utiliser. Remplace le lien géant `?data=...`
+  // (bug WhatsApp du 12/09/2026) dès qu'un contrat a été enregistré au
+  // moins une fois côté serveur ; reste à null tant qu'aucun contrat n'a
+  // encore été généré/ouvert (le lien `?data=` reste alors utilisé, comme
+  // avant ce correctif — rien ne change pour ce cas).
+  var contratOfficielCourant = null;
+
+  // Émission best-effort (voir CLAUDE.md, règle sur les échecs non
+  // bloquants) : si l'appel échoue (réseau, jeton non configuré...),
+  // contratOfficielCourant reste inchangé et regenererLien() retombe sur le
+  // lien `?data=` — jamais d'erreur visible pour l'agence à ce stade.
+  function mettreAJourLienCourt(id, rawData){
+    fetch('/api/contract-manual-link', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-Agency-Csrf': agenceCsrfToken || '' },
+      body: JSON.stringify({ id: id })
+    }).then(function(r){
+      return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || ''); return body; });
+    }).then(function(body){
+      contratOfficielCourant = { id: id, dataJson: JSON.stringify(rawData), url: body.clientUrl };
+      regenererLien();
+    }).catch(function(){ /* voir commentaire ci-dessus : best effort */ });
+  }
+
   function entrerModeEdition(id, numero){
     contratEnCoursId = id;
     document.getElementById('genererContratTitre').textContent = 'Mettre à jour le contrat ' + numero;
@@ -3305,6 +3344,7 @@ function initOwnerView(prefill){
           msg.classList.remove('hidden');
           if(enEdition) sortirModeEdition();
           chargerHistorique();
+          mettreAJourLienCourt(result.id, rawData);
         })
         .catch(function(err){
           alert(decrireEchecRequete(err));
@@ -3361,6 +3401,11 @@ function initOwnerView(prefill){
         ouvrirBtn.addEventListener('click', function(){
           remplirFormulaire(entry.rawData, true);
           entrerModeEdition(entry.id, entry.numero);
+          // Un lien court existe déjà pour ce contrat (émis lors de sa
+          // dernière génération) : le réémettre ici permet de le partager
+          // par WhatsApp/SMS tout de suite, sans attendre un nouveau clic
+          // sur "Mettre à jour le contrat" si rien n'a encore changé.
+          mettreAJourLienCourt(entry.id, entry.rawData);
         });
 
         var dupliquerBtn = document.createElement('button');
@@ -3398,7 +3443,20 @@ function initOwnerView(prefill){
     document.getElementById('linkHint').classList.add('hidden');
 
     var data = lireDonneesFormulaire();
-    var url = window.location.origin + window.location.pathname + '?data=' + encodeData(data);
+    var urlLongue = window.location.origin + window.location.pathname + '?data=' + encodeData(data);
+    // Lien COURT (voir mettreAJourLienCourt()) : utilisé partout dès qu'il a
+    // été émis pour EXACTEMENT ces données de formulaire (comparaison stricte
+    // via JSON.stringify — la moindre modification depuis la dernière
+    // génération du contrat officiel invalide la comparaison et fait
+    // retomber sur le lien `?data=` en attendant un nouveau clic sur
+    // "Générer/Mettre à jour le contrat officiel", jamais un lien obsolète
+    // envoyé sans le savoir). Tant qu'aucun contrat n'a encore été généré,
+    // contratOfficielCourant reste null et le lien `?data=` est utilisé
+    // comme avant ce correctif (bug WhatsApp du 12/09/2026, voir
+    // contract-manual-link.js) — rien ne change pour ce cas.
+    var url = (contratOfficielCourant && contratOfficielCourant.dataJson === JSON.stringify(data))
+      ? contratOfficielCourant.url
+      : urlLongue;
     var linkBox = document.getElementById('linkBox');
     var linkOutput = document.getElementById('linkOutput');
     var lienAChange = linkOutput.value !== url;
@@ -3566,6 +3624,18 @@ document.getElementById('agencyLogoutBtn').addEventListener('click', function(){
     window.location.reload();
   });
 });
+
+// Résout le jeton court #manualToken= auprès du serveur (voir
+// src/api/contract-manual-link.js) puis délègue à initClientView() avec les
+// données reçues — même format que decodeData(encoded) ci-dessus (le
+// serveur renvoie exactement le rawData du formulaire, sans les champs
+// internes), donc initClientView() n'a besoin d'aucun changement.
+function initManualClientView(token){
+  fetch('/api/contract-manual-link', { headers: { Authorization: 'Bearer ' + token } })
+    .then(function(r){ return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || 'Lien invalide ou expiré'); return body; }); })
+    .then(function(data){ initClientView(data); })
+    .catch(function(err){ alert(err.message || 'Ce lien est invalide ou a expiré. Demandez à l\'agence de vous en renvoyer un nouveau.'); });
+}
 
 function initClientView(data){
   // Récupère les photos état des lieux transmises par l'onglet agence, si
