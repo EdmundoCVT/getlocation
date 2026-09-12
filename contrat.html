@@ -1621,12 +1621,58 @@ function nettoyerTextePdf(t){
   return String(t).replace(/[\u202F\u00A0]/g, " ");
 }
 
+// Livraison du PDF généré (signalé le 12/09/2026 : "ça ouvre une nouvelle
+// page sur le même onglet"). Sur iPhone/iPad, doc.save() ne télécharge pas
+// le fichier : le navigateur REMPLACE la page courante par le PDF —
+// l'agence perd alors le formulaire en cours de saisie, et le client la
+// page de confirmation de signature. Le PDF est donc ouvert dans un onglet
+// séparé sur ces appareils, en réservant l'onglet DÈS LE CLIC
+// (reserverOngletPdf()) : un window.open() déclenché plus tard, après un
+// appel réseau, serait bloqué par le navigateur. Ailleurs (ordinateur,
+// Android), le téléchargement classique est conservé — il n'a jamais fait
+// perdre la page et garde le nom de fichier du contrat.
+var ongletPdfReserve = null;
+
+function pdfDoitOuvrirDansUnOnglet(){
+  var estIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  // iPadOS 13+ se déclare "Macintosh" : seul le tactile le distingue d'un Mac.
+  var estIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  return estIOS || estIPadOS || !('download' in document.createElement('a'));
+}
+
+function reserverOngletPdf(){
+  if(!pdfDoitOuvrirDansUnOnglet()) return;
+  try { ongletPdfReserve = window.open('', '_blank'); } catch(e){ ongletPdfReserve = null; }
+}
+
+// À appeler quand le PDF attendu ne sera finalement pas généré (erreur de
+// validation, échec réseau...) : sinon l'onglet réservé resterait ouvert et
+// vide devant l'utilisateur.
+function libererOngletPdf(){
+  if(ongletPdfReserve){ try { ongletPdfReserve.close(); } catch(e){} }
+  ongletPdfReserve = null;
+}
+
+function livrerPDF(doc, nomFichier){
+  if(!pdfDoitOuvrirDansUnOnglet()){ doc.save(nomFichier); return; }
+  var onglet = ongletPdfReserve || window.open('', '_blank');
+  ongletPdfReserve = null;
+  // Onglet refusé par le bloqueur de fenêtres : repli sur le comportement
+  // d'origine (mieux vaut un PDF qui remplace la page qu'aucun PDF).
+  if(!onglet){ doc.save(nomFichier); return; }
+  var url = URL.createObjectURL(doc.output('blob'));
+  onglet.location.href = url;
+  // Libéré tardivement : l'onglet doit avoir eu le temps de charger le PDF.
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 120000);
+}
+
 function genererPDF(payload, estApercu){
   var jsPDF = window.jspdf && window.jspdf.jsPDF;
-  if(!jsPDF){ alert("Le générateur de PDF n'a pas pu se charger. Vérifiez votre connexion et réessayez."); return; }
+  if(!jsPDF){ libererOngletPdf(); alert("Le générateur de PDF n'a pas pu se charger. Vérifiez votre connexion et réessayez."); return; }
 
   var suspects = champsPdfSuspects(payload);
   if(suspects.length){
+    libererOngletPdf();
     alert('Le contrat ne peut pas être généré : valeur incorrecte détectée (' + suspects.join(', ') + '). Vérifiez le véhicule et les dates sélectionnées.');
     return;
   }
@@ -2016,7 +2062,7 @@ function genererPDF(payload, estApercu){
 
   var suffixe = payload.numero ? ('-' + payload.numero) : (payload.signature_image ? '' : '-apercu');
   var nomFichier = 'contrat-getlocation-' + (payload.locataire_nom || 'client').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-') + suffixe + '.pdf';
-  doc.save(nomFichier);
+  livrerPDF(doc, nomFichier);
 }
 
 // ---------------------------------------------------------------------
@@ -2587,6 +2633,10 @@ function initDossierClientView(token){
         if(!hasSignature || !accept.checked){ updateSubmitState(); return; }
         var sigData = canvas.toDataURL('image/png');
         submitBtn.disabled = true;
+        // Même raison que la vue client du contrat manuel : le PDF signé
+        // arrive après l'appel réseau, l'onglet doit être réservé dès le
+        // clic pour ne pas remplacer l'écran de confirmation (voir livrerPDF()).
+        reserverOngletPdf();
         fetch('/api/contract-dossier-client', {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
@@ -2602,6 +2652,7 @@ function initDossierClientView(token){
           genererPDF(construireDossierClientPayload(v, sigData, stamp, signed.signatureId), false);
         })
         .catch(function(err){
+          libererOngletPdf();
           submitBtn.disabled = false;
           alert(err.message);
         });
@@ -3064,6 +3115,9 @@ function initOwnerView(prefill){
     return lireImagesEtatDesLieux().then(function(photos){
       callback(photos);
     }).catch(function(err){
+      // Photos invalides : aucun PDF ne sera produit, l'onglet éventuellement
+      // réservé au clic ne doit pas rester ouvert et vide (voir livrerPDF()).
+      libererOngletPdf();
       erreurEl.textContent = err.message;
       erreurEl.style.display = '';
     });
@@ -3112,6 +3166,9 @@ function initOwnerView(prefill){
   document.getElementById('downloadPdfBtn').addEventListener('click', function(){
     var btn = this;
     btn.disabled = true;
+    // Réservé ici, dans le clic lui-même : le PDF n'est produit qu'après la
+    // lecture (asynchrone) des photos — voir livrerPDF().
+    reserverOngletPdf();
     avecPhotosEtatDesLieux(function(photos){
       var data = lireDonneesFormulaire();
       data.photosEtatDesLieux = photos;
@@ -3320,6 +3377,10 @@ function initOwnerView(prefill){
     }
     var btn = document.getElementById('genererContratBtn');
     btn.disabled = true;
+    // Réservé ici, dans le clic lui-même : le PDF n'est produit qu'après
+    // l'enregistrement du contrat côté serveur, trop tard pour ouvrir un
+    // onglet sans être bloqué par le navigateur — voir livrerPDF().
+    reserverOngletPdf();
 
     // Les photos état des lieux ne sont jamais envoyées à
     // /api/contracts-manual-create|update (rawData) : uniquement embarquées
@@ -3347,6 +3408,7 @@ function initOwnerView(prefill){
           mettreAJourLienCourt(result.id, rawData);
         })
         .catch(function(err){
+          libererOngletPdf();
           alert(decrireEchecRequete(err));
         });
     }).finally(function(){ btn.disabled = false; });
@@ -3825,6 +3887,10 @@ function initClientView(data){
     e.preventDefault();
     if(!hasSignature || !accept.checked){ updateSubmitState(); return; }
     synchroniserRibDepuisChamps();
+    // Le PDF signé n'est produit qu'après l'envoi du contrat : l'onglet est
+    // réservé ici pour que le client ne perde pas son écran de confirmation
+    // (identifiant de signature) sur iPhone — voir livrerPDF().
+    reserverOngletPdf();
 
     var now = new Date();
     var stamp = now.toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' }) +
