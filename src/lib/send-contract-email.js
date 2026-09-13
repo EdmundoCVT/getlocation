@@ -53,6 +53,11 @@ function buildContractPrefillData(reservation) {
 
   return {
     vehiculeId: reservation.vehiculeId,
+    // Version du site où le client a réservé : pré-sélectionne « Langue du
+    // client » dans le formulaire agence, pour que le contrat porte la
+    // mention anglaise sans que l'opérateur ait à y penser. Le contrat
+    // lui-même reste rédigé en français (voir contrat.html, enTete()).
+    langue: reservation.langue === "en" ? "en" : "fr",
     lieu: libelleAdresseLivraison(reservation.adressePrise) || reservation.lieuPrise || LIEU_LIVRAISON,
     depart: reservation.dateDebut && reservation.heureDebut ? `${reservation.dateDebut}T${reservation.heureDebut}` : "",
     retour: reservation.dateFin && reservation.heureFin ? `${reservation.dateFin}T${reservation.heureFin}` : "",

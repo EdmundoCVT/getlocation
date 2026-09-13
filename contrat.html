@@ -226,6 +226,18 @@
             <label for="lieu">Lieu de prise en charge</label>
             <select id="lieu" required></select>
           </div>
+          <!-- Langue du client : pré-remplie d'après la version du site où
+               la réservation a été faite (voir langue dans la réservation).
+               Le contrat reste rédigé en français — seule version faisant
+               foi, comme les CGL — mais un client anglophone voit une
+               mention en anglais l'indiquant clairement. -->
+          <div class="field">
+            <label for="langueClient">Langue du client</label>
+            <select id="langueClient">
+              <option value="fr">Français</option>
+              <option value="en">English</option>
+            </select>
+          </div>
         </div>
         <div class="check-row">
           <input type="checkbox" id="livraison-toggle">
@@ -1514,6 +1526,10 @@ function construirePayload(data, sigData, stamp){
     immatriculation: data.immat,
     lieu: lieuAffiche,
     lieuRetour: lieuAffiche,
+    // Langue du client : ne change RIEN au contenu du contrat, qui reste
+    // rédigé en français (seule version faisant foi). Sert uniquement à
+    // ajouter une mention en anglais pour un client anglophone.
+    langueClient: data.langueClient === 'en' ? 'en' : 'fr',
     livraison: data.livraison ? 'Oui (+20 €)' : 'Non',
     depart: formatDateHeureFR(data.depart),
     retour: formatDateHeureFR(data.retour),
@@ -1972,6 +1988,7 @@ function genererPDF(payload, estApercu){
     doc.roundedRect(margin, y - 9, largeurStatut, 16, 8, 8, 'FD');
     capitales(statut.texte, margin + 10, y + 1.5, 0.6);
     y += 21;
+
   }
   enTete();
 
@@ -2208,6 +2225,30 @@ function genererPDF(payload, estApercu){
   var versionCgl = payload.cglVersion || getCglVersion();
   doc.text('Conditions Générales de Location applicables : version ' + versionCgl + ' — texte complet sur getlocation.fr/cgl.html', margin, y);
   y += 18;
+
+  // Client anglophone : mention en anglais indiquant que le contrat est
+  // rédigé en français et que cette version fait foi. Placée ici, à l'entrée
+  // des conditions, plutôt qu'en page de synthèse : c'est le texte engageant
+  // qu'elle concerne, et la synthèse n'a pas la place de l'accueillir sans
+  // repousser la section GARANTIE sur une page à elle seule.
+  // Le corps du contrat n'est PAS traduit — même principe que les pages
+  // juridiques du site (CGL, mentions légales) : une traduction sans
+  // validation juridique créerait une ambiguïté sur le texte qui engage.
+  if(payload.langueClient === 'en'){
+    police('normal', 8, C.texte);
+    var mention = doc.splitTextToSize(
+      'This agreement is drawn up in French. The French text is the legally binding version. '
+      + 'Please ask our team for any clarification before signing.',
+      maxWidth - 20
+    );
+    var hauteurMention = mention.length * 10 + 12;
+    placePour(hauteurMention + 6);
+    doc.setFillColor(C.fond[0], C.fond[1], C.fond[2]);
+    doc.setDrawColor(C.filet[0], C.filet[1], C.filet[2]);
+    doc.roundedRect(margin, y - 9, maxWidth, hauteurMention, 4, 4, 'FD');
+    doc.text(mention, margin + 10, y);
+    y += hauteurMention + 6;
+  }
 
   // Informations essentielles mises en gras à l'intérieur des articles
   // (kilométrage, tarif au km, dépôt de garantie, numéro d'urgence) : le
@@ -3488,6 +3529,9 @@ function initOwnerView(prefill){
   if(prefill){
     if(prefill.vehiculeId){ selectVehicule.value = prefill.vehiculeId; appliquerPlaque(); }
     if(prefill.lieu) selectLieu.value = prefill.lieu;
+    // Langue de la version du site où le client a réservé.
+    var champLangue = document.getElementById('langueClient');
+    if(champLangue && prefill.langue) champLangue.value = prefill.langue === 'en' ? 'en' : 'fr';
     if(prefill.depart) inputDepart.value = prefill.depart;
     if(prefill.retour) inputRetour.value = prefill.retour;
     document.getElementById('prenom').value = prefill.prenom || '';
@@ -3566,6 +3610,7 @@ function initOwnerView(prefill){
       vehiculeId: selectVehicule.value,
       immat: document.getElementById('immat').value,
       lieu: selectLieu.value,
+      langueClient: (document.getElementById('langueClient') || {}).value || 'fr',
       depart: inputDepart.value,
       retour: inputRetour.value,
       modeCaution: modeCaution,

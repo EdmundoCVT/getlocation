@@ -39,7 +39,24 @@ adresses lisibles : `/en/cars`, `/en/booking`, `/en/car-rental-nice`…).
   reste **volontairement en français** : seule version faisant foi. Les pages
   anglaises affichent la mention correspondante.
 - La langue choisie par le client est enregistrée sur la réservation
-  (`langue: "fr" | "en"`), pour les e-mails et le contrat.
+  (`langue: "fr" | "en"`) et pilote :
+  - **les e-mails envoyés au client** (confirmation, rappels dossier / prise
+    en charge / restitution) — dictionnaire serveur `src/lib/textes-email.js`,
+    jamais chargé par le navigateur. Les e-mails destinés à l'AGENCE restent
+    en français. Les liens qu'ils contiennent pointent vers la version du
+    site correspondante (`/en/documents`…).
+  - **la mention de langue du contrat PDF** : le contrat reste rédigé en
+    français, seule version faisant foi (même règle que les CGL). Un client
+    anglophone voit, à l'entrée des conditions, une mention en anglais
+    l'indiquant. Le champ « Langue du client » de `contrat.html` est
+    pré-rempli depuis la réservation et reste modifiable par l'agence.
+- Textes affichés venus de `js/data.js` (options, lieux, filtres) : leur
+  traduction vit aussi dans `js/i18n.js` et `npm test` la vérifie
+  (`tests/i18n-couverture.test.js`) — ils n'apparaissent dans aucun fichier
+  HTML, donc rien d'autre ne les couvre.
+- Chemins d'images : `js/data.js` les écrit en relatif ; `cheminMedia()` de
+  `js/app.js` les rend absolus à l'affichage, sinon ils pointent vers
+  `/en/images/…` sous une adresse anglaise.
 
 ## Règles critiques (ne jamais enfreindre)
 

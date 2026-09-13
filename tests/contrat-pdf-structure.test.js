@@ -257,3 +257,52 @@ test("synthèse financière : regroupe sans jamais recalculer (location + option
   assert.equal(Math.round((s.totalLocation - s.dejaRegle) * 100) / 100, s.resteAPayer);
   dom.window.close();
 });
+
+// --- Client anglophone ---------------------------------------------------
+//
+// Le contrat reste rédigé en FRANÇAIS quelle que soit la langue du client :
+// c'est la seule version faisant foi, comme les CGL du site. Un client ayant
+// réservé en anglais voit seulement une mention l'indiquant, en anglais.
+
+test("client anglophone : mention de langue en anglais, contrat toujours en français", () => {
+  const journal = genererJournal({ langueClient: "en" });
+  const tout = journal.map((e) => e.texte).join(" | ");
+
+  assert.ok(
+    tout.includes("The French text is the legally binding version"),
+    "la mention de langue doit figurer sur le contrat d'un client anglophone"
+  );
+  // Le corps du contrat n'est pas traduit : les intitulés restent français.
+  assert.equal(pageDe(journal, "LOCATAIRE / CONDUCTEUR PRINCIPAL"), 1);
+  assert.ok(contient(journal, "TARIFICATION"), "le contrat reste rédigé en français");
+});
+
+test("client francophone : aucune mention de langue ajoutée", () => {
+  const journal = genererJournal();
+  assert.equal(
+    journal.some((e) => e.texte.includes("legally binding version")),
+    false,
+    "un contrat français ne doit porter aucune mention anglaise"
+  );
+});
+
+test("la mention anglaise ne décale aucune section : même nombre de pages qu'en français", () => {
+  // Placée en page de synthèse, elle repoussait la section GARANTIE sur une
+  // page à elle seule (défaut déjà corrigé lors de la refonte visuelle) :
+  // elle vit donc à l'entrée des conditions, où elle concerne directement le
+  // texte engageant.
+  const pagesFr = Math.max(...genererJournal().map((e) => e.page));
+  const pagesEn = Math.max(...genererJournal({ langueClient: "en" }).map((e) => e.page));
+  assert.equal(pagesEn, pagesFr, "la mention de langue ne doit ajouter aucune page");
+
+  const journal = genererJournal({ langueClient: "en" });
+  const mention = journal.find((e) => e.texte.includes("legally binding version"));
+  assert.equal(mention.page, pageDe(journal, "PRINCIPALES CONDITIONS DE LOCATION"),
+    "la mention doit figurer avec les conditions, pas sur la page de synthèse");
+});
+
+test("la langue du client ne change aucun montant ni aucune mention contractuelle", () => {
+  const francais = genererJournal().filter((e) => /€/.test(e.texte)).map((e) => e.texte);
+  const anglais = genererJournal({ langueClient: "en" }).filter((e) => /€/.test(e.texte)).map((e) => e.texte);
+  assert.deepEqual(anglais, francais, "les montants doivent être strictement identiques dans les deux cas");
+});

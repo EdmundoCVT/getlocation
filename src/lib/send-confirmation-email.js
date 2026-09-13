@@ -24,6 +24,7 @@
 
 const { getVehiculeParId, formatEUR, libelleAdresseLivraison } = require("../../js/data.js");
 const { sendEmail } = require("./resend-client.js");
+const { traducteur, langueClient, formatDateHeure, lienPageClient, deuxPoints } = require("./textes-email.js");
 
 // Numéro WhatsApp de l'agence, déjà utilisé comme repli paiement
 // indisponible (js/app.js, showPaymentUnavailableFallback) et sur
@@ -31,17 +32,6 @@ const { sendEmail } = require("./resend-client.js");
 // post-paiement, avec la référence de réservation pré-remplie dans le
 // message pour que l'agence identifie immédiatement le dossier.
 const AGENCY_WHATSAPP_NUMBER = "33667485430";
-
-function formatDateHeure(dateISO, heure) {
-  if (!dateISO) return "";
-  const date = new Date(`${dateISO}T00:00:00`).toLocaleDateString("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric"
-  });
-  return heure ? `${date} à ${heure}` : date;
-}
 
 // Échappement HTML défensif de toute valeur dérivée de la réservation
 // injectée dans le corps HTML de l'email (ex. prénom du conducteur, saisi
@@ -66,99 +56,106 @@ function aOptionSelectionnee(reservation, optionId) {
 
 // Lien WhatsApp prérempli vers l'agence, avec la référence de réservation
 // dans le message pour éviter au client de la retaper.
-function buildWhatsappUrl(reservationId) {
-  const message = `Bonjour, je vous contacte au sujet de ma réservation ${reservationId}.`;
+function buildWhatsappUrl(reservationId, t) {
+  const message = t("Bonjour, je vous contacte au sujet de ma réservation {reference}.", { reference: reservationId });
   return `https://wa.me/${AGENCY_WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 }
 
-function buildDocumentsUrl(reservation, siteUrl) {
+function buildDocumentsUrl(reservation, siteUrl, langue) {
   if (!reservation || !reservation.documentsAccessToken) return null;
-  const origin = String(siteUrl || "https://getlocation.fr").replace(/\/+$/, "");
-  return `${origin}/documents.html#token=${encodeURIComponent(reservation.documentsAccessToken)}`;
+  // Lien vers la version du site que le client sait lire (/en/documents pour
+  // une réservation faite en anglais).
+  return lienPageClient(siteUrl, "documents.html", langue, `token=${encodeURIComponent(reservation.documentsAccessToken)}`);
 }
 
 // Checklist des documents à préparer avant la prise en charge. Ne prétend
 // jamais qu'un document a déjà été reçu ou validé (aucun système de
 // collecte de documents n'existe encore, cf. AUDIT.md/CLAUDE.md) — se
 // limite à indiquer ce que le client doit préparer de son côté.
-function buildChecklistLignes(reservation) {
+function buildChecklistLignes(reservation, t) {
   const lignes = [
-    "Permis de conduire valide",
-    "Pièce d'identité (carte d'identité ou passeport)",
-    "Justificatif de domicile ou adresse postale, si demandé par l'agence"
+    t("Permis de conduire valide"),
+    t("Pièce d'identité (carte d'identité ou passeport)"),
+    t("Justificatif de domicile ou adresse postale, si demandé par l'agence")
   ];
   if (aOptionSelectionnee(reservation, "second-conducteur")) {
-    lignes.push("Permis de conduire et pièce d'identité du second conducteur");
+    lignes.push(t("Permis de conduire et pièce d'identité du second conducteur"));
   }
   return lignes;
 }
 
 function buildConfirmationEmailContent(reservation, siteUrl) {
+  // Langue dans laquelle le client a réservé (js/app.js l'envoie,
+  // create-payment.js l'enregistre) : tout le corps de l'e-mail la suit.
+  const langue = langueClient(reservation);
+  const t = traducteur(langue);
+  const sep = deuxPoints(langue);
   const vehicule = getVehiculeParId(reservation.vehiculeId);
   const vehiculeNom = vehicule ? vehicule.nom : reservation.vehiculeId;
-  const prise = formatDateHeure(reservation.dateDebut, reservation.heureDebut);
-  const retour = formatDateHeure(reservation.dateFin, reservation.heureFin);
+  const prise = formatDateHeure(reservation.dateDebut, reservation.heureDebut, langue);
+  const retour = formatDateHeure(reservation.dateFin, reservation.heureFin, langue);
   const total = typeof reservation.total === "number" ? formatEUR(reservation.total) : "";
   const caution = vehicule ? formatEUR(vehicule.caution) : "";
   const prenom = reservation.conducteur ? reservation.conducteur.prenom : "";
-  const checklistLignes = buildChecklistLignes(reservation);
-  const whatsappUrl = buildWhatsappUrl(reservation.id);
-  const documentsUrl = buildDocumentsUrl(reservation, siteUrl);
-  const lieuPrise = [reservation.lieuPrise, libelleAdresseLivraison(reservation.adressePrise)].filter(Boolean).join(" — ");
-  const lieuRetour = [reservation.lieuRetour, libelleAdresseLivraison(reservation.adresseRetour)].filter(Boolean).join(" — ");
+  const checklistLignes = buildChecklistLignes(reservation, t);
+  const whatsappUrl = buildWhatsappUrl(reservation.id, t);
+  const documentsUrl = buildDocumentsUrl(reservation, siteUrl, langue);
+  // Le lieu vient de js/data.js, donc en français : traduit comme sur le site.
+  const lieuPrise = [t(reservation.lieuPrise || ""), libelleAdresseLivraison(reservation.adressePrise)].filter(Boolean).join(" — ");
+  const lieuRetour = [t(reservation.lieuRetour || ""), libelleAdresseLivraison(reservation.adresseRetour)].filter(Boolean).join(" — ");
 
-  const subject = `Confirmation de votre réservation GET LOCATION — ${vehiculeNom}`;
+  const subject = t("Confirmation de votre réservation GET LOCATION — {vehicule}", { vehicule: vehiculeNom });
 
   const lignes = [
-    `Bonjour ${prenom},`,
+    t("Bonjour {prenom},", { prenom }),
     "",
-    `Votre réservation est confirmée. Voici son récapitulatif :`,
+    t("Votre réservation est confirmée. Voici son récapitulatif :"),
     "",
-    `Véhicule : ${vehiculeNom}`,
-    `Prise en charge : ${prise}${lieuPrise ? ` — ${lieuPrise}` : ""}`,
-    `Retour : ${retour}${lieuRetour ? ` — ${lieuRetour}` : ""}`,
-    `Durée : ${reservation.jours} jour(s)`,
-    `Montant total réglé : ${total}`,
-    `Caution du véhicule : ${caution} (prélevée avant la remise des clés)`,
-    `Référence de réservation : ${reservation.id}`,
+    t("Véhicule : {valeur}", { valeur: vehiculeNom }),
+    t("Prise en charge : {valeur}", { valeur: `${prise}${lieuPrise ? ` — ${lieuPrise}` : ""}` }),
+    t("Retour : {valeur}", { valeur: `${retour}${lieuRetour ? ` — ${lieuRetour}` : ""}` }),
+    t("Durée : {jours} jour(s)", { jours: reservation.jours }),
+    t("Montant total réglé : {valeur}", { valeur: total }),
+    t("Caution du véhicule : {valeur} (prélevée avant la remise des clés)", { valeur: caution }),
+    t("Référence de réservation : {valeur}", { valeur: reservation.id }),
     "",
-    "Documents à préparer pour la prise en charge du véhicule :",
+    t("Documents à préparer pour la prise en charge du véhicule :"),
     ...checklistLignes.map((l) => `- ${l}`),
-    ...(documentsUrl ? ["", "Complétez votre dossier en ligne :", documentsUrl] : []),
+    ...(documentsUrl ? ["", t("Complétez votre dossier en ligne :"), documentsUrl] : []),
     "",
-    "Prochaines étapes : notre équipe reprend contact avec vous avant la prise en charge pour finaliser les derniers détails. Vous pouvez dès maintenant nous écrire sur WhatsApp en mentionnant votre référence de réservation :",
+    t("Prochaines étapes : notre équipe reprend contact avec vous avant la prise en charge pour finaliser les derniers détails. Vous pouvez dès maintenant nous écrire sur WhatsApp en mentionnant votre référence de réservation :"),
     whatsappUrl,
     "",
-    "Pour toute question, répondez simplement à cet email.",
+    t("Pour toute question, répondez simplement à cet email."),
     "",
-    "À bientôt,",
-    "L'équipe GET LOCATION"
+    t("À bientôt,"),
+    t("L'équipe GET LOCATION")
   ];
   const text = lignes.join("\n");
 
   const checklistHtml = checklistLignes.map((l) => `<li>${escapeHtml(l)}</li>`).join("");
   const documentsHtml = documentsUrl
-    ? `<p><a href="${escapeHtml(documentsUrl)}" style="display:inline-block;padding:10px 18px;background:#fd5301;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;">Compléter mon dossier</a></p>`
+    ? `<p><a href="${escapeHtml(documentsUrl)}" style="display:inline-block;padding:10px 18px;background:#fd5301;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;">${escapeHtml(t("Compléter mon dossier"))}</a></p>`
     : "";
 
-  const html = `<p>Bonjour ${escapeHtml(prenom)},</p>
-<p>Votre réservation est confirmée. Voici son récapitulatif :</p>
+  const html = `<p>${escapeHtml(t("Bonjour {prenom},", { prenom }))}</p>
+<p>${escapeHtml(t("Votre réservation est confirmée. Voici son récapitulatif :"))}</p>
 <ul>
-<li><strong>Véhicule :</strong> ${escapeHtml(vehiculeNom)}</li>
-<li><strong>Prise en charge :</strong> ${escapeHtml(prise)}${lieuPrise ? ` — ${escapeHtml(lieuPrise)}` : ""}</li>
-<li><strong>Retour :</strong> ${escapeHtml(retour)}${lieuRetour ? ` — ${escapeHtml(lieuRetour)}` : ""}</li>
-<li><strong>Durée :</strong> ${reservation.jours} jour(s)</li>
-<li><strong>Montant total réglé :</strong> ${escapeHtml(total)}</li>
-<li><strong>Caution du véhicule :</strong> ${escapeHtml(caution)} (prélevée avant la remise des clés)</li>
-<li><strong>Référence de réservation :</strong> ${escapeHtml(reservation.id)}</li>
+<li><strong>${escapeHtml(t("Véhicule"))}${sep}</strong> ${escapeHtml(vehiculeNom)}</li>
+<li><strong>${escapeHtml(t("Prise en charge"))}${sep}</strong> ${escapeHtml(prise)}${lieuPrise ? ` — ${escapeHtml(lieuPrise)}` : ""}</li>
+<li><strong>${escapeHtml(t("Retour"))}${sep}</strong> ${escapeHtml(retour)}${lieuRetour ? ` — ${escapeHtml(lieuRetour)}` : ""}</li>
+<li><strong>${escapeHtml(t("Durée"))}${sep}</strong> ${escapeHtml(t("{jours} jour(s)", { jours: reservation.jours }))}</li>
+<li><strong>${escapeHtml(t("Montant total réglé"))}${sep}</strong> ${escapeHtml(total)}</li>
+<li><strong>${escapeHtml(t("Caution du véhicule"))}${sep}</strong> ${escapeHtml(caution)} ${escapeHtml(t("(prélevée avant la remise des clés)"))}</li>
+<li><strong>${escapeHtml(t("Référence de réservation"))}${sep}</strong> ${escapeHtml(reservation.id)}</li>
 </ul>
-<p><strong>Documents à préparer pour la prise en charge du véhicule :</strong></p>
+<p><strong>${escapeHtml(t("Documents à préparer pour la prise en charge du véhicule :"))}</strong></p>
 <ul>${checklistHtml}</ul>
 ${documentsHtml}
-<p>Notre équipe reprend contact avec vous avant la prise en charge pour finaliser les derniers détails. Vous pouvez dès maintenant nous écrire sur WhatsApp en mentionnant votre référence de réservation :</p>
-<p><a href="${escapeHtml(whatsappUrl)}" style="display:inline-block;padding:10px 18px;background:#25D366;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;">💬 Contacter l'agence sur WhatsApp</a></p>
-<p>Pour toute question, répondez simplement à cet email.</p>
-<p>À bientôt,<br>L'équipe GET LOCATION</p>`;
+<p>${escapeHtml(t("Notre équipe reprend contact avec vous avant la prise en charge pour finaliser les derniers détails. Vous pouvez dès maintenant nous écrire sur WhatsApp en mentionnant votre référence de réservation :"))}</p>
+<p><a href="${escapeHtml(whatsappUrl)}" style="display:inline-block;padding:10px 18px;background:#25D366;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;">${escapeHtml(t("💬 Contacter l'agence sur WhatsApp"))}</a></p>
+<p>${escapeHtml(t("Pour toute question, répondez simplement à cet email."))}</p>
+<p>${escapeHtml(t("À bientôt,"))}<br>${escapeHtml(t("L'équipe GET LOCATION"))}</p>`;
 
   return { subject, text, html };
 }
