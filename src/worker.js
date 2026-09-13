@@ -77,13 +77,15 @@ function hideCatalogBeforeSearch(html, pathname) {
       : section;
   });
 
+  // Supprime complètement le CTA secondaire historique « Voir les véhicules »
+  // afin de ne conserver qu'un seul appel à l'action dans le hero.
+  html = html.replace(/\s*<a\b[^>]*class=["'][^"']*btn\s+btn-secondary[^"']*["'][^>]*>\s*(?:Voir(?: tous)? les véhicules|View(?: all)? vehicles|Trouver un véhicule|Find a vehicle)\s*<\/a>/gi, "");
+
   // Les anciens liens directs vers le catalogue renvoient désormais vers le
   // moteur de recherche de la page courante.
   html = html.replace(/href=["'](?:\/?vehicules(?:\.html)?(?:\?[^"']*)?|\/en\/cars\/?)['"]/gi, 'href="#search-form"');
   html = html.replace(/>Véhicules<\/a>/gi, ">Réserver</a>");
-  html = html.replace(/>Voir(?: tous)? les véhicules<\/a>/gi, ">Trouver un véhicule</a>");
   html = html.replace(/>Vehicles<\/a>/gi, ">Book</a>");
-  html = html.replace(/>View(?: all)? vehicles<\/a>/gi, ">Find a vehicle</a>");
 
   return html;
 }
