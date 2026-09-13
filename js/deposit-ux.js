@@ -82,6 +82,47 @@
     });
   }
 
+  // Les véhicules premium/cabriolets ajoutés au catalogue sont proposés
+  // uniquement sur demande. Aucun tarif ni caractéristique non confirmée ne
+  // doit être affiché comme certain avant vérification de disponibilité.
+  function formatRequestOnlyCards(root) {
+    var scope = root && root.querySelectorAll ? root : document;
+    var cards = [];
+    if (scope.matches && scope.matches(".vehicle-card")) cards.push(scope);
+    if (scope.querySelectorAll) {
+      scope.querySelectorAll(".vehicle-card").forEach(function (card) { cards.push(card); });
+    }
+
+    cards.forEach(function (card) {
+      var badge = card.querySelector(".booking-mode-badge.is-request");
+      if (!badge) return;
+
+      badge.textContent = isEnglish() ? "Availability to confirm" : "Disponibilité à confirmer";
+
+      var specs = card.querySelector(".vehicle-specs");
+      if (specs) specs.remove();
+
+      var price = card.querySelector(".vehicle-footer .price");
+      if (price) {
+        price.innerHTML = "";
+        var label = document.createElement("span");
+        label.className = "price-from";
+        label.textContent = isEnglish() ? "Price" : "Tarif";
+        var value = document.createElement("strong");
+        value.style.cssText = "display:block;font-size:1.05rem;margin-top:4px";
+        value.textContent = isEnglish() ? "On request" : "Sur demande";
+        price.append(label, value);
+      }
+
+      card.querySelectorAll(".hint-text").forEach(function (hint) {
+        if (/Total pour|Total for/i.test(hint.textContent || "")) hint.remove();
+      });
+
+      var button = card.querySelector(".vehicle-footer .btn");
+      if (button) button.textContent = isEnglish() ? "Request this vehicle" : "Demander ce véhicule";
+    });
+  }
+
   function reservationVehicle() {
     try {
       var raw = window.localStorage.getItem("gl_reservation");
@@ -126,16 +167,11 @@
 
     box.append(title, amount, text);
     summary.appendChild(box);
-
-    document.querySelectorAll(".pay-lock + .hint-text").forEach(function (hint) {
-      hint.textContent = isEnglish()
-        ? "The security deposit is handled separately when the vehicle is handed over."
-        : "La caution est traitée séparément le jour de la prise en charge du véhicule.";
-    });
   }
 
   function refresh(root) {
     hideEarlyDepositAmounts(root || document);
+    formatRequestOnlyCards(root || document);
     renderPaymentDepositDisclosure();
   }
 
