@@ -2,16 +2,7 @@
 //
 // Point d'entrée du Worker Cloudflare : sert le site statique (binding
 // ASSETS, voir wrangler.jsonc) et route les endpoints /api/* vers les
-// fonctions serveur (src/api/*) — Phase B de la migration Cloudflare (voir
-// DEPLOIEMENT.md). Remplace les fonctions Netlify de la Phase A, appelées
-// jusqu'ici en cross-origin explicite depuis js/app.js.
-//
-// Ce fichier doit rester un module ES (export default) : c'est une
-// contrainte du runtime Workers pour accéder aux bindings (env.ASSETS,
-// env.RESERVATIONS_KV...). Le reste du code serveur (src/api, src/lib)
-// reste en CommonJS, comme l'ancien code Netlify, pour rester testable
-// directement sous Node (`require(...)`) sans étape de bundling — seul ce
-// point d'entrée a besoin de require() pour les assembler.
+// fonctions serveur (src/api/*) — Phase B de la migration Cloudflare.
 
 const { handleCreatePayment } = require("./api/create-payment.js");
 const { handleMollieWebhook } = require("./api/mollie-webhook.js");
@@ -68,21 +59,13 @@ function isVehicleResultsPath(pathname) {
 function hideCatalogBeforeSearch(html, pathname) {
   if (isVehicleResultsPath(pathname)) return html;
 
-  // Les catalogues historiques de l'accueil et des pages locales sont retirés
-  // côté Worker : le client doit d'abord choisir ses dates dans le moteur de
-  // recherche. La page de résultats reste intacte.
   html = html.replace(/<section\b[\s\S]*?<\/section>/gi, (section) => {
     return /class=["'][^"']*vehicle-grid[^"']*["']|class=["']vehicle-grid["']/i.test(section)
       ? ""
       : section;
   });
 
-  // Supprime complètement le CTA secondaire historique « Voir les véhicules »
-  // afin de ne conserver qu'un seul appel à l'action dans le hero.
   html = html.replace(/\s*<a\b[^>]*class=["'][^"']*btn\s+btn-secondary[^"']*["'][^>]*>\s*(?:Voir(?: tous)? les véhicules|View(?: all)? vehicles|Trouver un véhicule|Find a vehicle)\s*<\/a>/gi, "");
-
-  // Les anciens liens directs vers le catalogue renvoient désormais vers le
-  // moteur de recherche de la page courante.
   html = html.replace(/href=["'](?:\/?vehicules(?:\.html)?(?:\?[^"']*)?|\/en\/cars\/?)['"]/gi, 'href="#search-form"');
   html = html.replace(/>Véhicules<\/a>/gi, ">Réserver</a>");
   html = html.replace(/>Vehicles<\/a>/gi, ">Book</a>");
@@ -98,13 +81,24 @@ async function withClientUX(response, pathname) {
   let html = await response.text();
   html = hideCatalogBeforeSearch(html, pathname);
 
+  // Catalogue complémentaire : chargé après data.js/app.js lors du parsing,
+  // mais avant DOMContentLoaded. Les véhicules sur demande sont donc ajoutés
+  // avant initVehiculesPage(), sans toucher au calcul de prix/paiement des
+  // véhicules internes.
+  if (!html.includes("/js/request-catalog.js")) {
+    const requestCatalog = '<script src="/js/request-catalog.js?v=1"></script>';
+    html = html.includes("</body>")
+      ? html.replace("</body>", `${requestCatalog}\n</body>`)
+      : `${html}\n${requestCatalog}`;
+  }
+
   if (!html.includes("/js/deposit-ux.js")) {
-    const script = '<script src="/js/deposit-ux.js?v=2"></script>';
+    const script = '<script src="/js/deposit-ux.js?v=3"></script>';
     html = html.includes("</body>")
       ? html.replace("</body>", `${script}\n</body>`)
       : `${html}\n${script}`;
   } else {
-    html = html.replace(/\/js\/deposit-ux\.js\?v=\d+/g, "/js/deposit-ux.js?v=2");
+    html = html.replace(/\/js\/deposit-ux\.js\?v=\d+/g, "/js/deposit-ux.js?v=3");
   }
 
   const headers = new Headers(response.headers);
@@ -123,9 +117,8 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const route = ROUTES[url.pathname];
-    if (route) {
-      return route(request, env, ctx);
-    }
+    if (route) return route(request, env, ctx);
+
     if (estCheminAnglais(url.pathname)) {
       const pageAnglaise = await servirPageAnglaise(request, env, url);
       if (pageAnglaise) return withClientUX(pageAnglaise, url.pathname);
