@@ -141,15 +141,37 @@ function traduireEnTete(html, fichier) {
   return reecrireRessources(sortie);
 }
 
+// Adresse sous laquelle le service de fichiers statiques sert réellement une
+// page : "/vehicules", pas "/vehicules.html" (option html_handling
+// "auto-trailing-slash" de wrangler.jsonc, équivalent des "pretty URLs").
+// Demander le nom de fichier renverrait une REDIRECTION vers cette
+// adresse-ci — et une redirection transmise au navigateur le ferait quitter
+// /en/ pour atterrir sur la page française.
+function cheminAssetPourFichier(fichier) {
+  return fichier === "index.html" ? "/" : `/${fichier.replace(/\.html$/, "")}`;
+}
+
+// Récupère un fichier statique en suivant ICI une éventuelle redirection de
+// normalisation (extension, slash final) au lieu de la renvoyer au client.
+async function recupererAsset(request, env, chemin, sauts = 0) {
+  const cible = new URL(request.url);
+  cible.pathname = chemin;
+  cible.search = "";
+  const reponse = await env.ASSETS.fetch(new Request(cible.toString(), { method: "GET", headers: request.headers }));
+  const destination = reponse.status >= 300 && reponse.status < 400 ? reponse.headers.get("Location") : null;
+  if (destination && sauts < 2) {
+    return recupererAsset(request, env, new URL(destination, cible).pathname, sauts + 1);
+  }
+  return reponse;
+}
+
 // Sert la page anglaise correspondant à l'URL demandée, ou null si cette
 // URL n'est pas une page anglaise connue (le routage normal reprend alors).
 async function servirPageAnglaise(request, env, url) {
   const fichier = fichierPourCheminAnglais(url.pathname);
   if (!fichier) return null;
 
-  const cible = new URL(request.url);
-  cible.pathname = `/${fichier}`;
-  const reponse = await env.ASSETS.fetch(new Request(cible.toString(), request));
+  const reponse = await recupererAsset(request, env, cheminAssetPourFichier(fichier));
   if (!reponse.ok) return reponse;
 
   const html = await reponse.text();

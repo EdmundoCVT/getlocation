@@ -229,3 +229,46 @@ test("réponse servie sous /en/ : en-têtes décrivant le corps français retir�
   assert.equal(reponse.headers.get("Cache-Control"), "no-cache");
   assert.match(await reponse.text(), /<title>GETLOCATION — Car Rental/);
 });
+
+test("réponse servie sous /en/ : la redirection « URLs propres » est suivie ici, jamais renvoyée au visiteur", async () => {
+  // Reproduit le comportement réel de Cloudflare (html_handling
+  // "auto-trailing-slash") : demander "/vehicules.html" répond par une
+  // redirection 301 vers "/vehicules", et "/index.html" vers "/". Cette
+  // redirection transmise au navigateur le faisait quitter /en/ pour
+  // atterrir sur la page française (symptôme constaté en production).
+  const pages = {
+    "/vehicules": fs.readFileSync(path.join(racine, "vehicules.html"), "utf8"),
+    "/": fs.readFileSync(path.join(racine, "index.html"), "utf8")
+  };
+  const demandes = [];
+  const env = {
+    ASSETS: {
+      fetch: async (requete) => {
+        const chemin = new URL(requete.url).pathname;
+        demandes.push(chemin);
+        if (chemin.endsWith(".html")) {
+          const cible = chemin === "/index.html" ? "/" : chemin.replace(/\.html$/, "");
+          return new Response(null, { status: 301, headers: { Location: cible } });
+        }
+        const contenu = pages[chemin];
+        if (!contenu) return new Response("Not found", { status: 404 });
+        return new Response(contenu, { headers: { "Content-Type": "text/html; charset=utf-8" } });
+      }
+    }
+  };
+
+  for (const [adresse, titreAttendu] of [
+    ["https://getlocation.fr/en/cars", i18n.SEO["vehicules.html"].titre],
+    ["https://getlocation.fr/en/", i18n.SEO["index.html"].titre]
+  ]) {
+    const url = new URL(adresse);
+    const reponse = await servirPageAnglaise(new Request(adresse), env, url);
+    assert.ok(reponse, `la page anglaise doit être servie pour ${adresse}`);
+    assert.equal(reponse.status, 200, `${adresse} ne doit pas renvoyer de redirection au visiteur`);
+    assert.equal(reponse.headers.get("Location"), null, "aucune redirection ne doit fuir vers le navigateur");
+    const corps = await reponse.text();
+    assert.ok(corps.includes(`<title>${titreAttendu}</title>`), `titre anglais absent pour ${adresse}`);
+  }
+
+  assert.deepEqual(demandes, ["/vehicules", "/"], "les assets doivent être demandés sous leur URL propre, sans aller-retour");
+});
