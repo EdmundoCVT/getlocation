@@ -7,7 +7,8 @@
   }
 
   function isResultsPage() {
-    return /\/vehicules(?:\.html)?$/.test(window.location.pathname) || /\/en\/cars\/?$/.test(window.location.pathname);
+    var path = window.location.pathname || "";
+    return /\/vehicules(?:\.html)?\/?$/.test(path) || /\/en\/cars\/?$/.test(path);
   }
 
   function hasValidSearch() {
@@ -46,7 +47,7 @@
 
   function rewriteDirectVehicleLinks() {
     if (isResultsPage()) return;
-    document.querySelectorAll('a[href*="vehicules.html"], a[href="/en/cars"], a[href="/en/cars/"]').forEach(function (link) {
+    document.querySelectorAll('a[href*="vehicules.html"], a[href="/vehicules"], a[href="/vehicules/"], a[href="/en/cars"], a[href="/en/cars/"]').forEach(function (link) {
       link.setAttribute("href", searchTarget());
       var text = (link.textContent || "").trim();
       if (/^Véhicules$/i.test(text) || /^Vehicles$/i.test(text)) {
@@ -93,7 +94,8 @@
   }
 
   function onPaymentPage() {
-    return /\/paiement(?:\.html)?$/.test(window.location.pathname) || /\/en\/payment\/?$/.test(window.location.pathname);
+    var path = window.location.pathname || "";
+    return /\/paiement(?:\.html)?\/?$/.test(path) || /\/en\/payment\/?$/.test(path);
   }
 
   function renderPaymentDepositDisclosure() {
