@@ -142,7 +142,8 @@ test("contrat front/API : le payload fetch() de create-payment dans js/app.js co
     conducteur: { nom: "Dupont", prenom: "Jean", email: "jean@example.com", telephone: "0600000000", naissance: "1995-06-15" },
     idempotencyKey: "test-key-123",
     cglAccepted: true,
-    cglVersion: dataJs.CGL_VERSION
+    cglVersion: dataJs.CGL_VERSION,
+    langue: "fr"
   };
   for (const champ of champsEnvoyes) {
     assert.ok(

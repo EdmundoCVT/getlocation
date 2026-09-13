@@ -33,7 +33,8 @@ function joursEntre(dateDebut, dateFin) {
 
 function formatDateHeureFR(iso, heure) {
   const base = formatDateFR(iso);
-  return heure ? `${base} à ${heure}` : base;
+  if (!heure) return base;
+  return langueSite() === "en" ? `${base} at ${heure}` : `${base} à ${heure}`;
 }
 
 function readJSON(key, fallback) {
@@ -221,7 +222,11 @@ function initDateBar({ getData, onApply }) {
 
   function refresh() {
     const d = getData();
-    textEl.textContent = `${formatDateHeureFR(d.dateDebut, d.heureDebut)} → ${formatDateHeureFR(d.dateFin, d.heureFin)} (${d.jours} jour${d.jours > 1 ? "s" : ""})`;
+    textEl.textContent = t("{debut} → {fin} ({jours})", {
+      debut: formatDateHeureFR(d.dateDebut, d.heureDebut),
+      fin: formatDateHeureFR(d.dateFin, d.heureFin),
+      jours: libelleJours(d.jours)
+    });
     inputDebut.value = d.dateDebut;
     selectHeureDebut.value = d.heureDebut;
     inputFin.min = d.dateDebut;
@@ -486,7 +491,7 @@ function initSearchForm() {
       heureFin: selectHeureFin ? selectHeureFin.value : "10:00",
       typeVehicule
     });
-    window.location.href = "vehicules.html";
+    allerVers("vehicules.html");
   });
 }
 
@@ -544,7 +549,12 @@ function initVehiculesPage() {
   const infoBar = document.getElementById("search-summary");
   function updateInfoBar() {
     if (!infoBar) return;
-    infoBar.textContent = `${libelleLieu(recherche.lieuPrise, recherche.adressePrise)} · du ${formatDateHeureFR(recherche.dateDebut, recherche.heureDebut)} au ${formatDateHeureFR(recherche.dateFin, recherche.heureFin)} (${jours} jour${jours > 1 ? "s" : ""})`;
+    infoBar.textContent = t("{lieu} · du {debut} au {fin} ({jours})", {
+      lieu: libelleLieu(recherche.lieuPrise, recherche.adressePrise),
+      debut: formatDateHeureFR(recherche.dateDebut, recherche.heureDebut),
+      fin: formatDateHeureFR(recherche.dateFin, recherche.heureFin),
+      jours: libelleJours(jours)
+    });
   }
   updateInfoBar();
 
@@ -722,7 +732,7 @@ function initVehiculesPage() {
             <span>${v.transmission}</span>
             <span>${v.clim ? "Climatisation" : "Sans clim"}</span>
             ${v.hybride ? '<span>Hybride</span>' : ''}
-            <span>Caution ${formatEUR(v.caution)}</span>
+            <span>${t("Caution {montant}", { montant: formatEUR(v.caution) })}</span>
           </div>
           <p class="hint-text">${v.description}</p>
           ${v.modelGuaranteed === false ? '<p class="hint-text">Le modèle présenté est indicatif. Un véhicule de catégorie équivalente peut être proposé.</p>' : ""}
@@ -730,7 +740,7 @@ function initVehiculesPage() {
             <div class="price"><span class="price-from">À partir de</span>${formatEUR(prixJourMinimum(v))}<small> / jour</small></div>
             <button class="btn btn-primary btn-sm" data-id="${v.id}">${estInstant ? "Réserver" : "Faire une demande"}</button>
           </div>
-          ${estInstant ? `<div class="hint-text">Total pour ${jours} jour${jours > 1 ? "s" : ""} : ${formatEUR(total)}${remise ? ` <span class="badge-remise">-${formatEUR(remise.montantParJour)}/jour dès ${remise.libelle.toLowerCase()}</span>` : ""}</div>` : ""}
+          ${estInstant ? `<div class="hint-text">${t("Total pour {jours} : {montant}", { jours: libelleJours(jours), montant: formatEUR(total) })}${remise ? ` <span class="badge-remise">-${formatEUR(remise.montantParJour)}/jour dès ${remise.libelle.toLowerCase()}</span>` : ""}</div>` : ""}
         </div>
       `;
       card.querySelector("button").addEventListener("click", () => {
@@ -740,13 +750,14 @@ function initVehiculesPage() {
             ...recherche,
             jours
           });
-          window.location.href = "reservation.html";
+          allerVers("reservation.html");
         } else {
           // Aucune réservation "sur demande" n'existe encore aujourd'hui :
           // repli simple par e-mail plutôt qu'un nouveau parcours serveur
           // non testé (voir points restants du compte rendu final).
-          const sujet = `Demande de réservation — ${v.nom}`;
-          const corps = `Bonjour,\n\nJe souhaite faire une demande de réservation pour : ${v.nom}\nDu ${recherche.dateDebut} au ${recherche.dateFin}.\n\nMerci de me recontacter.`;
+          const sujet = t("Demande de réservation — {vehicule}", { vehicule: v.nom });
+          const corps = t("Bonjour,\n\nJe souhaite faire une demande de réservation pour : {vehicule}\nDu {debut} au {fin}.\n\nMerci de me recontacter.",
+            { vehicule: v.nom, debut: recherche.dateDebut, fin: recherche.dateFin });
           window.location.href = `mailto:contact@getlocation.fr?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
         }
       });
@@ -785,7 +796,9 @@ function initVehiculesPage() {
 // (Entrée/Espace) bénéficie du même parcours que la souris.
 function initHomeVehicleLinks() {
   document.querySelectorAll("[data-vehicle-link]").forEach((card) => {
-    const navigate = () => { window.location.href = card.dataset.vehicleLink; };
+    // Carte cliquable : même règle de langue que les liens classiques
+    // (le visiteur anglais reste sur /en/…).
+    const navigate = () => { allerVers(card.dataset.vehicleLink); };
     card.addEventListener("click", (event) => {
       if (event.target.closest("a, button")) return;
       navigate();
@@ -799,9 +812,42 @@ function initHomeVehicleLinks() {
   });
 }
 
+// Langue de l'interface : dictée par l'URL (/en/…), voir js/i18n.js. Repli
+// sur le français si le moteur de traduction n'est pas chargé (page agence).
+function langueSite() {
+  return (window.GLI18N && window.GLI18N.langue()) || "fr";
+}
+// Traduction d'un texte généré en JS. Sans le moteur de traduction (pages
+// agence, qui ne le chargent pas), le texte français est conservé — mais ses
+// variables restent substituées, sans quoi le gabarit s'afficherait tel quel.
+function t(cle, variables) {
+  if (window.GLI18N) return window.GLI18N.t(cle, variables);
+  let resultat = cle;
+  if (variables) {
+    Object.keys(variables).forEach((nom) => {
+      resultat = resultat.split(`{${nom}}`).join(String(variables[nom]));
+    });
+  }
+  return resultat;
+}
+
+// « 4 jours » / « 4 days » — le pluriel est porté par la traduction elle-même.
+function libelleJours(nombre) {
+  return t(nombre > 1 ? "{nombre} jours" : "{nombre} jour", { nombre });
+}
+
+// Navigation interne : garde le visiteur dans sa langue. Sans le moteur
+// (pages agence), se comporte exactement comme avant.
+function allerVers(page) {
+  window.location.href = window.GLI18N ? window.GLI18N.urlVersLangue(page, window.GLI18N.langue()) : page;
+}
+
 function formatDateFR(iso) {
   const d = new Date(iso);
-  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+  // Les mois écrits en toutes lettres doivent suivre la langue affichée :
+  // « 13 Sept 2026 » sur la version anglaise, « 13 sept. 2026 » en français.
+  const locale = langueSite() === "en" ? "en-GB" : "fr-FR";
+  return d.toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" });
 }
 
 // Vignette véhicule : affiche la vraie photo si le fichier images/xxx.jpg existe,
@@ -982,12 +1028,12 @@ function initReservationPage() {
 
   const data = readReservationLocal();
   if (!data) {
-    window.location.href = "vehicules.html";
+    allerVers("vehicules.html");
     return;
   }
   const vehicule = getVehiculeParId(data.vehiculeId);
   if (!vehicule) {
-    window.location.href = "vehicules.html";
+    allerVers("vehicules.html");
     return;
   }
   // Compatibilité : réservations en cours démarrées avant l'ajout des
@@ -1149,13 +1195,14 @@ function initReservationPage() {
       title: "Assurance incluse",
       price: "Incluse",
       description: "Conservez la protection prévue dans votre contrat de location.",
-      detail: `Aucun supplément. Une caution de ${formatEUR(vehicule.caution)} reste prévue pour ce véhicule. Les conditions exactes figurent dans les conditions de location.`
+      detail: t("Aucun supplément. Une caution de {caution} reste prévue pour ce véhicule. Les conditions exactes figurent dans les conditions de location.",
+        { caution: formatEUR(vehicule.caution) })
     });
     if (assurancePassagers) {
       addProtectionCard({
         value: "passagers",
         title: assurancePassagers.nom,
-        price: `${formatEUR(assurancePassagers.prix)} / jour`,
+        price: t("{prix} / jour", { prix: formatEUR(assurancePassagers.prix) }),
         description: "Ajoutez une protection dédiée aux passagers du véhicule.",
         detail: `${assurancePassagers.description} Cette option s'ajoute à l'assurance incluse dans la location.`
       });
@@ -1429,7 +1476,7 @@ function initReservationPage() {
   const continueButton = document.getElementById("continue-to-payment");
   if (continueButton) {
     continueButton.addEventListener("click", () => {
-      window.location.href = "paiement.html";
+      allerVers("paiement.html");
     });
   }
 }
@@ -1604,7 +1651,7 @@ function initPaiementPage() {
 
   const data = readReservationLocal();
   if (!data) {
-    window.location.href = "vehicules.html";
+    allerVers("vehicules.html");
     return;
   }
   // Demande client : les coordonnées (nom/prénom/date de naissance/etc.) ne sont
@@ -1613,7 +1660,7 @@ function initPaiementPage() {
   // forcément encore ici (voir le formulaire plus bas).
   const vehicule = getVehiculeParId(data.vehiculeId);
   if (!vehicule) {
-    window.location.href = "vehicules.html";
+    allerVers("vehicules.html");
     return;
   }
   // Compatibilité : réservations en cours démarrées avant l'ajout des
@@ -1747,6 +1794,10 @@ function initPaiementPage() {
           conducteur: { ...data.conducteur, naissance: naissanceFrVersISO(data.conducteur.naissance) },
           cglAccepted: true,
           cglVersion: CGL_VERSION,
+          // Langue dans laquelle le client a réservé : sert plus tard aux
+          // e-mails, au WhatsApp et au contrat. Purement informatif, aucune
+          // règle de prix ou de disponibilité n'en dépend.
+          langue: langueSite(),
           idempotencyKey
         })
       });
@@ -1807,7 +1858,7 @@ function initConfirmationPage() {
   const reservationId = params.get("reservation");
 
   if (!reservationId || !/^res_[a-f0-9]{32}$/.test(reservationId)) {
-    window.location.href = "index.html";
+    allerVers("index.html");
     return;
   }
 
@@ -2010,7 +2061,7 @@ function initDocumentsPage() {
       const iso = naissanceFrVersISO(input.value);
       if (!iso) {
         const label = document.querySelector(`label[for="${name}"]`);
-        submitError.textContent = `Date invalide (JJ/MM/AAAA attendu) : ${label ? label.textContent : name}.`;
+        submitError.textContent = t("Date invalide (JJ/MM/AAAA attendu) : {champ}.", { champ: label ? label.textContent : name });
         input.focus();
         return;
       }
@@ -2085,7 +2136,7 @@ function initAgencyDocumentsPage() {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "btn btn-secondary";
-        button.textContent = `Télécharger ${file.type}`;
+        button.textContent = t("Télécharger {type}", { type: file.type });
         button.addEventListener("click", async () => {
           downloadError.textContent = "";
           button.disabled = true;

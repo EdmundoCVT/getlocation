@@ -219,6 +219,11 @@ async function handleCreatePayment(request, env) {
     total: totalFacture,
     cglVersion: payload.cglVersion,
     cglAcceptedAt: new Date().toISOString(),
+    // Langue dans laquelle le client a réservé (voir js/i18n.js), pour les
+    // échanges ultérieurs — e-mails, WhatsApp, contrat. Valeur strictement
+    // contrôlée ici : jamais reprise telle quelle depuis le navigateur, et
+    // sans aucun effet sur le prix ou la disponibilité.
+    langue: payload.langue === "en" ? "en" : "fr",
     conducteur: {
       nom: payload.conducteur.nom.trim(),
       prenom: payload.conducteur.prenom.trim(),

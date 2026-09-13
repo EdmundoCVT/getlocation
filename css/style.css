@@ -2297,3 +2297,54 @@ textarea:focus-visible,
   .gallery-lightbox-thumbs { display: none; }
   .gallery-lightbox-swipe-hint { display: block; }
 }
+
+/* ---------------------------------------------------------------
+   Sélecteur de langue FR | EN (injecté dans la navigation par
+   js/i18n.js, présent sur toutes les pages client) et mention de
+   langue des pages juridiques, dont le corps reste en français.
+   --------------------------------------------------------------- */
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #e3e8ea;
+  border-radius: 999px;
+  background: var(--gris-clair, #f6f4fb);
+  font-size: 0.82rem;
+  line-height: 1;
+}
+
+.main-nav .lang-switch-option {
+  padding: 6px 11px;
+  border-radius: 999px;
+  color: var(--gris-fonce, #2a2438);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+}
+
+.main-nav .lang-switch-option:hover { background: rgba(0, 0, 0, 0.05); }
+
+.main-nav .lang-switch-option.active {
+  background: var(--bleu-nuit, #1a2f52);
+  color: var(--blanc, #fff);
+}
+
+.legal-language-note {
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--bleu-ocean, #fd5301);
+  background: var(--sable-clair, #fef4ef);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 640px) {
+  /* Menu déroulant : le sélecteur passe en pleine largeur sous les liens,
+     toujours atteignable au pouce. */
+  .lang-switch {
+    align-self: flex-start;
+    margin: 10px 0 4px;
+  }
+}

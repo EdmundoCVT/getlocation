@@ -35,6 +35,7 @@ const { handleAgencyRentals } = require("./api/agency-rentals.js");
 const { handleAgencyPayments } = require("./api/agency-payments.js");
 const { handleAgencyDeposits } = require("./api/agency-deposits.js");
 const { runScheduledTasks } = require("./lib/scheduled-tasks.js");
+const { estCheminAnglais, servirPageAnglaise } = require("./lib/pages-en.js");
 
 const ROUTES = {
   "/api/create-payment": handleCreatePayment,
@@ -68,6 +69,13 @@ export default {
     const route = ROUTES[url.pathname];
     if (route) {
       return route(request, env, ctx);
+    }
+    // Version anglaise (/en/cars, /en/booking…) : même fichier HTML que la
+    // page française, servi avec ses métadonnées traduites (voir
+    // src/lib/pages-en.js). Les URLs françaises ne passent pas par ici.
+    if (estCheminAnglais(url.pathname)) {
+      const pageAnglaise = await servirPageAnglaise(request, env, url);
+      if (pageAnglaise) return pageAnglaise;
     }
     return env.ASSETS.fetch(request);
   },

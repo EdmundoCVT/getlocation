@@ -16,6 +16,31 @@ GETLOCATION — site de location de véhicules à Grasse (Alpes-Maritimes). Site
 - **`netlify.toml` et `netlify/functions/` sont legacy** : plus appelés par le site (l'ancien mécanisme cross-origin vers Netlify a été retiré de `js/app.js`), gardés temporairement comme filet de sécurité. **À supprimer** (+ dépendances `@netlify/blobs`, `@mollie/api-client`, `nodemailer` dans `package.json`) une fois la Phase B confirmée stable en production depuis un moment — demander confirmation avant de le faire.
 - **Secrets Cloudflare Worker déjà configurés en production** (via `wrangler secret put`, jamais dans le dépôt) : `MOLLIE_API_KEY` (mode **live**), `RESEND_API_KEY`, `AGENCY_EMAIL`, `TEST_DISCOUNT_CODE`. Domaine `getlocation.fr` vérifié sur Resend.
 
+## Bilingue FR / EN (depuis le 13/09/2026)
+
+Le site client existe en français (URLs inchangées) et en anglais (`/en/`,
+adresses lisibles : `/en/cars`, `/en/booking`, `/en/car-rental-nice`…).
+
+- **Une seule page HTML par écran**, écrite en français : rien n'est dupliqué.
+  `js/i18n.js` contient la traduction anglaise de chaque texte visible,
+  **indexée par le texte français lui-même**, et l'applique au chargement
+  quand l'URL commence par `/en/` (y compris sur le contenu ajouté ensuite
+  par `js/app.js`, via un MutationObserver).
+- **Conséquence à retenir** : modifier une phrase française sans mettre à
+  jour `js/i18n.js` fait disparaître sa traduction. `npm test` le détecte
+  (`tests/i18n-couverture.test.js` échoue en listant les textes manquants).
+- Textes générés en JS : passer par `t("texte français", { variable })`
+  (voir `MODELES` dans `js/i18n.js`), et par `allerVers("page.html")` pour
+  toute navigation interne, sinon le visiteur anglais retombe en français.
+- `src/lib/pages-en.js` (appelé par `src/worker.js`) sert le même fichier
+  HTML sous `/en/…` avec titre, description, canonique et chemins traduits —
+  indispensable au référencement, qui ne doit pas dépendre du JavaScript.
+- Le corps des pages juridiques (CGL, mentions légales, confidentialité)
+  reste **volontairement en français** : seule version faisant foi. Les pages
+  anglaises affichent la mention correspondante.
+- La langue choisie par le client est enregistrée sur la réservation
+  (`langue: "fr" | "en"`), pour les e-mails et le contrat.
+
 ## Règles critiques (ne jamais enfreindre)
 
 1. **`js/data.js` est la SEULE source de vérité** pour véhicules, tarifs, règles de calcul de durée/prix, CGL_VERSION. Chargé tel quel côté navigateur (`<script>`) ET par le code serveur (`require`/`import` — voir `src/lib`, anciennement `netlify/functions/lib`). Ne jamais dupliquer une valeur ou une règle de calcul ailleurs — un script (`scripts/check-vehicle-grid-sync.js`) détecte les divergences avec les grilles véhicules recopiées en dur dans 7 pages HTML.

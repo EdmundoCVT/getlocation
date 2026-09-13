@@ -84,7 +84,8 @@ function validateReservationInput(payload) {
     conducteur,
     idempotencyKey,
     cglAccepted,
-    cglVersion
+    cglVersion,
+    langue
   } = payload;
 
   const vehicule = typeof vehiculeId === "string" ? getVehiculeParId(vehiculeId) : null;
@@ -197,7 +198,13 @@ function validateReservationInput(payload) {
     errors.push("La version des conditions générales a été mise à jour, veuillez recharger la page et réessayer");
   }
 
-  return { valid: errors.length === 0, errors, vehicule, options: optionsNormalisees, codePromo: codePromoNormalise };
+  // Langue choisie par le client sur le site (voir js/i18n.js) : purement
+  // informative (e-mails, contrat), sans aucun effet sur le prix ou la
+  // disponibilité. Toute autre valeur que "en" est ramenée au français,
+  // plutôt que de refuser la réservation pour si peu.
+  const langueNormalisee = langue === "en" ? "en" : "fr";
+
+  return { valid: errors.length === 0, errors, vehicule, options: optionsNormalisees, codePromo: codePromoNormalise, langue: langueNormalisee };
 }
 
 module.exports = { validateReservationInput };
