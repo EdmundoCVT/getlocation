@@ -45,11 +45,26 @@ adresses lisibles : `/en/cars`, `/en/booking`, `/en/car-rental-nice`…).
     jamais chargé par le navigateur. Les e-mails destinés à l'AGENCE restent
     en français. Les liens qu'ils contiennent pointent vers la version du
     site correspondante (`/en/documents`…).
-  - **la mention de langue du contrat PDF** : le contrat reste rédigé en
-    français, seule version faisant foi (même règle que les CGL). Un client
-    anglophone voit, à l'entrée des conditions, une mention en anglais
-    l'indiquant. Le champ « Langue du client » de `contrat.html` est
-    pré-rempli depuis la réservation et reste modifiable par l'agence.
+  - **la langue du contrat PDF** : `js/contrat-en.js` contient la traduction
+    anglaise complète du contrat (intitulés, 6 articles, déclaration,
+    annexe état des lieux). Le champ « Langue du client » de `contrat.html`
+    est pré-rempli depuis la réservation et reste modifiable par l'agence.
+    - **La version française reste la seule qui fasse foi.** Le contrat
+      anglais porte en tête de ses conditions un avertissement qui le dit
+      (version française prévalente, droit et tribunaux français, aucune
+      obligation créée par une erreur de traduction). Ne jamais remplacer
+      cet avertissement par une exclusion générale de responsabilité :
+      inopposable à un consommateur, elle serait écartée.
+    - **Les chiffres s'écrivent à l'identique dans les deux versions**
+      (mêmes séparateurs) : un montant qui se lirait différemment sur deux
+      documents censés dire la même chose est exactement le risque que
+      l'avertissement écarte. Seules les dates suivent la langue.
+    - Modifier un article français sans le reporter dans `js/contrat-en.js`
+      fait échouer `npm test` (`tests/contrat-en.test.js` compare articles,
+      emplacements de valeurs et nombre de pages).
+    - Le texte libre saisi par l'agence (remarques particulières,
+      observations d'état des lieux) n'est jamais traduit : il figure tel
+      qu'il a été écrit.
 - Textes affichés venus de `js/data.js` (options, lieux, filtres) : leur
   traduction vit aussi dans `js/i18n.js` et `npm test` la vérifie
   (`tests/i18n-couverture.test.js`) — ils n'apparaissent dans aucun fichier

@@ -21,6 +21,7 @@ const path = require("path");
 const { JSDOM } = require("jsdom");
 
 const dataJsSource = fs.readFileSync(path.join(__dirname, "..", "js", "data.js"), "utf8");
+const contratEnSource = fs.readFileSync(path.join(__dirname, "..", "js", "contrat-en.js"), "utf8");
 const html = fs.readFileSync(path.join(__dirname, "..", "contrat.html"), "utf8");
 
 function extractScriptBody() {
@@ -109,6 +110,7 @@ function genererJournal(surcharges = {}, { estApercu = false, payloadExtra = {} 
   const win = dom.window;
   win.jspdf = { jsPDF: createFauxJsPdf(journal) };
   win.eval(dataJsSource);
+  win.eval(contratEnSource);
   win.eval(extractScriptBody());
   win.livrerPDF = function () {};
   const payload = win.construirePayload({ ...donneesBase, ...surcharges }, null, null);
@@ -258,51 +260,86 @@ test("synthèse financière : regroupe sans jamais recalculer (location + option
   dom.window.close();
 });
 
-// --- Client anglophone ---------------------------------------------------
+// --- Contrat établi en anglais -------------------------------------------
 //
-// Le contrat reste rédigé en FRANÇAIS quelle que soit la langue du client :
-// c'est la seule version faisant foi, comme les CGL du site. Un client ayant
-// réservé en anglais voit seulement une mention l'indiquant, en anglais.
+// Le contrat est traduit en entier, avec en tête de ses conditions un
+// avertissement disant que la version française est la seule qui fasse foi
+// (voir js/contrat-en.js). Les chiffres, eux, sont écrits à l'identique dans
+// les deux versions.
 
-test("client anglophone : mention de langue en anglais, contrat toujours en français", () => {
+test("contrat anglais : intitulés, articles et déclaration traduits", () => {
   const journal = genererJournal({ langueClient: "en" });
   const tout = journal.map((e) => e.texte).join(" | ");
 
-  assert.ok(
-    tout.includes("The French text is the legally binding version"),
-    "la mention de langue doit figurer sur le contrat d'un client anglophone"
-  );
-  // Le corps du contrat n'est pas traduit : les intitulés restent français.
-  assert.equal(pageDe(journal, "LOCATAIRE / CONDUCTEUR PRINCIPAL"), 1);
-  assert.ok(contient(journal, "TARIFICATION"), "le contrat reste rédigé en français");
+  ["RENTAL AGREEMENT", "RENTER / MAIN DRIVER", "VEHICLE", "PRICING", "RENTAL TOTAL",
+   "BALANCE DUE", "SECURITY DEPOSIT", "MAIN RENTAL CONDITIONS", "RENTER'S DECLARATION",
+   "SIGNATURES", "APPENDIX — VEHICLE CONDITION REPORT"].forEach((intitule) => {
+    assert.ok(tout.includes(intitule), `intitulé anglais manquant : ${intitule}`);
+  });
+
+  // Les six articles sont là, en anglais.
+  ["Subject and term", "Price and payment", "Mileage and fuel",
+   "Security deposit and insurance", "Return, late return and incidents",
+   "Acceptance of the General Rental Conditions"].forEach((titre) => {
+    assert.ok(tout.includes(titre), `article anglais manquant : ${titre}`);
+  });
+
+  assert.ok(tout.includes("By signing this agreement, the renter declares"), "déclaration non traduite");
 });
 
-test("client francophone : aucune mention de langue ajoutée", () => {
-  const journal = genererJournal();
-  assert.equal(
-    journal.some((e) => e.texte.includes("legally binding version")),
-    false,
-    "un contrat français ne doit porter aucune mention anglaise"
-  );
-});
-
-test("la mention anglaise ne décale aucune section : même nombre de pages qu'en français", () => {
-  // Placée en page de synthèse, elle repoussait la section GARANTIE sur une
-  // page à elle seule (défaut déjà corrigé lors de la refonte visuelle) :
-  // elle vit donc à l'entrée des conditions, où elle concerne directement le
-  // texte engageant.
-  const pagesFr = Math.max(...genererJournal().map((e) => e.page));
-  const pagesEn = Math.max(...genererJournal({ langueClient: "en" }).map((e) => e.page));
-  assert.equal(pagesEn, pagesFr, "la mention de langue ne doit ajouter aucune page");
-
+test("contrat anglais : plus aucun intitulé français imprimé", () => {
   const journal = genererJournal({ langueClient: "en" });
-  const mention = journal.find((e) => e.texte.includes("legally binding version"));
-  assert.equal(mention.page, pageDe(journal, "PRINCIPALES CONDITIONS DE LOCATION"),
-    "la mention doit figurer avec les conditions, pas sur la page de synthèse");
+  // Intitulés du contrat français qui ne doivent plus apparaître. Le texte
+  // libre saisi par l'agence (remarques, observations) reste en revanche tel
+  // qu'il a été écrit — il n'est jamais traduit automatiquement.
+  const intitulesFrancais = [
+    "CONTRAT DE LOCATION", "LOCATAIRE / CONDUCTEUR PRINCIPAL", "VÉHICULE", "TARIFICATION",
+    "TOTAL LOCATION", "RESTE À PAYER", "GARANTIE", "PRINCIPALES CONDITIONS DE LOCATION",
+    "DÉCLARATION DU LOCATAIRE", "ANNEXE — ÉTAT DES LIEUX DU VÉHICULE",
+    "Objet et durée", "Prix et règlement", "Kilométrage et carburant"
+  ];
+  const restes = intitulesFrancais.filter((intitule) => journal.some((e) => e.texte.includes(intitule)));
+  assert.deepEqual(restes, [], "ces intitulés français figurent encore sur le contrat anglais");
 });
 
-test("la langue du client ne change aucun montant ni aucune mention contractuelle", () => {
-  const francais = genererJournal().filter((e) => /€/.test(e.texte)).map((e) => e.texte);
-  const anglais = genererJournal({ langueClient: "en" }).filter((e) => /€/.test(e.texte)).map((e) => e.texte);
-  assert.deepEqual(anglais, francais, "les montants doivent être strictement identiques dans les deux cas");
+test("contrat anglais : avertissement de traduction en tête des conditions", () => {
+  const journal = genererJournal({ langueClient: "en" });
+  const avertissement = journal.find((e) => e.texte.includes("only legally binding version"));
+  assert.ok(avertissement, "l'avertissement de traduction doit figurer sur le contrat");
+  assert.equal(avertissement.page, pageDe(journal, "MAIN RENTAL CONDITIONS"),
+    "l'avertissement doit précéder les conditions, là où il concerne le texte engageant");
+  assert.ok(contient(journal, "IMPORTANT — ENGLISH TRANSLATION".toUpperCase()) ||
+    journal.some((e) => /IMPORTANT/i.test(e.texte)), "le titre de l'avertissement doit être visible");
+});
+
+test("contrat français : aucun mot anglais ajouté", () => {
+  const journal = genererJournal();
+  assert.equal(journal.some((e) => /legally binding|RENTAL AGREEMENT/.test(e.texte)), false,
+    "un contrat français ne doit porter aucune mention anglaise");
+  assert.ok(contient(journal, "LOCATAIRE / CONDUCTEUR PRINCIPAL"));
+});
+
+test("la version anglaise n'ajoute aucune page et ne change aucun chiffre", () => {
+  const journalFr = genererJournal();
+  const journalEn = genererJournal({ langueClient: "en" });
+
+  assert.equal(
+    Math.max(...journalEn.map((e) => e.page)),
+    Math.max(...journalFr.map((e) => e.page)),
+    "la traduction ne doit pas ajouter de page"
+  );
+
+  // Montants et kilométrages : écrits à l'identique des deux côtés. Une
+  // valeur qui se lirait différemment sur les deux documents serait
+  // exactement l'erreur que l'avertissement de traduction doit éviter.
+  // On compare les VALEURS elles-mêmes, extraites du texte complet : la
+  // ponctuation, elle, diffère légitimement (l'anglais ne met pas d'espace
+  // avant les deux-points).
+  const valeurs = (journal) => {
+    const tout = journal.map((e) => e.texte).join(" ");
+    const montants = tout.match(/\d[\d\s\u00a0\u202f]*(?:,\d+)?\s?€/g) || [];
+    const kilometres = tout.match(/\d[\d\s\u00a0\u202f]*\s?km/g) || [];
+    return montants.concat(kilometres).map((v) => v.replace(/[\s\u00a0\u202f]/g, "")).sort();
+  };
+  assert.deepEqual(valeurs(journalEn), valeurs(journalFr), "les montants ou kilométrages diffèrent entre les deux versions");
 });
