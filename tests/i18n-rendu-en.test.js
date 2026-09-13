@@ -16,7 +16,7 @@ const path = require("path");
 const { JSDOM } = require("jsdom");
 
 const i18n = require("../js/i18n.js");
-const { traduireEnTete, fichierPourCheminAnglais, estCheminAnglais } = require("../src/lib/pages-en.js");
+const { traduireEnTete, fichierPourCheminAnglais, estCheminAnglais, servirPageAnglaise } = require("../src/lib/pages-en.js");
 
 const racine = path.join(__dirname, "..");
 const sourceI18n = fs.readFileSync(path.join(racine, "js", "i18n.js"), "utf8");
@@ -198,4 +198,34 @@ test("chaque page française déclare ses deux versions linguistiques (hreflang)
     assert.ok(html.includes('hreflang="x-default"'), `hreflang x-default manquant sur ${page}`);
     assert.ok(html.includes("js/i18n.js"), `js/i18n.js n'est pas chargé par ${page}`);
   });
+});
+
+test("réponse servie sous /en/ : en-têtes décrivant le corps français retirés", async () => {
+  const html = fs.readFileSync(path.join(racine, "index.html"), "utf8");
+  const env = {
+    ASSETS: {
+      // Imite le service de fichiers statiques Cloudflare : en-têtes décrivant
+      // précisément le fichier français (longueur, empreinte, compression).
+      fetch: async () => new Response(html, {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Content-Length": String(Buffer.byteLength(html)),
+          "Content-Encoding": "gzip",
+          ETag: '"abc123"',
+          "Cache-Control": "no-cache"
+        }
+      })
+    }
+  };
+  const requete = new Request("https://getlocation.fr/en/");
+  const reponse = await servirPageAnglaise(requete, env, new URL("https://getlocation.fr/en/"));
+
+  assert.ok(reponse, "la page anglaise doit être servie");
+  assert.equal(reponse.headers.get("Content-Language"), "en");
+  ["Content-Length", "Content-Encoding", "ETag"].forEach((entete) => {
+    assert.equal(reponse.headers.get(entete), null, `${entete} décrivait la version française et doit être retiré`);
+  });
+  // Les en-têtes qui restent valables sont conservés.
+  assert.equal(reponse.headers.get("Cache-Control"), "no-cache");
+  assert.match(await reponse.text(), /<title>GETLOCATION — Car Rental/);
 });

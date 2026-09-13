@@ -155,6 +155,14 @@ async function servirPageAnglaise(request, env, url) {
   const html = await reponse.text();
   const entetes = new Headers(reponse.headers);
   entetes.set("Content-Language", "en");
+  // Le corps renvoyé n'est plus celui de la page française (titre,
+  // description, chemins) : les en-têtes qui le décrivaient à l'octet près
+  // sont devenus faux. Les garder ferait tronquer ou rejeter la réponse par
+  // le navigateur, et l'empreinte ETag ferait resservir la version française
+  // depuis le cache.
+  entetes.delete("Content-Length");
+  entetes.delete("Content-Encoding");
+  entetes.delete("ETag");
   return new Response(traduireEnTete(html, fichier), { status: reponse.status, headers: entetes });
 }
 
