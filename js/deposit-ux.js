@@ -1,6 +1,4 @@
-// GETLOCATION — affichage de la caution uniquement à l'étape de paiement.
-// La donnée de caution reste inchangée dans js/data.js pour les contrats,
-// le back-office et les traitements métier.
+// GETLOCATION — UX client : caution + accès aux véhicules après recherche datée.
 (function () {
   "use strict";
 
@@ -8,19 +6,63 @@
     return /^\/en(\/|$)/.test(window.location.pathname || "");
   }
 
-  function hideEarlyDepositAmounts(root) {
-    var scope = root && root.querySelectorAll ? root : document;
+  function isResultsPage() {
+    return /\/vehicules(?:\.html)?$/.test(window.location.pathname) || /\/en\/cars\/?$/.test(window.location.pathname);
+  }
 
-    // Cartes véhicules : supprime uniquement le badge de caution.
-    scope.querySelectorAll(".vehicle-specs span").forEach(function (span) {
-      var text = (span.textContent || "").trim();
-      if (/^Caution\s+[\d\s.,]+\s*€$/i.test(text) || /^€\s*[\d\s.,]+\s*deposit$/i.test(text)) {
-        span.remove();
+  function hasValidSearch() {
+    try {
+      var raw = window.localStorage.getItem("gl_recherche");
+      if (!raw) return false;
+      var search = JSON.parse(raw);
+      if (!search || !search.dateDebut || !search.dateFin || !search.heureDebut || !search.heureFin || !search.typeVehicule) return false;
+      var start = new Date(search.dateDebut + "T" + search.heureDebut + ":00");
+      var end = new Date(search.dateFin + "T" + search.heureFin + ":00");
+      return Number.isFinite(start.getTime()) && Number.isFinite(end.getTime()) && end > start;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function searchTarget() {
+    if (document.getElementById("search-form")) return "#search-form";
+    return isEnglish() ? "/en/#search-form" : "/#search-form";
+  }
+
+  function gateResultsPage() {
+    if (!isResultsPage() || hasValidSearch()) return false;
+    window.location.replace(searchTarget());
+    return true;
+  }
+
+  function removePreSearchVehicleSections() {
+    if (isResultsPage()) return;
+    document.querySelectorAll(".vehicle-grid").forEach(function (grid) {
+      var section = grid.closest("section");
+      if (section) section.remove();
+      else grid.remove();
+    });
+  }
+
+  function rewriteDirectVehicleLinks() {
+    if (isResultsPage()) return;
+    document.querySelectorAll('a[href*="vehicules.html"], a[href="/en/cars"], a[href="/en/cars/"]').forEach(function (link) {
+      link.setAttribute("href", searchTarget());
+      var text = (link.textContent || "").trim();
+      if (/^Véhicules$/i.test(text) || /^Vehicles$/i.test(text)) {
+        link.textContent = isEnglish() ? "Book" : "Réserver";
+      } else if (/Voir les véhicules/i.test(text) || /View vehicles/i.test(text) || /Voir tous les véhicules/i.test(text) || /View all vehicles/i.test(text)) {
+        link.textContent = isEnglish() ? "Find a vehicle" : "Trouver un véhicule";
       }
     });
+  }
 
-    // Étape Protection : conserve l'explication de couverture, mais ne
-    // révèle plus le montant de caution avant l'étape de règlement.
+  function hideEarlyDepositAmounts(root) {
+    var scope = root && root.querySelectorAll ? root : document;
+    scope.querySelectorAll(".vehicle-specs span").forEach(function (span) {
+      var text = (span.textContent || "").trim();
+      if (/^Caution\s+[\d\s.,]+\s*€$/i.test(text) || /^€\s*[\d\s.,]+\s*deposit$/i.test(text)) span.remove();
+    });
     scope.querySelectorAll(".choice-details p").forEach(function (p) {
       var text = (p.textContent || "").trim();
       if (/caution\s+de\s+[\d\s.,]+\s*€/i.test(text) || /deposit\s+of\s+€?[\d\s.,]+/i.test(text)) {
@@ -29,8 +71,6 @@
           : "Aucun supplément. Les conditions du dépôt de garantie seront rappelées au moment du règlement.";
       }
     });
-
-    // La FAQ ne doit plus affirmer que le montant apparaît sur chaque fiche.
     scope.querySelectorAll(".faq-item p").forEach(function (p) {
       var text = (p.textContent || "").trim();
       if (text.indexOf("Son montant exact est affiché sur chaque fiche véhicule") !== -1) {
@@ -60,7 +100,6 @@
     if (!onPaymentPage()) return;
     var summary = document.getElementById("payment-summary");
     if (!summary || document.getElementById("payment-deposit-disclosure")) return;
-
     var vehicle = reservationVehicle();
     if (!vehicle || !Number.isFinite(vehicle.caution)) return;
 
@@ -86,7 +125,6 @@
     box.append(title, amount, text);
     summary.appendChild(box);
 
-    // Harmonise la petite mention sous le bouton de paiement.
     document.querySelectorAll(".pay-lock + .hint-text").forEach(function (hint) {
       hint.textContent = isEnglish()
         ? "The security deposit is handled separately when the vehicle is handed over."
@@ -99,11 +137,15 @@
     renderPaymentDepositDisclosure();
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", function () { refresh(document); });
-  } else {
+  function init() {
+    if (gateResultsPage()) return;
+    removePreSearchVehicleSections();
+    rewriteDirectVehicleLinks();
     refresh(document);
   }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
 
   if (window.MutationObserver) {
     var observer = new MutationObserver(function (mutations) {
