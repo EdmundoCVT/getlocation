@@ -52,39 +52,65 @@ const ROUTES = {
   "/api/contracts-manual-create": handleContractsManualCreate,
   "/api/contracts-manual-update": handleContractsManualUpdate,
   "/api/contracts-history": handleContractsHistory,
-  // Lot 1 (voir CLAUDE.md) : authentification agence (Edmundo/Antonio).
   "/api/agency-login": handleAgencyLogin,
   "/api/agency-logout": handleAgencyLogout,
   "/api/agency-session": handleAgencySession,
-  // Lot 2 (voir CLAUDE.md) : clients, locations, paiements, cautions.
   "/api/agency-clients": handleAgencyClients,
   "/api/agency-rentals": handleAgencyRentals,
   "/api/agency-payments": handleAgencyPayments,
   "/api/agency-deposits": handleAgencyDeposits
 };
 
-// Charge le correctif UX de caution sur toutes les pages HTML client sans
-// dupliquer une balise <script> dans chaque fichier statique. Les réponses
-// API et les assets non HTML restent strictement inchangés.
-async function withDepositUX(response) {
+function isVehicleResultsPath(pathname) {
+  return /\/vehicules(?:\.html)?\/?$/.test(pathname) || /\/en\/cars\/?$/.test(pathname);
+}
+
+function hideCatalogBeforeSearch(html, pathname) {
+  if (isVehicleResultsPath(pathname)) return html;
+
+  // Les catalogues historiques de l'accueil et des pages locales sont retirés
+  // côté Worker : le client doit d'abord choisir ses dates dans le moteur de
+  // recherche. La page de résultats reste intacte.
+  html = html.replace(/<section\b[\s\S]*?<\/section>/gi, (section) => {
+    return /class=["'][^"']*vehicle-grid[^"']*["']|class=["']vehicle-grid["']/i.test(section)
+      ? ""
+      : section;
+  });
+
+  // Les anciens liens directs vers le catalogue renvoient désormais vers le
+  // moteur de recherche de la page courante.
+  html = html.replace(/href=["'](?:\/?vehicules(?:\.html)?(?:\?[^"']*)?|\/en\/cars\/?)['"]/gi, 'href="#search-form"');
+  html = html.replace(/>Véhicules<\/a>/gi, ">Réserver</a>");
+  html = html.replace(/>Voir(?: tous)? les véhicules<\/a>/gi, ">Trouver un véhicule</a>");
+  html = html.replace(/>Vehicles<\/a>/gi, ">Book</a>");
+  html = html.replace(/>View(?: all)? vehicles<\/a>/gi, ">Find a vehicle</a>");
+
+  return html;
+}
+
+async function withClientUX(response, pathname) {
   if (!response) return response;
   const type = response.headers.get("content-type") || "";
   if (!type.includes("text/html")) return response;
 
-  const html = await response.text();
-  if (html.includes("/js/deposit-ux.js")) {
-    return new Response(html, response);
-  }
+  let html = await response.text();
+  html = hideCatalogBeforeSearch(html, pathname);
 
-  const script = '<script src="/js/deposit-ux.js?v=1"></script>';
-  const body = html.includes("</body>")
-    ? html.replace("</body>", `${script}\n</body>`)
-    : `${html}\n${script}`;
+  if (!html.includes("/js/deposit-ux.js")) {
+    const script = '<script src="/js/deposit-ux.js?v=2"></script>';
+    html = html.includes("</body>")
+      ? html.replace("</body>", `${script}\n</body>`)
+      : `${html}\n${script}`;
+  } else {
+    html = html.replace(/\/js\/deposit-ux\.js\?v=\d+/g, "/js/deposit-ux.js?v=2");
+  }
 
   const headers = new Headers(response.headers);
   headers.delete("content-length");
   headers.delete("etag");
-  return new Response(body, {
+  headers.set("cache-control", "no-cache");
+
+  return new Response(html, {
     status: response.status,
     statusText: response.statusText,
     headers
@@ -98,18 +124,12 @@ export default {
     if (route) {
       return route(request, env, ctx);
     }
-    // Version anglaise (/en/cars, /en/booking…) : même fichier HTML que la
-    // page française, servi avec ses métadonnées traduites (voir
-    // src/lib/pages-en.js). Les URLs françaises ne passent pas par ici.
     if (estCheminAnglais(url.pathname)) {
       const pageAnglaise = await servirPageAnglaise(request, env, url);
-      if (pageAnglaise) return withDepositUX(pageAnglaise);
+      if (pageAnglaise) return withClientUX(pageAnglaise, url.pathname);
     }
-    return withDepositUX(await env.ASSETS.fetch(request));
+    return withClientUX(await env.ASSETS.fetch(request), url.pathname);
   },
-  // Orchestration détaillée (ordre, gestion des échecs) dans
-  // lib/scheduled-tasks.js — ce point d'entrée reste un simple assembleur,
-  // comme le reste de ce fichier (voir en-tête).
   async scheduled(controller, env, ctx) {
     ctx.waitUntil(runScheduledTasks(env));
   }
