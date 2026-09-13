@@ -63,6 +63,34 @@ const ROUTES = {
   "/api/agency-deposits": handleAgencyDeposits
 };
 
+// Charge le correctif UX de caution sur toutes les pages HTML client sans
+// dupliquer une balise <script> dans chaque fichier statique. Les réponses
+// API et les assets non HTML restent strictement inchangés.
+async function withDepositUX(response) {
+  if (!response) return response;
+  const type = response.headers.get("content-type") || "";
+  if (!type.includes("text/html")) return response;
+
+  const html = await response.text();
+  if (html.includes("/js/deposit-ux.js")) {
+    return new Response(html, response);
+  }
+
+  const script = '<script src="/js/deposit-ux.js?v=1"></script>';
+  const body = html.includes("</body>")
+    ? html.replace("</body>", `${script}\n</body>`)
+    : `${html}\n${script}`;
+
+  const headers = new Headers(response.headers);
+  headers.delete("content-length");
+  headers.delete("etag");
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -75,9 +103,9 @@ export default {
     // src/lib/pages-en.js). Les URLs françaises ne passent pas par ici.
     if (estCheminAnglais(url.pathname)) {
       const pageAnglaise = await servirPageAnglaise(request, env, url);
-      if (pageAnglaise) return pageAnglaise;
+      if (pageAnglaise) return withDepositUX(pageAnglaise);
     }
-    return env.ASSETS.fetch(request);
+    return withDepositUX(await env.ASSETS.fetch(request));
   },
   // Orchestration détaillée (ordre, gestion des échecs) dans
   // lib/scheduled-tasks.js — ce point d'entrée reste un simple assembleur,
