@@ -70,6 +70,51 @@ test("chaque texte visible des pages client a une traduction anglaise", () => {
   );
 });
 
+// Les textes commerciaux (options, lieux, paliers de remise, descriptions de
+// véhicules) ne vivent PAS dans les fichiers HTML mais dans js/data.js, seule
+// source de vérité (règle n°1 du CLAUDE.md) : js/app.js les insère dans la
+// page à l'exécution. Le test ci-dessus, qui ne lit que le HTML, ne les voyait
+// donc pas — c'est ainsi que le tunnel de réservation s'est retrouvé en
+// français sur la version anglaise (options, « Livraison du véhicule »…).
+test("chaque texte de js/data.js affiché au client a une traduction anglaise", () => {
+  const data = require("../js/data.js");
+  const aTraduire = [];
+
+  data.OPTIONS.forEach((option) => aTraduire.push(option.nom, option.description));
+  data.LIEUX.forEach((lieu) => aTraduire.push(lieu));
+  data.REDUCTIONS_DUREE.forEach((palier) => aTraduire.push(palier.libelle));
+  data.VEHICULES.forEach((vehicule) => aTraduire.push(vehicule.description));
+  // Libellés des filtres du catalogue.
+  [data.FAMILLES_VEHICULE, data.TYPES_VOITURE, data.CARBURANTS].forEach((groupe) => {
+    (groupe || []).forEach((entree) => aTraduire.push(entree.label));
+  });
+  (data.CATEGORIES || []).forEach((categorie) => aTraduire.push(categorie));
+
+  const manquants = aTraduire.filter(
+    (texte) => texte && !SANS_TRADUCTION.has(texte) && i18n.TRADUCTIONS[texte] === undefined
+  );
+  assert.deepEqual(manquants, [], "textes de js/data.js sans traduction anglaise (à ajouter dans js/i18n.js)");
+});
+
+// Les descriptions des codes promo sont reconstruites par js/app.js à partir
+// des champs structurés (pourcentage / montant) : ce sont ces modèles-là qui
+// doivent exister, pas une entrée par code promo.
+test("les remises promo sont traduites par modèle, pas code par code", () => {
+  const data = require("../js/data.js");
+  assert.ok(i18n.MODELES["{pourcentage} % de réduction"], "modèle de remise en pourcentage manquant");
+  assert.ok(i18n.MODELES["{montant} € de réduction"], "modèle de remise en euros manquant");
+
+  // Le français reconstruit doit rester mot pour mot celui de js/data.js,
+  // sinon l'affichage français changerait sans qu'on s'en aperçoive.
+  Object.keys(data.CODES_PROMO).forEach((code) => {
+    const promo = data.CODES_PROMO[code];
+    const reconstruit = promo.pourcentage !== undefined
+      ? `${promo.pourcentage} % de réduction`
+      : `${promo.montant} € de réduction`;
+    assert.equal(reconstruit, promo.description, `libellé promo divergent pour ${code}`);
+  });
+});
+
 test("les pages juridiques n'ont que leur en-tête traduit : leur corps reste en français", () => {
   // Le corps des CGL/mentions/confidentialité ne doit JAMAIS se retrouver
   // dans le dictionnaire : la version française est la seule qui fasse foi.

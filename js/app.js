@@ -499,9 +499,11 @@ function initSearchForm() {
 // affiche l'adresse plutôt que le libellé générique.
 function libelleLieu(lieu, adresse) {
   if (lieu === LIEU_LIVRAISON && adresse) {
-    return `Livraison — ${libelleAdresseLivraison(adresse)}`;
+    return t("Livraison — {adresse}", { adresse: libelleAdresseLivraison(adresse) });
   }
-  return lieu;
+  // Les lieux viennent de js/data.js, donc en français (« Livraison à
+  // l'adresse de votre choix ») : leur traduction est indexée sur ce texte.
+  return t(lieu);
 }
 
 /* ---------------------------------------------------------
@@ -740,7 +742,7 @@ function initVehiculesPage() {
             <div class="price"><span class="price-from">À partir de</span>${formatEUR(prixJourMinimum(v))}<small> / jour</small></div>
             <button class="btn btn-primary btn-sm" data-id="${v.id}">${estInstant ? "Réserver" : "Faire une demande"}</button>
           </div>
-          ${estInstant ? `<div class="hint-text">${t("Total pour {jours} : {montant}", { jours: libelleJours(jours), montant: formatEUR(total) })}${remise ? ` <span class="badge-remise">-${formatEUR(remise.montantParJour)}/jour dès ${remise.libelle.toLowerCase()}</span>` : ""}</div>` : ""}
+          ${estInstant ? `<div class="hint-text">${t("Total pour {jours} : {montant}", { jours: libelleJours(jours), montant: formatEUR(total) })}${remise ? ` <span class="badge-remise">${t("-{montant}/jour dès {palier}", { montant: formatEUR(remise.montantParJour), palier: t(remise.libelle).toLowerCase() })}</span>` : ""}</div>` : ""}
         </div>
       `;
       card.querySelector("button").addEventListener("click", () => {
@@ -860,11 +862,23 @@ function formatDateFR(iso) {
 // tout en gardant data-gallery/le clic vers les vraies photos (voir l'appelant
 // à la ligne ~353). preferCutout=false (résumé réservation/paiement, vignette
 // plus petite) garde le comportement d'origine : vraie photo en priorité.
+// Les chemins de photos de js/data.js sont RELATIFS ("images/opel-corsa.jpg") :
+// justes à la racine du site, ils désignent "/en/images/opel-corsa.jpg" — donc
+// rien du tout — sur une adresse anglaise, et la vignette retombait alors sur
+// l'emoji de secours. On les rend absolus au moment de l'affichage : js/data.js
+// reste la seule source de vérité (règle n°1 du CLAUDE.md), on ne fait que
+// résoudre son chemin par rapport à la racine plutôt qu'à la page courante.
+function cheminMedia(chemin) {
+  const valeur = String(chemin || "").trim();
+  if (!valeur || /^(https?:|data:|\/)/i.test(valeur)) return valeur;
+  return "/" + valeur.replace(/^\.\//, "");
+}
+
 function pictureVehicule(v, imgClass, preferCutout = false) {
   if (preferCutout && v.photoCutout) {
     return `
       <picture>
-        <img src="${v.photoCutout}" alt="${v.nom}" class="${imgClass} is-cutout" loading="lazy" decoding="async" width="900" height="620" onerror="this.classList.remove('is-cutout')">
+        <img src="${cheminMedia(v.photoCutout)}" alt="${v.nom}" class="${imgClass} is-cutout" loading="lazy" decoding="async" width="900" height="620" onerror="this.classList.remove('is-cutout')">
       </picture>
     `;
   }
@@ -873,8 +887,8 @@ function pictureVehicule(v, imgClass, preferCutout = false) {
     const p0 = v.photos[0];
     return `
       <picture>
-        <source srcset="${p0.thumbWebp} 700w, ${p0.webp} 1400w" sizes="(max-width: 480px) 90vw, 340px" type="image/webp">
-        <img src="${p0.thumbJpg}" alt="${v.nom}" class="${imgClass}" loading="lazy" decoding="async" width="1400" height="1050" onerror="this.remove()">
+        <source srcset="${cheminMedia(p0.thumbWebp)} 700w, ${cheminMedia(p0.webp)} 1400w" sizes="(max-width: 480px) 90vw, 340px" type="image/webp">
+        <img src="${cheminMedia(p0.thumbJpg)}" alt="${v.nom}" class="${imgClass}" loading="lazy" decoding="async" width="1400" height="1050" onerror="this.remove()">
       </picture>
     `;
   }
@@ -883,15 +897,15 @@ function pictureVehicule(v, imgClass, preferCutout = false) {
     // le fond de la carte (gris très clair) fait office de socle.
     return `
       <picture>
-        <img src="${v.photoCutout}" alt="${v.nom}" class="${imgClass} is-cutout" loading="lazy" decoding="async" width="900" height="620" onerror="this.classList.remove('is-cutout')">
+        <img src="${cheminMedia(v.photoCutout)}" alt="${v.nom}" class="${imgClass} is-cutout" loading="lazy" decoding="async" width="900" height="620" onerror="this.classList.remove('is-cutout')">
       </picture>
     `;
   }
-  const webp = v.photo.replace(/\.jpe?g$/i, ".webp");
+  const webp = cheminMedia(v.photo.replace(/\.jpe?g$/i, ".webp"));
   return `
     <picture>
       <source srcset="${webp}" type="image/webp">
-      <img src="${v.photo}" alt="${v.nom}" class="${imgClass}" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
+      <img src="${cheminMedia(v.photo)}" alt="${v.nom}" class="${imgClass}" loading="lazy" decoding="async" width="1000" height="750" onerror="this.remove()">
     </picture>
   `;
 }
@@ -984,9 +998,9 @@ function showGalleryIndex(i) {
   galleryState.index = (i + photos.length) % photos.length;
   const photo = photos[galleryState.index];
 
-  el.querySelector(".gallery-lightbox-source").srcset = photo.webp;
+  el.querySelector(".gallery-lightbox-source").srcset = cheminMedia(photo.webp);
   const img = el.querySelector(".gallery-lightbox-img");
-  img.src = photo.jpg;
+  img.src = cheminMedia(photo.jpg);
   img.alt = `${galleryState.vehiculeNom}${photo.legende ? " — " + photo.legende : ""}`;
   el.querySelector(".gallery-lightbox-caption").textContent = `${galleryState.vehiculeNom}${photo.legende ? " — " + photo.legende : ""}`;
   el.querySelector(".gallery-lightbox-counter").textContent = photos.length > 1 ? `${galleryState.index + 1} / ${photos.length}` : "";
@@ -994,7 +1008,7 @@ function showGalleryIndex(i) {
 
   const thumbs = el.querySelector(".gallery-lightbox-thumbs");
   thumbs.innerHTML = photos.length > 1
-    ? photos.map((p, pi) => `<img src="${p.thumbJpg}" data-i="${pi}" class="${pi === galleryState.index ? "is-active" : ""}" alt="Photo ${pi + 1}">`).join("")
+    ? photos.map((p, pi) => `<img src="${cheminMedia(p.thumbJpg)}" data-i="${pi}" class="${pi === galleryState.index ? "is-active" : ""}" alt="Photo ${pi + 1}">`).join("")
     : "";
   thumbs.querySelectorAll("img").forEach(t => t.addEventListener("click", () => showGalleryIndex(Number(t.dataset.i))));
 }
@@ -1088,7 +1102,7 @@ function initReservationPage() {
     routeDiv.textContent = `${libelleLieu(data.lieuPrise, data.adressePrise)} → ${libelleLieu(data.lieuRetour, data.adresseRetour)}`;
     const datesDiv = document.createElement("div");
     datesDiv.className = "hint-text";
-    datesDiv.textContent = `${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${data.jours} jour${data.jours > 1 ? "s" : ""})`;
+    datesDiv.textContent = `${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${libelleJours(data.jours)})`;
     infoDiv.append(nameDiv, routeDiv, datesDiv);
     vehicleBlock.appendChild(infoDiv);
     container.appendChild(vehicleBlock);
@@ -1104,7 +1118,13 @@ function initReservationPage() {
         promoMessage.textContent = "";
         promoMessage.classList.remove("is-success");
       } else if (prix.codePromo) {
-        promoMessage.textContent = `Code "${prix.codePromo.code}" appliqué : ${prix.codePromo.description}.`;
+        // La remise est reformulée à partir des champs structurés plutôt que
+        // du texte tout fait de js/data.js : même phrase en français, et une
+        // seule traduction à maintenir au lieu d'une par code promo.
+        const remisePromo = prix.codePromo.pourcentage !== undefined
+          ? t("{pourcentage} % de réduction", { pourcentage: prix.codePromo.pourcentage })
+          : t("{montant} € de réduction", { montant: prix.codePromo.montant });
+        promoMessage.textContent = t('Code "{code}" appliqué : {remise}.', { code: prix.codePromo.code, remise: remisePromo });
         promoMessage.classList.add("is-success");
       } else if (data._codePromoTestValide === true) {
         // Code de test interne (TEST_DISCOUNT_CODE) : jamais dans le
@@ -1201,10 +1221,10 @@ function initReservationPage() {
     if (assurancePassagers) {
       addProtectionCard({
         value: "passagers",
-        title: assurancePassagers.nom,
+        title: t(assurancePassagers.nom),
         price: t("{prix} / jour", { prix: formatEUR(assurancePassagers.prix) }),
         description: "Ajoutez une protection dédiée aux passagers du véhicule.",
-        detail: `${assurancePassagers.description} Cette option s'ajoute à l'assurance incluse dans la location.`
+        detail: t("{description} Cette option s'ajoute à l'assurance incluse dans la location.", { description: t(assurancePassagers.description) })
       });
     }
     if (continueToOptions) continueToOptions.disabled = !data.protectionChoice;
@@ -1285,7 +1305,9 @@ function initReservationPage() {
       titre.textContent = opt.nom;
       const price = document.createElement("span");
       price.className = "option-price";
-      price.textContent = `${formatEUR(opt.prix)}${opt.type === "jour" ? " / jour" : ""}`;
+      price.textContent = opt.type === "jour"
+        ? t("{prix} / jour", { prix: formatEUR(opt.prix) })
+        : formatEUR(opt.prix);
       texte.append(titre, price);
 
       const details = document.createElement("details");
@@ -1890,23 +1912,31 @@ function initConfirmationPage() {
 // Réutilisé sur reservation.html, paiement.html et confirmation.html pour
 // garantir un affichage cohérent du détail du prix sur tout le tunnel.
 function appendBreakdownRows(container, prix) {
-  container.appendChild(summaryRow(`Location (${prix.jours} jour${prix.jours > 1 ? "s" : ""})`, formatEUR(prix.sousTotalBrut)));
+  container.appendChild(summaryRow(t("Location ({jours})", { jours: libelleJours(prix.jours) }), formatEUR(prix.sousTotalBrut)));
 
   if (prix.reductionDuree) {
-    const row = summaryRow(`Remise durée (${prix.reductionDuree.libelle}, -${formatEUR(prix.reductionDuree.montantParJour)}/jour)`, `− ${formatEUR(prix.reductionDuree.montant)}`);
+    const row = summaryRow(
+      t("Remise durée ({palier}, -{montant}/jour)", { palier: t(prix.reductionDuree.libelle), montant: formatEUR(prix.reductionDuree.montantParJour) }),
+      `− ${formatEUR(prix.reductionDuree.montant)}`
+    );
     row.classList.add("discount");
     container.appendChild(row);
   }
 
   (prix.optionsSelectionnees || []).forEach((opt) => {
-    container.appendChild(summaryRow(opt.nom, formatEUR(opt.montant)));
+    // Le nom de l'option vient de js/data.js, donc en français : sa
+    // traduction est indexée sur ce texte dans js/i18n.js.
+    container.appendChild(summaryRow(t(opt.nom), formatEUR(opt.montant)));
   });
 
   if (prix.codePromo) {
     // .pourcentage OU .montant selon le type de code (voir CODES_PROMO,
     // js/data.js) — jamais les deux à la fois.
     const suffixePromo = prix.codePromo.pourcentage !== undefined ? `-${prix.codePromo.pourcentage}%` : `-${formatEUR(prix.codePromo.montant)}`;
-    const row = summaryRow(`Code promo ${prix.codePromo.code} (${suffixePromo})`, `− ${formatEUR(prix.reductionPromoMontant)}`);
+    const row = summaryRow(
+      t("Code promo {code} ({remise})", { code: prix.codePromo.code, remise: suffixePromo }),
+      `− ${formatEUR(prix.reductionPromoMontant)}`
+    );
     row.classList.add("discount");
     container.appendChild(row);
   }
@@ -1946,7 +1976,7 @@ function renderConfirmationDetails(container, data) {
   routeDiv.textContent = `${libelleLieu(data.lieuPrise, data.adressePrise) || ""} → ${libelleLieu(data.lieuRetour, data.adresseRetour) || ""}`;
   const datesDiv = document.createElement("div");
   datesDiv.className = "hint-text";
-  datesDiv.textContent = `${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${data.jours} jour${data.jours > 1 ? "s" : ""})`;
+  datesDiv.textContent = `${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${libelleJours(data.jours)})`;
   infoDiv.append(nameDiv, routeDiv, datesDiv);
   vehicleBlock.appendChild(infoDiv);
   container.appendChild(vehicleBlock);

@@ -613,7 +613,72 @@
     "Numéro et rue": "Street number and name",
     "Code postal": "Postcode",
     "Ville": "Town or city",
-    "Adresse": "Address"
+    "Adresse": "Address",
+
+    // --- Textes venus de js/data.js (options, lieux, paliers de remise)
+    // Ils n'apparaissent dans aucun fichier HTML : ils sont insérés dans la
+    // page par js/app.js à partir de la seule source de vérité tarifaire
+    // (règle n°1 du CLAUDE.md). tests/i18n-couverture.test.js les contrôle
+    // désormais au même titre que les textes des pages.
+    "Livraison à l'adresse de votre choix": "Delivery to the address of your choice",
+    "Saisir une adresse personnalisée": "Enter a different address",
+    "5 jours ou plus": "5 days or more",
+
+    "Conducteur supplémentaire": "Additional driver",
+    "Les longs trajets sont plus agréables quand on peut se relayer. Ajoutez un conducteur supplémentaire pour partager le volant et voyager plus sereinement. Il devra simplement présenter un permis de conduire valide et respecter les mêmes conditions que le conducteur principal.":
+      "Long journeys are easier when you can share the driving. Add a second driver to take turns at the wheel and travel more comfortably. They simply need a valid driving licence and must meet the same conditions as the main driver.",
+
+    "Forfait 200 km supplémentaires": "200 km extra mileage package",
+    "Une petite marge de liberté pour prolonger une balade, changer d'itinéraire ou profiter d'une étape imprévue sans surveiller chaque kilomètre.":
+      "A little extra freedom to stretch out a drive, change route or add an unplanned stop without watching every kilometre.",
+    "Forfait 300 km supplémentaires": "300 km extra mileage package",
+    "Le bon équilibre pour explorer davantage la Côte d'Azur et ses alentours, avec une réserve confortable sur l'ensemble du séjour.":
+      "The right balance for exploring more of the French Riviera and beyond, with a comfortable allowance across your whole stay.",
+    "Forfait 400 km supplémentaires": "400 km extra mileage package",
+    "Pour les séjours les plus mobiles : partez plus loin et multipliez les escapades avec une marge kilométrique généreuse.":
+      "For the busiest itineraries: travel further and fit in more trips with a generous mileage allowance.",
+
+    "Service de plein / recharge": "Refuelling / recharging service",
+    "Profitez de votre dernière journée jusqu'au bout et évitez le détour par une station avant le retour. Rendez le véhicule sans refaire vous-même le plein ou la recharge : notre équipe s'en charge. Le carburant ou l'électricité consommés restent facturés selon les conditions de location.":
+      "Make the most of your last day and skip the detour to a filling station before you hand the vehicle back. Return it without refuelling or recharging yourself — our team takes care of it. The fuel or electricity used is still charged in line with the rental conditions.",
+
+    "Siège bébé": "Baby seat",
+    "Voyagez plus léger : le siège bébé vous attend directement dans le véhicule lors de sa livraison. Une solution simple pour préparer le trajet familial avec moins de matériel à transporter.":
+      "Travel light: the baby seat is waiting in the vehicle when it is delivered. A simple way to prepare a family trip with less to carry.",
+    "Siège enfant": "Child seat",
+    "Offrez à votre enfant une assise adaptée et plus confortable pendant le trajet. Le siège est préparé dans le véhicule avant votre prise en charge.":
+      "Give your child a properly sized, more comfortable seat for the journey. The seat is fitted in the vehicle before you collect it.",
+    "Rehausseur enfant": "Booster seat",
+    "Une solution pratique pour mieux installer les enfants plus grands avec la ceinture du véhicule, sans avoir à emporter votre propre équipement.":
+      "A practical way to seat older children safely with the vehicle's own seatbelt, without bringing your own equipment.",
+
+    "Assurance passagers / accident": "Passenger / accident cover",
+    "Couvre les dommages corporels des passagers en cas d'accident":
+      "Covers injury to passengers in the event of an accident",
+
+    "Aucun forfait": "No package",
+
+    // Libellés des filtres du catalogue (familles, types, carburants).
+    // « SUV », « SUV / 4x4 », « Minibus », « Premium », « Diesel » s'écrivent
+    // à l'identique en anglais : la traduction les reprend tels quels pour
+    // qu'ils soient couverts par le test plutôt que signalés comme oublis.
+    "SUV": "SUV",
+    "SUV / 4x4": "SUV / 4x4",
+    "Berline": "Saloon",
+    "Minibus": "Minibus",
+    "Premium": "Premium",
+    "Essence": "Petrol",
+    "Diesel": "Diesel",
+
+    // Intertitres du choix des options, écrits dans js/app.js.
+    "Gardez la liberté de prolonger une balade ou d'improviser une étape, sans surveiller chaque kilomètre. Choisissez un seul forfait pour l'ensemble de la location.":
+      "Keep the freedom to extend a drive or add a stop on a whim, without watching every kilometre. Choose a single package for the whole rental.",
+    "Dépliez cette rubrique pour choisir l'équipement adapté à votre enfant.":
+      "Open this section to choose the right equipment for your child.",
+
+    "Livraison du véhicule": "Vehicle delivery",
+    "Livraison à l'adresse ou au point de rendez-vous choisi sur la Côte d'Azur":
+      "Delivery to the address or meeting point of your choice on the French Riviera"
   };
 
   // Textes paramétrés (contenant {variable}) : traduits via t().
@@ -634,7 +699,17 @@
     "{prix} / jour": "{prix} / day",
     "Télécharger {type}": "Download {type}",
     "{index} / {total}": "{index} / {total}",
-    "Réservation {reference}": "Booking {reference}"
+    "Réservation {reference}": "Booking {reference}",
+    "Location ({jours})": "Rental ({jours})",
+    "Remise durée ({palier}, -{montant}/jour)": "Long-stay discount ({palier}, -{montant}/day)",
+    "Code promo {code} ({remise})": "Promo code {code} ({remise})",
+    "Livraison — {adresse}": "Delivery — {adresse}",
+    "{pourcentage} % de réduction": "{pourcentage}% off",
+    "{montant} € de réduction": "€{montant} off",
+    "Code \"{code}\" appliqué : {remise}.": "Code \"{code}\" applied: {remise}.",
+    "{description} Cette option s'ajoute à l'assurance incluse dans la location.":
+      "{description} This cover is added to the insurance included in the rental.",
+    "-{montant}/jour dès {palier}": "-{montant}/day from {palier}"
   };
 
   // Mention affichée en anglais sur les pages juridiques, dont le corps
