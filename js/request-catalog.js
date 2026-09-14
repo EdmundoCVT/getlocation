@@ -28,6 +28,10 @@
     return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
   }
 
+  // `caution` vaut 0 uniquement pour rester compatible avec le moteur de rendu
+  // historique (formatEUR attend un nombre). Elle n'est jamais affichée pour
+  // ces véhicules : deposit-ux.js retire les caractéristiques/prix des cartes
+  // `bookingMode=request`, et aucun paiement en ligne n'est possible.
   var REQUEST_VEHICLES = [
     {
       id: "mercedes-cle-cabriolet-request",
@@ -49,7 +53,7 @@
       hybride: false,
       carburant: null,
       prixJour: 0,
-      caution: null,
+      caution: 0,
       specsOnRequest: true,
       description: "Cabriolet premium proposé sur demande. Nous vérifions le modèle et la disponibilité pour vos dates avant confirmation."
     },
@@ -73,7 +77,7 @@
       hybride: false,
       carburant: null,
       prixJour: 0,
-      caution: null,
+      caution: 0,
       specsOnRequest: true,
       description: "Cabriolet premium proposé sur demande, selon les disponibilités de notre sélection de véhicules."
     },
@@ -97,7 +101,7 @@
       hybride: false,
       carburant: null,
       prixJour: 0,
-      caution: null,
+      caution: 0,
       specsOnRequest: true,
       description: "Cabriolet sportif et premium proposé sur demande. Le modèle exact est confirmé après vérification."
     },
@@ -121,7 +125,7 @@
       hybride: false,
       carburant: null,
       prixJour: 0,
-      caution: null,
+      caution: 0,
       specsOnRequest: true,
       description: "SUV premium proposé sur demande. Disponibilité et configuration confirmées pour vos dates avant réservation."
     },
@@ -145,7 +149,7 @@
       hybride: false,
       carburant: null,
       prixJour: 0,
-      caution: null,
+      caution: 0,
       specsOnRequest: true,
       description: "SUV premium proposé sur demande, idéal pour une demande haut de gamme sur la Côte d’Azur."
     },
@@ -169,7 +173,7 @@
       hybride: false,
       carburant: null,
       prixJour: 0,
-      caution: null,
+      caution: 0,
       specsOnRequest: true,
       description: "SUV premium proposé sur demande. GET LOCATION vérifie la disponibilité avant de confirmer la réservation."
     }
