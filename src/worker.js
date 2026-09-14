@@ -86,7 +86,7 @@ async function withClientUX(response, pathname) {
   // avant initVehiculesPage(), sans toucher au calcul de prix/paiement des
   // véhicules internes.
   if (!html.includes("/js/request-catalog.js")) {
-    const requestCatalog = '<script src="/js/request-catalog.js?v=1"></script>';
+    const requestCatalog = '<script src="/js/request-catalog.js?v=2"></script>';
     html = html.includes("</body>")
       ? html.replace("</body>", `${requestCatalog}\n</body>`)
       : `${html}\n${requestCatalog}`;
