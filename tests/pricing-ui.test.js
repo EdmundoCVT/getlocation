@@ -96,16 +96,47 @@ test("initReservationPage : les forfaits kilométriques sont exclusifs et recalc
   assert.match(window.document.getElementById("reservation-summary").textContent, /268/); // 118 € + 150 €
 });
 
-test("initReservationPage : les trois équipements enfant sont regroupés dans une rubrique dépliable", () => {
+test("initReservationPage : les deux équipements enfant sont regroupés dans une rubrique dépliable", () => {
   const window = newWindow(reservationPageHtml());
   window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
   window.initReservationPage();
 
   const group = window.document.querySelector(".child-options-group");
   assert.ok(group);
-  ["siege-auto", "siege-enfant", "rehausseur"].forEach((id) => {
-    assert.ok(group.querySelector(`#option-${id}`));
+  // Deux options seulement : le client n'a plus à choisir une catégorie de
+  // siège, l'agence la détermine d'après l'âge et le poids saisis.
+  ["siege-enfant", "rehausseur"].forEach((id) => {
+    assert.ok(group.querySelector(`#option-${id}`), `option ${id} manquante`);
   });
+  assert.equal(group.querySelector("#option-siege-auto"), null, "l'ancienne option « Siège bébé » a été retirée");
+});
+
+test("initReservationPage : le siège enfant demande l'âge et le poids, et les conserve", () => {
+  const window = newWindow(reservationPageHtml());
+  window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
+  window.initReservationPage();
+
+  const checkbox = window.document.getElementById("option-siege-enfant");
+  const age = window.document.getElementById("option-siege-enfant-enfantAge");
+  const poids = window.document.getElementById("option-siege-enfant-enfantPoids");
+  assert.ok(age && poids, "les champs âge et poids doivent exister");
+
+  // Masqués tant que l'option n'est pas retenue.
+  const precisions = age.closest(".option-precisions");
+  assert.equal(precisions.hidden, true);
+
+  checkbox.checked = true;
+  checkbox.dispatchEvent(new window.Event("change", { bubbles: true }));
+  assert.equal(precisions.hidden, false);
+
+  age.value = "4";
+  age.dispatchEvent(new window.Event("input", { bubbles: true }));
+  poids.value = "18";
+  poids.dispatchEvent(new window.Event("input", { bubbles: true }));
+
+  const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
+  assert.equal(persisted.enfantAge, 4);
+  assert.equal(persisted.enfantPoids, 18);
 });
 
 test("initReservationPage : un choix de protection est obligatoire avant les options et persiste dans la réservation", () => {
@@ -172,8 +203,8 @@ test("initReservationPage : cocher une option recalcule le total et le persiste"
   // 2 jours x 59 € = 118 € avant option.
   assert.match(window.document.getElementById("reservation-summary").textContent, /118/);
 
-  const siegeAuto = window.getOptionParId("siege-auto"); // type "jour", 5 €/jour
-  const checkbox = window.document.getElementById("option-siege-auto");
+  const siegeAuto = window.getOptionParId("rehausseur"); // type "jour"
+  const checkbox = window.document.getElementById("option-rehausseur");
   checkbox.checked = true;
   checkbox.dispatchEvent(new window.Event("change", { bubbles: true }));
 
@@ -181,7 +212,7 @@ test("initReservationPage : cocher une option recalcule le total et le persiste"
   assert.match(window.document.getElementById("reservation-summary").textContent, new RegExp(String(totalAttendu)));
 
   const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
-  assert.deepEqual(persisted.options, ["siege-auto"]);
+  assert.deepEqual(persisted.options, ["rehausseur"]);
 
   // Décocher revient au total initial.
   checkbox.checked = false;

@@ -70,6 +70,9 @@ function toSafePublicView(reservation) {
     assuranceMontant: reservation.assuranceMontant,
     options: Array.isArray(reservation.options) ? reservation.options : [],
     optionsMontant: reservation.optionsMontant,
+    // Null pour les réservations d'avant l'ajout du supplément : la page de
+    // confirmation n'affiche alors aucune ligne, comme avant.
+    supplementJeuneConducteur: reservation.supplementJeuneConducteur || null,
     codePromo: reservation.codePromo || null,
     reductionPromoMontant: reservation.reductionPromoMontant,
     total: reservation.total,

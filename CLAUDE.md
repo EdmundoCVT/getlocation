@@ -73,6 +73,47 @@ adresses lisibles : `/en/cars`, `/en/booking`, `/en/car-rental-nice`…).
   `js/app.js` les rend absolus à l'affichage, sinon ils pointent vers
   `/en/images/…` sous une adresse anglaise.
 
+## Tarification (révision du 15/09/2026)
+
+Tout vit dans `js/data.js` (règle n°1) — ne jamais recopier un montant ailleurs.
+
+- **Remise longue durée** : `REDUCTIONS_DUREE` = **-5 €/jour dès 5 jours**,
+  appliquée à toute la durée (5 j = -25 €, 9 j = -45 €). Elle abaisse aussi
+  le « à partir de X €/jour » des cartes véhicules (`prixJourMinimum`) :
+  changer ce montant oblige à mettre à jour les 7 grilles HTML en dur
+  (`npm run check:vehicle-grid` le signale).
+- **Options enfant** : deux seulement — `siege-enfant` (10 €/jour, demande
+  l'âge et le poids via `saisies`) et `rehausseur` (5 €/jour). Le client ne
+  choisit jamais une catégorie de siège : l'agence la déduit de l'âge et du
+  poids, conservés sur la réservation (`enfantAge`, `enfantPoids`).
+- **Supplément jeune conducteur** : `SUPPLEMENT_JEUNE_CONDUCTEUR`, +30 €/jour
+  quand le permis a moins de 3 ans. Ce n'est **pas une option** : il est
+  déduit de `conducteur.permisDate` (champ obligatoire du formulaire de
+  paiement) et recalculé côté serveur comme le reste du prix. Sans date
+  connue, aucun supplément — jamais de facturation au hasard.
+- Les réservations et contrats déjà enregistrés gardent leur propre copie des
+  montants : **rien n'est recalculé rétroactivement**.
+
+## Contrat PDF — présentation financière
+
+- Le contrat client affiche **prix de la location + options réellement
+  retenues = TOTAL LOCATION**, puis acompte et reste à payer. Jamais de ligne
+  « Remises », « Ajustement tarifaire » ni « Options » vide.
+- Quand l'agence convient d'un tarif manuel, la ligne « Location » porte
+  directement ce prix (`syntheseFinancierePdf`). Le détail interne (tarif
+  théorique, remises, écart) reste dans les données pour l'administratif,
+  jamais sur le document remis au client.
+- Le dépôt de garantie garde son bloc séparé et n'est jamais additionné au
+  prix de la location.
+- **Typographie** : les paragraphes des articles sont écrits par suites de
+  mots de même graisse, d'un seul tenant (`viderLigne`). Positionner chaque
+  mot soi-même faisait accumuler l'écart entre la table de largeurs de jsPDF
+  et les métriques du lecteur PDF, et l'espace suivant disparaissait
+  (« GETLOCATION(TLST SAS) », « 600 €est »). Ne pas revenir à un rendu mot à
+  mot.
+- L'**aperçu** PDF ne doit jamais être bloqué par une information manquante :
+  elle s'affiche « À compléter ». Ne pas y ajouter de validation.
+
 ## Règles critiques (ne jamais enfreindre)
 
 1. **`js/data.js` est la SEULE source de vérité** pour véhicules, tarifs, règles de calcul de durée/prix, CGL_VERSION. Chargé tel quel côté navigateur (`<script>`) ET par le code serveur (`require`/`import` — voir `src/lib`, anciennement `netlify/functions/lib`). Ne jamais dupliquer une valeur ou une règle de calcul ailleurs — un script (`scripts/check-vehicle-grid-sync.js`) détecte les divergences avec les grilles véhicules recopiées en dur dans 7 pages HTML.

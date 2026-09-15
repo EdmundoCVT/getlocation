@@ -148,7 +148,7 @@ async function handleCreatePayment(request, env) {
     return new Response(JSON.stringify({ error: "Requête invalide" }), { status: 400, headers });
   }
 
-  const { valid, errors, vehicule, options, codePromo } = validateReservationInput(payload);
+  const { valid, errors, vehicule, options, codePromo, enfantAge, enfantPoids } = validateReservationInput(payload);
   if (!valid) {
     return new Response(JSON.stringify({ error: "Requête invalide", details: errors }), { status: 400, headers });
   }
@@ -169,7 +169,15 @@ async function handleCreatePayment(request, env) {
   // validés/normalisés ci-dessus (options, codePromo) — jamais depuis
   // `payload.options`/`payload.codePromo` bruts, qui pourraient contenir des
   // valeurs non vérifiées.
-  const prix = calculerPrixTotal({ ...payload, options, codePromo });
+  // `permisDate` vient du conducteur validé : c'est elle qui déclenche (ou
+  // non) le supplément jeune conducteur, recalculé ici comme le reste du
+  // prix — jamais un montant envoyé par le navigateur.
+  const prix = calculerPrixTotal({
+    ...payload,
+    options,
+    codePromo,
+    permisDate: payload.conducteur ? payload.conducteur.permisDate : undefined
+  });
   if (!prix || !isFinite(prix.totalCentimes) || prix.totalCentimes < 50) {
     return new Response(JSON.stringify({ error: "Impossible de calculer le prix pour cette demande" }), { status: 400, headers });
   }
@@ -214,6 +222,14 @@ async function handleCreatePayment(request, env) {
     reductionDuree: prix.reductionDuree,
     options: prix.optionsSelectionnees,
     optionsMontant: prix.optionsMontant,
+    // Supplément jeune conducteur : conservé tel qu'appliqué au moment du
+    // paiement (null quand il ne s'applique pas), pour que le récapitulatif,
+    // l'e-mail et le contrat affichent tous le même montant.
+    supplementJeuneConducteur: prix.supplementJeuneConducteur,
+    // Précisions rattachées à l'option « Siège enfant » : indiquent à
+    // l'agence quel siège homologué préparer. Aucune incidence tarifaire.
+    enfantAge,
+    enfantPoids,
     codePromo: prix.codePromo,
     reductionPromoMontant: prix.reductionPromoMontant,
     total: totalFacture,
@@ -229,7 +245,8 @@ async function handleCreatePayment(request, env) {
       prenom: payload.conducteur.prenom.trim(),
       email: payload.conducteur.email.trim(),
       telephone: payload.conducteur.telephone.trim(),
-      naissance: payload.conducteur.naissance
+      naissance: payload.conducteur.naissance,
+      permisDate: payload.conducteur.permisDate
     }
   });
 

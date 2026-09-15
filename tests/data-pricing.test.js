@@ -129,7 +129,7 @@ test("reductionDureeApplicable : palier atteint à partir de 5 jours", () => {
   assert.equal(reductionDureeApplicable(90).seuilJours, 5);
 });
 
-test("calculerPrixTotal : applique la remise de 10 €/jour à partir de 5 jours sur le sous-total", () => {
+test("calculerPrixTotal : applique la remise durée à partir de 5 jours sur le sous-total", () => {
   const vehicule = getVehiculeParId("opel-corsa");
   const palier5 = REDUCTIONS_DUREE.find(r => r.seuilJours === 5);
   const result = calculerPrixTotal({
@@ -232,16 +232,16 @@ test("OPTIONS : chaque option a un id, un prix positif et un type valide", () =>
 
 test("calculerPrixTotal : une option type \"jour\" est multipliée par le nombre de jours, une option \"forfait\" ne l'est pas", () => {
   const vehicule = getVehiculeParId("opel-corsa");
-  const siegeAuto = getOptionParId("siege-auto"); // type "jour"
+  const siegeAuto = getOptionParId("siege-enfant"); // type "jour"
   const livraison = getOptionParId("livraison-adresse"); // type "forfait"
   const result = calculerPrixTotal({
     vehiculeId: "opel-corsa",
     dateDebut: "2026-08-01", heureDebut: "10:00",
     dateFin: "2026-08-04", heureFin: "10:00", // 3 jours
-    options: ["siege-auto", "livraison-adresse"]
+    options: ["siege-enfant", "livraison-adresse"]
   });
   assert.equal(result.jours, 3);
-  const optSiege = result.optionsSelectionnees.find(o => o.id === "siege-auto");
+  const optSiege = result.optionsSelectionnees.find(o => o.id === "siege-enfant");
   const optLivraison = result.optionsSelectionnees.find(o => o.id === "livraison-adresse");
   assert.equal(optSiege.montant, siegeAuto.prix * 3);
   assert.equal(optLivraison.montant, livraison.prix);
@@ -260,24 +260,24 @@ test("calculerPrixTotal : ignore un identifiant d'option inconnu et déduplique 
     vehiculeId: "opel-corsa",
     dateDebut: "2026-08-01", heureDebut: "10:00",
     dateFin: "2026-08-04", heureFin: "10:00",
-    options: ["siege-auto", "siege-auto", "option-qui-nexiste-pas"]
+    options: ["siege-enfant", "siege-enfant", "option-qui-nexiste-pas"]
   });
   assert.equal(result.optionsSelectionnees.length, 1);
-  assert.equal(result.optionsSelectionnees[0].id, "siege-auto");
+  assert.equal(result.optionsSelectionnees[0].id, "siege-enfant");
 });
 
 test("calculerPrixTotal : pipeline complet — remise durée + options − code promo", () => {
   const vehicule = getVehiculeParId("peugeot-3008");
   const palier5 = REDUCTIONS_DUREE.find(r => r.seuilJours === 5);
   const promo = getCodePromo("GETLOC15");
-  const siegeAuto = getOptionParId("siege-auto");
+  const siegeAuto = getOptionParId("siege-enfant");
   const livraison = getOptionParId("livraison-adresse");
 
   const result = calculerPrixTotal({
     vehiculeId: "peugeot-3008",
     dateDebut: "2026-08-01", heureDebut: "10:00",
     dateFin: "2026-08-15", heureFin: "10:00", // 14 jours
-    options: ["siege-auto", "livraison-adresse"],
+    options: ["siege-enfant", "livraison-adresse"],
     codePromo: "GETLOC15"
   });
 

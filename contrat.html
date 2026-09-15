@@ -407,6 +407,18 @@
           </div>
         </div>
 
+        <!-- Équipement enfant : mêmes deux options que sur le site (voir
+             OPTIONS dans js/data.js), pour qu'un contrat établi à l'agence
+             facture exactement comme une réservation en ligne. -->
+        <div class="check-row">
+          <input type="checkbox" id="siege-enfant-toggle">
+          <label for="siege-enfant-toggle">Siège enfant <strong>(+10 €/jour)</strong></label>
+        </div>
+        <div class="check-row">
+          <input type="checkbox" id="rehausseur-toggle">
+          <label for="rehausseur-toggle">Rehausseur <strong>(+5 €/jour)</strong></label>
+        </div>
+
         <div class="check-row">
           <input type="checkbox" id="second-conducteur-toggle">
           <label for="second-conducteur-toggle">Ajouter un second conducteur <strong>(+10 €/jour)</strong></label>
@@ -494,12 +506,6 @@
         <p class="meta-line hidden" id="numeroGenereMsg"></p>
       </div>
 
-      <div class="card" id="derniers-contrats">
-        <h2>Derniers contrats</h2>
-        <p class="meta-line" id="historiqueVide">Aucun contrat généré pour l'instant.</p>
-        <div id="historiqueListe"></div>
-      </div>
-
       <div class="card">
         <h2>Lien à envoyer au client</h2>
         <p class="lead" style="margin-bottom:10px;">Le lien se met à jour automatiquement à chaque champ rempli : le client verra toujours les dernières informations, pas besoin de le régénérer.</p>
@@ -518,6 +524,13 @@
         </div>
         <p class="meta-line hidden" id="copiedMsg">Lien copié ✓</p>
       </div>
+
+      <div class="card" id="derniers-contrats">
+        <h2>Derniers contrats</h2>
+        <p class="meta-line" id="historiqueVide">Aucun contrat généré pour l'instant.</p>
+        <div id="historiqueListe"></div>
+      </div>
+
     </form>
   </div>
 
@@ -545,7 +558,7 @@
         <h3>Article 1 — Objet et durée</h3>
         <p>GETLOCATION (TLST SAS) loue au locataire désigné ci-dessus le véhicule <span class="fill" data-fill="vehicule">…</span>, immatriculé <span class="fill" data-fill="immat">…</span>, du <span class="fill" data-fill="depart">…</span> au <span class="fill" data-fill="retour">…</span> (<span class="fill" data-fill="duree">…</span>). Lieu : <span class="fill" data-fill="lieu">…</span>.</p>
         <h3>Article 2 — Prix et règlement</h3>
-        <p>Montant total de la location : <span class="fill" data-fill="total">…</span>. Le détail (tarif journalier, réduction éventuelle, options) figure au récapitulatif financier ci-dessus. Acompte de <span class="fill" data-fill="montantRegle">…</span> : <span class="fill" data-fill="detailAcompte">…</span>. Solde restant de <span class="fill" data-fill="soldeRestant">…</span> : <span class="fill" data-fill="detailSolde">…</span>.</p>
+        <p>Montant total convenu pour la location : <span class="fill" data-fill="total">…</span>. Ce montant comprend les options éventuellement sélectionnées, reprises ligne à ligne dans le récapitulatif financier ci-dessus. Acompte de <span class="fill" data-fill="montantRegle">…</span> : <span class="fill" data-fill="detailAcompte">…</span>. Solde restant de <span class="fill" data-fill="soldeRestant">…</span> : <span class="fill" data-fill="detailSolde">…</span>.</p>
         <h3>Article 3 — Kilométrage et carburant</h3>
         <p>Le véhicule est loué avec un forfait de <strong><span class="fill" data-fill="kmInclusParJour">…</span> km inclus par jour de location</strong>, soit <span class="fill" data-fill="kmInclus">…</span> km au total pour la durée du contrat. Tout kilomètre parcouru au-delà de ce forfait est facturé <strong><span class="fill" data-fill="supplementKm">…</span> / km</strong> (voir le tableau de remise et restitution du véhicule pour le relevé kilométrique départ/retour). Le véhicule doit être restitué avec le même niveau de carburant qu'au départ.</p>
         <h3>Article 4 — Dépôt de garantie et assurance</h3>
@@ -585,7 +598,7 @@
         <h2 style="margin-top:22px;padding-top:22px;border-top:1px dashed var(--ligne);">Signature</h2>
         <div class="check-row">
           <input type="checkbox" id="accept" required>
-          <label for="accept">Je déclare l'exactitude des informations fournies, être titulaire d'un permis de conduire valable, avoir pris connaissance du présent contrat et des Conditions Générales de Location (<a href="cgl.html" target="_blank" rel="noopener">cgl.html</a>), et j'accepte les conditions de location, la tarification applicable, ainsi que l'état du véhicule tel qu'indiqué lors de sa remise.</label>
+          <label for="accept">Je déclare l'exactitude des informations fournies et être titulaire d'un permis de conduire valable. J'ai pris connaissance du présent contrat et des Conditions Générales de Location (<a href="cgl.html" target="_blank" rel="noopener">cgl.html</a>), et j'accepte la tarification convenue, les options éventuellement sélectionnées, les garanties et franchises applicables indiquées à l'article 4, ainsi que l'état du véhicule tel qu'indiqué lors de sa remise.</label>
         </div>
 
         <div class="sig-row" style="margin-top:16px;">
@@ -731,7 +744,8 @@
               <tr><td>État de propreté</td><td><input type="text" id="rr-depart-proprete"></td><td><input type="text" id="rr-retour-proprete"></td></tr>
               <tr><td>Dommages / observations</td><td><textarea id="rr-depart-dommages"></textarea></td><td><textarea id="rr-retour-dommages"></textarea></td></tr>
               <tr><td>Photos (nombre / référence)</td><td><input type="text" id="rr-depart-photosRef" placeholder="ex. 6 photos (dossier départ)"></td><td><input type="text" id="rr-retour-photosRef" placeholder="ex. 6 photos (dossier retour)"></td></tr>
-              <tr><td>Clés et accessoires</td><td><input type="text" id="rr-depart-clesAccessoires" placeholder="2 clés, carte grise, chargeur…"></td><td><input type="text" id="rr-retour-clesAccessoires"></td></tr>
+              <tr><td>Nombre de clés</td><td><input type="number" min="0" max="5" step="1" id="rr-depart-cles" placeholder="2"></td><td><input type="number" min="0" max="5" step="1" id="rr-retour-cles"></td></tr>
+              <tr><td>Accessoires</td><td><input type="text" id="rr-depart-clesAccessoires" placeholder="carte grise, chargeur, triangle…"></td><td><input type="text" id="rr-retour-clesAccessoires"></td></tr>
               <tr><td>Nom de l'agent</td><td><input type="text" id="rr-depart-agent"></td><td><input type="text" id="rr-retour-agent"></td></tr>
               <tr><td>Signature client</td><td><input type="text" id="rr-depart-clientSigne" placeholder="Nom tapé par le client"></td><td><input type="text" id="rr-retour-clientSigne"></td></tr>
               <tr><td>Signature agence</td><td><input type="text" id="rr-depart-agenceSigne" placeholder="Nom de l'agent"></td><td><input type="text" id="rr-retour-agenceSigne"></td></tr>
@@ -805,8 +819,8 @@
 
 </div>
 
-<script src="js/data.js?v=22"></script>
-<script src="js/contrat-en.js?v=1"></script>
+<script src="js/data.js?v=23"></script>
+<script src="js/contrat-en.js?v=2"></script>
 <script>
 // VEHICULES, formatEUR, joursFacturablesDepuisHeures, getVehiculeParId et
 // getOptionParId viennent de js/data.js (chargé juste avant ce script) —
@@ -823,7 +837,11 @@ const LIEUX_CONTRAT = ["Livraison à l'adresse de votre choix"];
 // #dc-accept) — voir le point "Signature" de la mission : la déclaration
 // du locataire doit être une zone finale claire, pas juste "en attente de
 // signature". Tenu manuellement synchronisé avec le HTML des deux vues.
-const DECLARATION_LOCATAIRE_TEXTE = "En signant ce contrat, le locataire déclare : l'exactitude des informations fournies ci-dessus ; être titulaire d'un permis de conduire valable ; avoir pris connaissance du présent contrat ainsi que des Conditions Générales de Location (cgl.html) ; accepter les conditions de location et la tarification applicable ; reconnaître l'état du véhicule tel qu'indiqué lors de sa remise (voir tableau de remise et restitution).";
+// Ce que le locataire accepte en signant. Volontairement court et lisible :
+// chaque point renvoie à une information présente ailleurs dans le contrat
+// (tarification, options, garanties de l'article 4, état des lieux), sans
+// créer d'obligation nouvelle.
+const DECLARATION_LOCATAIRE_TEXTE = "En signant ce contrat, le locataire déclare : l'exactitude des informations fournies ci-dessus ; être titulaire d'un permis de conduire valable ; avoir pris connaissance du présent contrat ainsi que des Conditions Générales de Location (cgl.html) ; accepter la tarification convenue et les options éventuellement sélectionnées ; avoir pris connaissance des garanties et franchises applicables indiquées à l'article 4 ; reconnaître l'état du véhicule tel qu'indiqué lors de sa remise (voir tableau de remise et restitution).";
 const SUPPLEMENT_LIVRAISON = getOptionParId('livraison-adresse').prix;
 
 function dureeHeures(a,b){
@@ -846,6 +864,8 @@ function optionsDepuisFormulaire(data){
   if(data.secondConducteur) ids.push('second-conducteur');
   if(data.livraison) ids.push('livraison-adresse');
   if(data.kmForfait) ids.push(data.kmForfait);
+  if(data.siegeEnfant) ids.push('siege-enfant');
+  if(data.rehausseur) ids.push('rehausseur');
   return ids;
 }
 
@@ -863,7 +883,12 @@ function calculerPrixContrat(data){
     dateDebut: d.date, heureDebut: d.heure,
     dateFin: r.date, heureFin: r.heure,
     options: optionsDepuisFormulaire(data),
-    codePromo: data.codePromo || ''
+    codePromo: data.codePromo || '',
+    // Supplément jeune conducteur : déduit de la date de délivrance du
+    // permis déjà saisie dans le formulaire agence (JJ/MM/AAAA), exactement
+    // comme sur le site. Aucune case à cocher : la règle est la même pour
+    // tout le monde (voir SUPPLEMENT_JEUNE_CONDUCTEUR, js/data.js).
+    permisDate: jourMoisAnneeVersISO(data.permisDate)
   });
 }
 // Applique un éventuel tarif manuel (case "Tarif spécial" du formulaire
@@ -909,6 +934,19 @@ function formatDateHeureFR(v, langue){
 function isoVersJourMoisAnnee(iso){
   var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
   return m ? (m[3] + '/' + m[2] + '/' + m[1]) : (iso || '');
+}
+// Conversion inverse : "JJ/MM/AAAA" (saisie agence) vers "AAAA-MM-JJ", seul
+// format compris par les calculs de js/data.js. Renvoie null si la valeur
+// n'est pas une date complète — une date incomplète ne doit jamais
+// déclencher un supplément au hasard.
+function jourMoisAnneeVersISO(valeur){
+  var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(valeur || '').trim());
+  if(!m) return null;
+  var iso = m[3] + '-' + m[2] + '-' + m[1];
+  var date = new Date(iso + 'T00:00:00Z');
+  if(!isFinite(date.getTime())) return null;
+  // Rejette les dates inexistantes (31/02) que Date normaliserait en silence.
+  return date.toISOString().slice(0, 10) === iso ? iso : null;
 }
 // Les champs JJ/MM/AAAA de ce formulaire utilisent inputmode="numeric" pour
 // afficher un clavier numérique sur mobile — mais ce clavier (iOS/Android)
@@ -1462,6 +1500,32 @@ function syntheseFinancierePdf(prix, totalFinal, montantRegleNombre, soldeNombre
   var options = prix.optionsSelectionnees || [];
   var optionsMontant = options.reduce(function(somme, opt){ return somme + opt.montant; }, 0);
 
+  // Le supplément jeune conducteur (js/data.js) est une ligne à part entière
+  // du contrat, au même titre qu'une option retenue : il apparaît donc dans
+  // cette liste, jamais fondu dans le prix de la location.
+  var lignesOptions = options.map(function(opt){
+    return { nom: opt.nom, montant: opt.montant, type: opt.type };
+  });
+  if(prix.supplementJeuneConducteur){
+    lignesOptions.push({
+      nom: prix.supplementJeuneConducteur.libelle,
+      montant: prix.supplementJeuneConducteur.montant,
+      type: 'jour'
+    });
+    optionsMontant += prix.supplementJeuneConducteur.montant;
+  }
+
+  // PRIX DE LA LOCATION = total convenu MOINS les options réellement
+  // retenues. Quand l'agence fixe un tarif manuel, la ligne « Location »
+  // porte donc directement le prix convenu : le contrat client n'a pas à
+  // exposer une cascade « tarif théorique − remise + ajustement », qui
+  // n'explique rien au client et fait douter du montant final.
+  //
+  // Le détail interne (tarif théorique, remises, écart) reste disponible
+  // ci-dessous pour l'historique et le back-office — il n'est simplement
+  // jamais imprimé sur le document remis au client.
+  var location = Math.round((totalFinal - optionsMontant) * 100) / 100;
+
   var remises = [];
   if(prix.reductionDuree) remises.push({ libelle: 'durée', montant: prix.reductionDuree.montant });
   if(prix.codePromo) remises.push({ libelle: 'code ' + prix.codePromo.code, montant: prix.reductionPromoMontant });
@@ -1470,15 +1534,17 @@ function syntheseFinancierePdf(prix, totalFinal, montantRegleNombre, soldeNombre
 
   return {
     jours: prix.jours,
-    location: prix.sousTotalBrut,
-    options: options.map(function(opt){ return opt.nom; }),
+    location: location,
+    options: lignesOptions,
     optionsMontant: optionsMontant,
-    remises: remises,
-    remisesTotal: remises.reduce(function(somme, r){ return somme + r.montant; }, 0),
-    majoration: ecartTarifManuel < 0 ? -ecartTarifManuel : 0,
     totalLocation: totalFinal,
     dejaRegle: montantRegleNombre,
-    resteAPayer: soldeNombre
+    resteAPayer: soldeNombre,
+    // --- Détail interne, jamais imprimé sur le contrat client ---
+    tarifTheorique: prix.sousTotalBrut,
+    remises: remises,
+    remisesTotal: remises.reduce(function(somme, r){ return somme + r.montant; }, 0),
+    ecartTarifManuel: ecartTarifManuel
   };
 }
 
@@ -1502,6 +1568,12 @@ function detailFinancierDepuisReservation(r){
     baseAvantPromo: sousTotal + (r.optionsMontant || 0),
     codePromo: r.codePromo || null,
     reductionPromoMontant: r.reductionPromoMontant || 0,
+    // Supplément jeune conducteur tel qu'appliqué au paiement en ligne
+    // (voir create-payment.js) : repris tel quel, jamais recalculé, pour que
+    // le contrat affiche exactement le montant facturé au client. Absent des
+    // réservations antérieures à cette règle : le contrat n'affiche alors
+    // aucune ligne, et leur historique financier reste intact.
+    supplementJeuneConducteur: r.supplementJeuneConducteur || null,
     total: r.total
   };
 }
@@ -1570,7 +1642,11 @@ function traduireValeursPayload(payload){
   payload.lieuRetour = lieu(payload.lieuRetour);
 
   if(payload.syntheseFinanciere){
-    payload.syntheseFinanciere.options = (payload.syntheseFinanciere.options || []).map(T);
+    // Les options de la synthèse sont des objets { nom, montant, type } :
+    // seul leur libellé est traduit, jamais le montant ni le type.
+    payload.syntheseFinanciere.options = (payload.syntheseFinanciere.options || []).map(function(option){
+      return { nom: T(option.nom), montant: option.montant, type: option.type };
+    });
     payload.syntheseFinanciere.remises = (payload.syntheseFinanciere.remises || []).map(function(r){
       // « code BIENVENUE20 » : seul le mot « code » est traduisible, le code
       // promo lui-meme ne doit jamais etre reecrit.
@@ -1616,18 +1692,18 @@ function construirePayload(data, sigData, stamp){
     ? 'Livraison à ' + adresseLivraison
     : data.lieu;
 
-  // Détail financier : remplace la ligne "Total" calculée automatiquement
-  // par 3 lignes (Location / Remise commerciale ou Ajustement tarif / TOTAL)
-  // quand un tarif manuel est actif. `tarifMotif` n'est volontairement
-  // jamais lu ici : il reste uniquement dans rawData/l'historique (comme
-  // `notes`), jamais imprimé sur le PDF ni transmis via le lien ?data=.
+  // Détail financier de REPLI : utilisé uniquement quand la synthèse n'a pas
+  // pu être calculée (véhicule ou dates encore incomplets — voir
+  // syntheseFinancierePdf, qui prend le relais dès que le prix est connu).
+  // Quand un tarif manuel est convenu, la ligne « Location » porte
+  // directement ce prix : aucune ligne « Remise commerciale » ni
+  // « Ajustement tarif » ne doit apparaître sur un document client.
+  // `tarifMotif` n'est volontairement jamais lu ici : il reste uniquement
+  // dans rawData/l'historique (comme `notes`), jamais imprimé sur le PDF ni
+  // transmis via le lien ?data=.
   var detailFinancier = lignesDetailFinancier(prix);
   if(prix && tarif.tarifManuelActif){
-    detailFinancier = detailFinancier.slice(0, -1);
-    var diff = tarif.tarifCalcule - total;
-    detailFinancier.push(['Location', formatEUR(tarif.tarifCalcule)]);
-    detailFinancier.push([diff >= 0 ? 'Remise commerciale' : 'Ajustement tarif', (diff >= 0 ? '− ' : '+ ') + formatEUR(Math.abs(diff))]);
-    detailFinancier.push(['TOTAL', formatEUR(total)]);
+    detailFinancier = [['Location', formatEUR(total)]];
   }
 
   // État kilométrique manuel (nom délibérément distinct de
@@ -1780,7 +1856,11 @@ function remplirTexteArticles(payload){
 // Formate un champ carburant (0/10/20.../100) en "40 %" ; laisse tel quel
 // (déjà une chaîne libre, ex. état de propreté) sinon.
 function formatCarburant(niveau){
-  return (niveau === '' || niveau === null || niveau === undefined) ? '—' : (niveau + ' %');
+  if(niveau === '' || niveau === null || niveau === undefined) return '—';
+  var connu = NIVEAUX_CARBURANT.filter(function(n){ return n.valeur === Number(niveau); })[0];
+  // Repli en pourcentage pour un état des lieux saisi avant l'ajout des
+  // niveaux de jauge (30 %, 60 %…) : jamais de valeur perdue à l'affichage.
+  return connu ? connu.libelle : (niveau + ' %');
 }
 
 // Contrôle de plausibilité avant génération : un contrat ne doit jamais
@@ -2253,32 +2333,31 @@ function genererPDF(payload, estApercu){
   titreSection(T('Tarification'), 120);
   var synthese = payload.syntheseFinanciere;
   if(synthese){
-    ligneMontant(T('Location') + ' — ' + (contratEnAnglais ? dicoContrat.duree(formatJoursFactures(synthese.jours)) : formatJoursFactures(synthese.jours)), formatEUR(synthese.location));
-    if(synthese.optionsMontant > 0){
-      ligneMontant(T('Options') + (synthese.options.length ? ' (' + synthese.options.join(', ').toLowerCase() + ')' : ''), formatEUR(synthese.optionsMontant));
-    }
-    if(synthese.remisesTotal > 0){
-      ligneMontant(T('Remises'), montantRetranche(formatEUR(synthese.remisesTotal)), { espace: 2 });
-      // Détail des remises : une seule ligne discrète, et seulement quand
-      // il y en a plusieurs (sinon elle ne ferait que répéter la ligne).
-      if(synthese.remises.length > 1){
-        police('normal', 7.5, C.label);
-        doc.text((contratEnAnglais ? 'Breakdown: ' : 'Détail : ') + synthese.remises.map(function(r){ return r.libelle + ' ' + formatEUR(r.montant); }).join(' + '), margin, y + 8);
-        y += 14;
-      } else {
-        y += 5;
-      }
-    }
-    if(synthese.majoration > 0){
-      ligneMontant(T('Ajustement tarifaire'), '+ ' + formatEUR(synthese.majoration));
-    }
+    // PRIX LOCATION + OPTIONS RÉELLEMENT RETENUES = TOTAL LOCATION.
+    // Rien d'autre : ni « Remises », ni « Ajustement tarifaire ». Quand
+    // l'agence a convenu un tarif particulier, la ligne « Location »
+    // porte directement ce prix (voir syntheseFinancierePdf). Le détail
+    // interne reste dans les données, jamais sur le document client.
+    var libelleJoursContrat = contratEnAnglais
+      ? dicoContrat.duree(formatJoursFactures(synthese.jours))
+      : formatJoursFactures(synthese.jours);
+    ligneMontant(T('Location') + ' — ' + libelleJoursContrat, formatEUR(synthese.location));
+
+    // Une ligne par option retenue, avec sa durée quand elle est facturée
+    // au jour. Aucune ligne « Options » générique : sans option, ce bloc
+    // est simplement vide.
+    (synthese.options || []).forEach(function(option){
+      var libelle = T(option.nom) + (option.type === 'jour' ? ' — ' + libelleJoursContrat : '');
+      ligneMontant(libelle, formatEUR(option.montant));
+    });
+
     y += 3;
     filet(margin, pageWidth - margin, y, C.filet, 0.9);
     y += 18;
     ligneMontant(T('TOTAL LOCATION'), formatEUR(synthese.totalLocation), { gras: true, taille: 12.5, couleur: C.titre, espace: 12 });
   } else {
     // Repli : payload sans synthèse (véhicule ou dates incomplets).
-    (payload.detailFinancier || []).forEach(function(l){ ligneMontant(l[0], l[1]); });
+    (payload.detailFinancier || []).forEach(function(l){ ligneMontant(T(l[0]), l[1]); });
     ligneMontant(T('TOTAL LOCATION'), payload.total, { gras: true, taille: 12.5, couleur: C.titre, espace: 12 });
   }
 
@@ -2293,7 +2372,7 @@ function genererPDF(payload, estApercu){
   doc.text(majusculeInitiale(payload.detailAcompte || ((contratEnAnglais ? 'paid by ' : 'réglé par ') + (payload.modePaiement || (contratEnAnglais ? 'bank card' : 'carte bancaire')).toLowerCase())), margin, y + 8);
   y += 18;
 
-  var hauteurEncadre = 44;
+  var hauteurEncadre = 41;
   placePour(hauteurEncadre + 8);
   doc.setFillColor(C.fond[0], C.fond[1], C.fond[2]);
   doc.setDrawColor(C.orange[0], C.orange[1], C.orange[2]);
@@ -2306,7 +2385,7 @@ function genererPDF(payload, estApercu){
   doc.text(majusculeInitiale(payload.detailSolde || ''), margin + 14, y + 34);
   police('bold', 18, C.orange);
   doc.text(String(payload.soldeRestant || formatEUR(0)), pageWidth - margin - 14, y + 29, { align: 'right' });
-  y += hauteurEncadre + 12;
+  y += hauteurEncadre + 10;
 
   // --- 5. Garantie -------------------------------------------------------
   // Bloc volontairement séparé du récapitulatif de la location : le dépôt de
@@ -2328,7 +2407,7 @@ function genererPDF(payload, estApercu){
   police('normal', 8.5, C.texte);
   var lignesFranchises = doc.splitTextToSize(texteFranchises, largeurFranchises);
   var hauteurGarantie = Math.max(52, 30 + lignesFranchises.length * 10);
-  titreSection(T('Garantie'), hauteurGarantie + 24);
+  titreSection(T('Garantie'), hauteurGarantie + 18);
   doc.setFillColor(252, 252, 253);
   doc.setDrawColor(C.filet[0], C.filet[1], C.filet[2]);
   doc.roundedRect(margin, y, maxWidth, hauteurGarantie, 7, 7, 'FD');
@@ -2353,7 +2432,13 @@ function genererPDF(payload, estApercu){
   // =====================================================================
   // PAGE 2 — CONDITIONS, DÉCLARATION, SIGNATURES
   // =====================================================================
-  nouvellePage();
+  // Les conditions ouvrent une nouvelle page seulement s'il ne reste pas la
+  // place d'en commencer la lecture (titre + version des CGL + premier
+  // article). Dans le cas courant la synthèse remplit la page 1 et les
+  // conditions démarrent bien page 2 ; quand la synthèse déborde (beaucoup
+  // d'options), elles enchaînent sous la garantie au lieu de la laisser
+  // seule sur une page entière.
+  placePour(150);
   titreSection(T('Principales conditions de location'));
   police('normal', 8, C.label);
   // Version des CGL ASSOCIÉE AU CONTRAT (payload.cglVersion, figée à sa
@@ -2441,12 +2526,63 @@ function genererPDF(payload, estApercu){
     function viderLigne(){
       if(!ligneCourante.length) return;
       placePour(interligne);
+
+      // Les mots de même graisse consécutifs sont écrits en UNE seule fois,
+      // pas un par un.
+      //
+      // Pourquoi : positionner chaque mot soi-même oblige à mesurer sa
+      // largeur avec la table de jsPDF, qui s'écarte légèrement des
+      // métriques réelles appliquées par le lecteur PDF. L'écart est
+      // proportionnel à la longueur du mot (1,2 pt sur « GETLOCATION » à
+      // 9 pt) et vient se soustraire à l'espace suivant, qui n'en fait que
+      // 2,5 : le mot suivant venait alors se coller au précédent
+      // (« GETLOCATION(TLST SAS) », « 600 €est », « Toutretard »).
+      // En écrivant chaque suite de mots d'un seul tenant, c'est le lecteur
+      // PDF qui place les glyphes et les espaces, avec ses propres
+      // métriques : plus aucun écart ne peut s'accumuler à l'intérieur
+      // d'une suite. Seules les frontières gras/normal restent positionnées
+      // à la main, et l'espace y est rattaché au segment précédent pour ne
+      // jamais pouvoir disparaître.
       var x = margin;
+      var suite = null;
+      var espaceEnAttente = '';
+      function ecrireSuite(){
+        if(!suite) return;
+        police(suite.gras ? 'bold' : 'normal', taille, C.texte);
+        doc.text(suite.texte, x, y);
+        x += doc.getTextWidth(suite.texte);
+        suite = null;
+      }
+      // Espace situé à une frontière gras/normal : écrit comme un
+      // déplacement explicite, avec une marge de sécurité. L'écart de mesure
+      // résiduel de la suite précédente viendrait sinon s'y soustraire, et
+      // un espace un peu large se voit infiniment moins qu'un espace
+      // manquant sur un document contractuel.
+      function ecrireEspaceFrontiere(){
+        if(!espaceEnAttente) return;
+        x += doc.getTextWidth(espaceEnAttente) * 1.3;
+        espaceEnAttente = '';
+      }
       ligneCourante.forEach(function(element){
-        police(element.gras ? 'bold' : 'normal', taille, C.texte);
-        doc.text(element.mot, x, y);
-        x += doc.getTextWidth(element.mot);
+        var estEspace = /^\s+$/.test(element.mot);
+        if(estEspace){
+          // L'espace reste en attente : on ne saura qu'au mot suivant s'il
+          // est intérieur à une suite (il y est alors intégré) ou à une
+          // frontière (déplacement explicite).
+          espaceEnAttente += element.mot;
+          return;
+        }
+        if(suite && suite.gras === element.gras){
+          suite.texte += espaceEnAttente + element.mot;
+          espaceEnAttente = '';
+          return;
+        }
+        ecrireSuite();
+        ecrireEspaceFrontiere();
+        suite = { texte: element.mot, gras: element.gras };
       });
+      ecrireSuite();
+
       y += interligne;
       ligneCourante = []; largeurLigne = 0;
     }
@@ -2622,7 +2758,12 @@ function genererPDF(payload, estApercu){
   ligneEtat(T('Carburant'), formatCarburant(remise.carburant), formatCarburant(restitution.carburant));
   ligneEtat(T('État intérieur (propreté)'), remise.proprete, restitution.proprete);
   ligneEtat(T('État extérieur (dommages)'), remise.dommages, restitution.dommages);
-  ligneEtat(T('Clés et accessoires'), remise.clesAccessoires, restitution.clesAccessoires);
+  ligneEtat(
+    T('Nombre de clés'),
+    (remise.cles === null || remise.cles === undefined || remise.cles === '') ? '' : String(remise.cles),
+    (restitution.cles === null || restitution.cles === undefined || restitution.cles === '') ? '' : String(restitution.cles)
+  );
+  ligneEtat(T('Accessoires'), remise.clesAccessoires, restitution.clesAccessoires);
   ligneEtat(T('Agent'), remise.agent, restitution.agent);
   if(remise.clientSigne || restitution.clientSigne || remise.agenceSigne || restitution.agenceSigne){
     ligneEtat(T('Signature client'), remise.clientSigne, restitution.clientSigne);
@@ -2765,10 +2906,25 @@ function recapRow(label, valeur){
   return row;
 }
 
+// Niveaux de carburant tels qu'ils se lisent sur une jauge, plutôt qu'une
+// échelle de 0 à 100 % : un agent relève « 3/4 », pas « 75 % ». La valeur
+// ENREGISTRÉE reste le pourcentage — les états des lieux déjà saisis
+// (30 %, 60 %…) restent donc lisibles et s'affichent tels quels.
+var NIVEAUX_CARBURANT = [
+  { valeur: 0, libelle: 'Vide' },
+  { valeur: 10, libelle: 'Réserve' },
+  { valeur: 25, libelle: '1/4' },
+  { valeur: 50, libelle: '1/2' },
+  { valeur: 75, libelle: '3/4' },
+  { valeur: 100, libelle: 'Plein' }
+];
+
 function peuplerSelectCarburant(select){
   select.innerHTML = '';
   select.add(new Option('—', ''));
-  for(var n = 0; n <= 100; n += 10){ select.add(new Option(n + ' %', String(n))); }
+  NIVEAUX_CARBURANT.forEach(function(niveau){
+    select.add(new Option(niveau.libelle, String(niveau.valeur)));
+  });
 }
 
 function initDossierAgencyView(token){
@@ -2983,6 +3139,7 @@ function initDossierAgencyView(token){
       document.getElementById(prefix + 'proprete').value = data ? data.proprete : '';
       document.getElementById(prefix + 'dommages').value = data ? data.dommages : '';
       document.getElementById(prefix + 'photosRef').value = data ? data.photosRef : '';
+      document.getElementById(prefix + 'cles').value = (data && data.cles !== null && data.cles !== undefined) ? String(data.cles) : '';
       document.getElementById(prefix + 'clesAccessoires').value = data ? data.clesAccessoires : '';
       document.getElementById(prefix + 'agent').value = data ? data.agent : '';
       document.getElementById(prefix + 'clientSigne').value = data ? data.clientSigne : '';
@@ -3101,6 +3258,7 @@ function initDossierAgencyView(token){
       proprete: document.getElementById(prefix + 'proprete').value,
       dommages: document.getElementById(prefix + 'dommages').value,
       photosRef: document.getElementById(prefix + 'photosRef').value,
+      cles: document.getElementById(prefix + 'cles').value === '' ? null : Number(document.getElementById(prefix + 'cles').value),
       clesAccessoires: document.getElementById(prefix + 'clesAccessoires').value,
       agent: document.getElementById(prefix + 'agent').value,
       clientSigne: document.getElementById(prefix + 'clientSigne').value,
@@ -3476,6 +3634,8 @@ function initOwnerView(prefill){
   var livraisonBlock = document.getElementById('livraisonBlock');
   var tarifManuelToggle = document.getElementById('tarifManuel-toggle');
   var tarifManuelBlock = document.getElementById('tarifManuelBlock');
+  var siegeEnfantToggle = document.getElementById('siege-enfant-toggle');
+  var rehausseurToggle = document.getElementById('rehausseur-toggle');
 
   VEHICULES.forEach(function(v){
     selectVehicule.add(new Option(v.nom + ' — ' + v.prixJour + ' €/jour', v.id));
@@ -3499,6 +3659,17 @@ function initOwnerView(prefill){
     gestionEtatRetour.actualiserSchema();
   });
   appliquerPlaque();
+
+  // Options enfant : aucun champ supplémentaire côté agence (l'âge et le
+  // poids sont demandés au client sur le site) — seule la facturation suit.
+  [siegeEnfantToggle, rehausseurToggle].forEach(function(toggle){
+    if(toggle) toggle.addEventListener('change', updateSummary);
+  });
+
+  // Le supplément jeune conducteur dépend de la date de délivrance du
+  // permis : le récapitulatif doit se remettre à jour à sa saisie.
+  var champPermisDate = document.getElementById('permisDate');
+  if(champPermisDate) champPermisDate.addEventListener('input', updateSummary);
 
   livraisonToggle.addEventListener('change', function(){
     var show = livraisonToggle.checked;
@@ -3760,6 +3931,8 @@ function initOwnerView(prefill){
       immat: document.getElementById('immat').value,
       lieu: selectLieu.value,
       langueClient: (document.getElementById('langueClient') || {}).value || 'fr',
+      siegeEnfant: siegeEnfantToggle.checked,
+      rehausseur: rehausseurToggle.checked,
       depart: inputDepart.value,
       retour: inputRetour.value,
       modeCaution: modeCaution,
@@ -4105,6 +4278,13 @@ function initOwnerView(prefill){
           if(enEdition) sortirModeEdition();
           chargerHistorique();
           mettreAJourLienCourt(result.id, rawData);
+          // Le lien client est juste en dessous : on l'amène à l'écran pour
+          // que l'agence l'ait sous les yeux immédiatement après avoir
+          // généré le contrat, sans avoir à faire défiler la page.
+          var carteLien = document.getElementById('linkBox');
+          if(carteLien && !carteLien.classList.contains('hidden')){
+            carteLien.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
         })
         .catch(function(err){
           libererOngletPdf();

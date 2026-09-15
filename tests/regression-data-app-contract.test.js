@@ -109,9 +109,22 @@ test("contrat front/API : le payload fetch() de create-payment dans js/app.js co
   assert.ok(finObjet !== -1, "Objet JSON.stringify non refermé (parsing)");
 
   const objetLitteral = appJsSource.slice(debutObjet, finObjet);
-  // Ne capture que les noms de clés en tête de ligne (évite les faux
-  // positifs sur des ":" présents dans des commentaires/chaînes).
-  const champsEnvoyes = [...objetLitteral.matchAll(/^\s*(\w+)\s*:/gm)].map(m => m[1]);
+  // Ne retient que les clés de PREMIER niveau : `conducteur: { naissance,
+  // permisDate… }` est un champ imbriqué, validé à part côté serveur, et ses
+  // sous-clés n'ont rien à faire dans la liste des champs du payload.
+  // On suit la profondeur d'accolades/crochets plutôt que la seule
+  // indentation, qui varie au fil des reformatages.
+  const champsEnvoyes = [];
+  let niveau = 0;
+  objetLitteral.split("\n").forEach((ligne) => {
+    const sansCommentaire = ligne.replace(/\/\/.*$/, "");
+    const cle = /^\s*(\w+)\s*:/.exec(sansCommentaire);
+    if (cle && niveau === 1) champsEnvoyes.push(cle[1]);
+    for (const caractere of sansCommentaire) {
+      if (caractere === "{" || caractere === "[") niveau++;
+      if (caractere === "}" || caractere === "]") niveau--;
+    }
+  });
 
   assert.ok(champsEnvoyes.length > 5, "Le payload envoyé semble anormalement pauvre — vérifier l'extraction ou une régression du payload");
 
@@ -139,7 +152,9 @@ test("contrat front/API : le payload fetch() de create-payment dans js/app.js co
     adresseRetour: dataJs.LIEUX[0] === dataJs.LIEU_LIVRAISON ? dataJs.VILLES_LIVRAISON[0] : "",
     options: [],
     codePromo: "",
-    conducteur: { nom: "Dupont", prenom: "Jean", email: "jean@example.com", telephone: "0600000000", naissance: "1995-06-15" },
+    conducteur: { nom: "Dupont", prenom: "Jean", email: "jean@example.com", telephone: "0600000000", naissance: "1995-06-15", permisDate: "2015-06-15" },
+    enfantAge: undefined,
+    enfantPoids: undefined,
     idempotencyKey: "test-key-123",
     cglAccepted: true,
     cglVersion: dataJs.CGL_VERSION,

@@ -75,7 +75,15 @@ test("chaque véhicule de la homepage affiche sa caution exacte", () => {
 
 test("la FAQ utilise des accordéons natifs accessibles", () => {
   const items = [...document.querySelectorAll(".faq-item")];
-  assert.equal(items.length, 5);
+  // 4 questions depuis le retrait de « Quels véhicules proposez-vous ? » :
+  // la plateforme peut proposer des véhicules partenaires, la liste figée de
+  // la flotte propre n'y répondait plus.
+  assert.equal(items.length, 4);
+  assert.equal(
+    items.some((item) => /Quels véhicules proposez-vous/.test(item.textContent)),
+    false,
+    "cette question a été retirée de la FAQ"
+  );
   assert.ok(items.every(item => item.tagName === "DETAILS" && item.querySelector(":scope > summary")));
 });
 

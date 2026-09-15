@@ -153,11 +153,48 @@ test("page 1 : les huit informations que le client doit saisir en 10 secondes so
   assert.match(page1, /DÉPÔT DE GARANTIE/);          // garantie
 });
 
-test("tarification : une seule ligne de remises, jamais la cascade de sous-totaux d'origine", () => {
+test("tarification : prix de location + options retenues, aucun détail de calcul interne", () => {
+  // Le client lit le prix convenu, pas la façon dont l'agence y est arrivée.
   const journal = genererJournal({ codePromo: "BIENVENUE20" });
-  assert.ok(contient(journal, "Remises"), "une ligne de synthèse des remises est attendue");
-  assert.ok(!contient(journal, "Sous-total"), "aucun sous-total intermédiaire ne doit apparaître dans le PDF client");
-  assert.ok(!contient(journal, "Réduction durée ("), "le détail ligne à ligne ne doit plus être imprimé tel quel");
+  ["Sous-total", "Réduction durée (", "Remises", "Ajustement tarif"].forEach((interdit) => {
+    assert.ok(!contient(journal, interdit), `« ${interdit} » ne doit jamais figurer sur le contrat client`);
+  });
+});
+
+test("tarif manuel : la ligne Location porte directement le prix convenu", () => {
+  // Cas H de la recette : tarif spécial fixé par l'agence, sans option.
+  const journal = genererJournal({ tarifManuel: true, montantFinalConvenu: "711", secondConducteur: false, livraison: false });
+  const location = journal.find((e) => e.texte.startsWith("Location —"));
+  const total = journal.find((e) => e.texte.startsWith("TOTAL LOCATION"));
+  const montantApres = (entree) => journal[journal.indexOf(entree) + 1].texte;
+
+  assert.ok(location, "la ligne Location doit exister");
+  assert.match(montantApres(location), /711/, "la ligne Location porte le prix convenu");
+  assert.match(montantApres(total), /711/);
+  assert.ok(!contient(journal, "Ajustement"), "aucune ligne d'ajustement sur le document client");
+});
+
+test("tarif manuel avec option : location ajustée, option détaillée, total correct", () => {
+  // Cas I de la recette. L'option reste visible à son montant réel ; c'est
+  // la ligne Location qui absorbe l'écart avec le tarif théorique.
+  const journal = genererJournal({ tarifManuel: true, montantFinalConvenu: "711", rehausseur: true });
+  const montantApres = (debut) => {
+    const entree = journal.find((e) => e.texte.startsWith(debut));
+    assert.ok(entree, `ligne « ${debut} » absente`);
+    return journal[journal.indexOf(entree) + 1].texte;
+  };
+  const nombre = (texte) => Number(texte.replace(/[^\d,.-]/g, "").replace(",", "."));
+
+  const location = nombre(montantApres("Location —"));
+  const option = nombre(montantApres("Rehausseur"));
+  assert.equal(Math.round((location + option) * 100) / 100, 711, "location + option doit faire le total convenu");
+  assert.match(montantApres("TOTAL LOCATION"), /711/);
+});
+
+test("aucune option retenue : pas de ligne « Options » vide", () => {
+  // Cas J de la recette.
+  const journal = genererJournal({ secondConducteur: false, livraison: false, kmForfait: "" });
+  assert.ok(!contient(journal, "Options"), "aucune ligne générique « Options » quand rien n'est retenu");
 });
 
 test("tarification : le dépôt de garantie n'est jamais mêlé au récapitulatif du prix", () => {
@@ -203,11 +240,11 @@ test("remarques particulières : affichées seulement si renseignées, retours �
 
   const avec = genererJournal({ remarques: "Première ligne de remarque.\nSeconde ligne de remarque." });
   assert.ok(contient(avec, "Remarques particulières"));
-  // Les articles sont rendus mot à mot (pour pouvoir mettre en gras un terme
-  // au milieu d'une ligne) : le retour à la ligne se vérifie donc sur la
-  // position, le premier mot de la seconde ligne repartant de la marge.
-  const premiere = avec.find((e) => e.texte === "Première");
-  const seconde = avec.find((e) => e.texte === "Seconde");
+  // Chaque suite de mots de même graisse est écrite d'un seul tenant (voir
+  // viderLigne) : le retour à la ligne se vérifie sur la position, la
+  // seconde ligne saisie repartant de la marge, sous la première.
+  const premiere = avec.find((e) => e.texte.startsWith("Première ligne de remarque"));
+  const seconde = avec.find((e) => e.texte.startsWith("Seconde ligne de remarque"));
   assert.ok(premiere && seconde, "les deux lignes de remarque doivent être imprimées");
   assert.equal(seconde.x, premiere.x, "la seconde ligne saisie doit repartir de la marge");
   assert.ok(seconde.y > premiere.y, "la seconde ligne saisie doit être imprimée sous la première");
@@ -249,14 +286,19 @@ test("pied de page : numéro de contrat, pagination et identité légale sur cha
   }
 });
 
-test("synthèse financière : regroupe sans jamais recalculer (location + options - remises = total)", () => {
+test("synthèse financière : location + options = total, sans recalcul", () => {
   const dom = new JSDOM(html, { url: "https://getlocation.fr/contrat.html", runScripts: "outside-only" });
   dom.window.eval(dataJsSource);
+  dom.window.eval(contratEnSource);
   dom.window.eval(extractScriptBody());
   const payload = dom.window.construirePayload({ ...donneesBase, codePromo: "BIENVENUE20" }, null, null);
   const s = payload.syntheseFinanciere;
-  assert.equal(Math.round((s.location + s.optionsMontant - s.remisesTotal) * 100) / 100, s.totalLocation);
+  assert.equal(Math.round((s.location + s.optionsMontant) * 100) / 100, s.totalLocation);
   assert.equal(Math.round((s.totalLocation - s.dejaRegle) * 100) / 100, s.resteAPayer);
+  // Le détail interne reste disponible pour l'historique, mais n'entre pas
+  // dans l'addition présentée au client.
+  assert.ok(typeof s.tarifTheorique === "number");
+  assert.ok(Array.isArray(s.remises));
   dom.window.close();
 });
 

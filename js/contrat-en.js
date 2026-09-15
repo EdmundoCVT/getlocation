@@ -87,14 +87,11 @@
     // Section 4 — tarification
     "Tarification": "Pricing",
     "Options": "Extras",
-    "Remises": "Discounts",
-    "Ajustement tarifaire": "Price adjustment",
     "TOTAL LOCATION": "RENTAL TOTAL",
     "État du règlement": "Payment status",
     "Acompte déjà réglé": "Amount already paid",
     "Reste à payer": "Balance due",
     "Remise commerciale": "Goodwill discount",
-    "Ajustement tarif": "Price adjustment",
     "TOTAL": "TOTAL",
     "Total": "Total",
     "Sous-total": "Subtotal",
@@ -127,7 +124,8 @@
     "Kilométrage": "Odometer",
     "État intérieur (propreté)": "Interior condition (cleanliness)",
     "État extérieur (dommages)": "Exterior condition (damage)",
-    "Clés et accessoires": "Keys and accessories",
+    "Nombre de clés": "Number of keys",
+    "Accessoires": "Accessories",
     "Agent": "Agent",
     "Signature client": "Customer signature",
     "Signature agence": "Agency signature",
@@ -163,11 +161,11 @@
     "Forfait 300 km supplémentaires": "300 km extra mileage package",
     "Forfait 400 km supplémentaires": "400 km extra mileage package",
     "Service de plein / recharge": "Refuelling / recharging service",
-    "Siège bébé": "Baby seat",
     "Siège enfant": "Child seat",
-    "Rehausseur enfant": "Booster seat",
+    "Rehausseur": "Booster seat",
     "Assurance passagers / accident": "Passenger / accident cover",
     "Livraison du véhicule": "Vehicle delivery",
+    "Supplément jeune conducteur": "Young driver surcharge",
     "Livraison à l'adresse de votre choix": "Delivery to the address of your choice",
     "Oui": "Yes",
     "Non": "No",
@@ -207,8 +205,8 @@
     {
       titre: "Article 2 — Price and payment",
       paragraphes: [
-        "Total rental amount: {total}. The breakdown (daily rate, any discount, extras) is set out in the financial "
-          + "summary above. Deposit payment of {montantRegle}: {detailAcompte}. Remaining balance of {soldeRestant}: {detailSolde}."
+        "Total agreed rental amount: {total}. This amount includes any extras selected, listed line by line in the "
+          + "financial summary above. Deposit payment of {montantRegle}: {detailAcompte}. Remaining balance of {soldeRestant}: {detailSolde}."
       ]
     },
     {
@@ -270,8 +268,8 @@
   // fonctionne à l'identique.
   var DECLARATION = "By signing this agreement, the renter declares : that the information provided above is accurate ; "
     + "that they hold a valid driving licence ; that they have read this agreement and the General Rental Conditions (cgl.html) ; "
-    + "that they accept the rental conditions and the applicable pricing ; that they acknowledge the condition of the vehicle as "
-    + "recorded at handover (see the handover and return table).";
+    + "that they accept the agreed pricing and any extras selected ; that they have read the cover and excess amounts set out in "
+    + "Article 4 ; that they acknowledge the condition of the vehicle as recorded at handover (see the handover and return table).";
 
   // ---------------------------------------------------------------
   // Fonctions

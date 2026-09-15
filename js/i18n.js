@@ -295,9 +295,6 @@
     "Le paiement en ligne est-il sécurisé ?": "Is online payment secure?",
     "Oui, le paiement est traité par Mollie, un prestataire de paiement certifié. GETLOCATION ne stocke aucune donnée bancaire.":
       "Yes, payments are handled by Mollie, a certified payment provider. GETLOCATION never stores your card details.",
-    "Quels véhicules proposez-vous ?": "Which vehicles do you offer?",
-    "Une citadine (Opel Corsa Business), deux SUV/berlines hybrides (Peugeot 3008 et 2008 Hybrid) et un utilitaire compact (Toyota Proace Medium), tous des modèles 2026.":
-      "A city car (Opel Corsa Business), two hybrid SUVs (Peugeot 3008 and 2008 Hybrid) and a compact van (Toyota Proace Medium) — all 2026 models.",
 
     // --- Pages véhicules / réservation
     "Chargement de vos dates…": "Loading your dates…",
@@ -658,6 +655,20 @@
 
     "Aucun forfait": "No package",
 
+    // --- Options enfants et supplément jeune conducteur
+    "Âge de l'enfant": "Child's age",
+    "Poids de l'enfant": "Child's weight",
+    "ans": "years",
+    "kg": "kg",
+    "Rehausseur": "Booster seat",
+    "Le siège adapté sera sélectionné en fonction de l'âge et du poids de l'enfant. Il est installé dans le véhicule avant votre prise en charge.":
+      "The right seat is chosen according to the child's age and weight. It is fitted in the vehicle before you collect it.",
+    "Une solution pratique pour installer un enfant plus grand avec la ceinture du véhicule, sans avoir à emporter votre propre équipement.":
+      "A practical way to seat an older child safely with the vehicle's own seatbelt, without bringing your own equipment.",
+    "Date d'obtention du permis": "Driving licence issue date",
+    "Un supplément s'applique aux permis de moins de 3 ans.": "A surcharge applies to licences held for less than 3 years.",
+    "Date d'obtention du permis invalide (JJ/MM/AAAA)": "Invalid licence issue date (DD/MM/YYYY)",
+
     // Libellés des filtres du catalogue (familles, types, carburants).
     // « SUV », « SUV / 4x4 », « Minibus », « Premium », « Diesel » s'écrivent
     // à l'identique en anglais : la traduction les reprend tels quels pour
@@ -701,6 +712,7 @@
     "{index} / {total}": "{index} / {total}",
     "Réservation {reference}": "Booking {reference}",
     "Location ({jours})": "Rental ({jours})",
+    "Supplément jeune conducteur — {jours}": "Young driver surcharge — {jours}",
     "Remise durée ({palier}, -{montant}/jour)": "Long-stay discount ({palier}, -{montant}/day)",
     "Code promo {code} ({remise})": "Promo code {code} ({remise})",
     "Livraison — {adresse}": "Delivery — {adresse}",

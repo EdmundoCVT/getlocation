@@ -61,7 +61,11 @@ function validPayload(overrides = {}) {
       prenom: "Alice",
       email: "alice.martin@example.com",
       telephone: "0601020304",
-      naissance: "1998-03-20"
+      naissance: "1998-03-20",
+      // Date d'obtention du permis : obligatoire depuis l'ajout du supplément
+      // jeune conducteur (permis de moins de 3 ans). Ancienne ici, donc aucun
+      // supplément — les montants attendus par ces tests ne changent pas.
+      permisDate: "2016-04-10"
     },
     cglAccepted: true,
     cglVersion: CGL_VERSION,

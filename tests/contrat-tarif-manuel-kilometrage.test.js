@@ -100,35 +100,54 @@ test("construirePayload : sans tarif manuel, comportement inchangé (une seule l
   assert.equal(payload.kilometrageManuel, null);
 });
 
-test("construirePayload : tarif manuel remise => Location / Remise commerciale / TOTAL, motif jamais dans le payload", () => {
+test("construirePayload : tarif manuel => une seule ligne Location au prix convenu, motif jamais dans le payload", () => {
   const win = buildWindow();
   const prixSeul = win.calculerPrixContrat(donneesBase);
+  const convenu = prixSeul.total - 60;
   const donnees = {
     ...donneesBase,
     tarifManuel: true,
-    montantFinalConvenu: String(prixSeul.total - 60),
+    montantFinalConvenu: String(convenu),
     tarifMotif: "Client fidèle, geste commercial"
   };
   const payload = win.construirePayload(donnees, null, null);
+
+  // Le client lit le prix convenu, pas la façon dont l'agence y est arrivée :
+  // plus de cascade « Location / Remise commerciale / TOTAL ».
   // Array.from() : payload.detailFinancier est un tableau du "realm" jsdom
   // — deepEqual le compare comme non-réf.-égal à un littéral construit dans
   // le realm Node malgré un contenu identique ; Array.from() re-matérialise
   // le tableau dans le realm courant avant comparaison.
   const labels = Array.from(payload.detailFinancier).map((l) => l[0]);
-  assert.deepEqual(labels.slice(-3), ["Location", "Remise commerciale", "TOTAL"]);
-  assert.equal(payload.detailFinancier[payload.detailFinancier.length - 1][1], win.formatEUR(prixSeul.total - 60));
+  assert.deepEqual(labels, ["Location"]);
+  assert.equal(payload.detailFinancier[0][1], win.formatEUR(convenu));
+  assert.equal(labels.includes("Remise commerciale"), false);
+  assert.equal(labels.includes("Ajustement tarif"), false);
+
+  // La synthèse imprimée porte elle aussi directement le prix convenu.
+  assert.equal(payload.syntheseFinanciere.totalLocation, convenu);
+  assert.equal(
+    Math.round((payload.syntheseFinanciere.location + payload.syntheseFinanciere.optionsMontant) * 100) / 100,
+    convenu
+  );
+
   assert.equal("tarifMotif" in payload, false, "le motif interne ne doit jamais apparaître dans le payload PDF");
   assert.equal(JSON.stringify(payload).includes("geste commercial"), false);
 });
 
-test("construirePayload : tarif manuel majoration => libellé 'Ajustement tarif'", () => {
+test("construirePayload : tarif manuel majoré => toujours aucune ligne d'ajustement", () => {
   const win = buildWindow();
   const prixSeul = win.calculerPrixContrat(donneesBase);
-  const donnees = { ...donneesBase, tarifManuel: true, montantFinalConvenu: String(prixSeul.total + 40) };
+  const convenu = prixSeul.total + 40;
+  const donnees = { ...donneesBase, tarifManuel: true, montantFinalConvenu: String(convenu) };
   const payload = win.construirePayload(donnees, null, null);
   const labels = payload.detailFinancier.map((l) => l[0]);
-  assert.ok(labels.includes("Ajustement tarif"));
-  assert.ok(!labels.includes("Remise commerciale"));
+
+  assert.equal(labels.includes("Ajustement tarif"), false);
+  assert.equal(labels.includes("Remise commerciale"), false);
+  assert.equal(payload.syntheseFinanciere.totalLocation, convenu);
+  // L'écart avec le tarif théorique reste disponible pour l'administratif.
+  assert.equal(payload.syntheseFinanciere.ecartTarifManuel, -40);
 });
 
 test("construirePayload : kilométrage absent => kilometrageManuel null", () => {

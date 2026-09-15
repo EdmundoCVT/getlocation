@@ -134,7 +134,7 @@ const CGL_VERSION = "2026-08-31b";
 // élevé au plus bas pour que reductionDureeApplicable() retienne le
 // meilleur palier atteint.
 const REDUCTIONS_DUREE = [
-  { seuilJours: 5, montantParJour: 10, libelle: "5 jours ou plus" }
+  { seuilJours: 5, montantParJour: 5, libelle: "5 jours ou plus" }
 ];
 
 // Retourne le palier de réduction durée applicable (ou null si la location
@@ -202,15 +202,74 @@ const OPTIONS = [
   { id: "km-supplementaire", nom: "Forfait 300 km supplémentaires", description: "Le bon équilibre pour explorer davantage la Côte d'Azur et ses alentours, avec une réserve confortable sur l'ensemble du séjour.", type: "forfait", prix: 100 },
   { id: "km-400", nom: "Forfait 400 km supplémentaires", description: "Pour les séjours les plus mobiles : partez plus loin et multipliez les escapades avec une marge kilométrique généreuse.", type: "forfait", prix: 150 },
   { id: "service-plein", nom: "Service de plein / recharge", description: "Profitez de votre dernière journée jusqu'au bout et évitez le détour par une station avant le retour. Rendez le véhicule sans refaire vous-même le plein ou la recharge : notre équipe s'en charge. Le carburant ou l'électricité consommés restent facturés selon les conditions de location.", type: "forfait", prix: 28 },
-  { id: "siege-auto", nom: "Siège bébé", description: "Voyagez plus léger : le siège bébé vous attend directement dans le véhicule lors de sa livraison. Une solution simple pour préparer le trajet familial avec moins de matériel à transporter.", type: "jour", prix: 5 },
-  { id: "siege-enfant", nom: "Siège enfant", description: "Offrez à votre enfant une assise adaptée et plus confortable pendant le trajet. Le siège est préparé dans le véhicule avant votre prise en charge.", type: "jour", prix: 5 },
-  { id: "rehausseur", nom: "Rehausseur enfant", description: "Une solution pratique pour mieux installer les enfants plus grands avec la ceinture du véhicule, sans avoir à emporter votre propre équipement.", type: "jour", prix: 3 },
+  // Équipement enfant : deux options seulement. Le client n'a pas à choisir
+  // lui-même une catégorie de siège (groupe 0+/1/2…) — il indique l'âge et le
+  // poids de l'enfant (voir `saisies` ci-dessous), et l'agence prépare le
+  // siège homologué correspondant. Les anciennes options « Siège bébé »
+  // (siege-auto) et « Rehausseur enfant » à 3 €/jour ont été retirées ; les
+  // réservations déjà enregistrées gardent leur propre copie du libellé et du
+  // montant (voir create-payment.js), elles ne sont pas recalculées.
+  {
+    id: "siege-enfant",
+    nom: "Siège enfant",
+    description: "Le siège adapté sera sélectionné en fonction de l'âge et du poids de l'enfant. Il est installé dans le véhicule avant votre prise en charge.",
+    type: "jour",
+    prix: 10,
+    // Informations demandées au client quand l'option est retenue, et
+    // conservées avec la réservation pour que l'agence sache quel siège
+    // préparer. `cle` est le nom du champ stocké dans la réservation.
+    saisies: [
+      { cle: "enfantAge", libelle: "Âge de l'enfant", unite: "ans", min: 0, max: 12 },
+      { cle: "enfantPoids", libelle: "Poids de l'enfant", unite: "kg", min: 0, max: 60 }
+    ]
+  },
+  { id: "rehausseur", nom: "Rehausseur", description: "Une solution pratique pour installer un enfant plus grand avec la ceinture du véhicule, sans avoir à emporter votre propre équipement.", type: "jour", prix: 5 },
   { id: "assurance-passagers", nom: "Assurance passagers / accident", description: "Couvre les dommages corporels des passagers en cas d'accident", type: "jour", prix: 6 },
   { id: "livraison-adresse", nom: "Livraison du véhicule", description: "Livraison à l'adresse ou au point de rendez-vous choisi sur la Côte d'Azur", type: "forfait", prix: 20 }
 ];
 
 function getOptionParId(id) {
   return OPTIONS.find(o => o.id === id);
+}
+
+// Supplément jeune conducteur : appliqué automatiquement quand le conducteur
+// détient son permis depuis moins de `anneesMin` années, jamais proposé comme
+// une option facultative. Il se calcule sur la durée FACTURÉE de la location,
+// comme une option au jour.
+//
+// Volontairement séparé des OPTIONS ci-dessus : ce n'est pas un choix du
+// client mais une conséquence de sa situation, et le serveur doit pouvoir le
+// recalculer seul à partir de la date de permis validée (règle n°2 du
+// CLAUDE.md — jamais de montant envoyé par le navigateur).
+const SUPPLEMENT_JEUNE_CONDUCTEUR = {
+  anneesMin: 3,
+  montantParJour: 30,
+  libelle: "Supplément jeune conducteur"
+};
+
+// Ancienneté du permis en années révolues à une date de référence (par défaut
+// aujourd'hui). `permisDateISO` au format "YYYY-MM-DD" ; null si absent ou
+// illisible — l'appelant décide alors quoi faire (aucun supplément, plutôt
+// qu'un supplément appliqué au hasard).
+function anciennetePermisAnnees(permisDateISO, reference) {
+  if (typeof permisDateISO !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(permisDateISO)) return null;
+  const permis = new Date(`${permisDateISO}T00:00:00Z`);
+  if (!isFinite(permis.getTime())) return null;
+  const aujourdHui = reference ? new Date(reference) : new Date();
+  if (!isFinite(aujourdHui.getTime())) return null;
+  let annees = aujourdHui.getUTCFullYear() - permis.getUTCFullYear();
+  const moisDiff = aujourdHui.getUTCMonth() - permis.getUTCMonth();
+  if (moisDiff < 0 || (moisDiff === 0 && aujourdHui.getUTCDate() < permis.getUTCDate())) annees--;
+  return annees;
+}
+
+// Vrai seulement si l'ancienneté est CONNUE et strictement inférieure au
+// seuil. Une date de permis absente ou illisible ne déclenche jamais le
+// supplément : mieux vaut ne pas facturer que facturer à tort.
+function estJeuneConducteur(permisDateISO, reference) {
+  const annees = anciennetePermisAnnees(permisDateISO, reference);
+  if (annees === null || annees < 0) return false;
+  return annees < SUPPLEMENT_JEUNE_CONDUCTEUR.anneesMin;
 }
 
 const VEHICULES = [
@@ -462,7 +521,13 @@ function joursFacturablesDepuisHeures(dureeHeures) {
 // les identifiants inconnus sont ignorés ici (la validation stricte côté
 // serveur — qui rejette une requête contenant un identifiant inconnu — se
 // fait séparément dans validate-reservation-input.js).
-function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFin, options, codePromo }) {
+// `permisDate` ("YYYY-MM-DD", facultatif) : date d'obtention du permis du
+// conducteur principal. Quand elle est connue et date de moins de 3 ans, le
+// supplément jeune conducteur est ajouté automatiquement (voir
+// SUPPLEMENT_JEUNE_CONDUCTEUR). Absente, aucun supplément — les calculs faits
+// avant la saisie du conducteur (catalogue, étapes 1 à 3) restent donc
+// inchangés.
+function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFin, options, codePromo, permisDate }) {
   const vehicule = getVehiculeParId(vehiculeId);
   if (!vehicule) return null;
   const dureeHeures = dureeEnHeures(dateDebut, heureDebut, dateFin, heureFin);
@@ -486,7 +551,18 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
     }));
   const optionsMontant = optionsSelectionnees.reduce((somme, o) => somme + o.montant, 0);
 
-  const baseAvantPromo = sousTotal + optionsMontant;
+  // Supplément jeune conducteur : déduit de la date de permis, jamais choisi.
+  const jeuneConducteur = estJeuneConducteur(permisDate);
+  const supplementJeuneConducteur = jeuneConducteur
+    ? {
+      montantParJour: SUPPLEMENT_JEUNE_CONDUCTEUR.montantParJour,
+      montant: SUPPLEMENT_JEUNE_CONDUCTEUR.montantParJour * jours,
+      libelle: SUPPLEMENT_JEUNE_CONDUCTEUR.libelle
+    }
+    : null;
+  const supplementJeuneConducteurMontant = supplementJeuneConducteur ? supplementJeuneConducteur.montant : 0;
+
+  const baseAvantPromo = sousTotal + optionsMontant + supplementJeuneConducteurMontant;
   const promo = getCodePromo(codePromo);
   // `montant` (remise fixe) plafonné à baseAvantPromo : un total ne devient
   // jamais négatif, même si le code promo excède le montant de la
@@ -507,6 +583,8 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
     sousTotal,
     optionsSelectionnees,
     optionsMontant,
+    supplementJeuneConducteur,
+    supplementJeuneConducteurMontant,
     baseAvantPromo,
     codePromo: promo,
     reductionPromoMontant,
@@ -633,6 +711,9 @@ if (typeof module !== "undefined" && module.exports) {
     joursFacturablesDepuisHeures,
     reductionDureeApplicable,
     prixJourMinimum,
+    SUPPLEMENT_JEUNE_CONDUCTEUR,
+    anciennetePermisAnnees,
+    estJeuneConducteur,
     getCodePromo,
     getOptionParId,
     calculerPrixTotal,

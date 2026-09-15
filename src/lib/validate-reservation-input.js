@@ -12,7 +12,7 @@
 // confirmée en production — ne pas laisser les deux diverger si l'une des
 // deux est modifiée avant la suppression définitive de l'ancienne.
 
-const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS } = require("../../js/data.js");
+const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS, anciennetePermisAnnees } = require("../../js/data.js");
 
 const MAX_LEN = {
   nom: 100,
@@ -42,6 +42,15 @@ function isValidHeure(v) {
 
 function isValidEmail(v) {
   return typeof v === "string" && v.length <= MAX_LEN.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+
+// Entier borné, ou null si la valeur est absente, non numérique ou hors
+// bornes. Accepte une chaîne (formulaire) comme un nombre (JSON).
+function normaliserEntier(valeur, min, max) {
+  if (valeur === undefined || valeur === null || valeur === "") return null;
+  const nombre = Number(valeur);
+  if (!Number.isInteger(nombre) || nombre < min || nombre > max) return null;
+  return nombre;
 }
 
 // Âge en années révolues à partir d'une date de naissance "YYYY-MM-DD" —
@@ -85,7 +94,9 @@ function validateReservationInput(payload) {
     idempotencyKey,
     cglAccepted,
     cglVersion,
-    langue
+    langue,
+    enfantAge,
+    enfantPoids
   } = payload;
 
   const vehicule = typeof vehiculeId === "string" ? getVehiculeParId(vehiculeId) : null;
@@ -179,6 +190,27 @@ function validateReservationInput(payload) {
       const age = calculerAge(conducteur.naissance);
       if (age === null || age < 21 || age > 99) errors.push("Le conducteur doit avoir entre 21 et 99 ans");
     }
+    // Date d'obtention du permis : c'est elle, et elle seule, qui détermine
+    // le supplément jeune conducteur recalculé côté serveur (jamais un
+    // montant envoyé par le navigateur — règle n°2 du CLAUDE.md).
+    if (!isValidDate(conducteur.permisDate)) {
+      errors.push("Date d'obtention du permis invalide");
+    } else {
+      const anciennete = anciennetePermisAnnees(conducteur.permisDate);
+      if (anciennete === null || anciennete < 0) errors.push("La date d'obtention du permis ne peut pas être dans le futur");
+      else if (anciennete > 80) errors.push("Date d'obtention du permis invalide");
+    }
+  }
+
+  // Âge et poids de l'enfant : demandés avec l'option « Siège enfant » pour
+  // que l'agence prépare le siège homologué correspondant. Purement
+  // informatifs — aucune règle de prix n'en dépend.
+  const avecSiegeEnfant = optionsNormalisees.includes("siege-enfant");
+  const enfantAgeNormalise = normaliserEntier(enfantAge, 0, 12);
+  const enfantPoidsNormalise = normaliserEntier(enfantPoids, 0, 60);
+  if (avecSiegeEnfant) {
+    if (enfantAgeNormalise === null) errors.push("Âge de l'enfant invalide (0 à 12 ans)");
+    if (enfantPoidsNormalise === null) errors.push("Poids de l'enfant invalide (0 à 60 kg)");
   }
 
   if (idempotencyKey !== undefined && !(typeof idempotencyKey === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(idempotencyKey))) {
@@ -204,7 +236,16 @@ function validateReservationInput(payload) {
   // plutôt que de refuser la réservation pour si peu.
   const langueNormalisee = langue === "en" ? "en" : "fr";
 
-  return { valid: errors.length === 0, errors, vehicule, options: optionsNormalisees, codePromo: codePromoNormalise, langue: langueNormalisee };
+  return {
+    valid: errors.length === 0,
+    errors,
+    vehicule,
+    options: optionsNormalisees,
+    codePromo: codePromoNormalise,
+    langue: langueNormalisee,
+    enfantAge: avecSiegeEnfant ? enfantAgeNormalise : null,
+    enfantPoids: avecSiegeEnfant ? enfantPoidsNormalise : null
+  };
 }
 
 module.exports = { validateReservationInput };

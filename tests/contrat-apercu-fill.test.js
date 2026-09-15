@@ -116,7 +116,7 @@ test("remplirTexteArticles() + texteConditionsLocation() : les articles reflète
 
   assert.match(texte, /le véhicule Peugeot 3008, immatriculé AB-123-CD/);
   assert.match(texte, /Lieu : Agence Grasse\./);
-  assert.match(texte, /Montant total de la location : \d+([.,]\d+)?\s?€\./);
+  assert.match(texte, /Montant total convenu pour la location : \d+([.,]\d+)?\s?€\./);
   assert.match(texte, /Un dépôt de garantie de \d+([.,]\d+)?\s?€ est prélevé avant remise des clés, réglé par carte bancaire\./);
   assert.match(texte, /soit \d[\d\s]* km au total pour la durée du contrat/);
 

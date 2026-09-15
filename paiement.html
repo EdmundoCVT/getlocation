@@ -120,7 +120,7 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=27">
+<link rel="stylesheet" href="css/style.css?v=28">
 </head>
 <body>
 
@@ -214,6 +214,17 @@
             <input type="text" id="naissance" name="naissance" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" required aria-describedby="err-naissance" aria-invalid="false">
             <div class="error-text" id="err-naissance" aria-live="polite"></div>
           </div>
+          <!-- Date d'obtention du permis : sert à déterminer automatiquement
+               le supplément jeune conducteur (permis de moins de 3 ans, voir
+               SUPPLEMENT_JEUNE_CONDUCTEUR dans js/data.js). Le supplément est
+               recalculé côté serveur à partir de cette date, jamais depuis un
+               montant envoyé par le navigateur. -->
+          <div class="field">
+            <label for="permisDate">Date d'obtention du permis</label>
+            <input type="text" id="permisDate" name="permisDate" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" required aria-describedby="err-permisDate hint-permisDate" aria-invalid="false">
+            <div class="error-text" id="err-permisDate" aria-live="polite"></div>
+            <p class="hint-text" id="hint-permisDate">Un supplément s'applique aux permis de moins de 3 ans.</p>
+          </div>
         </div>
         <p class="hint-text">Le permis de conduire et une pièce d'identité vous seront demandés par e-mail après la réservation.</p>
 
@@ -280,8 +291,8 @@
   <div class="footer-bottom">© <span id="footer-year"></span> GETLOCATION — TLST SAS · SIRET 932 098 908 00019 · <a href="mentions-legales.html">Mentions légales</a></div>
 </footer>
 
-<script src="js/data.js?v=22"></script>
-<script src="js/i18n.js?v=2"></script>
-<script src="js/app.js?v=29"></script>
+<script src="js/data.js?v=23"></script>
+<script src="js/i18n.js?v=3"></script>
+<script src="js/app.js?v=30"></script>
 </body>
 </html>

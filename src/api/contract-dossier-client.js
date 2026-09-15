@@ -85,6 +85,10 @@ function buildClientView(reservation) {
       reductionDuree: reservation.reductionDuree || null,
       options: Array.isArray(reservation.options) ? reservation.options : [],
       optionsMontant: reservation.optionsMontant,
+      // Supplément jeune conducteur figé au paiement : repris tel quel pour
+      // que le contrat porte le montant réellement facturé. Null pour les
+      // réservations antérieures à cette règle.
+      supplementJeuneConducteur: reservation.supplementJeuneConducteur || null,
       codePromo: reservation.codePromo || null,
       reductionPromoMontant: reservation.reductionPromoMontant,
       total: reservation.total,

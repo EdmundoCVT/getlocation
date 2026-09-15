@@ -1330,6 +1330,41 @@ function initReservationPage() {
 
       label.append(optionIcon(iconKind), texte, checkbox);
       card.append(label, details);
+
+      // Certaines options demandent une précision au client (âge et poids de
+      // l'enfant pour le siège — voir `saisies` dans js/data.js). Les champs
+      // n'apparaissent qu'une fois l'option cochée, et leur valeur est
+      // conservée avec la réservation pour que l'agence sache quoi préparer.
+      if (Array.isArray(opt.saisies) && opt.saisies.length) {
+        const precisions = document.createElement("div");
+        precisions.className = "option-precisions";
+        opt.saisies.forEach((saisie) => {
+          const champ = document.createElement("label");
+          champ.className = "option-precision";
+          const intitule = document.createElement("span");
+          intitule.textContent = t(saisie.libelle);
+          const entree = document.createElement("input");
+          entree.type = "number";
+          entree.inputMode = "numeric";
+          entree.id = `option-${opt.id}-${saisie.cle}`;
+          entree.min = String(saisie.min);
+          entree.max = String(saisie.max);
+          entree.step = "1";
+          entree.placeholder = t(saisie.unite);
+          entree.value = data[saisie.cle] === undefined || data[saisie.cle] === null ? "" : String(data[saisie.cle]);
+          entree.addEventListener("input", () => {
+            const valeur = entree.value === "" ? null : Number(entree.value);
+            data[saisie.cle] = valeur === null || !isFinite(valeur) ? null : valeur;
+            writeReservationLocal(data);
+          });
+          champ.append(intitule, entree);
+          precisions.appendChild(champ);
+        });
+        precisions.hidden = !checkbox.checked;
+        card.appendChild(precisions);
+        checkbox.addEventListener("change", () => { precisions.hidden = !checkbox.checked; });
+      }
+
       card.classList.toggle("is-selected", checkbox.checked);
       checkbox.addEventListener("change", () => card.classList.toggle("is-selected", checkbox.checked));
       return card;
@@ -1401,7 +1436,9 @@ function initReservationPage() {
     childrenIntro.textContent = "Dépliez cette rubrique pour choisir l'équipement adapté à votre enfant.";
     const childrenList = document.createElement("div");
     childrenList.className = "child-options-list";
-    ["siege-auto", "siege-enfant", "rehausseur"].forEach((id) => {
+    // Deux options seulement : le client n'a pas à choisir une catégorie de
+    // siège, l'agence la détermine d'après l'âge et le poids saisis.
+    ["siege-enfant", "rehausseur"].forEach((id) => {
       const opt = getOptionParId(id);
       if (opt) childrenList.appendChild(createOptionCard(opt, "child"));
     });
@@ -1567,6 +1604,20 @@ function validateDriverForm(form) {
         return age !== null && age >= 21 && age <= 99;
       },
       msg: "Date de naissance invalide (JJ/MM/AAAA) — le conducteur doit avoir entre 21 et 99 ans"
+    },
+    {
+      // Date d'obtention du permis : détermine le supplément jeune
+      // conducteur (voir SUPPLEMENT_JEUNE_CONDUCTEUR, js/data.js). Une date
+      // future ou antérieure à la majorité du conducteur est refusée.
+      id: "permisDate",
+      test: v => {
+        const iso = naissanceFrVersISO(v);
+        if (!iso) return false;
+        const obtention = new Date(`${iso}T00:00:00Z`);
+        if (!isFinite(obtention.getTime()) || obtention.getTime() > Date.now()) return false;
+        return anciennetePermisAnnees(iso) <= 80;
+      },
+      msg: "Date d'obtention du permis invalide (JJ/MM/AAAA)"
     }
   ];
 
@@ -1694,6 +1745,14 @@ function initPaiementPage() {
   }
   if (typeof data.codePromo !== "string") data.codePromo = "";
 
+  // Date d'obtention du permis telle que saisie dans le formulaire, au format
+  // ISO attendu par calculerPrixTotal — ou null tant qu'elle est incomplète.
+  function permisDateISOCourante() {
+    const champ = document.getElementById("permisDate");
+    const saisie = champ ? champ.value : (data.conducteur && data.conducteur.permisDate);
+    return naissanceFrVersISO(saisie || "") || null;
+  }
+
   // Affichage strictement indicatif : le montant qui fait foi est
   // recalculé côté serveur lors de la création du paiement (voir
   // netlify/functions/create-payment.js). Le client n'envoie jamais
@@ -1706,7 +1765,10 @@ function initPaiementPage() {
       dateFin: data.dateFin,
       heureFin: data.heureFin,
       options: data.options,
-      codePromo: data.codePromo
+      codePromo: data.codePromo,
+      // Date de permis déjà saisie : le supplément jeune conducteur apparaît
+      // dans le récapitulatif dès qu'elle est renseignée, avant paiement.
+      permisDate: permisDateISOCourante()
     });
     if (!prix) return;
     buildPaymentSummary(summary, vehicule, data, prix);
@@ -1743,11 +1805,22 @@ function initPaiementPage() {
     naissanceInput.addEventListener("input", () => insererSlashesDateFr(naissanceInput));
   }
 
+  // Même confort de saisie pour la date de permis. Le récapitulatif est
+  // rafraîchi à chaque frappe : le supplément jeune conducteur apparaît (ou
+  // disparaît) dès que la date est complète, sans attendre le paiement.
+  const permisDateInput = form.querySelector('[name="permisDate"]');
+  if (permisDateInput) {
+    permisDateInput.addEventListener("input", () => {
+      insererSlashesDateFr(permisDateInput);
+      renderSummary();
+    });
+  }
+
   // Retour arrière sans perte : si le conducteur avait déjà rempli ces
   // champs (ex. retour depuis la page suivante via le bouton précédent du
   // navigateur), on pré-remplit plutôt que de les laisser vides.
   if (data.conducteur) {
-    ["nom", "prenom", "email", "telephone", "naissance"].forEach((id) => {
+    ["nom", "prenom", "email", "telephone", "naissance", "permisDate"].forEach((id) => {
       const input = form.querySelector(`[name="${id}"]`);
       if (input && data.conducteur[id] !== undefined) input.value = data.conducteur[id];
     });
@@ -1813,7 +1886,18 @@ function initPaiementPage() {
           // ISO YYYY-MM-DD — seule cette copie envoyée au réseau est
           // convertie, jamais `data.conducteur` lui-même (qui doit rester
           // au format du champ pour un pré-remplissage correct au retour).
-          conducteur: { ...data.conducteur, naissance: naissanceFrVersISO(data.conducteur.naissance) },
+          // `naissance` et `permisDate` sont saisies et conservées localement au
+          // format JJ/MM/AAAA (affichage) ; le serveur attend l'ISO
+          // YYYY-MM-DD. Seule cette copie envoyée au réseau est convertie.
+          conducteur: {
+            ...data.conducteur,
+            naissance: naissanceFrVersISO(data.conducteur.naissance),
+            permisDate: naissanceFrVersISO(data.conducteur.permisDate)
+          },
+          // Précisions rattachées à une option : transmises seulement quand
+          // l'option correspondante est réellement retenue.
+          enfantAge: data.options.includes("siege-enfant") ? data.enfantAge : undefined,
+          enfantPoids: data.options.includes("siege-enfant") ? data.enfantPoids : undefined,
           cglAccepted: true,
           cglVersion: CGL_VERSION,
           // Langue dans laquelle le client a réservé : sert plus tard aux
@@ -1928,6 +2012,15 @@ function appendBreakdownRows(container, prix) {
     // traduction est indexée sur ce texte dans js/i18n.js.
     container.appendChild(summaryRow(t(opt.nom), formatEUR(opt.montant)));
   });
+
+  // Supplément jeune conducteur : ligne affichée UNIQUEMENT quand il
+  // s'applique (permis de moins de 3 ans), jamais une ligne à zéro.
+  if (prix.supplementJeuneConducteur) {
+    container.appendChild(summaryRow(
+      t("Supplément jeune conducteur — {jours}", { jours: libelleJours(prix.jours) }),
+      formatEUR(prix.supplementJeuneConducteur.montant)
+    ));
+  }
 
   if (prix.codePromo) {
     // .pourcentage OU .montant selon le type de code (voir CODES_PROMO,

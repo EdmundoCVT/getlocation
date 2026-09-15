@@ -1687,6 +1687,37 @@ textarea:focus-visible,
   line-height: 1.55;
 }
 
+/* Précisions demandées avec une option (âge et poids de l'enfant pour le
+   siège) : deux champs courts côte à côte, qui passent l'un sous l'autre
+   quand la largeur manque. Masqués tant que l'option n'est pas retenue
+   (attribut hidden posé par js/app.js). */
+.option-precisions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 0 16px 16px;
+}
+
+.option-precision {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 120px;
+  min-width: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #62626c;
+}
+
+.option-precision input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--ligne, #e2e2e8);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
 .checkout-continue {
   margin-top: 20px;
 }
