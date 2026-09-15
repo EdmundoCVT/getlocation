@@ -2,16 +2,7 @@
 //
 // Point d'entrée du Worker Cloudflare : sert le site statique (binding
 // ASSETS, voir wrangler.jsonc) et route les endpoints /api/* vers les
-// fonctions serveur (src/api/*) — Phase B de la migration Cloudflare (voir
-// DEPLOIEMENT.md). Remplace les fonctions Netlify de la Phase A, appelées
-// jusqu'ici en cross-origin explicite depuis js/app.js.
-//
-// Ce fichier doit rester un module ES (export default) : c'est une
-// contrainte du runtime Workers pour accéder aux bindings (env.ASSETS,
-// env.RESERVATIONS_KV...). Le reste du code serveur (src/api, src/lib)
-// reste en CommonJS, comme l'ancien code Netlify, pour rester testable
-// directement sous Node (`require(...)`) sans étape de bundling — seul ce
-// point d'entrée a besoin de require() pour les assembler.
+// fonctions serveur (src/api/*) — Phase B de la migration Cloudflare.
 
 const { handleCreatePayment } = require("./api/create-payment.js");
 const { handleMollieWebhook } = require("./api/mollie-webhook.js");
@@ -52,36 +43,88 @@ const ROUTES = {
   "/api/contracts-manual-create": handleContractsManualCreate,
   "/api/contracts-manual-update": handleContractsManualUpdate,
   "/api/contracts-history": handleContractsHistory,
-  // Lot 1 (voir CLAUDE.md) : authentification agence (Edmundo/Antonio).
   "/api/agency-login": handleAgencyLogin,
   "/api/agency-logout": handleAgencyLogout,
   "/api/agency-session": handleAgencySession,
-  // Lot 2 (voir CLAUDE.md) : clients, locations, paiements, cautions.
   "/api/agency-clients": handleAgencyClients,
   "/api/agency-rentals": handleAgencyRentals,
   "/api/agency-payments": handleAgencyPayments,
   "/api/agency-deposits": handleAgencyDeposits
 };
 
+function isVehicleResultsPath(pathname) {
+  return /\/vehicules(?:\.html)?\/?$/.test(pathname) || /\/en\/cars\/?$/.test(pathname);
+}
+
+function hideCatalogBeforeSearch(html, pathname) {
+  if (isVehicleResultsPath(pathname)) return html;
+
+  html = html.replace(/<section\b[\s\S]*?<\/section>/gi, (section) => {
+    return /class=["'][^"']*vehicle-grid[^"']*["']|class=["']vehicle-grid["']/i.test(section)
+      ? ""
+      : section;
+  });
+
+  html = html.replace(/\s*<a\b[^>]*class=["'][^"']*btn\s+btn-secondary[^"']*["'][^>]*>\s*(?:Voir(?: tous)? les véhicules|View(?: all)? vehicles|Trouver un véhicule|Find a vehicle)\s*<\/a>/gi, "");
+  html = html.replace(/href=["'](?:\/?vehicules(?:\.html)?(?:\?[^"']*)?|\/en\/cars\/?)['"]/gi, 'href="#search-form"');
+  html = html.replace(/>Véhicules<\/a>/gi, ">Réserver</a>");
+  html = html.replace(/>Vehicles<\/a>/gi, ">Book</a>");
+
+  return html;
+}
+
+async function withClientUX(response, pathname) {
+  if (!response) return response;
+  const type = response.headers.get("content-type") || "";
+  if (!type.includes("text/html")) return response;
+
+  let html = await response.text();
+  html = hideCatalogBeforeSearch(html, pathname);
+
+  // Catalogue complémentaire : chargé après data.js/app.js lors du parsing,
+  // mais avant DOMContentLoaded. Les véhicules sur demande sont donc ajoutés
+  // avant initVehiculesPage(), sans toucher au calcul de prix/paiement des
+  // véhicules internes.
+  if (!html.includes("/js/request-catalog.js")) {
+    const requestCatalog = '<script src="/js/request-catalog.js?v=2"></script>';
+    html = html.includes("</body>")
+      ? html.replace("</body>", `${requestCatalog}\n</body>`)
+      : `${html}\n${requestCatalog}`;
+  }
+
+  if (!html.includes("/js/deposit-ux.js")) {
+    const script = '<script src="/js/deposit-ux.js?v=3"></script>';
+    html = html.includes("</body>")
+      ? html.replace("</body>", `${script}\n</body>`)
+      : `${html}\n${script}`;
+  } else {
+    html = html.replace(/\/js\/deposit-ux\.js\?v=\d+/g, "/js/deposit-ux.js?v=3");
+  }
+
+  const headers = new Headers(response.headers);
+  headers.delete("content-length");
+  headers.delete("etag");
+  headers.set("cache-control", "no-cache");
+
+  return new Response(html, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const route = ROUTES[url.pathname];
-    if (route) {
-      return route(request, env, ctx);
-    }
-    // Version anglaise (/en/cars, /en/booking…) : même fichier HTML que la
-    // page française, servi avec ses métadonnées traduites (voir
-    // src/lib/pages-en.js). Les URLs françaises ne passent pas par ici.
+    if (route) return route(request, env, ctx);
+
     if (estCheminAnglais(url.pathname)) {
       const pageAnglaise = await servirPageAnglaise(request, env, url);
-      if (pageAnglaise) return pageAnglaise;
+      if (pageAnglaise) return withClientUX(pageAnglaise, url.pathname);
     }
-    return env.ASSETS.fetch(request);
+    return withClientUX(await env.ASSETS.fetch(request), url.pathname);
   },
-  // Orchestration détaillée (ordre, gestion des échecs) dans
-  // lib/scheduled-tasks.js — ce point d'entrée reste un simple assembleur,
-  // comme le reste de ce fichier (voir en-tête).
   async scheduled(controller, env, ctx) {
     ctx.waitUntil(runScheduledTasks(env));
   }

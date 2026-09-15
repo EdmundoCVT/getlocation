@@ -13,6 +13,11 @@
     // servir les fichiers statiques une fois qu'un `main` Worker est
     // déclaré.
     "binding": "ASSETS",
+    // Important : le Worker doit recevoir les requêtes AVANT le service
+    // automatique des assets statiques. Sans ce réglage, Cloudflare peut
+    // servir index.html/vehicules.html directement et contourner les
+    // transformations UX effectuées dans src/worker.js.
+    "run_worker_first": true,
     // Équivalent Cloudflare du `pretty_urls = true` de netlify.toml : sert
     // /vehicules depuis vehicules.html sans redirection. Déclaré
     // explicitement (comportement par défaut de toute façon) pour la même
