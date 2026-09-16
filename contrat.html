@@ -3671,6 +3671,7 @@ function lireImagesEtatDesLieux(){
 }
 
 function initOwnerView(prefill){
+  var contratEnCoursDepositAmount = null;
   var selectVehicule = document.getElementById('vehicule');
   var inputImmat = document.getElementById('immat');
   var selectLieu = document.getElementById('lieu');
@@ -4298,7 +4299,7 @@ function initOwnerView(prefill){
   // par remplirFormulaire() sur "Ouvrir" uniquement (jamais sur
   // "Dupliquer" : un contrat dupliqué est une NOUVELLE location, qui doit
   // utiliser le tarif en vigueur — voir CLAUDE.md, dépôt de garantie).
-  var contratEnCoursDepositAmount = null;
+  // Initialisé au début de initOwnerView, avant le premier updateSummary().
 
   // Lien COURT (jeton) le plus récent obtenu pour ce contrat, tant que les
   // données du formulaire n'ont pas changé depuis son émission — voir
