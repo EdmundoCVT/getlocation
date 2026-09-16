@@ -6,6 +6,7 @@
 
 const { handleCreatePayment } = require("./api/create-payment.js");
 const { handleMollieWebhook } = require("./api/mollie-webhook.js");
+const { handleMollieDepositWebhook } = require("./api/mollie-deposit-webhook.js");
 const { handleReservationStatus } = require("./api/reservation-status.js");
 const { handleValidatePromo } = require("./api/validate-promo.js");
 const { handleDocumentsAccess } = require("./api/documents-access.js");
@@ -25,12 +26,14 @@ const { handleAgencyClients } = require("./api/agency-clients.js");
 const { handleAgencyRentals } = require("./api/agency-rentals.js");
 const { handleAgencyPayments } = require("./api/agency-payments.js");
 const { handleAgencyDeposits } = require("./api/agency-deposits.js");
+const { handleAgencyDepositAuthorizations } = require("./api/agency-deposit-authorizations.js");
 const { runScheduledTasks } = require("./lib/scheduled-tasks.js");
 const { estCheminAnglais, servirPageAnglaise } = require("./lib/pages-en.js");
 
 const ROUTES = {
   "/api/create-payment": handleCreatePayment,
   "/api/mollie-webhook": handleMollieWebhook,
+  "/api/mollie-deposit-webhook": handleMollieDepositWebhook,
   "/api/reservation-status": handleReservationStatus,
   "/api/validate-promo": handleValidatePromo,
   "/api/documents-access": handleDocumentsAccess,
@@ -49,7 +52,8 @@ const ROUTES = {
   "/api/agency-clients": handleAgencyClients,
   "/api/agency-rentals": handleAgencyRentals,
   "/api/agency-payments": handleAgencyPayments,
-  "/api/agency-deposits": handleAgencyDeposits
+  "/api/agency-deposits": handleAgencyDeposits,
+  "/api/agency-deposit-authorizations": handleAgencyDepositAuthorizations
 };
 
 function isVehicleResultsPath(pathname) {

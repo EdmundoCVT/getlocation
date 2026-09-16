@@ -25,6 +25,7 @@ function createFakeD1() {
     rentals: new Map(),
     payments: new Map(),
     deposits: new Map(),
+    deposit_authorizations: new Map(),
     sheet_sync_outbox: new Map()
   };
 

@@ -11,7 +11,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { createPayment, getPayment, MollieApiError } = require("../src/lib/mollie-client.js");
+const { createPayment, getPayment, cancelPayment, createCapture, listCaptures, MollieApiError } = require("../src/lib/mollie-client.js");
 
 function withFakeFetch(handler, fn) {
   const original = globalThis.fetch;
@@ -118,6 +118,97 @@ test("getPayment : id inconnu (404 Mollie) lève MollieApiError avec statusCode 
         assert.equal(err.statusCode, 404);
         return true;
       });
+    }
+  );
+});
+
+test("cancelPayment : DELETE vers /v2/payments/:id, gère une réponse 204 sans corps", async () => {
+  let capturedUrl, capturedInit;
+  await withFakeFetch(
+    async (url, init) => {
+      capturedUrl = url;
+      capturedInit = init;
+      return new Response(null, { status: 204 });
+    },
+    async () => {
+      const result = await cancelPayment("test_dummy_key", "tr_test123");
+      assert.equal(result, null);
+      assert.equal(capturedUrl, "https://api.mollie.com/v2/payments/tr_test123");
+      assert.equal(capturedInit.method, "DELETE");
+      assert.equal(capturedInit.headers.Authorization, "Bearer test_dummy_key");
+      assert.equal(capturedInit.headers["Content-Type"], undefined);
+      assert.equal(capturedInit.body, undefined);
+    }
+  );
+});
+
+test("cancelPayment : une réponse d'erreur Mollie (ex. déjà capturé) lève MollieApiError", async () => {
+  await withFakeFetch(
+    async () => new Response(JSON.stringify({ status: 422, detail: "This payment cannot be canceled" }), { status: 422 }),
+    async () => {
+      await assert.rejects(cancelPayment("test_dummy_key", "tr_test123"), (err) => {
+        assert.ok(err instanceof MollieApiError);
+        assert.equal(err.statusCode, 422);
+        assert.equal(err.message, "This payment cannot be canceled");
+        return true;
+      });
+    }
+  );
+});
+
+test("createCapture : POST vers /v2/payments/:id/captures avec le montant et l'Idempotency-Key", async () => {
+  let capturedUrl, capturedInit;
+  await withFakeFetch(
+    async (url, init) => {
+      capturedUrl = url;
+      capturedInit = init;
+      return new Response(JSON.stringify({ id: "cpt_test123", status: "pending" }), { status: 201 });
+    },
+    async () => {
+      const result = await createCapture(
+        "test_dummy_key",
+        "tr_test123",
+        { amount: { currency: "EUR", value: "180.00" } },
+        "idem-capture-1"
+      );
+      assert.equal(result.id, "cpt_test123");
+      assert.equal(capturedUrl, "https://api.mollie.com/v2/payments/tr_test123/captures");
+      assert.equal(capturedInit.method, "POST");
+      assert.equal(capturedInit.headers["Idempotency-Key"], "idem-capture-1");
+      assert.deepEqual(JSON.parse(capturedInit.body), { amount: { currency: "EUR", value: "180.00" } });
+    }
+  );
+});
+
+test("createCapture : un montant refusé par Mollie (dépasse le montant autorisé) lève MollieApiError", async () => {
+  await withFakeFetch(
+    async () => new Response(JSON.stringify({ status: 422, detail: "amount exceeds the authorized amount" }), { status: 422 }),
+    async () => {
+      await assert.rejects(
+        createCapture("test_dummy_key", "tr_test123", { amount: { currency: "EUR", value: "999.00" } }),
+        (err) => {
+          assert.ok(err instanceof MollieApiError);
+          assert.equal(err.statusCode, 422);
+          return true;
+        }
+      );
+    }
+  );
+});
+
+test("listCaptures : GET vers /v2/payments/:id/captures", async () => {
+  let capturedUrl, capturedInit;
+  await withFakeFetch(
+    async (url, init) => {
+      capturedUrl = url;
+      capturedInit = init;
+      return new Response(JSON.stringify({ _embedded: { captures: [{ id: "cpt_test123", status: "succeeded" }] } }), { status: 200 });
+    },
+    async () => {
+      const result = await listCaptures("test_dummy_key", "tr_test123");
+      assert.equal(result._embedded.captures[0].status, "succeeded");
+      assert.equal(capturedUrl, "https://api.mollie.com/v2/payments/tr_test123/captures");
+      assert.equal(capturedInit.method, "GET");
     }
   );
 });
