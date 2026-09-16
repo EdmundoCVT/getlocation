@@ -224,9 +224,137 @@ const OPTIONS = [
     ]
   },
   { id: "rehausseur", nom: "Rehausseur", description: "Une solution pratique pour installer un enfant plus grand avec la ceinture du véhicule, sans avoir à emporter votre propre équipement.", type: "jour", prix: 5 },
-  { id: "assurance-passagers", nom: "Assurance passagers / accident", description: "Couvre les dommages corporels des passagers en cas d'accident", type: "jour", prix: 6 },
   { id: "livraison-adresse", nom: "Livraison du véhicule", description: "Livraison à l'adresse ou au point de rendez-vous choisi sur la Côte d'Azur", type: "forfait", prix: 20 }
 ];
+
+// ---------------------------------------------------------------------
+// NIVEAUX DE PROTECTION
+// ---------------------------------------------------------------------
+//
+// Une seule protection par réservation. « Essentiel » est incluse et
+// sélectionnée par défaut ; les trois autres sont payantes.
+//
+// TARIFICATION PLAFONNÉE : une protection payante est facturée au maximum
+// `joursFacturesMax` jours, quelle que soit la durée de la location. Au-delà,
+// elle continue de s'appliquer pendant toute la location — seul son PRIX
+// cesse d'augmenter. Ne jamais laisser entendre au client qu'elle s'arrête.
+//
+// Tout se règle ici : prix, franchise, plafond, garanties couvertes. Ne
+// recopier aucune de ces valeurs ailleurs (règle n°1).
+
+// Garanties comparées d'un niveau à l'autre, dans l'ordre d'affichage.
+// Chaque protection déclare celles qu'elle couvre ; les autres s'affichent
+// comme non couvertes, ce qui rend la progression lisible d'un coup d'œil.
+const PROTECTION_GARANTIES = [
+  { id: "rc", libelle: "Responsabilité civile / tiers" },
+  { id: "collision", libelle: "Collision, rayures et chocs" },
+  { id: "vol", libelle: "Vol" },
+  { id: "pneus", libelle: "Pneus" },
+  { id: "vitres", libelle: "Pare-brise et vitres" },
+  { id: "assistance", libelle: "Assistance / dépannage" },
+  { id: "personnes", libelle: "Protection conducteur et passagers" }
+];
+
+const PROTECTIONS = [
+  {
+    id: "essentiel",
+    nom: "Essentiel",
+    prixParJour: 0,
+    joursFacturesMax: 0,
+    prixMax: 0,
+    franchise: 2000,
+    recommande: false,
+    garanties: ["rc"]
+  },
+  {
+    id: "confort",
+    nom: "Confort",
+    prixParJour: 6,
+    joursFacturesMax: 7,
+    prixMax: 42,
+    franchise: 1500,
+    recommande: false,
+    garanties: ["rc", "collision", "vol"]
+  },
+  {
+    id: "serenite",
+    nom: "Sérénité",
+    prixParJour: 12,
+    joursFacturesMax: 7,
+    prixMax: 84,
+    franchise: 750,
+    recommande: true,
+    garanties: ["rc", "collision", "vol", "pneus", "vitres", "assistance"]
+  },
+  {
+    id: "serenite-plus",
+    nom: "Sérénité+",
+    prixParJour: 20,
+    joursFacturesMax: 7,
+    prixMax: 140,
+    franchise: 300,
+    recommande: false,
+    garanties: ["rc", "collision", "vol", "pneus", "vitres", "assistance", "personnes"]
+  }
+];
+
+const PROTECTION_PAR_DEFAUT = "essentiel";
+
+// Mention affichée sous les protections. Volontairement prudente : elle
+// renvoie aux CGL plutôt que de promettre une couverture que le texte
+// contractuel ne décrit pas encore.
+const PROTECTION_MENTION = "Les protections sont soumises aux conditions et exclusions prévues par les Conditions Générales de Location. Certains dommages, usages interdits ou manquements contractuels peuvent rester à la charge du locataire.";
+
+// Accesseurs : contrat.html et js/app.js passent par eux plutôt que par les
+// constantes ci-dessus, pour rester lisibles dans les environnements où
+// chaque fichier est évalué séparément (bancs de test jsdom) — là, seules
+// les fonctions restent visibles d'un fichier à l'autre.
+function getProtections() { return PROTECTIONS; }
+function getProtectionGaranties() { return PROTECTION_GARANTIES; }
+function getProtectionParDefaut() { return PROTECTION_PAR_DEFAUT; }
+function getProtectionMention() { return PROTECTION_MENTION; }
+
+// Vrai seulement pour un identifiant réellement proposé : permet de
+// distinguer « choix valide » de « repli sur la formule incluse », ce que
+// getProtectionParId() ne dit pas puisqu'il corrige silencieusement.
+function estProtectionConnue(id) {
+  return PROTECTIONS.some(p => p.id === id);
+}
+
+// Protection connue, ou celle par défaut. Un identifiant inconnu (ancienne
+// réservation, lien trafiqué) ne doit jamais faire échouer un calcul : il
+// retombe sur la formule incluse, la moins engageante.
+function getProtectionParId(id) {
+  return PROTECTIONS.find(p => p.id === id) || PROTECTIONS.find(p => p.id === PROTECTION_PAR_DEFAUT);
+}
+
+// Instantané de la protection retenue pour une durée donnée : c'est cet
+// objet qui est enregistré avec la réservation puis repris tel quel par le
+// contrat, pour qu'un ancien dossier ne soit jamais recalculé avec une
+// grille tarifaire plus récente.
+function calculerProtection(protectionId, jours) {
+  const protection = getProtectionParId(protectionId);
+  const joursLocation = isFinite(jours) && jours > 0 ? jours : 0;
+  const joursFactures = protection.prixParJour > 0
+    ? Math.min(joursLocation, protection.joursFacturesMax)
+    : 0;
+  return {
+    id: protection.id,
+    nom: protection.nom,
+    prixParJour: protection.prixParJour,
+    franchise: protection.franchise,
+    joursLocation,
+    joursFactures,
+    prixMax: protection.prixMax,
+    // Le plafond est déjà porté par joursFactures ; Math.min est une
+    // sécurité si prixMax et joursFacturesMax venaient à diverger.
+    montant: Math.min(protection.prixParJour * joursFactures, protection.prixMax || 0),
+    // Vrai quand la location dure plus longtemps que la période facturée :
+    // l'affichage le précise pour que le client ne croie pas la protection
+    // limitée à 7 jours.
+    plafonne: protection.prixParJour > 0 && joursLocation > protection.joursFacturesMax
+  };
+}
 
 function getOptionParId(id) {
   return OPTIONS.find(o => o.id === id);
@@ -527,7 +655,10 @@ function joursFacturablesDepuisHeures(dureeHeures) {
 // SUPPLEMENT_JEUNE_CONDUCTEUR). Absente, aucun supplément — les calculs faits
 // avant la saisie du conducteur (catalogue, étapes 1 à 3) restent donc
 // inchangés.
-function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFin, options, codePromo, permisDate }) {
+// `protection` : identifiant du niveau retenu (voir PROTECTIONS). Absent ou
+// inconnu, la formule incluse « Essentiel » s'applique — 0 € — pour que les
+// réservations d'avant ce système gardent exactement leur montant.
+function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFin, options, codePromo, permisDate, protection }) {
   const vehicule = getVehiculeParId(vehiculeId);
   if (!vehicule) return null;
   const dureeHeures = dureeEnHeures(dateDebut, heureDebut, dateFin, heureFin);
@@ -551,6 +682,10 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
     }));
   const optionsMontant = optionsSelectionnees.reduce((somme, o) => somme + o.montant, 0);
 
+  // Protection : une seule par réservation, facturée au maximum sur
+  // `joursFacturesMax` jours (voir calculerProtection).
+  const protectionChoisie = calculerProtection(protection, jours);
+
   // Supplément jeune conducteur : déduit de la date de permis, jamais choisi.
   const jeuneConducteur = estJeuneConducteur(permisDate);
   const supplementJeuneConducteur = jeuneConducteur
@@ -562,7 +697,7 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
     : null;
   const supplementJeuneConducteurMontant = supplementJeuneConducteur ? supplementJeuneConducteur.montant : 0;
 
-  const baseAvantPromo = sousTotal + optionsMontant + supplementJeuneConducteurMontant;
+  const baseAvantPromo = sousTotal + optionsMontant + protectionChoisie.montant + supplementJeuneConducteurMontant;
   const promo = getCodePromo(codePromo);
   // `montant` (remise fixe) plafonné à baseAvantPromo : un total ne devient
   // jamais négatif, même si le code promo excède le montant de la
@@ -583,6 +718,7 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
     sousTotal,
     optionsSelectionnees,
     optionsMontant,
+    protection: protectionChoisie,
     supplementJeuneConducteur,
     supplementJeuneConducteurMontant,
     baseAvantPromo,
@@ -716,6 +852,17 @@ if (typeof module !== "undefined" && module.exports) {
     estJeuneConducteur,
     getCodePromo,
     getOptionParId,
+    PROTECTIONS,
+    PROTECTION_GARANTIES,
+    PROTECTION_PAR_DEFAUT,
+    PROTECTION_MENTION,
+    getProtections,
+    getProtectionGaranties,
+    getProtectionParDefaut,
+    getProtectionMention,
+    estProtectionConnue,
+    getProtectionParId,
+    calculerProtection,
     calculerPrixTotal,
     KM_INCLUS_PAR_JOUR,
     SUPPLEMENT_KM_CENTIMES,

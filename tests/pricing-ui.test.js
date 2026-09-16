@@ -20,7 +20,7 @@ const APP_SRC = fs.readFileSync(path.join(__dirname, "..", "js", "app.js"), "utf
 // déclarées avec `function`, qui elles sont bien exposées sur `window` en
 // eval non strict). Pour vérifier le catalogue depuis le test, on le
 // récupère donc via require() (export CommonJS), pas via `window.OPTIONS`.
-const { OPTIONS, getCodePromo } = require("../js/data.js");
+const { OPTIONS, PROTECTIONS, getCodePromo } = require("../js/data.js");
 
 function reservationPageHtml() {
   return `
@@ -73,8 +73,16 @@ test("initReservationPage : la protection est une étape dédiée et les autres 
     assert.ok(window.document.getElementById(`option-${opt.id}`), `contrôle manquant pour ${opt.id}`);
   });
   assert.equal(window.document.getElementById("option-livraison-adresse"), null, "la livraison obligatoire ne doit pas être décochable");
-  assert.equal(window.document.getElementById("option-assurance-passagers"), null, "la protection passagers doit être proposée à l'étape dédiée");
-  assert.equal(window.document.querySelectorAll('#protection-list input[name="protection"]').length, 2);
+  assert.equal(window.document.getElementById("option-assurance-passagers"), null, "la protection conducteur/passagers relève désormais d'un niveau de protection");
+  const cartes = window.document.querySelectorAll("#protection-list .protection-card");
+  assert.equal(cartes.length, PROTECTIONS.length, "un niveau de protection par carte, aucun de plus");
+  PROTECTIONS.forEach((protection, i) => {
+    assert.equal(cartes[i].dataset.protection, protection.id);
+  });
+  // Une seule protection retenue à la fois, la formule incluse par défaut.
+  const selectionnees = window.document.querySelectorAll("#protection-list .protection-card.is-selected");
+  assert.equal(selectionnees.length, 1);
+  assert.equal(selectionnees[0].dataset.protection, "essentiel");
 });
 
 test("initReservationPage : les forfaits kilométriques sont exclusifs et recalculent le total", () => {
@@ -139,34 +147,51 @@ test("initReservationPage : le siège enfant demande l'âge et le poids, et les 
   assert.equal(persisted.enfantPoids, 18);
 });
 
-test("initReservationPage : un choix de protection est obligatoire avant les options et persiste dans la réservation", () => {
+test("initReservationPage : la protection retenue persiste, se remplace et recalcule le total", () => {
   const window = newWindow(reservationPageHtml());
   window.scrollTo = () => {};
   window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
   window.initReservationPage();
 
+  // La formule incluse étant déjà retenue, l'étape ne bloque jamais le
+  // passage aux options.
   const next = window.document.getElementById("continue-to-options");
-  assert.equal(next.disabled, true);
-
-  const passagers = window.document.querySelector('input[name="protection"][value="passagers"]');
-  passagers.checked = true;
-  passagers.dispatchEvent(new window.Event("change", { bubbles: true }));
   assert.equal(next.disabled, false);
+  assert.equal(JSON.parse(window.localStorage.getItem("gl_reservation")).protection, "essentiel");
+
+  function choisir(id) {
+    window.document.querySelector(`.protection-card[data-protection="${id}"] .protection-select`)
+      .dispatchEvent(new window.Event("click", { bubbles: true }));
+  }
+
+  choisir("serenite");
+  let persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
+  assert.equal(persisted.protection, "serenite");
+  assert.equal(window.document.querySelectorAll("#protection-list .protection-card.is-selected").length, 1);
+  // 118 € (2 j × 59 €) + 24 € (2 j × 12 €)
+  assert.match(window.document.getElementById("reservation-summary").textContent, /142/);
+
+  // Changer de formule remplace l'ancienne au lieu de s'y ajouter.
+  choisir("confort");
+  persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
+  assert.equal(persisted.protection, "confort");
+  assert.match(window.document.getElementById("reservation-summary").textContent, /130/); // 118 € + 2 j × 6 €
+
+  // Retour à la formule incluse : plus aucun supplément de protection.
+  choisir("essentiel");
+  persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
+  assert.equal(persisted.protection, "essentiel");
+  assert.match(window.document.getElementById("reservation-summary").textContent, /118/);
 
   next.dispatchEvent(new window.Event("click", { bubbles: true }));
   assert.equal(window.document.getElementById("protection-step").hidden, true);
   assert.equal(window.document.getElementById("options-step").hidden, false);
-
-  const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
-  assert.equal(persisted.protectionChoice, "passagers");
-  assert.ok(persisted.options.includes("assurance-passagers"));
-  assert.match(window.document.getElementById("reservation-summary").textContent, /130/); // 118 € + 6 € x 2 jours
 });
 
 test("initReservationPage : le retour de l'étape 3 ramène réellement à la protection", () => {
   const window = newWindow(reservationPageHtml());
   window.scrollTo = () => {};
-  window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation({ protectionChoice: "incluse" })));
+  window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation({ protection: "essentiel" })));
   window.initReservationPage();
 
   window.document.getElementById("continue-to-options").dispatchEvent(new window.Event("click", { bubbles: true }));

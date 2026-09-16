@@ -66,6 +66,15 @@ function buildContractPrefillData(reservation) {
     naissance: reservation.conducteur.naissance || "",
     tel: reservation.conducteur.telephone || "",
     email: reservation.conducteur.email || "",
+    // Date de délivrance du permis : d'elle dépend le supplément jeune
+    // conducteur, déjà facturé au client. Sans elle, le formulaire agence
+    // recalculerait un total plus bas que ce qui a été payé.
+    permisDate: reservation.conducteur.permisDate || "",
+    // Niveau de protection retenu et payé en ligne. Absent des réservations
+    // antérieures : le formulaire retombe alors sur la formule incluse.
+    protection: reservation.protection ? reservation.protection.id : "",
+    siegeEnfant: aOption("siege-enfant"),
+    rehausseur: aOption("rehausseur"),
     secondConducteur: aOption("second-conducteur"),
     livraison: aOption("livraison-adresse") || reservation.lieuPrise === LIEU_LIVRAISON,
     // La zone choisie avant paiement n'est pas une adresse postale. Celle-ci

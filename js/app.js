@@ -1061,12 +1061,23 @@ function initReservationPage() {
     writeReservationLocal(data);
   }
   if (typeof data.codePromo !== "string") data.codePromo = "";
-  // Une réservation créée avec l'ancienne interface peut déjà contenir la
-  // protection passagers. Dans ce seul cas, on restaure ce choix ; pour une
-  // nouvelle réservation, le client doit choisir explicitement sa protection.
-  if (data.protectionChoice !== "incluse" && data.protectionChoice !== "passagers") {
-    data.protectionChoice = data.options.includes("assurance-passagers") ? "passagers" : "";
+  // Réservation en cours démarrée avant les niveaux de protection : l'ancien
+  // choix (« incluse » / « passagers ») est converti, et l'ancienne option
+  // facturée séparément est retirée du panier — la protection
+  // conducteur/passagers fait désormais partie de Sérénité+.
+  const protectionAvant = data.protection;
+  if (data.options.includes("assurance-passagers")) {
+    data.options = data.options.filter((id) => id !== "assurance-passagers");
+    if (!data.protection) data.protection = "serenite-plus";
   }
+  if (data.protectionChoice !== undefined) delete data.protectionChoice;
+  if (!estProtectionConnue(data.protection)) {
+    data.protection = getProtectionParDefaut();
+  }
+  // La formule retenue est enregistrée dès l'arrivée sur l'étape : c'est
+  // elle qui partira au serveur, et le client ne doit pas avoir à cliquer
+  // pour confirmer un choix déjà affiché comme sélectionné.
+  if (data.protection !== protectionAvant) writeReservationLocal(data);
 
   function prixCourant() {
     return calculerPrixTotal({
@@ -1076,7 +1087,8 @@ function initReservationPage() {
       dateFin: data.dateFin,
       heureFin: data.heureFin,
       options: data.options,
-      codePromo: data.codePromo
+      codePromo: data.codePromo,
+      protection: data.protection
     });
   }
 
@@ -1145,89 +1157,136 @@ function initReservationPage() {
     }
   }
 
-  // Étape dédiée à la protection. Elle ne crée aucune nouvelle garantie :
-  // elle rend explicite le choix entre l'assurance déjà prévue au contrat et
-  // l'option passagers déjà présente dans le catalogue partagé.
+  // Étape dédiée à la protection : quatre niveaux comparables, un seul
+  // sélectionnable. La formule incluse est retenue par défaut, donc l'étape
+  // n'est jamais bloquante — le client peut continuer sans rien changer.
+  // Tous les montants, franchises et garanties viennent de js/data.js.
   const protectionList = document.getElementById("protection-list");
   const continueToOptions = document.getElementById("continue-to-options");
   const protectionError = document.getElementById("protection-error");
-  const assurancePassagers = getOptionParId("assurance-passagers");
 
   function selectProtection(value) {
-    data.protectionChoice = value;
-    if (value === "passagers") {
-      if (!data.options.includes("assurance-passagers")) data.options.push("assurance-passagers");
-    } else {
-      data.options = data.options.filter((id) => id !== "assurance-passagers");
-    }
+    data.protection = value;
     writeReservationLocal(data);
-    if (continueToOptions) continueToOptions.disabled = false;
     if (protectionError) protectionError.textContent = "";
     document.querySelectorAll(".protection-card").forEach((card) => {
-      const radio = card.querySelector('input[type="radio"]');
-      card.classList.toggle("is-selected", !!radio && radio.checked);
+      card.classList.toggle("is-selected", card.dataset.protection === value);
+      const bouton = card.querySelector(".protection-select");
+      if (bouton) {
+        const choisie = card.dataset.protection === value;
+        bouton.textContent = choisie ? t("✓ Sélectionnée") : t("Choisir {protection}", { protection: card.dataset.protectionNom });
+        bouton.classList.toggle("is-selected", choisie);
+        bouton.setAttribute("aria-pressed", choisie ? "true" : "false");
+      }
     });
     render();
   }
 
-  function addProtectionCard({ value, title, price, description, detail }) {
+  // Libellé du prix d'une protection : « Incluse » ou « 12 €/jour » avec le
+  // plafond juste en dessous, pour que le client voie tout de suite ce qu'il
+  // paiera au maximum.
+  function prixProtection(protection) {
+    if (protection.prixParJour <= 0) return { principal: t("Incluse"), secondaire: "" };
+    return {
+      principal: t("{prix} / jour", { prix: formatEUR(protection.prixParJour) }),
+      secondaire: t("{montant} maximum par location", { montant: formatEUR(protection.prixMax) })
+    };
+  }
+
+  function addProtectionCard(protection) {
     if (!protectionList) return;
     const card = document.createElement("article");
     card.className = "protection-card";
+    card.dataset.protection = protection.id;
+    card.dataset.protectionNom = t(protection.nom);
 
-    const choice = document.createElement("label");
-    choice.className = "protection-choice";
-    const radio = document.createElement("input");
-    radio.type = "radio";
-    radio.name = "protection";
-    radio.value = value;
-    radio.checked = data.protectionChoice === value;
-    const copy = document.createElement("span");
-    copy.className = "protection-copy";
-    const heading = document.createElement("strong");
-    heading.textContent = title;
-    const desc = document.createElement("span");
-    desc.textContent = description;
-    copy.append(heading, desc);
-    const priceNode = document.createElement("span");
-    priceNode.className = "protection-price";
-    priceNode.textContent = price;
-    choice.append(radio, copy, priceNode);
+    const entete = document.createElement("div");
+    entete.className = "protection-head";
+    const titre = document.createElement("h3");
+    titre.className = "protection-nom";
+    titre.textContent = t(protection.nom);
+    entete.appendChild(titre);
+    if (protection.recommande) {
+      const badge = document.createElement("span");
+      badge.className = "protection-badge";
+      badge.textContent = t("Recommandé");
+      entete.appendChild(badge);
+    }
 
-    const details = document.createElement("details");
-    details.className = "choice-details";
-    const summary = document.createElement("summary");
-    summary.textContent = "Voir le détail";
-    const detailText = document.createElement("p");
-    detailText.textContent = detail;
-    details.append(summary, detailText);
+    // Franchise : l'information que le client compare en premier.
+    const franchise = document.createElement("p");
+    franchise.className = "protection-franchise";
+    const franchiseLabel = document.createElement("span");
+    franchiseLabel.textContent = t("Franchise");
+    const franchiseValeur = document.createElement("strong");
+    franchiseValeur.textContent = formatEUR(protection.franchise);
+    franchise.append(franchiseLabel, franchiseValeur);
 
-    radio.addEventListener("change", () => selectProtection(value));
-    card.append(choice, details);
-    card.classList.toggle("is-selected", radio.checked);
+    // Garanties : toutes listées, cochées ou non, pour rendre la progression
+    // d'un niveau à l'autre immédiatement lisible.
+    const liste = document.createElement("ul");
+    liste.className = "protection-garanties";
+    getProtectionGaranties().forEach((garantie) => {
+      const couverte = protection.garanties.includes(garantie.id);
+      const ligne = document.createElement("li");
+      ligne.className = couverte ? "is-covered" : "is-excluded";
+      const marque = document.createElement("span");
+      marque.className = "protection-marque";
+      marque.setAttribute("aria-hidden", "true");
+      marque.textContent = couverte ? "✓" : "✕";
+      const texte = document.createElement("span");
+      texte.textContent = t(garantie.libelle);
+      const etat = document.createElement("span");
+      etat.className = "sr-only";
+      etat.textContent = couverte ? t("Couvert : ") : t("Non couvert : ");
+      ligne.append(marque, etat, texte);
+      liste.appendChild(ligne);
+    });
+
+    const prix = prixProtection(protection);
+    const prixNode = document.createElement("p");
+    prixNode.className = "protection-price";
+    const prixPrincipal = document.createElement("strong");
+    prixPrincipal.textContent = prix.principal;
+    prixNode.appendChild(prixPrincipal);
+    if (prix.secondaire) {
+      const plafond = document.createElement("span");
+      plafond.className = "protection-plafond";
+      plafond.textContent = prix.secondaire;
+      prixNode.appendChild(plafond);
+    }
+
+    const bouton = document.createElement("button");
+    bouton.type = "button";
+    bouton.className = "btn protection-select";
+    const choisie = data.protection === protection.id;
+    bouton.textContent = choisie ? t("✓ Sélectionnée") : t("Choisir {protection}", { protection: t(protection.nom) });
+    bouton.classList.toggle("is-selected", choisie);
+    bouton.setAttribute("aria-pressed", choisie ? "true" : "false");
+    bouton.addEventListener("click", () => selectProtection(protection.id));
+
+    card.append(entete, franchise, liste, prixNode, bouton);
+    card.classList.toggle("is-selected", choisie);
     protectionList.appendChild(card);
   }
 
   if (protectionList) {
     protectionList.textContent = "";
-    addProtectionCard({
-      value: "incluse",
-      title: "Assurance incluse",
-      price: "Incluse",
-      description: "Conservez la protection prévue dans votre contrat de location.",
-      detail: t("Aucun supplément. Une caution de {caution} reste prévue pour ce véhicule. Les conditions exactes figurent dans les conditions de location.",
-        { caution: formatEUR(vehicule.caution) })
-    });
-    if (assurancePassagers) {
-      addProtectionCard({
-        value: "passagers",
-        title: t(assurancePassagers.nom),
-        price: t("{prix} / jour", { prix: formatEUR(assurancePassagers.prix) }),
-        description: "Ajoutez une protection dédiée aux passagers du véhicule.",
-        detail: t("{description} Cette option s'ajoute à l'assurance incluse dans la location.", { description: t(assurancePassagers.description) })
-      });
-    }
-    if (continueToOptions) continueToOptions.disabled = !data.protectionChoice;
+    getProtections().forEach(addProtectionCard);
+
+    // Mention prudente sous les cartes : renvoie aux CGL plutôt que de
+    // promettre une couverture que le texte contractuel ne décrit pas.
+    const mention = document.createElement("details");
+    mention.className = "protection-mention choice-details";
+    const resume = document.createElement("summary");
+    resume.textContent = t("Voir les détails et exclusions");
+    const texteMention = document.createElement("p");
+    texteMention.textContent = t(getProtectionMention());
+    mention.append(resume, texteMention);
+    protectionList.appendChild(mention);
+
+    // La formule incluse étant retenue par défaut, l'étape ne bloque jamais.
+    if (continueToOptions) continueToOptions.disabled = false;
   }
 
   function showCheckoutStep(step) {
@@ -1249,7 +1308,7 @@ function initReservationPage() {
 
   if (continueToOptions) {
     continueToOptions.addEventListener("click", () => {
-      if (!data.protectionChoice) {
+      if (!data.protection) {
         if (protectionError) protectionError.textContent = "Choisissez une protection pour continuer.";
         return;
       }
@@ -1262,7 +1321,7 @@ function initReservationPage() {
 
   // Le bouton retour de la page de paiement pointe vers #options : on rend
   // directement le bon écran sans faire répéter le choix de protection.
-  if (window.location.hash === "#options" && data.protectionChoice) {
+  if (window.location.hash === "#options" && data.protection) {
     showCheckoutStep("options");
   }
 
@@ -1766,6 +1825,7 @@ function initPaiementPage() {
       heureFin: data.heureFin,
       options: data.options,
       codePromo: data.codePromo,
+      protection: data.protection,
       // Date de permis déjà saisie : le supplément jeune conducteur apparaît
       // dans le récapitulatif dès qu'elle est renseignée, avant paiement.
       permisDate: permisDateISOCourante()
@@ -1880,6 +1940,7 @@ function initPaiementPage() {
           adresseRetour: data.adresseRetour,
           options: data.options,
           codePromo: data.codePromo,
+          protection: data.protection,
           // Le champ "naissance" est saisi et persisté localement au format
           // JJ/MM/AAAA (affichage) ; le serveur (et la clé du même nom
           // stockée dans la réservation) attend systématiquement le format
@@ -2012,6 +2073,19 @@ function appendBreakdownRows(container, prix) {
     // traduction est indexée sur ce texte dans js/i18n.js.
     container.appendChild(summaryRow(t(opt.nom), formatEUR(opt.montant)));
   });
+
+  // Protection : toujours affichée, y compris la formule incluse — le client
+  // doit voir laquelle s'applique, pas seulement ce qu'elle coûte.
+  if (prix.protection) {
+    const protection = prix.protection;
+    const ligne = summaryRow(
+      protection.plafonne
+        ? t("Protection {nom} (forfait plafonné à {jours})", { nom: t(protection.nom), jours: libelleJours(protection.joursFactures) })
+        : t("Protection {nom} — {jours}", { nom: t(protection.nom), jours: libelleJours(prix.jours) }),
+      protection.montant > 0 ? formatEUR(protection.montant) : t("Incluse")
+    );
+    container.appendChild(ligne);
+  }
 
   // Supplément jeune conducteur : ligne affichée UNIQUEMENT quand il
   // s'applique (permis de moins de 3 ans), jamais une ligne à zéro.

@@ -83,6 +83,11 @@ test("chaque texte de js/data.js affiché au client a une traduction anglaise", 
   data.OPTIONS.forEach((option) => aTraduire.push(option.nom, option.description));
   data.LIEUX.forEach((lieu) => aTraduire.push(lieu));
   data.REDUCTIONS_DUREE.forEach((palier) => aTraduire.push(palier.libelle));
+  // Niveaux de protection : noms de formules, garanties comparées et mention
+  // de renvoi aux CGL. Comme les options, ils n'existent dans aucun HTML.
+  data.PROTECTIONS.forEach((protection) => aTraduire.push(protection.nom));
+  data.PROTECTION_GARANTIES.forEach((garantie) => aTraduire.push(garantie.libelle));
+  aTraduire.push(data.PROTECTION_MENTION);
   data.VEHICULES.forEach((vehicule) => aTraduire.push(vehicule.description));
   // Libellés des filtres du catalogue.
   [data.FAMILLES_VEHICULE, data.TYPES_VOITURE, data.CARBURANTS].forEach((groupe) => {
@@ -202,4 +207,18 @@ test("les modèles à variables déclarent les mêmes variables en français et 
       `variables incohérentes entre « ${source} » et sa traduction`
     );
   });
+});
+
+// Les montants gardent leurs chiffres mais changent de place avec le symbole
+// en anglais. Le signe moins des remises (U+2212, écrit par js/app.js) doit
+// être reconnu, sans quoi la ligne de remise restait au format français au
+// milieu d'un récapitulatif anglais.
+test("montants anglais : le symbole passe devant, le signe des remises est conservé", () => {
+  assert.equal(i18n.montant("500 €"), "€500");
+  assert.equal(i18n.montant("2 000 €"), "€2 000");
+  assert.equal(i18n.montant("− 35 €"), "−€35");
+  assert.equal(i18n.montant("-5 €"), "-€5");
+  // Ce qui n'est pas un montant seul n'est jamais touché.
+  assert.equal(i18n.montant("6 € / jour"), "6 € / jour");
+  assert.equal(i18n.montant("Total"), "Total");
 });

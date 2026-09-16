@@ -96,11 +96,30 @@
     "Total": "Total",
     "Sous-total": "Subtotal",
 
-    // Section 5 — garantie
+    // Section 5 — protection et garantie
+    "Protection et garantie": "Protection and security deposit",
     "Garantie": "Security deposit",
+    "Niveau de protection": "Protection level",
+    "Franchise /": "Excess /",
+    "Responsabilité maximale": "Maximum liability",
     "Dépôt de garantie": "Security deposit",
     "Mode": "Method",
     "Franchises assurance": "Insurance excess",
+    // Noms des formules : identiques à ceux affichés sur le site en anglais
+    // (js/i18n.js), pour qu'un client retrouve sur son contrat le nom qu'il
+    // a vu au moment de réserver.
+    // Libellés composés par syntheseFinancierePdf() pour la ligne de prix
+    // (« Protection Sérénité ») : une entrée par formule, vérifiée par
+    // tests/protections.test.js pour qu'aucune formule ajoutée plus tard ne
+    // reste en français sur un contrat anglais.
+    "Protection Essentiel": "Essential protection",
+    "Protection Confort": "Comfort protection",
+    "Protection Sérénité": "Serenity protection",
+    "Protection Sérénité+": "Serenity+ protection",
+    "Essentiel": "Essential",
+    "Confort": "Comfort",
+    "Sérénité": "Serenity",
+    "Sérénité+": "Serenity+",
     "Le dépôt de garantie ne constitue pas un paiement de la location : il est restitué selon les conditions de l'article 4.":
       "The security deposit is not a payment towards the rental: it is returned in accordance with Article 4.",
 

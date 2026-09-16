@@ -537,6 +537,33 @@
     "Électrique": "Electric",
     "Aucun véhicule ne correspond à cette recherche pour le moment.":
       "No vehicle matches this search at the moment.",
+    // --- Niveaux de protection (PROTECTIONS, js/data.js)
+    // Les noms de formules sont traduits : « Essentiel » ou « Sérénité » ne
+    // dit rien à un client anglophone. Le même nom traduit doit se retrouver
+    // sur le contrat PDF anglais (js/contrat-en.js).
+    "Essentiel": "Essential",
+    "Confort": "Comfort",
+    "Sérénité": "Serenity",
+    "Sérénité+": "Serenity+",
+    "Responsabilité civile / tiers": "Third-party liability",
+    "Collision, rayures et chocs": "Collision, scratches and impacts",
+    "Vol": "Theft",
+    "Pneus": "Tyres",
+    "Pare-brise et vitres": "Windscreen and windows",
+    "Assistance / dépannage": "Roadside assistance",
+    "Protection conducteur et passagers": "Driver and passenger protection",
+    "Choisissez votre niveau de protection": "Choose your protection level",
+    "La formule Essentiel est incluse dans votre location. Les formules supérieures réduisent votre franchise en cas de dommage — elles s'appliquent pendant toute la durée de la location, avec un prix plafonné.":
+      "The Essential cover is included in the rental. Higher levels reduce the excess payable if the car is damaged — they apply for the whole rental period, at a capped price.",
+    "Recommandé": "Recommended",
+    "Franchise": "Excess",
+    "Couvert : ": "Covered: ",
+    "Non couvert : ": "Not covered: ",
+    "✓ Sélectionnée": "✓ Selected",
+    "Voir les détails et exclusions": "See details and exclusions",
+    "Les protections sont soumises aux conditions et exclusions prévues par les Conditions Générales de Location. Certains dommages, usages interdits ou manquements contractuels peuvent rester à la charge du locataire.":
+      "Protection levels are subject to the terms and exclusions set out in the General Rental Conditions. Some damage, prohibited uses or breaches of contract may remain payable by the renter.",
+
     "Voir le détail": "See details",
     "Inclus": "Included",
     "Incluse": "Included",
@@ -708,6 +735,10 @@
     "Aucun supplément. Une caution de {caution} reste prévue pour ce véhicule. Les conditions exactes figurent dans les conditions de location.":
       "No extra charge. A deposit of {caution} still applies to this vehicle. The exact terms are set out in the rental conditions.",
     "{prix} / jour": "{prix} / day",
+    "Choisir {protection}": "Choose {protection}",
+    "{montant} maximum par location": "{montant} maximum per rental",
+    "Protection {nom} — {jours}": "{nom} protection — {jours}",
+    "Protection {nom} (forfait plafonné à {jours})": "{nom} protection (flat rate capped at {jours})",
     "Télécharger {type}": "Download {type}",
     "{index} / {total}": "{index} / {total}",
     "Réservation {reference}": "Booking {reference}",
@@ -776,12 +807,16 @@
   // « 500 € » -> « €500 » : en anglais le symbole précède le montant. Les
   // chiffres et leur séparateur de milliers restent inchangés — seul
   // l'affichage bouge, jamais un calcul (voir CLAUDE.md, règle n°1).
-  var MONTANT_SEUL = /^(-?[\d\s\u00A0.,]+)\s*€$/;
+  // Le signe est reconnu séparément (tiret ASCII comme signe moins U+2212,
+  // employé pour les remises) : sans lui, « − 35 € » ne ressemblait plus à un
+  // montant et restait au format français au milieu d'un récapitulatif
+  // anglais.
+  var MONTANT_SEUL = /^([-−+]?)\s*([\d\s\u00A0.,]+?)\s*€$/;
   function montant(texte) {
     var valeur = String(texte).trim();
     var trouve = MONTANT_SEUL.exec(valeur);
     if (!trouve) return texte;
-    return "€" + trouve[1].replace(/[\s\u00A0]+$/, "");
+    return trouve[1] + "€" + trouve[2];
   }
 
   function t(cle, variables) {

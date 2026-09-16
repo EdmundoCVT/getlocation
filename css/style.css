@@ -1605,6 +1605,172 @@ textarea:focus-visible,
   box-shadow: 0 8px 24px rgba(242, 118, 12, 0.1);
 }
 
+/* ---------------------------------------------------------------
+   Niveaux de protection (4 cartes comparables)
+
+   Mobile d'abord : une colonne, chaque carte lisible d'un bloc. À partir
+   de 780 px les cartes s'alignent côte à côte et s'étirent à la même
+   hauteur, pour que les franchises et les prix se comparent en ligne.
+   --------------------------------------------------------------- */
+.protection-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.protection-card {
+  display: flex;
+  flex-direction: column;
+  padding: 18px 16px;
+  gap: 12px;
+}
+
+/* Hauteur réservée même sans badge : sans elle, la seule carte
+   « Recommandé » décalait toute sa colonne d'une ligne et les franchises ne
+   se lisaient plus sur la même ligne d'une carte à l'autre. */
+.protection-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 52px;
+}
+
+.protection-nom {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.protection-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(242, 118, 12, 0.12);
+  color: var(--violet);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Franchise : l'information comparée en premier, donc détachée du reste.
+   Libellé au-dessus, montant en dessous : sur quatre colonnes, les mettre
+   côte à côte faisait déborder « 2 000 € » hors de la carte. */
+.protection-franchise {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #efeff3;
+  color: #62626c;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.protection-franchise strong {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--encre, #1f1f27);
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+
+.protection-garanties {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+}
+
+.protection-garanties li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.protection-marque {
+  flex: none;
+  width: 1.1em;
+  font-weight: 800;
+}
+
+.protection-garanties .is-covered .protection-marque { color: #2f9e5b; }
+
+/* Garantie non couverte : grisée, jamais barrée — le client doit pouvoir
+   la lire pour comprendre ce que le niveau supérieur lui apporterait. */
+.protection-garanties .is-excluded {
+  color: #9a9aa4;
+}
+
+.protection-card .protection-price {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+
+.protection-card .protection-price strong {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* Plafond : deux lignes autorisées plutôt qu'une ligne tronquée. */
+.protection-plafond {
+  color: #62626c;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.protection-select {
+  width: 100%;
+  justify-content: center;
+  border: 1.5px solid var(--violet);
+  background: #fff;
+  color: var(--violet);
+  font-weight: 700;
+}
+
+.protection-select.is-selected {
+  background: var(--violet);
+  border-color: var(--violet);
+  color: #fff;
+}
+
+.protection-mention {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 780px) {
+  .protection-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Quatre colonnes seulement quand la colonne centrale de la réservation est
+   réellement assez large (le récapitulatif occupe le reste de l'écran). */
+@media (min-width: 1240px) {
+  .protection-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .protection-card { padding: 16px 13px; }
+  .protection-nom { font-size: 1.05rem; }
+  .protection-garanties li { font-size: 0.84rem; }
+  .protection-plafond { font-size: 0.73rem; }
+  .protection-select { padding-left: 8px; padding-right: 8px; font-size: 0.88rem; }
+}
+
 .protection-choice,
 .option-choice {
   display: flex;

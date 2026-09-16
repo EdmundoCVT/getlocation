@@ -94,6 +94,49 @@ Tout vit dans `js/data.js` (règle n°1) — ne jamais recopier un montant aille
 - Les réservations et contrats déjà enregistrés gardent leur propre copie des
   montants : **rien n'est recalculé rétroactivement**.
 
+## Niveaux de protection (depuis le 16/09/2026)
+
+Quatre formules dans `PROTECTIONS` (`js/data.js`), **une seule retenue par
+réservation**, jamais cumulables :
+
+| Formule | Prix | Franchise |
+|---|---|---|
+| Essentiel | incluse | 2 000 € |
+| Confort | 6 €/jour | 1 500 € |
+| Sérénité (recommandée) | 12 €/jour | 750 € |
+| Sérénité+ | 20 €/jour | 300 € |
+
+- **`PROTECTION_PAR_DEFAUT = "essentiel"`** : retenue d'office, donc l'étape
+  ne bloque jamais le tunnel. Elle est enregistrée dès l'affichage de l'étape.
+- **Plafond** : les formules payantes sont facturées au maximum
+  `joursFacturesMax` = 7 jours (42 / 84 / 140 €). **La protection court
+  pendant toute la location** — ne jamais écrire au client qu'elle s'arrête
+  après 7 jours : l'affichage dit « X € maximum par location ».
+- `calculerProtection(id, jours)` produit l'instantané (`montant`,
+  `franchise`, `plafonne`…) stocké avec la réservation puis repris tel quel
+  par le contrat : un ancien dossier n'est jamais recalculé.
+- Le serveur **refuse** un identifiant de protection inconnu
+  (`validate-reservation-input.js`) au lieu de le corriger en silence ; en
+  revanche l'absence de champ vaut « Essentiel » (anciennes réservations).
+- L'ancienne option payante `assurance-passagers` n'existe plus : sa garantie
+  fait partie de Sérénité+. `js/app.js` convertit une réservation en cours
+  qui la contenait encore.
+- **Ne jamais confondre trois choses distinctes**, sur le site comme sur le
+  contrat : le *prix* de la protection, la *franchise* (ce qui reste à la
+  charge du client), le *dépôt de garantie* (bloqué puis restitué). Le bloc
+  PROTECTION ET GARANTIE du PDF les affiche en colonnes séparées.
+- **Ne jamais annoncer** « franchise 0 € », une couverture illimitée, une
+  couverture de tous les dommages ni un remboursement automatique, et ne pas
+  inventer d'exclusions : `PROTECTION_MENTION` renvoie aux CGL.
+- Traductions : noms de formules et garanties dans `js/i18n.js` (site) **et**
+  dans `js/contrat-en.js` (contrat, y compris le libellé composé
+  « Protection <nom> » de la ligne de prix). `tests/protections.test.js` et
+  `tests/i18n-couverture.test.js` échouent si une formule ajoutée plus tard
+  reste sans traduction.
+- Le formulaire agence (`contrat.html`) a le même choix : un contrat établi
+  au comptoir facture et affiche la franchise exactement comme une
+  réservation en ligne.
+
 ## Contrat PDF — présentation financière
 
 - Le contrat client affiche **prix de la location + options réellement

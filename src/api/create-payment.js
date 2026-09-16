@@ -148,7 +148,7 @@ async function handleCreatePayment(request, env) {
     return new Response(JSON.stringify({ error: "Requête invalide" }), { status: 400, headers });
   }
 
-  const { valid, errors, vehicule, options, codePromo, enfantAge, enfantPoids } = validateReservationInput(payload);
+  const { valid, errors, vehicule, options, codePromo, enfantAge, enfantPoids, protection } = validateReservationInput(payload);
   if (!valid) {
     return new Response(JSON.stringify({ error: "Requête invalide", details: errors }), { status: 400, headers });
   }
@@ -176,6 +176,7 @@ async function handleCreatePayment(request, env) {
     ...payload,
     options,
     codePromo,
+    protection,
     permisDate: payload.conducteur ? payload.conducteur.permisDate : undefined
   });
   if (!prix || !isFinite(prix.totalCentimes) || prix.totalCentimes < 50) {
@@ -222,6 +223,11 @@ async function handleCreatePayment(request, env) {
     reductionDuree: prix.reductionDuree,
     options: prix.optionsSelectionnees,
     optionsMontant: prix.optionsMontant,
+    // Instantané de la protection retenue (niveau, franchise, jours
+    // facturés, montant). Le contrat reprend CET objet, jamais un recalcul :
+    // une grille tarifaire modifiée plus tard ne doit pas réécrire un
+    // dossier déjà payé.
+    protection: prix.protection,
     // Supplément jeune conducteur : conservé tel qu'appliqué au moment du
     // paiement (null quand il ne s'applique pas), pour que le récapitulatif,
     // l'e-mail et le contrat affichent tous le même montant.

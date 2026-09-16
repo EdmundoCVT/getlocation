@@ -131,7 +131,7 @@ function contient(journal, fragment) {
 
 test("page 1 : les cinq sections de synthèse y figurent, le locataire en premier", () => {
   const journal = genererJournal();
-  const ordre = ["LOCATAIRE / CONDUCTEUR PRINCIPAL", "VÉHICULE", "LOCATION", "TARIFICATION", "GARANTIE"];
+  const ordre = ["LOCATAIRE / CONDUCTEUR PRINCIPAL", "VÉHICULE", "LOCATION", "TARIFICATION", "PROTECTION ET GARANTIE"];
   ordre.forEach((titre) => assert.equal(pageDe(journal, titre), 1, `${titre} doit être sur la page 1`));
 
   const positions = ordre.map((titre) => journal.findIndex((e) => e.texte.startsWith(titre)));
@@ -201,7 +201,7 @@ test("tarification : le dépôt de garantie n'est jamais mêlé au récapitulati
   const journal = genererJournal();
   const indexTotal = journal.findIndex((e) => e.texte.startsWith("TOTAL LOCATION"));
   const indexReste = journal.findIndex((e) => e.texte.startsWith("RESTE À PAYER"));
-  const indexGarantie = journal.findIndex((e) => e.texte.startsWith("GARANTIE"));
+  const indexGarantie = journal.findIndex((e) => e.texte.startsWith("PROTECTION ET GARANTIE"));
   assert.ok(indexTotal < indexReste, "le total doit précéder le reste à payer");
   assert.ok(indexReste < indexGarantie, "la garantie vient après l'état du règlement, dans son propre bloc");
   assert.ok(contient(journal, "ne constitue pas un paiement de la location"));
@@ -336,7 +336,7 @@ test("contrat anglais : plus aucun intitulé français imprimé", () => {
   // qu'il a été écrit — il n'est jamais traduit automatiquement.
   const intitulesFrancais = [
     "CONTRAT DE LOCATION", "LOCATAIRE / CONDUCTEUR PRINCIPAL", "VÉHICULE", "TARIFICATION",
-    "TOTAL LOCATION", "RESTE À PAYER", "GARANTIE", "PRINCIPALES CONDITIONS DE LOCATION",
+    "TOTAL LOCATION", "RESTE À PAYER", "PROTECTION ET GARANTIE", "PRINCIPALES CONDITIONS DE LOCATION",
     "DÉCLARATION DU LOCATAIRE", "ANNEXE — ÉTAT DES LIEUX DU VÉHICULE",
     "Objet et durée", "Prix et règlement", "Kilométrage et carburant"
   ];

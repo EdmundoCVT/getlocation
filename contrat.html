@@ -407,6 +407,16 @@
           </div>
         </div>
 
+        <!-- Niveau de protection : mêmes formules que sur le site (voir
+             PROTECTIONS dans js/data.js), pour qu'un contrat établi au
+             comptoir facture — et affiche sa franchise — exactement comme une
+             réservation en ligne. -->
+        <div class="field full" style="margin-top:8px;">
+          <label for="protection">Niveau de protection</label>
+          <select id="protection"></select>
+          <small id="protectionAide">La franchise du niveau retenu est reprise sur le contrat. Elle ne se confond ni avec le prix de la protection ni avec le dépôt de garantie.</small>
+        </div>
+
         <!-- Équipement enfant : mêmes deux options que sur le site (voir
              OPTIONS dans js/data.js), pour qu'un contrat établi à l'agence
              facture exactement comme une réservation en ligne. -->
@@ -819,8 +829,8 @@
 
 </div>
 
-<script src="js/data.js?v=23"></script>
-<script src="js/contrat-en.js?v=2"></script>
+<script src="js/data.js?v=24"></script>
+<script src="js/contrat-en.js?v=3"></script>
 <script>
 // VEHICULES, formatEUR, joursFacturablesDepuisHeures, getVehiculeParId et
 // getOptionParId viennent de js/data.js (chargé juste avant ce script) —
@@ -884,6 +894,7 @@ function calculerPrixContrat(data){
     dateFin: r.date, heureFin: r.heure,
     options: optionsDepuisFormulaire(data),
     codePromo: data.codePromo || '',
+    protection: data.protection || getProtectionParDefaut(),
     // Supplément jeune conducteur : déduit de la date de délivrance du
     // permis déjà saisie dans le formulaire agence (JJ/MM/AAAA), exactement
     // comme sur le site. Aucune case à cocher : la règle est la même pour
@@ -1506,6 +1517,18 @@ function syntheseFinancierePdf(prix, totalFinal, montantRegleNombre, soldeNombre
   var lignesOptions = options.map(function(opt){
     return { nom: opt.nom, montant: opt.montant, type: opt.type };
   });
+  // Protection : ligne facturée seulement si la formule retenue est payante.
+  // « Essentiel » est incluse : elle figure dans le bloc GARANTIE du contrat,
+  // pas dans la tarification, pour ne pas ajouter une ligne à 0 €.
+  if(prix.protection && prix.protection.montant > 0){
+    lignesOptions.push({
+      nom: 'Protection ' + prix.protection.nom,
+      montant: prix.protection.montant,
+      type: 'forfait'
+    });
+    optionsMontant += prix.protection.montant;
+  }
+
   if(prix.supplementJeuneConducteur){
     lignesOptions.push({
       nom: prix.supplementJeuneConducteur.libelle,
@@ -1741,6 +1764,9 @@ function construirePayload(data, sigData, stamp){
     duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
     detailFinancier: detailFinancier,
     syntheseFinanciere: syntheseFinancierePdf(prix, total, montantRegleNombre, soldeNombre),
+    // Instantané de la protection : niveau et franchise imprimés dans le
+    // bloc GARANTIE, distincts du prix de la protection et du dépôt.
+    protection: prix ? prix.protection : null,
     kilometrageManuel: kilometrageManuel,
     supplementKmCentimes: getSupplementKmCentimes(),
     total: formatEUR(total),
@@ -2399,30 +2425,53 @@ function genererPDF(payload, estApercu){
         franchises.brisDeGlace ? (contratEnAnglais ? 'glass breakage ' : 'bris de glace ') + formatEUR(franchises.brisDeGlace) : null
       ].filter(Boolean).join(' — ')
     : (contratEnAnglais ? 'See the General Rental Conditions (version ' : 'Voir Conditions Générales de Location (version ') + (payload.cglVersion || getCglVersion()) + ').';
-  var largeurDepot = maxWidth * 0.30;
-  var xMode = margin + largeurDepot;
-  var largeurMode = maxWidth * 0.24;
-  var xFranchises = xMode + largeurMode;
-  var largeurFranchises = maxWidth - largeurDepot - largeurMode - 14;
-  police('normal', 8.5, C.texte);
-  var lignesFranchises = doc.splitTextToSize(texteFranchises, largeurFranchises);
-  var hauteurGarantie = Math.max(52, 30 + lignesFranchises.length * 10);
-  titreSection(T('Garantie'), hauteurGarantie + 18);
+  // Trois informations que le client ne doit JAMAIS confondre, présentées
+  // côte à côte mais distinctement : le niveau de protection retenu, la
+  // franchise qui reste à sa charge en cas de dommage, et le dépôt de
+  // garantie — qui n'est ni l'un ni l'autre, et n'est pas un paiement de la
+  // location. Un filet vertical sépare les deux premières (ce qui relève de
+  // la protection choisie) de la troisième (ce qui est bloqué en caution).
+  var protection = payload.protection || null;
+  var largeurInterieure = maxWidth - 28;
+  var xProtection = margin + 14;
+  var xFranchiseMax = xProtection + largeurInterieure * 0.28;
+  var xDepot = xProtection + largeurInterieure * 0.60;
+  var xMode = xProtection + largeurInterieure * 0.83;
+  police('normal', 8, C.texte);
+  var lignesFranchises = doc.splitTextToSize(texteFranchises, largeurInterieure);
+  var hauteurGarantie = 72 + lignesFranchises.length * 10;
+  titreSection(T('Protection et garantie'), hauteurGarantie + 18);
   doc.setFillColor(252, 252, 253);
   doc.setDrawColor(C.filet[0], C.filet[1], C.filet[2]);
   doc.roundedRect(margin, y, maxWidth, hauteurGarantie, 7, 7, 'FD');
+  doc.setLineWidth(0.5);
+  doc.line(xDepot - 12, y + 10, xDepot - 12, y + 48);
+
   police('normal', 6.8, C.label);
-  capitales(T('Dépôt de garantie'), margin + 14, y + 16, 0.45);
-  police('bold', 16, C.titre);
-  doc.text(valeurOuTiret(payload.caution), margin + 14, y + 38);
+  capitales(T('Niveau de protection'), xProtection, y + 15, 0.45);
+  police('bold', 12.5, C.titre);
+  doc.text(valeurOuTiret(protection ? T(protection.nom) : ''), xProtection, y + 40);
+
   police('normal', 6.8, C.label);
-  capitales(T('Mode'), xMode, y + 16, 0.45);
-  police('normal', 10, C.texte);
-  doc.text(valeurOuTiret(payload.mode_reglement_caution), xMode, y + 36);
+  capitales(T('Franchise /'), xFranchiseMax, y + 15, 0.45);
+  capitales(T('Responsabilité maximale'), xFranchiseMax, y + 24, 0.45);
+  police('bold', 12.5, C.titre);
+  doc.text(valeurOuTiret(protection ? formatEUR(protection.franchise) : ''), xFranchiseMax, y + 40);
+
   police('normal', 6.8, C.label);
-  capitales(T('Franchises assurance'), xFranchises, y + 16, 0.45);
-  police('normal', 8.5, C.texte);
-  doc.text(lignesFranchises, xFranchises, y + 29);
+  capitales(T('Dépôt de garantie'), xDepot, y + 15, 0.45);
+  police('bold', 12.5, C.titre);
+  doc.text(valeurOuTiret(payload.caution), xDepot, y + 40);
+
+  police('normal', 6.8, C.label);
+  capitales(T('Mode'), xMode, y + 15, 0.45);
+  police('normal', 9.5, C.texte);
+  doc.text(valeurOuTiret(payload.mode_reglement_caution), xMode, y + 39);
+
+  police('normal', 6.8, C.label);
+  capitales(T('Franchises assurance'), xProtection, y + 58, 0.45);
+  police('normal', 8, C.texte);
+  doc.text(lignesFranchises, xProtection, y + 68);
   y += hauteurGarantie + 11;
   placePour(12);
   police('italic', 7.8, C.label);
@@ -3660,6 +3709,19 @@ function initOwnerView(prefill){
   });
   appliquerPlaque();
 
+  // Niveau de protection : la liste vient de PROTECTIONS (js/data.js), avec
+  // le prix journalier et la franchise en clair pour que l'agent choisisse
+  // sans avoir à ouvrir le site.
+  var selectProtection = document.getElementById('protection');
+  if(selectProtection){
+    getProtections().forEach(function(p){
+      var prix = p.prixParJour > 0 ? formatEUR(p.prixParJour) + '/jour' : 'incluse';
+      selectProtection.add(new Option(p.nom + ' — ' + prix + ', franchise ' + formatEUR(p.franchise), p.id));
+    });
+    selectProtection.value = getProtectionParDefaut();
+    selectProtection.addEventListener('change', updateSummary);
+  }
+
   // Options enfant : aucun champ supplémentaire côté agence (l'âge et le
   // poids sont demandés au client sur le site) — seule la facturation suit.
   [siegeEnfantToggle, rehausseurToggle].forEach(function(toggle){
@@ -3874,6 +3936,16 @@ function initOwnerView(prefill){
     if(prefill.montantRegle !== undefined) document.getElementById('montantRegle').value = prefill.montantRegle;
     if(prefill.acompteRegle !== undefined) acompteRegleToggle.checked = !!prefill.acompteRegle;
     if(prefill.soldeRegle !== undefined) soldeRegleToggle.checked = !!prefill.soldeRegle;
+    // Ce que le client a déjà choisi et payé en ligne : niveau de protection,
+    // équipement enfant, date de permis (dont dépend le supplément jeune
+    // conducteur). Sans eux le contrat établi au comptoir afficherait une
+    // franchise et un total différents de la réservation réglée.
+    if(selectProtection && estProtectionConnue(prefill.protection)){
+      selectProtection.value = prefill.protection;
+    }
+    if(prefill.siegeEnfant) siegeEnfantToggle.checked = true;
+    if(prefill.rehausseur) rehausseurToggle.checked = true;
+    if(prefill.permisDate) document.getElementById('permisDate').value = isoVersJourMoisAnnee(prefill.permisDate);
     if(prefill.secondConducteur){
       secondToggle.checked = true;
       secondBlock.classList.add('show');
@@ -3931,6 +4003,7 @@ function initOwnerView(prefill){
       immat: document.getElementById('immat').value,
       lieu: selectLieu.value,
       langueClient: (document.getElementById('langueClient') || {}).value || 'fr',
+      protection: selectProtection ? selectProtection.value : getProtectionParDefaut(),
       siegeEnfant: siegeEnfantToggle.checked,
       rehausseur: rehausseurToggle.checked,
       depart: inputDepart.value,
@@ -4113,6 +4186,19 @@ function initOwnerView(prefill){
     document.getElementById('notes').value = rawData.notes || '';
     document.getElementById('remarques').value = rawData.remarques || '';
     mettreAJourCompteurRemarques();
+
+    // Niveau de protection et équipement enfant : ils font partie du tarif
+    // convenu, donc ils se rechargent avec le reste du contrat (y compris à
+    // la duplication, comme les autres options facturées). Un identifiant
+    // inconnu — contrat d'avant les niveaux de protection — retombe sur la
+    // formule incluse plutôt que de laisser le champ vide.
+    if(selectProtection){
+      selectProtection.value = estProtectionConnue(rawData.protection)
+        ? rawData.protection
+        : getProtectionParDefaut();
+    }
+    siegeEnfantToggle.checked = !!rawData.siegeEnfant;
+    rehausseurToggle.checked = !!rawData.rehausseur;
 
     secondToggle.checked = !!rawData.secondConducteur;
     secondBlock.classList.toggle('show', secondToggle.checked);

@@ -73,6 +73,9 @@ function toSafePublicView(reservation) {
     // Null pour les réservations d'avant l'ajout du supplément : la page de
     // confirmation n'affiche alors aucune ligne, comme avant.
     supplementJeuneConducteur: reservation.supplementJeuneConducteur || null,
+    // Idem pour la protection : absente des réservations antérieures aux
+    // niveaux de protection, la ligne ne s'affiche simplement pas.
+    protection: reservation.protection || null,
     codePromo: reservation.codePromo || null,
     reductionPromoMontant: reservation.reductionPromoMontant,
     total: reservation.total,

@@ -12,7 +12,7 @@
 // confirmée en production — ne pas laisser les deux diverger si l'une des
 // deux est modifiée avant la suppression définitive de l'ancienne.
 
-const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS, anciennetePermisAnnees } = require("../../js/data.js");
+const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS, anciennetePermisAnnees, PROTECTIONS, PROTECTION_PAR_DEFAUT } = require("../../js/data.js");
 
 const MAX_LEN = {
   nom: 100,
@@ -96,7 +96,8 @@ function validateReservationInput(payload) {
     cglVersion,
     langue,
     enfantAge,
-    enfantPoids
+    enfantPoids,
+    protection
   } = payload;
 
   const vehicule = typeof vehiculeId === "string" ? getVehiculeParId(vehiculeId) : null;
@@ -202,6 +203,19 @@ function validateReservationInput(payload) {
     }
   }
 
+  // Niveau de protection : une seule valeur, prise dans le catalogue de
+  // js/data.js. Un identifiant inconnu est REFUSÉ plutôt que corrigé en
+  // silence — accepter n'importe quoi reviendrait à facturer une protection
+  // que le client n'a pas vue à l'écran.
+  let protectionNormalisee = PROTECTION_PAR_DEFAUT;
+  if (protection !== undefined && protection !== null && protection !== "") {
+    if (typeof protection !== "string" || !PROTECTIONS.some((p) => p.id === protection)) {
+      errors.push("Niveau de protection invalide");
+    } else {
+      protectionNormalisee = protection;
+    }
+  }
+
   // Âge et poids de l'enfant : demandés avec l'option « Siège enfant » pour
   // que l'agence prépare le siège homologué correspondant. Purement
   // informatifs — aucune règle de prix n'en dépend.
@@ -243,6 +257,7 @@ function validateReservationInput(payload) {
     options: optionsNormalisees,
     codePromo: codePromoNormalise,
     langue: langueNormalisee,
+    protection: protectionNormalisee,
     enfantAge: avecSiegeEnfant ? enfantAgeNormalise : null,
     enfantPoids: avecSiegeEnfant ? enfantPoidsNormalise : null
   };
