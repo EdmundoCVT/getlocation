@@ -2043,6 +2043,51 @@ textarea:focus-visible,
   color: var(--gris-fonce);
 }
 
+/* Pages juridiques : sous-titres d'article (4.1, 4.2…) et tableau des
+   niveaux de protection. Le tableau défile horizontalement sur mobile
+   plutôt que d'être compressé au point d'être illisible — un texte
+   contractuel doit rester lisible sur téléphone. */
+.card h3 {
+  margin: 22px 0 8px;
+  font-size: 1rem;
+  color: var(--gris-fonce);
+}
+
+.cgl-table-wrap {
+  overflow-x: auto;
+  margin: 12px 0 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cgl-table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 560px;
+  font-size: 0.92rem;
+}
+
+.cgl-table th,
+.cgl-table td {
+  border: 1px solid #e4e4ea;
+  padding: 9px 11px;
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.45;
+}
+
+.cgl-table thead th {
+  background: #f6f6f8;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #62626c;
+}
+
+.cgl-table tbody th {
+  white-space: nowrap;
+  font-weight: 800;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -18,7 +18,7 @@ change).
 | 134 | Âge minimum du conducteur (21 ans, [à ajuster]) | Confirmer l'âge minimum réellement appliqué par l'agence |
 | 135 | Ancienneté de permis minimale (2 ans, [à ajuster]) | Confirmer l'ancienneté de permis réellement exigée |
 | 157 | Frais de retard [à préciser : barème horaire/journalier] | Fournir le barème exact des pénalités de retard |
-| ~194 | Montants de franchise en vigueur [à compléter] (article 4, dommages/vol/bris de glace) | Montants exacts des franchises d'assurance auprès d'Allianz Assurance — voir aussi `js/data.js`, `FRANCHISES` ci-dessous : un seul et même montant à renseigner aux deux endroits |
+| ~194 | ~~Montants de franchise en vigueur [à compléter]~~ — **résolu le 16/09/2026** : l'article 4 porte désormais le tableau des quatre niveaux de protection et leurs franchises (2 000 / 1 500 / 750 / 300 €), tenues à jour depuis `PROTECTIONS` (`js/data.js`) et vérifiées par `tests/cgl-protections.test.js`. **Reste à faire** : faire relire l'article 4 (notamment la liste d'exclusions du 4.5) par l'assureur ou un conseil, et vérifier que ces franchises commerciales sont compatibles avec le contrat Allianz réel. L'objet `FRANCHISES` de `js/data.js` (franchises de l'assureur : dommages / vol / bris de glace) reste `null` — voir plus bas. | — |
 | 174 | Politique d'annulation [À compléter] | Fournir les conditions d'annulation/remboursement (délais, montants) |
 | 193 | Juridiction compétente en cas de litige [à compléter — ressort du siège social] | Confirmer le tribunal compétent (dépend du siège social réel) |
 

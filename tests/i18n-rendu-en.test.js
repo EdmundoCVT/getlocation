@@ -272,3 +272,32 @@ test("réponse servie sous /en/ : la redirection « URLs propres » est suivie i
 
   assert.deepEqual(demandes, ["/vehicules", "/"], "les assets doivent être demandés sous leur URL propre, sans aller-retour");
 });
+
+// Le corps des pages juridiques reste en français, seule version faisant
+// foi (CLAUDE.md). Le dictionnaire contient pourtant des mots qui y figurent
+// aussi — « Essentiel », « Inclus », des montants… — et les traduisait au
+// passage : les CGL anglaises affichaient un tableau des protections à
+// moitié traduit, c'est-à-dire un texte contractuel qui ne correspondait à
+// aucune version faisant foi.
+test("page juridique anglaise : le corps reste intégralement en français", async () => {
+  const dom = await chargerPage("cgl.html", "https://getlocation.fr/en/terms");
+  const { document } = dom.window;
+
+  // Le corps est explicitement figé pour le moteur de traduction.
+  const cartes = [...document.querySelectorAll(".section .card")];
+  assert.ok(cartes.length > 0, "les articles des CGL doivent être dans des cartes");
+  cartes.forEach((carte) => {
+    assert.equal(carte.getAttribute("translate"), "no", "un article des CGL n'est pas protégé de la traduction");
+  });
+
+  // Et rien n'y a effectivement été traduit : les valeurs du tableau des
+  // protections sont celles du texte français, au format français.
+  const premiereLigne = document.querySelector('#cglProtections tr[data-protection="essentiel"]');
+  assert.equal(premiereLigne.querySelector("th").textContent.trim(), "Essentiel");
+  assert.equal(premiereLigne.querySelector("[data-prix]").textContent.trim(), "Inclus");
+  assert.match(premiereLigne.querySelector("[data-franchise]").textContent, /2[\s  ]000 €/);
+
+  // L'en-tête, lui, est bien traduit, et la mention de langue est présente.
+  assert.ok(document.querySelector(".legal-language-note"), "mention « version française faisant foi » absente");
+  dom.window.close();
+});

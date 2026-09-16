@@ -852,6 +852,11 @@
       acceptNode: function (noeud) {
         var parent = noeud.parentElement;
         if (!parent || parent.closest("script,style,noscript,textarea")) return vue.NodeFilter.FILTER_REJECT;
+        // translate="no" : texte à laisser tel quel, quoi qu'en dise le
+        // dictionnaire. Sert au corps des pages juridiques, où une phrase
+        // traduite au milieu d'un texte français donnerait un document
+        // hybride qui ne correspond à aucune version faisant foi.
+        if (parent.closest('[translate="no"]')) return vue.NodeFilter.FILTER_REJECT;
         return vue.NodeFilter.FILTER_ACCEPT;
       }
     });
@@ -866,6 +871,7 @@
     var elements = racine.querySelectorAll ? racine.querySelectorAll("*") : [];
     var tous = racine.nodeType === 1 ? [racine].concat(Array.prototype.slice.call(elements)) : Array.prototype.slice.call(elements);
     tous.forEach(function (element) {
+      if (element.closest && element.closest('[translate="no"]')) return;
       ATTRIBUTS_TRADUITS.forEach(function (attribut) {
         if (!element.hasAttribute || !element.hasAttribute(attribut)) return;
         var traduit = traduire(element.getAttribute(attribut));
@@ -970,6 +976,20 @@
     nav.appendChild(bloc);
   }
 
+  // Corps des pages juridiques : marqué translate="no" AVANT toute
+  // traduction. Le dictionnaire contient forcément des mots qui y figurent
+  // aussi (« Essentiel », « Inclus », des montants…) : sans ce garde-fou, les
+  // CGL anglaises affichaient un tableau à moitié traduit, alors que seule la
+  // version française fait foi (voir CLAUDE.md).
+  function figerCorpsJuridique() {
+    var page = nomDePage(global.location.pathname);
+    if (PAGES_JURIDIQUES.indexOf(page) === -1) return;
+    var cartes = document.querySelectorAll(".section .card, main .card");
+    Array.prototype.forEach.call(cartes, function (carte) {
+      carte.setAttribute("translate", "no");
+    });
+  }
+
   function mentionJuridique() {
     var page = nomDePage(global.location.pathname);
     if (PAGES_JURIDIQUES.indexOf(page) === -1) return;
@@ -985,6 +1005,7 @@
     construireSelecteur();
     if (langue !== "en") return;
     document.documentElement.lang = "en";
+    figerCorpsJuridique();
     appliquer(document.body);
     reecrireLiens(document);
     mentionJuridique();

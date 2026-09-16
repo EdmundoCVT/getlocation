@@ -107,7 +107,7 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=29">
+<link rel="stylesheet" href="css/style.css?v=30">
 </head>
 <body>
 
@@ -134,8 +134,16 @@
 <section class="section container" style="max-width: 780px;">
   <h1 class="section-title">Conditions générales de location (CGL)</h1>
   <p class="section-subtitle">Applicables à toute réservation effectuée sur getlocation.fr auprès de GETLOCATION (TLST SAS). <span id="cglVersionLine">Version en vigueur : <span id="cglVersionValeur">…</span>.</span></p>
-  <script src="js/data.js?v=24"></script>
-  <script>document.getElementById('cglVersionValeur').textContent = CGL_VERSION;</script>
+  <!-- js/data.js est chargé une seule fois, en pied de page comme sur toutes
+       les pages : le charger aussi ici redéclarait ses constantes et faisait
+       échouer le second chargement (SyntaxError), donc js/i18n.js et
+       js/app.js avec lui. La version des CGL est donc renseignée une fois le
+       document entièrement analysé. -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      document.getElementById('cglVersionValeur').textContent = CGL_VERSION;
+    });
+  </script>
 
   <div class="card" style="margin-bottom: 20px;">
     <h2>1. Conducteur et permis de conduire</h2>
@@ -150,8 +158,8 @@
   <div class="card" style="margin-bottom: 20px;">
     <h2>2. Réservation et paiement</h2>
     <p>
-      La réservation est confirmée après paiement en ligne du montant total de la location
-      (et, le cas échéant, de l'assurance complémentaire). Le paiement s'effectue par carte
+      La réservation est confirmée après paiement en ligne du montant total de la location,
+      options et niveau de protection compris (article 4). Le paiement s'effectue par carte
       bancaire via un prestataire de paiement sécurisé. Un dépôt de garantie (caution) est
       demandé lors de la prise en charge du véhicule, dont le montant varie selon le modèle
       loué (voir fiche véhicule).
@@ -183,21 +191,159 @@
   </div>
 
   <div class="card" style="margin-bottom: 20px;">
-    <h2>4. Dépôt de garantie et assurance</h2>
+    <h2>4. Assurance, niveaux de protection, franchise et dépôt de garantie</h2>
+
+    <h3>4.1 Trois notions à ne pas confondre</h3>
     <p>
-      Chaque location inclut une assurance responsabilité civile obligatoire, souscrite auprès
-      d'Allianz Assurance. Un dépôt de garantie (caution) est prélevé lors de la prise en
-      charge du véhicule, dont le montant varie selon le modèle loué (voir fiche véhicule) —
-      il est restitué déduction faite, le cas échéant, des sommes dues au titre des présentes
-      CGL (franchise, kilométrage excédentaire, dommages, nettoyage, contraventions), selon les
-      modalités de mainlevée et de restitution décrites ci-dessous.
+      Le <strong>prix de la protection</strong> est le montant payé à la réservation pour
+      réduire la franchise. La <strong>franchise</strong> est la somme qui reste à la charge du
+      locataire en cas de dommage couvert, quel que soit le coût total des réparations. Le
+      <strong>dépôt de garantie</strong> (caution) n'est ni l'un ni l'autre : ce n'est pas un
+      paiement de la location, mais une somme bloquée puis restituée dans les conditions du
+      paragraphe 4.7. Ces trois montants sont indiqués séparément sur le contrat de location.
+    </p>
+
+    <h3>4.2 Assurance incluse</h3>
+    <p>
+      Chaque location inclut l'assurance responsabilité civile obligatoire, souscrite par
+      GETLOCATION auprès d'Allianz Assurance, qui couvre les dommages causés aux tiers. Cette
+      garantie ne couvre pas les dommages subis par le véhicule loué lui-même : ceux-ci relèvent
+      du niveau de protection retenu et de la franchise correspondante.
+    </p>
+
+    <h3>4.3 Niveaux de protection</h3>
+    <p>
+      Le locataire choisit, lors de la réservation en ligne ou à l'agence, l'un des quatre
+      niveaux de protection ci-dessous. <strong>Un seul niveau s'applique par location</strong> ;
+      il est mentionné sur le contrat de location et ne peut plus être modifié après la prise en
+      charge du véhicule. Le niveau « Essentiel » est inclus dans le prix de la location et
+      s'applique à défaut de choix contraire.
+    </p>
+    <div class="cgl-table-wrap">
+      <table class="cgl-table" id="cglProtections">
+        <caption class="sr-only">Niveaux de protection, prix, franchise et garanties couvertes</caption>
+        <thead>
+          <tr>
+            <th scope="col">Niveau</th>
+            <th scope="col">Prix</th>
+            <th scope="col">Franchise</th>
+            <th scope="col">Dommages couverts (sous réserve du paragraphe 4.5)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-protection="essentiel">
+            <th scope="row">Essentiel</th>
+            <td data-prix>Inclus</td>
+            <td data-franchise>2 000 €</td>
+            <td data-garanties>Responsabilité civile / tiers</td>
+          </tr>
+          <tr data-protection="confort">
+            <th scope="row">Confort</th>
+            <td data-prix>6 € / jour</td>
+            <td data-franchise>1 500 €</td>
+            <td data-garanties>Responsabilité civile / tiers ; collision, rayures et chocs ; vol</td>
+          </tr>
+          <tr data-protection="serenite">
+            <th scope="row">Sérénité</th>
+            <td data-prix>12 € / jour</td>
+            <td data-franchise>750 €</td>
+            <td data-garanties>Responsabilité civile / tiers ; collision, rayures et chocs ; vol ; pneus ; pare-brise et vitres ; assistance / dépannage</td>
+          </tr>
+          <tr data-protection="serenite-plus">
+            <th scope="row">Sérénité+</th>
+            <td data-prix>20 € / jour</td>
+            <td data-franchise>300 €</td>
+            <td data-garanties>Responsabilité civile / tiers ; collision, rayures et chocs ; vol ; pneus ; pare-brise et vitres ; assistance / dépannage ; protection conducteur et passagers</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      <strong>Durée et plafond de facturation.</strong> Le niveau de protection retenu
+      s'applique pendant <strong>toute la durée de la location</strong>. Son prix est en
+      revanche plafonné à 7 jours de facturation, soit au maximum 42 € (Confort), 84 €
+      (Sérénité) ou 140 € (Sérénité+) par location : au-delà du septième jour, la protection
+      reste acquise sans supplément.
+    </p>
+
+    <h3>4.4 Nature et effet de la protection</h3>
+    <p>
+      Les niveaux Confort, Sérénité et Sérénité+ ne sont pas des contrats d'assurance souscrits
+      par le locataire : il s'agit d'une <strong>limitation contractuelle de la responsabilité
+      du locataire</strong> consentie par GETLOCATION. Leur effet est de ramener la somme
+      restant à la charge du locataire, en cas de dommage couvert, au montant de franchise
+      indiqué au paragraphe 4.3 — même si le coût des réparations lui est supérieur. Aucun
+      niveau ne supprime la franchise ni ne couvre l'intégralité des dommages.
     </p>
     <p>
-      La franchise applicable en cas de sinistre responsable, de vol ou de bris de glace n'est
-      pas nécessairement égale au montant du dépôt de garantie : il s'agit de deux notions
-      distinctes. Les montants de franchise en vigueur [à compléter] seront communiqués au
-      locataire avant la prise en charge du véhicule. Le détail des garanties et exclusions est
-      disponible sur demande auprès de l'agence.
+      La franchise reste due par dommage ou par sinistre : deux sinistres distincts survenus
+      pendant une même location donnent lieu à deux franchises. Elle peut être prélevée sur le
+      dépôt de garantie dans les conditions du paragraphe 4.7.
+    </p>
+
+    <h3>4.5 Cas dans lesquels la protection ne s'applique pas</h3>
+    <p>
+      Dans les situations suivantes, la limitation de responsabilité prévue au paragraphe 4.4 est
+      écartée et le locataire reste redevable de l'intégralité des dommages, des frais de
+      remise en état et des frais d'immobilisation du véhicule :
+    </p>
+    <ul>
+      <li>
+        véhicule conduit par une personne non mentionnée au contrat de location, ou ne
+        remplissant pas les conditions de l'article 1 (âge, ancienneté et validité du permis) ;
+      </li>
+      <li>
+        conduite sous l'empire d'un état alcoolique ou sous l'influence de stupéfiants, délit de
+        fuite, refus d'obtempérer, ou toute infraction constitutive d'un délit ;
+      </li>
+      <li>
+        usage non conforme à l'article 3 : circulation hors du territoire français, sur une voie
+        non ouverte à la circulation publique ou impraticable, participation à une compétition,
+        apprentissage de la conduite, sous-location, transport onéreux de personnes ou de
+        marchandises, surcharge ou remorquage non autorisé ;
+      </li>
+      <li>
+        erreur de carburant, poursuite de la route malgré l'allumage d'un voyant d'alerte,
+        défaut de surveillance des niveaux, ou toute négligence aggravant le dommage ;
+      </li>
+      <li>
+        dommages à l'habitacle, perte ou vol des clés, des documents du véhicule ou des plaques
+        d'immatriculation, ainsi que vol des effets personnels transportés ;
+      </li>
+      <li>
+        vol ou tentative de vol sans restitution des clés du véhicule ou sans dépôt de plainte
+        auprès des autorités ;
+      </li>
+      <li>
+        absence de déclaration du sinistre à GETLOCATION dans les conditions du paragraphe 4.6,
+        déclaration inexacte, ou refus de signer le constat amiable.
+      </li>
+    </ul>
+    <p>
+      Les dommages aux pneumatiques, aux vitres et au pare-brise ne sont couverts que par les
+      niveaux qui les mentionnent expressément au paragraphe 4.3 ; ils restent intégralement à
+      la charge du locataire avec les autres niveaux. Restent également à sa charge, quel que
+      soit le niveau retenu, les contraventions (article 3), le carburant manquant, les frais de
+      nettoyage et le kilométrage excédentaire.
+    </p>
+
+    <h3>4.6 Déclaration d'un sinistre</h3>
+    <p>
+      Tout sinistre, accident, panne, vol ou dégradation doit être signalé à GETLOCATION
+      immédiatement et, en tout état de cause, dans les 24 heures, dans les conditions de
+      l'article 6. Un constat amiable doit être établi et signé avec le tiers impliqué lorsqu'il
+      y en a un ; en cas de vol ou de vandalisme, une plainte doit être déposée auprès des
+      autorités et sa copie remise à GETLOCATION.
+    </p>
+
+    <h3>4.7 Dépôt de garantie</h3>
+    <p>
+      Un dépôt de garantie (caution) est prélevé lors de la prise en charge du véhicule ; son
+      montant varie selon le modèle loué et figure sur chaque fiche véhicule. Il est restitué
+      déduction faite, le cas échéant, des sommes dues au titre des présentes CGL (franchise,
+      kilométrage excédentaire, dommages non couverts, carburant, nettoyage, contraventions).
+      Le montant du dépôt de garantie est indépendant de la franchise : il peut lui être
+      supérieur ou inférieur.
     </p>
     <p>
       <strong>Mainlevée et restitution.</strong> À la restitution du véhicule et après
@@ -289,8 +435,8 @@
   <div class="footer-bottom">© <span id="footer-year"></span> GETLOCATION — TLST SAS · SIRET 932 098 908 00019 · <a href="mentions-legales.html">Mentions légales</a></div>
 </footer>
 
-<script src="js/data.js?v=24"></script>
-<script src="js/i18n.js?v=4"></script>
+<script src="js/data.js?v=25"></script>
+<script src="js/i18n.js?v=5"></script>
 <script src="js/app.js?v=31"></script>
 </body>
 </html>
