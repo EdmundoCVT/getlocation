@@ -16,13 +16,14 @@
 // Mollie elle-même (GET /v2/payments/:id, toujours rappelé après toute
 // action — création, capture, libération, ou notification webhook).
 //
-// Montant : par défaut, celui du véhicule loué (VEHICULES[].caution, voir
-// js/data.js — seule source de vérité, voir CLAUDE.md règle n°1). L'agence
-// peut le surclasser explicitement (même logique que src/lib/deposits.js,
-// qui laisse déjà l'agence saisir un montant libre pour une caution
-// classique) ; le montant envoyé à Mollie est dans tous les cas recalculé
-// et validé ici, jamais transmis tel quel depuis le corps de la requête à
-// l'API Mollie sans passer par toCents()/defaultAmountCentsForRental().
+// Montant : TOUJOURS celui figé sur la location (rental.depositAmountCents,
+// voir migrations/0006 et src/lib/rentals.js — snapshot de
+// VEHICULES[].caution au moment de la création, seule source de vérité pour
+// ce tarif, voir CLAUDE.md règle n°1), jamais un montant transmis par
+// l'agence/le navigateur à la création de l'empreinte (cahier des charges
+// §6) — voir resolveDepositAmountCentsForRental(). Pour corriger le dépôt
+// de garantie d'une location, passer par sa mise à jour (rentals.js),
+// jamais par un paramètre de createDepositAuthorization.
 //
 // Clé Mollie utilisée : MOLLIE_DEPOSIT_API_KEY, secret Cloudflare Worker
 // DISTINCT de MOLLIE_API_KEY (paiement de location, déjà en mode live en
@@ -84,7 +85,16 @@ function centsFromMollieAmount(amount) {
   return Number.isFinite(n) ? Math.round(n * 100) : null;
 }
 
-function defaultAmountCentsForRental(rental) {
+// Montant à envoyer à Mollie pour CETTE location : celui figé sur la
+// location elle-même (rental.depositAmountCents, voir migrations/0006 et
+// src/lib/rentals.js) quand il existe, jamais un montant fixe ni un montant
+// transmis par le navigateur — voir createDepositAuthorization ci-dessous,
+// qui n'accepte plus aucun montant en provenance de l'agence pour cette
+// raison. Repli sur le tarif actuellement configuré pour le véhicule
+// (VEHICULES[].caution, js/data.js) uniquement pour une location créée
+// avant l'introduction de ce snapshot.
+function resolveDepositAmountCentsForRental(rental) {
+  if (rental.depositAmountCents != null) return rental.depositAmountCents;
   const vehicule = getVehiculeParId(rental.vehiculeId);
   if (!vehicule) throw new Error("Véhicule inconnu pour cette location");
   return Math.round(vehicule.caution * 100);
@@ -244,7 +254,15 @@ async function syncFromMolliePayment(env, existing, payment, operator, hintCaptu
 // quelle à l'appelant — voir src/api/agency-deposit-authorizations.js, qui
 // doit l'afficher clairement à l'agence (cahier des charges §5 : ne jamais
 // masquer la réponse Mollie en cas d'échec de la préautorisation).
-async function createDepositAuthorization(env, rentalId, data, operator, { origin }) {
+//
+// Le montant N'EST JAMAIS accepté depuis l'agence/le navigateur : il est
+// TOUJOURS celui déterminé côté serveur par resolveDepositAmountCentsForRental()
+// à partir de la location elle-même (voir cahier des charges §6 — "ne
+// jamais accepter directement comme montant fiable une valeur envoyée par
+// le navigateur"). Pour corriger le dépôt de garantie d'une location avant
+// de créer son empreinte, passer par la mise à jour de la location
+// (src/lib/rentals.js, data.depositAmount), jamais par ce paramètre.
+async function createDepositAuthorization(env, rentalId, operator, { origin }) {
   if (!rentalId || typeof rentalId !== "string") throw new Error("Location manquante");
   const rental = await getRentalById(env, rentalId);
   if (!rental) throw new Error("Location introuvable");
@@ -256,10 +274,7 @@ async function createDepositAuthorization(env, rentalId, data, operator, { origi
   const active = await getActiveDepositAuthorization(env, rentalId);
   if (active) throw new Error("Une empreinte bancaire est déjà en cours pour cette location.");
 
-  const amountCents =
-    data && data.amount !== undefined && data.amount !== null && data.amount !== ""
-      ? toCents(data.amount)
-      : defaultAmountCentsForRental(rental);
+  const amountCents = resolveDepositAmountCentsForRental(rental);
 
   const id = generateId("depauth");
   const now = new Date().toISOString();

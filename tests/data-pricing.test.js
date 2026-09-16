@@ -18,12 +18,52 @@ const {
   joursFacturablesDepuisHeures,
   calculerPrixTotal,
   getVehiculeParId,
+  resolveDepositAmount,
   REDUCTIONS_DUREE,
   reductionDureeApplicable,
   getCodePromo,
   OPTIONS,
   getOptionParId
 } = require("../js/data.js");
+
+// resolveDepositAmount() : dépôt de garantie effectivement applicable à une
+// réservation déjà enregistrée (dossier contrat, e-mails) — voir
+// src/api/create-payment.js (snapshot à la création), src/api/
+// contract-dossier-agency.js/contract-dossier-client.js et
+// src/lib/send-confirmation-email.js/send-pickup-reminder-email.js
+// (consommateurs). Chaque véhicule a désormais un montant distinct (voir
+// CLAUDE.md, révision du 16/09/2026).
+test("resolveDepositAmount : chaque véhicule a son propre dépôt de garantie", () => {
+  const cas = [
+    ["opel-corsa", 650],
+    ["peugeot-2008-hybrid", 750],
+    ["peugeot-3008", 900],
+    ["toyota-proace-city", 1000]
+  ];
+  for (const [vehiculeId, attendu] of cas) {
+    const vehicule = getVehiculeParId(vehiculeId);
+    assert.equal(vehicule.caution, attendu, vehiculeId);
+    // Aucune réservation (ou sans depositAmount figé) : repli sur le tarif
+    // actuel du véhicule.
+    assert.equal(resolveDepositAmount(null, vehicule), attendu, vehiculeId);
+    assert.equal(resolveDepositAmount({}, vehicule), attendu, vehiculeId);
+  }
+});
+
+test("resolveDepositAmount : une réservation avec depositAmount figé n'est jamais recalculée depuis le véhicule", () => {
+  const vehicule = getVehiculeParId("opel-corsa"); // caution actuelle : 650 €
+  // Simule une réservation payée avant une revalorisation des cautions :
+  // le montant réellement facturé au client (500 €, tarif d'alors) doit
+  // rester affiché, jamais remplacé par le tarif ACTUEL du véhicule (650 €).
+  const reservationAncienne = { depositAmount: 500 };
+  assert.equal(resolveDepositAmount(reservationAncienne, vehicule), 500);
+});
+
+test("resolveDepositAmount : ignore un depositAmount invalide (pas un nombre)", () => {
+  const vehicule = getVehiculeParId("opel-corsa");
+  assert.equal(resolveDepositAmount({ depositAmount: "cinq cents" }, vehicule), 650);
+  assert.equal(resolveDepositAmount({ depositAmount: NaN }, vehicule), 650);
+});
 
 test("dureeEnHeures : calcule correctement la durée en heures", () => {
   assert.equal(dureeEnHeures("2026-08-10", "10:00", "2026-08-11", "10:00"), 24);

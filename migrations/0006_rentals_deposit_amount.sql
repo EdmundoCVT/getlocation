@@ -1,0 +1,14 @@
+-- Migration 0006 : dépôt de garantie figé sur chaque location (Lot 2, voir
+-- CLAUDE.md) — snapshot du tarif VEHICULES[].caution (js/data.js, seule
+-- source de vérité) au moment de la création de la location, jamais
+-- recalculé ensuite : si les cautions du catalogue changent plus tard, une
+-- location déjà créée doit continuer à afficher le montant réellement
+-- convenu, pour l'agence (back-office.html) comme pour l'empreinte
+-- bancaire Mollie (voir src/lib/deposit-authorizations.js).
+--
+-- Montant en CENTIMES (même convention que price_total_cents ci-dessus).
+-- NULL pour les locations créées avant cette migration : src/lib/rentals.js
+-- (defaultAmountCentsForRental) et deposit-authorizations.js retombent alors
+-- sur le tarif actuellement configuré pour le véhicule — seul repli
+-- possible en l'absence d'un montant historique jamais enregistré.
+ALTER TABLE rentals ADD COLUMN deposit_amount_cents INTEGER;

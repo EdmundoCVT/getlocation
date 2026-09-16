@@ -1,4 +1,4 @@
-const { getVehiculeParId, formatEUR } = require("../../js/data.js");
+const { getVehiculeParId, resolveDepositAmount, formatEUR } = require("../../js/data.js");
 const { sendEmail } = require("./resend-client.js");
 const { traducteur, langueClient, formatDateHeure, deuxPoints } = require("./textes-email.js");
 
@@ -20,7 +20,7 @@ function buildPickupReminderEmailContent(reservation) {
   const sep = deuxPoints(langue);
   const vehicle = getVehiculeParId(reservation.vehiculeId);
   const vehicleName = vehicle ? vehicle.nom : reservation.vehiculeId;
-  const caution = vehicle ? formatEUR(vehicle.caution) : t("à confirmer");
+  const caution = vehicle ? formatEUR(resolveDepositAmount(reservation, vehicle)) : t("à confirmer");
   const pickup = formatDateHeure(reservation.dateDebut, reservation.heureDebut, langue);
   const location = pickupLocation(reservation, t);
   const documentsSubmitted = reservation.documentsStatus === "submitted";

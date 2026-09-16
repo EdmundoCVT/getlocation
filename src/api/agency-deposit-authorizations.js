@@ -99,7 +99,10 @@ async function handlePost(request, env, headers) {
     if (body.action === "create") {
       const rental = await getRentalById(env, body.rentalId);
       if (!rental) return new Response(JSON.stringify({ error: "Location introuvable" }), { status: 404, headers });
-      const authorization = await createDepositAuthorization(env, body.rentalId, body.data || {}, operator, {
+      // Aucun montant lu depuis body ici : createDepositAuthorization
+      // détermine seule le montant, toujours depuis rental.depositAmountCents
+      // (voir deposit-authorizations.js, cahier des charges §6).
+      const authorization = await createDepositAuthorization(env, body.rentalId, operator, {
         origin: siteOrigin(request)
       });
       await recordAuditEvent(env, {

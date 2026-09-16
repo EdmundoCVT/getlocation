@@ -38,6 +38,62 @@ test("createRental : cas nominal, statut brouillon, pas de numéro de contrat", 
   assert.equal(rental.createdBy, "Edmundo");
 });
 
+// Dépôt de garantie (voir migrations/0006) : un snapshot par véhicule, pris
+// une seule fois à la création — jamais un montant fixe, jamais recalculé
+// après coup si VEHICULES[].caution change (js/data.js).
+test("createRental : fige automatiquement le dépôt de garantie du véhicule (VEHICULES[].caution)", async () => {
+  const env = makeEnv();
+  const client = await creerClient(env);
+  const cas = [
+    ["opel-corsa", 65000],
+    ["peugeot-2008-hybrid", 75000],
+    ["peugeot-3008", 90000],
+    ["toyota-proace-city", 100000]
+  ];
+  for (const [vehiculeId, attendu] of cas) {
+    const rental = await createRental(env, client.id, { ...dataValide, vehiculeId }, "Edmundo");
+    assert.equal(rental.depositAmountCents, attendu, vehiculeId);
+  }
+});
+
+test("createRental : un montant explicite (depositAmount) remplace le tarif du véhicule", async () => {
+  const env = makeEnv();
+  const client = await creerClient(env);
+  const rental = await createRental(env, client.id, { ...dataValide, depositAmount: 1200 }, "Edmundo");
+  assert.equal(rental.depositAmountCents, 120000);
+});
+
+test("updateRental : conserve le dépôt de garantie figé si le véhicule ne change pas, même si le tarif du catalogue a changé", async () => {
+  const env = makeEnv();
+  const client = await creerClient(env);
+  const created = await createRental(env, client.id, dataValide, "Edmundo");
+  assert.equal(created.depositAmountCents, 65000);
+
+  // Modification sans changer de véhicule (ex. kilométrage retour) : le
+  // dépôt déjà figé doit survivre telle quelle, jamais recalculé.
+  const updated = await updateRental(env, created.id, { ...dataValide, kmDepart: 42000 }, "Antonio");
+  assert.equal(updated.depositAmountCents, 65000);
+});
+
+test("updateRental : recalcule le dépôt de garantie si le véhicule change", async () => {
+  const env = makeEnv();
+  const client = await creerClient(env);
+  const created = await createRental(env, client.id, dataValide, "Edmundo");
+  assert.equal(created.depositAmountCents, 65000);
+
+  const updated = await updateRental(env, created.id, { ...dataValide, vehiculeId: "toyota-proace-city" }, "Antonio");
+  assert.equal(updated.depositAmountCents, 100000);
+});
+
+test("updateRental : un montant explicite remplace toujours le dépôt déjà figé", async () => {
+  const env = makeEnv();
+  const client = await creerClient(env);
+  const created = await createRental(env, client.id, dataValide, "Edmundo");
+
+  const updated = await updateRental(env, created.id, { ...dataValide, depositAmount: 700 }, "Antonio");
+  assert.equal(updated.depositAmountCents, 70000);
+});
+
 test("createRental : rejette un véhicule inconnu", async () => {
   const env = makeEnv();
   const client = await creerClient(env);

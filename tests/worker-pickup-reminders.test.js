@@ -54,7 +54,7 @@ test("l'e-mail récapitule les informations utiles et échappe les valeurs HTML"
     lieuPrise: "<Agence>", adressePrise: "Grasse", documentsStatus: "submitted"
   });
   assert.match(content.text, /Opel Corsa Business 1\.2T/);
-  assert.match(content.text, /500/);
+  assert.match(content.text, /650/); // opel-corsa : VEHICULES[].caution = 650 € (js/data.js)
   assert.match(content.text, /documents reçus/);
   assert.doesNotMatch(content.html, /<Agence>/);
   assert.match(content.html, /&lt;Agence&gt;/);

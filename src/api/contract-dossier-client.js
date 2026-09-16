@@ -11,7 +11,7 @@
 // réservation) : si le texte a changé depuis l'émission du lien, la
 // signature est refusée tant que le client n'a pas rechargé la page.
 
-const { getVehiculeParId, kmInclusPourJours, joursFacturablesDepuisHeures, dureeEnHeures, CGL_VERSION } = require("../../js/data.js");
+const { getVehiculeParId, resolveDepositAmount, kmInclusPourJours, joursFacturablesDepuisHeures, dureeEnHeures, CGL_VERSION } = require("../../js/data.js");
 const { updateContractDossier, findReservationByContractClientTokenHash } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { hashContractClientToken } = require("../lib/contract-dossier-token.js");
@@ -69,7 +69,7 @@ function buildClientView(reservation) {
   return {
     reservation: {
       numero: reservation.contractNumero || null,
-      vehicule: vehicule ? { nom: vehicule.nom, caution: vehicule.caution, prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, vin: vehicule.vin || null } : null,
+      vehicule: vehicule ? { nom: vehicule.nom, caution: resolveDepositAmount(reservation, vehicule), prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, vin: vehicule.vin || null } : null,
       immatriculation: fields.immatriculation || "",
       dateDebut: reservation.dateDebut,
       heureDebut: reservation.heureDebut,

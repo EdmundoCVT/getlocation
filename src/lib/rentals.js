@@ -65,6 +65,12 @@ function rowToRental(row) {
     kmDepart: row.km_depart,
     kmRetour: row.km_retour,
     priceTotalCents: row.price_total_cents,
+    // Dépôt de garantie figé pour cette location (voir migrations/0006) —
+    // NULL pour une location créée avant cette migration, voir
+    // buildRentalFields ci-dessous et defaultAmountCentsForRental dans
+    // deposit-authorizations.js pour le repli sur le tarif actuel du
+    // véhicule dans ce cas.
+    depositAmountCents: row.deposit_amount_cents,
     status: row.status,
     notes: row.notes || "",
     createdAt: row.created_at,
@@ -74,13 +80,35 @@ function rowToRental(row) {
   };
 }
 
+// Dépôt de garantie (voir migrations/0006) : un montant explicitement
+// fourni (`data.depositAmount`) prévaut toujours (correction ponctuelle par
+// l'agence, même principe que price_total_cents) ; à défaut, sur une mise à
+// jour dont le véhicule n'a pas changé, le montant déjà enregistré est
+// CONSERVÉ tel quel (jamais recalculé au tarif courant si VEHICULES[].caution
+// a changé depuis) ; dans tous les autres cas (création, ou véhicule changé)
+// il est figé sur le tarif actuellement configuré pour ce véhicule — un seul
+// snapshot à la création, jamais un recalcul silencieux ensuite.
+function resolveDepositAmountCents(data, vehiculeId, existing) {
+  if (data.depositAmount !== undefined && data.depositAmount !== null && data.depositAmount !== "") {
+    return optionalPriceCents(data.depositAmount);
+  }
+  if (existing && existing.vehiculeId === vehiculeId && existing.depositAmountCents != null) {
+    return existing.depositAmountCents;
+  }
+  const vehicule = getVehiculeParId(vehiculeId);
+  return vehicule ? Math.round(vehicule.caution * 100) : null;
+}
+
 // `defaultStatus` : "brouillon" pour une création, le statut ACTUEL de la
 // location pour une correction (voir updateRental) — jamais "brouillon" par
 // défaut sur une mise à jour, qui réinitialiserait silencieusement le
 // statut d'une location déjà en cours/terminée si l'appelant omettait le
 // champ (l'interface agence renvoie toujours le statut affiché, mais le
 // serveur ne doit jamais dépendre de cette discipline côté client).
-function buildRentalFields(data, defaultStatus = "brouillon") {
+// `existing` : la location AVANT modification (uniquement pour updateRental)
+// — sert exclusivement à préserver le dépôt de garantie déjà figé, voir
+// resolveDepositAmountCents ci-dessus.
+function buildRentalFields(data, defaultStatus = "brouillon", existing = null) {
   const vehiculeId = text(data.vehiculeId, 100);
   if (!vehiculeId || !getVehiculeParId(vehiculeId)) throw new Error("Véhicule inconnu");
 
@@ -113,6 +141,7 @@ function buildRentalFields(data, defaultStatus = "brouillon") {
     km_depart: optionalKm(data.kmDepart),
     km_retour: optionalKm(data.kmRetour),
     price_total_cents: optionalPriceCents(data.priceTotal),
+    deposit_amount_cents: resolveDepositAmountCents(data, vehiculeId, existing),
     status,
     notes: text(data.notes, 2000)
   };
@@ -124,12 +153,12 @@ async function createRental(env, clientId, data, operator) {
   const id = generateId("rnt");
   const now = new Date().toISOString();
   await env.AGENCY_DB.prepare(
-    `INSERT INTO rentals (id, client_id, contract_numero, vehicule_id, immatriculation, date_debut, heure_debut, date_fin, heure_fin, lieu_prise, lieu_retour, adresse_prise, adresse_retour, km_depart, km_retour, price_total_cents, status, notes, created_at, updated_at, created_by, updated_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO rentals (id, client_id, contract_numero, vehicule_id, immatriculation, date_debut, heure_debut, date_fin, heure_fin, lieu_prise, lieu_retour, adresse_prise, adresse_retour, km_depart, km_retour, price_total_cents, deposit_amount_cents, status, notes, created_at, updated_at, created_by, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     id, clientId, null, fields.vehicule_id, fields.immatriculation, fields.date_debut, fields.heure_debut,
     fields.date_fin, fields.heure_fin, fields.lieu_prise, fields.lieu_retour, fields.adresse_prise,
-    fields.adresse_retour, fields.km_depart, fields.km_retour, fields.price_total_cents, fields.status, fields.notes,
+    fields.adresse_retour, fields.km_depart, fields.km_retour, fields.price_total_cents, fields.deposit_amount_cents, fields.status, fields.notes,
     now, now, operator, operator
   ).run();
   return getRentalById(env, id);
@@ -149,14 +178,14 @@ async function getRentalById(env, id) {
 async function updateRental(env, id, data, operator) {
   const existing = await getRentalById(env, id);
   if (!existing) return null;
-  const fields = buildRentalFields(data, existing.status);
+  const fields = buildRentalFields(data, existing.status, existing);
   const now = new Date().toISOString();
   await env.AGENCY_DB.prepare(
-    `UPDATE rentals SET vehicule_id = ?, immatriculation = ?, date_debut = ?, heure_debut = ?, date_fin = ?, heure_fin = ?, lieu_prise = ?, lieu_retour = ?, adresse_prise = ?, adresse_retour = ?, km_depart = ?, km_retour = ?, price_total_cents = ?, status = ?, notes = ?, updated_at = ?, updated_by = ? WHERE id = ?`
+    `UPDATE rentals SET vehicule_id = ?, immatriculation = ?, date_debut = ?, heure_debut = ?, date_fin = ?, heure_fin = ?, lieu_prise = ?, lieu_retour = ?, adresse_prise = ?, adresse_retour = ?, km_depart = ?, km_retour = ?, price_total_cents = ?, deposit_amount_cents = ?, status = ?, notes = ?, updated_at = ?, updated_by = ? WHERE id = ?`
   ).bind(
     fields.vehicule_id, fields.immatriculation, fields.date_debut, fields.heure_debut,
     fields.date_fin, fields.heure_fin, fields.lieu_prise, fields.lieu_retour, fields.adresse_prise,
-    fields.adresse_retour, fields.km_depart, fields.km_retour, fields.price_total_cents, fields.status, fields.notes,
+    fields.adresse_retour, fields.km_depart, fields.km_retour, fields.price_total_cents, fields.deposit_amount_cents, fields.status, fields.notes,
     now, operator, id
   ).run();
   return getRentalById(env, id);

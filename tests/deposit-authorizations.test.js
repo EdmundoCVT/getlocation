@@ -5,6 +5,14 @@
 // (comme tests/worker-mollie-client.test.js) et le D1 agence (comme
 // tests/deposits.test.js) pour rester indépendant d'un vrai accès réseau
 // Mollie, non disponible dans cet environnement (voir DEPLOIEMENT.md).
+//
+// Montant : TOUJOURS celui figé sur la location (rental.depositAmountCents,
+// voir migrations/0006/src/lib/rentals.js) — createDepositAuthorization
+// n'accepte plus aucun montant en paramètre (cahier des charges §6, voir
+// commit "Cautions par véhicule + snapshot depositAmount"). Les tests qui
+// ont besoin d'un montant précis créent donc leur location avec
+// `depositAmount` explicite plutôt que de le passer à
+// createDepositAuthorization.
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -77,15 +85,16 @@ test("deriveInternalStatus : mappe chaque statut Mollie réel vers un statut int
   assert.equal(deriveInternalStatus({ status: "failed" }, null), "echouee");
 });
 
-test("createDepositAuthorization : cas nominal, montant par défaut du véhicule (opel-corsa = 500 €)", async () => {
+test("createDepositAuthorization : cas nominal, montant figé de la location (opel-corsa = 650 €)", async () => {
   const env = makeEnv();
   const rental = await makeRental(env);
+  assert.equal(rental.depositAmountCents, 65000); // snapshot automatique à la création (VEHICULES[].caution)
   await withQueuedFetch(
     [{ status: 201, body: { id: "tr_test1", status: "open", mode: "test", _links: { checkout: { href: "https://www.mollie.com/checkout/tr_test1" } } } }],
     async (calls) => {
-      const auth = await createDepositAuthorization(env, rental.id, {}, "Edmundo", { origin: "https://getlocation.fr" });
+      const auth = await createDepositAuthorization(env, rental.id, "Edmundo", { origin: "https://getlocation.fr" });
       assert.match(auth.id, /^depauth_[a-f0-9]{32}$/);
-      assert.equal(auth.authorizedAmountCents, 50000);
+      assert.equal(auth.authorizedAmountCents, 65000);
       assert.equal(auth.capturedAmountCents, 0);
       assert.equal(auth.status, "lien_cree");
       assert.equal(auth.mollieStatus, "open");
@@ -96,7 +105,7 @@ test("createDepositAuthorization : cas nominal, montant par défaut du véhicule
       const body = JSON.parse(calls[0].init.body);
       assert.equal(body.method, "creditcard");
       assert.equal(body.captureMode, "manual");
-      assert.equal(body.amount.value, "500.00");
+      assert.equal(body.amount.value, "650.00");
       assert.equal(body.redirectUrl, "https://getlocation.fr/caution-mollie-retour.html");
       assert.equal(body.webhookUrl, "https://getlocation.fr/api/mollie-deposit-webhook");
       assert.equal(body.metadata.rentalId, rental.id);
@@ -105,15 +114,33 @@ test("createDepositAuthorization : cas nominal, montant par défaut du véhicule
   );
 });
 
-test("createDepositAuthorization : un montant fourni par l'agence remplace le défaut du véhicule", async () => {
+test("createDepositAuthorization : utilise le dépôt de garantie figé sur la location, pas le tarif courant du véhicule", async () => {
   const env = makeEnv();
-  const rental = await makeRental(env);
+  // Location créée avec un montant explicite (ex. négocié par l'agence,
+  // voir src/lib/rentals.js#resolveDepositAmountCents) : Mollie doit
+  // utiliser CE montant, jamais recalculer depuis VEHICULES[].caution.
+  const rental = await makeRental(env, { depositAmount: 1000 });
+  assert.equal(rental.depositAmountCents, 100000);
   await withQueuedFetch(
     [{ status: 201, body: { id: "tr_test2", status: "open", mode: "test", _links: { checkout: { href: "https://www.mollie.com/checkout/tr_test2" } } } }],
     async (calls) => {
-      const auth = await createDepositAuthorization(env, rental.id, { amount: 1000 }, "Edmundo", { origin: "https://getlocation.fr" });
+      const auth = await createDepositAuthorization(env, rental.id, "Edmundo", { origin: "https://getlocation.fr" });
       assert.equal(auth.authorizedAmountCents, 100000);
       assert.equal(JSON.parse(calls[0].init.body).amount.value, "1000.00");
+    }
+  );
+});
+
+test("createDepositAuthorization : ignore un dépôt de véhicule antérieur si la location a changé de véhicule (900 € pour le 3008)", async () => {
+  const env = makeEnv();
+  const rental = await makeRental(env, { vehiculeId: "peugeot-3008" });
+  assert.equal(rental.depositAmountCents, 90000);
+  await withQueuedFetch(
+    [{ status: 201, body: { id: "tr_test2b", status: "open", mode: "test", _links: { checkout: { href: "https://x" } } } }],
+    async (calls) => {
+      const auth = await createDepositAuthorization(env, rental.id, "Edmundo", { origin: "https://getlocation.fr" });
+      assert.equal(auth.authorizedAmountCents, 90000);
+      assert.equal(JSON.parse(calls[0].init.body).amount.value, "900.00");
     }
   );
 });
@@ -123,10 +150,10 @@ test("createDepositAuthorization : refuse une deuxième demande active pour la m
   const rental = await makeRental(env);
   await withQueuedFetch(
     [{ status: 201, body: { id: "tr_test3", status: "open", mode: "test", _links: { checkout: { href: "https://x" } } } }],
-    () => createDepositAuthorization(env, rental.id, {}, "Edmundo", { origin: "https://getlocation.fr" })
+    () => createDepositAuthorization(env, rental.id, "Edmundo", { origin: "https://getlocation.fr" })
   );
   await assert.rejects(
-    createDepositAuthorization(env, rental.id, {}, "Edmundo", { origin: "https://getlocation.fr" }),
+    createDepositAuthorization(env, rental.id, "Edmundo", { origin: "https://getlocation.fr" }),
     /déjà en cours/
   );
 });
@@ -135,12 +162,12 @@ test("createDepositAuthorization : refuse si MOLLIE_DEPOSIT_API_KEY absente", as
   const env = makeEnv(undefined);
   delete env.MOLLIE_DEPOSIT_API_KEY;
   const rental = await makeRental(env);
-  await assert.rejects(createDepositAuthorization(env, rental.id, {}, "Edmundo", { origin: "https://getlocation.fr" }), /MOLLIE_DEPOSIT_API_KEY/);
+  await assert.rejects(createDepositAuthorization(env, rental.id, "Edmundo", { origin: "https://getlocation.fr" }), /MOLLIE_DEPOSIT_API_KEY/);
 });
 
 test("createDepositAuthorization : refuse une location introuvable", async () => {
   const env = makeEnv();
-  await assert.rejects(createDepositAuthorization(env, "rnt_inexistant", {}, "Edmundo", { origin: "https://getlocation.fr" }), /introuvable/);
+  await assert.rejects(createDepositAuthorization(env, "rnt_inexistant", "Edmundo", { origin: "https://getlocation.fr" }), /introuvable/);
 });
 
 test("createDepositAuthorization : Mollie refuse la création -> statut echouee, erreur Mollie propagée telle quelle", async () => {
@@ -150,7 +177,7 @@ test("createDepositAuthorization : Mollie refuse la création -> statut echouee,
     [{ status: 422, body: { status: 422, title: "Unprocessable Entity", detail: "This payment method does not support manual capture" } }],
     async () => {
       await assert.rejects(
-        createDepositAuthorization(env, rental.id, {}, "Edmundo", { origin: "https://getlocation.fr" }),
+        createDepositAuthorization(env, rental.id, "Edmundo", { origin: "https://getlocation.fr" }),
         (err) => {
           assert.ok(err instanceof MollieApiError);
           assert.equal(err.statusCode, 422);
@@ -164,10 +191,13 @@ test("createDepositAuthorization : Mollie refuse la création -> statut echouee,
   );
 });
 
-async function createAuthorized(env, rental, { amountCents = 50000, molliePaymentId = "tr_auth1" } = {}) {
+// `rental` doit déjà porter le depositAmountCents voulu (via makeRental(env,
+// { depositAmount }) si besoin d'un montant précis) : createDepositAuthorization
+// ne fait plus que le lire, jamais un montant passé ici.
+async function createAuthorized(env, rental, { molliePaymentId = "tr_auth1" } = {}) {
   const created = await withQueuedFetch(
     [{ status: 201, body: { id: molliePaymentId, status: "open", mode: "test", _links: { checkout: { href: "https://x" } } } }],
-    () => createDepositAuthorization(env, rental.id, { amount: amountCents / 100 }, "Edmundo", { origin: "https://getlocation.fr" })
+    () => createDepositAuthorization(env, rental.id, "Edmundo", { origin: "https://getlocation.fr" })
   );
   return withQueuedFetch(
     [{ status: 200, body: { id: molliePaymentId, status: "authorized", mode: "test" } }],
@@ -197,8 +227,8 @@ test("captureDepositAuthorization : capture partielle -> statut capturee_partiel
 
 test("captureDepositAuthorization : refuse un montant dépassant le solde restant", async () => {
   const env = makeEnv();
-  const rental = await makeRental(env);
-  const created = await createAuthorized(env, rental, { amountCents: 50000 });
+  const rental = await makeRental(env, { depositAmount: 500 });
+  const created = await createAuthorized(env, rental);
   await assert.rejects(captureDepositAuthorization(env, created.id, 600, "Antonio"), /dépasse le montant restant/);
 });
 
@@ -207,15 +237,15 @@ test("captureDepositAuthorization : refuse un statut non débitable (lien_cree)"
   const rental = await makeRental(env);
   const created = await withQueuedFetch(
     [{ status: 201, body: { id: "tr_x", status: "open", mode: "test", _links: { checkout: { href: "https://x" } } } }],
-    () => createDepositAuthorization(env, rental.id, {}, "Edmundo", { origin: "https://getlocation.fr" })
+    () => createDepositAuthorization(env, rental.id, "Edmundo", { origin: "https://getlocation.fr" })
   );
   await assert.rejects(captureDepositAuthorization(env, created.id, 100, "Antonio"), /ne peut pas être débitée/);
 });
 
 test("captureDepositAuthorization : capture intégrale -> statut capturee", async () => {
   const env = makeEnv();
-  const rental = await makeRental(env);
-  const created = await createAuthorized(env, rental, { amountCents: 50000 });
+  const rental = await makeRental(env, { depositAmount: 500 });
+  const created = await createAuthorized(env, rental);
   await withQueuedFetch(
     [
       { status: 201, body: { id: "cpt_full", status: "pending" } },
@@ -267,7 +297,7 @@ test("refreshDepositAuthorization : re-synchronise depuis Mollie (open -> author
   const rental = await makeRental(env);
   const created = await withQueuedFetch(
     [{ status: 201, body: { id: "tr_refresh", status: "open", mode: "test", _links: { checkout: { href: "https://x" } } } }],
-    () => createDepositAuthorization(env, rental.id, {}, "Edmundo", { origin: "https://getlocation.fr" })
+    () => createDepositAuthorization(env, rental.id, "Edmundo", { origin: "https://getlocation.fr" })
   );
   assert.equal(created.status, "lien_cree");
   await withQueuedFetch(
@@ -301,7 +331,7 @@ test("getActiveDepositAuthorization : ignore les tentatives terminales, une nouv
 
   const second = await withQueuedFetch(
     [{ status: 201, body: { id: "tr_second", status: "open", mode: "test", _links: { checkout: { href: "https://x" } } } }],
-    () => createDepositAuthorization(env, rental.id, {}, "Edmundo", { origin: "https://getlocation.fr" })
+    () => createDepositAuthorization(env, rental.id, "Edmundo", { origin: "https://getlocation.fr" })
   );
   assert.equal((await getActiveDepositAuthorization(env, rental.id)).id, second.id);
 });

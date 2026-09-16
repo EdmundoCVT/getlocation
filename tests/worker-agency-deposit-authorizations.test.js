@@ -64,7 +64,7 @@ test("create : 200, ligne active renvoyée, mode test signalé", async () => {
   assert.equal(createRes.status, 200);
   const { authorization } = await createRes.json();
   assert.equal(authorization.status, "lien_cree");
-  assert.equal(authorization.authorizedAmountCents, 50000);
+  assert.equal(authorization.authorizedAmountCents, 65000); // opel-corsa : VEHICULES[].caution = 650 €
   assert.equal(authorization.checkoutUrl, "https://www.mollie.com/checkout/tr_e2e1");
 
   const getRes = await handleAgencyDepositAuthorizations(

@@ -845,10 +845,17 @@ function renderDeposit(deposit){
   var box = document.getElementById('depositCard');
 
   if(!deposit){
+    // Pré-rempli avec le dépôt de garantie figé pour cette location (voir
+    // migrations/0006 ; VEHICULES[].caution du véhicule loué si aucun
+    // montant n'a encore été enregistré) — reste modifiable par l'agence,
+    // même principe que "Tarif total" (rf-price).
+    var montantSuggere = currentRental && currentRental.depositAmountCents != null
+      ? (currentRental.depositAmountCents / 100)
+      : '';
     box.innerHTML =
       '<p class="hint-text">Aucune caution enregistrée pour cette location.</p>' +
       '<form id="depositCreateForm" class="form-grid" style="margin-top:10px;">' +
-        '<div class="field"><label for="dep-amount">Montant (€)</label><input id="dep-amount" type="number" min="0.01" step="0.01" required></div>' +
+        '<div class="field"><label for="dep-amount">Montant (€)</label><input id="dep-amount" type="number" min="0.01" step="0.01" value="' + montantSuggere + '" required></div>' +
         '<div class="field"><label for="dep-method">Mode de remise</label><select id="dep-method"><option value="carte">Carte bancaire</option><option value="especes">Espèces</option><option value="virement">Virement</option></select></div>' +
         '<div class="field full"><button type="submit" class="btn btn-primary">Enregistrer la demande de caution</button></div>' +
       '</form>';
