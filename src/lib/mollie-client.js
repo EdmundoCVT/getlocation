@@ -4,10 +4,17 @@
 // @mollie/api-client utilisé par l'ancienne implémentation Netlify (Phase
 // A) : ce SDK cible le runtime Node classique et n'offre aucune garantie de
 // compatibilité avec le runtime Cloudflare Workers. L'API REST de Mollie
-// est un simple JSON sur HTTPS ; ce fichier n'implémente que les deux
-// appels utilisés par ce projet (créer un paiement, relire son statut) —
-// voir https://docs.mollie.com/reference/v2/payments-api/create-payment et
-// .../get-payment.
+// est un simple JSON sur HTTPS ; ce fichier implémente les appels utilisés
+// par ce projet :
+//   - créer un paiement / relire son statut (paiement de location, voir
+//     create-payment.js/mollie-webhook.js) — voir
+//     https://docs.mollie.com/reference/v2/payments-api/create-payment et
+//     .../get-payment ;
+//   - annuler un paiement, créer/lister des captures (empreinte bancaire /
+//     caution à préautorisation manuelle, voir
+//     src/lib/deposit-authorizations.js) — voir
+//     https://docs.mollie.com/reference/v2/payments-api/cancel-payment,
+//     .../captures-api/create-capture et .../captures-api/list-captures.
 
 const MOLLIE_API_BASE = "https://api.mollie.com/v2";
 
@@ -50,4 +57,35 @@ function getPayment(apiKey, paymentId) {
   return mollieRequest(apiKey, `/payments/${encodeURIComponent(paymentId)}`);
 }
 
-module.exports = { createPayment, getPayment, MollieApiError };
+// Annule un paiement — pour une autorisation carte (captureMode manual)
+// pas encore (totalement) capturée, cela libère l'empreinte bancaire
+// auprès de la banque du client. Réponse 204 sans corps en cas de succès
+// (mollieRequest le gère déjà : json() échoue silencieusement -> null).
+// Voir https://docs.mollie.com/reference/v2/payments-api/cancel-payment.
+function cancelPayment(apiKey, paymentId) {
+  return mollieRequest(apiKey, `/payments/${encodeURIComponent(paymentId)}`, { method: "DELETE" });
+}
+
+// Capture tout ou partie d'un paiement autorisé (captureMode manual).
+// `captureData` doit au minimum contenir { amount: { currency, value } } —
+// voir https://docs.mollie.com/reference/v2/captures-api/create-capture.
+// Le montant n'est JAMAIS accepté tel quel depuis le navigateur : voir
+// src/lib/deposit-authorizations.js pour la validation serveur (cohérence
+// avec le montant restant autorisé) avant cet appel.
+function createCapture(apiKey, paymentId, captureData, idempotencyKey) {
+  return mollieRequest(apiKey, `/payments/${encodeURIComponent(paymentId)}/captures`, {
+    method: "POST",
+    body: captureData,
+    idempotencyKey
+  });
+}
+
+// Liste les captures déjà effectuées pour un paiement — utilisé pour
+// vérifier l'état réel côté Mollie plutôt que de ne se fier qu'à notre
+// propre total cumulé. Voir
+// https://docs.mollie.com/reference/v2/captures-api/list-captures.
+function listCaptures(apiKey, paymentId) {
+  return mollieRequest(apiKey, `/payments/${encodeURIComponent(paymentId)}/captures`);
+}
+
+module.exports = { createPayment, getPayment, cancelPayment, createCapture, listCaptures, MollieApiError };

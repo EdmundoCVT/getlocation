@@ -1776,7 +1776,14 @@ function construirePayload(data, sigData, stamp){
     modePaiementSolde: libelleModePaiement(data.modePaiementSolde),
     detailAcompte: detailAcompte,
     detailSolde: detailSolde,
-    caution: formatEUR(v.caution),
+    // Dépôt de garantie : `data.depositAmount` est le montant figé pour
+    // CETTE location (voir lireDonneesFormulaire()/remplirFormulaire()) —
+    // jamais une nouvelle lecture de v.caution ici, sinon rouvrir/dupliquer
+    // un contrat ancien afficherait le tarif ACTUEL du véhicule au lieu de
+    // celui réellement convenu à l'origine (voir CLAUDE.md, dépôt de
+    // garantie). v.caution ne sert de repli que pour un contrat antérieur à
+    // l'introduction de ce champ (rawData sans depositAmount).
+    caution: formatEUR(typeof data.depositAmount === 'number' && isFinite(data.depositAmount) ? data.depositAmount : v.caution),
     mode_reglement_caution: libelleModeCaution(data.modeCaution),
     locataire_prenom: data.prenom,
     locataire_nom: data.nom,
@@ -3702,6 +3709,11 @@ function initOwnerView(prefill){
     if(v) inputImmat.value = v.immatriculation;
   }
   selectVehicule.addEventListener('change', function(){
+    // Changement manuel de véhicule (utilisateur, pas remplirFormulaire() —
+    // qui affecte .value sans déclencher cet événement) : le dépôt de
+    // garantie figé ne correspond plus au véhicule choisi, on repart du
+    // tarif actuel du nouveau véhicule (voir lireDonneesFormulaire()).
+    contratEnCoursDepositAmount = null;
     appliquerPlaque();
     updateSummary();
     gestionEtatDepart.actualiserSchema();
@@ -3846,9 +3858,14 @@ function initOwnerView(prefill){
       montantFinalConvenu: document.getElementById('montantFinalConvenu').value
     };
     var prix = calculerPrixContrat(donneesTarif);
+    // Reprend le même montant figé que lireDonneesFormulaire()/
+    // construirePayload() : sinon, rouvrir un ancien contrat affichait ici
+    // le tarif ACTUEL du véhicule (incohérent avec le PDF, qui lui affiche
+    // bien le montant d'origine) — voir contratEnCoursDepositAmount.
+    var cautionRecap = (contratEnCoursDepositAmount !== null) ? contratEnCoursDepositAmount : v.caution;
     document.getElementById('vehiculeRecap').innerHTML =
       '<span><strong>' + v.nom + '</strong> — ' + v.prixJour + ' €/jour</span>' +
-      '<span>Caution : ' + formatEUR(v.caution) + '</span>';
+      '<span>Caution : ' + formatEUR(cautionRecap) + '</span>';
     if(!prix){
       document.getElementById('dureeTxt').textContent = 'Dates invalides (retour avant départ)';
       document.getElementById('kmTxt').textContent = '—';
@@ -4008,6 +4025,17 @@ function initOwnerView(prefill){
       rehausseur: rehausseurToggle.checked,
       depart: inputDepart.value,
       retour: inputRetour.value,
+      // Dépôt de garantie figé pour cette location : reprend le montant
+      // déjà enregistré (contratEnCoursDepositAmount, restauré par
+      // remplirFormulaire() lors d'un "Ouvrir" tant que le véhicule n'a pas
+      // changé) plutôt que de toujours relire le tarif ACTUEL du véhicule —
+      // voir construirePayload() et la note de CLAUDE.md sur le dépôt de
+      // garantie. Sur un contrat neuf (ou "Dupliquer", ou véhicule changé),
+      // contratEnCoursDepositAmount est null : le montant courant du
+      // véhicule sélectionné s'applique, comme avant.
+      depositAmount: (contratEnCoursDepositAmount !== null)
+        ? contratEnCoursDepositAmount
+        : (currentVehicule() ? currentVehicule().caution : null),
       modeCaution: modeCaution,
       modePaiement: modePaiement,
       montantRegle: document.getElementById('montantRegle').value,
@@ -4147,6 +4175,18 @@ function initOwnerView(prefill){
   // sont légitimement réutilisables tels quels.
   function remplirFormulaire(rawData, inclureDonneesInstance){
     if(rawData.vehiculeId){ selectVehicule.value = rawData.vehiculeId; appliquerPlaque(); }
+
+    // Dépôt de garantie : restauré tel que figé à l'origine UNIQUEMENT sur
+    // "Ouvrir" (inclureDonneesInstance=true) — une location déjà en cours
+    // garde son montant convenu. "Dupliquer" (false) prépare une NOUVELLE
+    // location : comme le tarif (tarifManuel non recopié plus bas), elle
+    // repart du tarif actuellement en vigueur pour le véhicule choisi.
+    // `typeof === 'number'` : un contrat créé avant ce champ n'a pas
+    // rawData.depositAmount, donc null ici -> repli sur le tarif courant du
+    // véhicule (lireDonneesFormulaire()), comme avant cette fonctionnalité.
+    contratEnCoursDepositAmount = (inclureDonneesInstance && typeof rawData.depositAmount === 'number' && isFinite(rawData.depositAmount))
+      ? rawData.depositAmount
+      : null;
     if(rawData.immat) inputImmat.value = rawData.immat;
     if(rawData.lieu) selectLieu.value = rawData.lieu;
     if(rawData.depart) inputDepart.value = rawData.depart;
@@ -4250,6 +4290,16 @@ function initOwnerView(prefill){
   // met à jour l'existant en place (même numéro, même id).
   var contratEnCoursId = null;
 
+  // Dépôt de garantie figé du contrat rouvert via "Ouvrir" — null tant
+  // qu'aucun contrat existant n'est chargé (contrat neuf) ou dès que le
+  // véhicule est changé manuellement (voir plus bas) : dans ces deux cas,
+  // lireDonneesFormulaire() retombe sur le tarif ACTUEL du véhicule
+  // sélectionné, exactement comme avant l'introduction de ce champ. Restauré
+  // par remplirFormulaire() sur "Ouvrir" uniquement (jamais sur
+  // "Dupliquer" : un contrat dupliqué est une NOUVELLE location, qui doit
+  // utiliser le tarif en vigueur — voir CLAUDE.md, dépôt de garantie).
+  var contratEnCoursDepositAmount = null;
+
   // Lien COURT (jeton) le plus récent obtenu pour ce contrat, tant que les
   // données du formulaire n'ont pas changé depuis son émission — voir
   // regenererLien() plus bas, qui compare dataJson à l'état courant du
@@ -4288,6 +4338,7 @@ function initOwnerView(prefill){
   }
   function sortirModeEdition(){
     contratEnCoursId = null;
+    contratEnCoursDepositAmount = null;
     document.getElementById('genererContratTitre').textContent = 'Générer le contrat officiel';
     document.getElementById('genererContratLead').textContent = 'Attribue un numéro de contrat unique, enregistre le contrat (pour l\'historique et la duplication) et télécharge le PDF final.';
     document.getElementById('genererContratBtn').textContent = '📄 Générer le contrat officiel';
@@ -4708,7 +4759,7 @@ function initClientView(data){
     '<div class="recap-row"><span>' + (data.livraison ? 'Livraison' : 'Lieu de prise en charge') + '</span><span>' + lieuAffiche + '</span></div>' +
     '<div class="recap-row"><span>Départ</span><span>' + formatDateHeureFR(data.depart) + '</span></div>' +
     '<div class="recap-row"><span>Retour</span><span>' + formatDateHeureFR(data.retour) + '</span></div>' +
-    '<div class="recap-row"><span>Caution</span><span>' + formatEUR(v.caution) + ' (' + libelleModeCaution(data.modeCaution).toLowerCase() + ')</span></div>';
+    '<div class="recap-row"><span>Caution</span><span>' + formatEUR(typeof data.depositAmount === 'number' && isFinite(data.depositAmount) ? data.depositAmount : v.caution) + ' (' + libelleModeCaution(data.modeCaution).toLowerCase() + ')</span></div>';
 
   document.getElementById('c-dureeTxt').textContent = formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours);
   document.getElementById('c-kmTxt').textContent = kmInclus.toLocaleString('fr-FR') + ' km';
@@ -4743,7 +4794,7 @@ function initClientView(data){
   setFill('modePaiement', libelleModePaiement(data.modePaiement).toLowerCase());
   setFill('detailAcompte', detailPaiementClient.detailAcompte);
   setFill('detailSolde', detailPaiementClient.detailSolde);
-  setFill('caution', formatEUR(v.caution));
+  setFill('caution', formatEUR(typeof data.depositAmount === 'number' && isFinite(data.depositAmount) ? data.depositAmount : v.caution));
   setFill('modeCaution', libelleModeCaution(data.modeCaution).toLowerCase());
   setFill('kmInclus', kmInclus.toLocaleString('fr-FR'));
   setFill('kmInclusParJour', getKmInclusParJour().toLocaleString('fr-FR'));

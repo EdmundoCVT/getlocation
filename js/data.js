@@ -442,7 +442,7 @@ const VEHICULES = [
     // autres véhicules ci-dessous (voir LEGAL-TODO.md).
     carburant: "Essence",
     prixJour: 59,
-    caution: 500,
+    caution: 650,
     description: "Compacte et économique, parfaite pour vos déplacements pro entre Cannes, Antibes et Grasse."
   },
   {
@@ -473,7 +473,7 @@ const VEHICULES = [
     hybride: true,
     carburant: "Hybride essence",
     prixJour: 69,
-    caution: 500,
+    caution: 750,
     description: "SUV compact hybride, confortable et sobre pour rayonner sur toute la Côte d'Azur."
   },
   {
@@ -507,7 +507,7 @@ const VEHICULES = [
     hybride: true,
     carburant: "Hybride essence",
     prixJour: 79,
-    caution: 600,
+    caution: 900,
     description: "SUV familial haut de gamme, idéal pour vos trajets entre Nice, Cannes et l'arrière-pays."
   },
   {
@@ -549,7 +549,7 @@ const VEHICULES = [
     // (voir LEGAL-TODO.md). `null` plutôt qu'une valeur inventée.
     carburant: null,
     prixJour: 99,
-    caution: 800,
+    caution: 1000,
     description: "Ludospace polyvalent au grand volume de chargement, idéal bagages, matériel ou déménagement."
   }
 ];
@@ -610,6 +610,23 @@ function getFranchises() {
 
 function getVehiculeParId(id) {
   return VEHICULES.find(v => v.id === id);
+}
+
+// Montant du dépôt de garantie applicable à une réservation déjà
+// enregistrée (dossier contrat, e-mails, contrat PDF) : celui figé sur la
+// réservation elle-même (`depositAmount`, capturé une seule fois au moment
+// du paiement — voir src/api/create-payment.js) quand il existe, sinon
+// (réservations antérieures à l'introduction de ce champ) celui
+// actuellement configuré pour le véhicule (VEHICULES[].caution). Centralise
+// cette règle de repli pour qu'elle ne soit jamais réécrite différemment à
+// plusieurs endroits (dossier agence, dossier client, e-mails) — voir
+// CLAUDE.md règle n°1. Une réservation payée ne doit JAMAIS voir son
+// dépôt de garantie recalculé après coup si VEHICULES[].caution change.
+function resolveDepositAmount(reservation, vehicule) {
+  if (reservation && typeof reservation.depositAmount === "number" && isFinite(reservation.depositAmount)) {
+    return reservation.depositAmount;
+  }
+  return vehicule ? vehicule.caution : null;
 }
 
 // Calcule la durée réelle de location en heures, en tenant compte de l'heure
@@ -843,6 +860,7 @@ if (typeof module !== "undefined" && module.exports) {
     FRANCHISES,
     getFranchises,
     getVehiculeParId,
+    resolveDepositAmount,
     dureeEnHeures,
     joursFacturablesDepuisHeures,
     reductionDureeApplicable,
