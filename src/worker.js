@@ -25,6 +25,7 @@ const { handleAgencyClients } = require("./api/agency-clients.js");
 const { handleAgencyRentals } = require("./api/agency-rentals.js");
 const { handleAgencyPayments } = require("./api/agency-payments.js");
 const { handleAgencyDeposits } = require("./api/agency-deposits.js");
+const { handleInspectionMedia } = require("./api/inspection-media.js");
 const { runScheduledTasks } = require("./lib/scheduled-tasks.js");
 const { estCheminAnglais, servirPageAnglaise } = require("./lib/pages-en.js");
 
@@ -49,7 +50,8 @@ const ROUTES = {
   "/api/agency-clients": handleAgencyClients,
   "/api/agency-rentals": handleAgencyRentals,
   "/api/agency-payments": handleAgencyPayments,
-  "/api/agency-deposits": handleAgencyDeposits
+  "/api/agency-deposits": handleAgencyDeposits,
+  "/api/inspection-media": handleInspectionMedia
 };
 
 function isVehicleResultsPath(pathname) {
@@ -99,6 +101,11 @@ async function withClientUX(response, pathname) {
       : `${html}\n${script}`;
   } else {
     html = html.replace(/\/js\/deposit-ux\.js\?v=\d+/g, "/js/deposit-ux.js?v=3");
+  }
+
+  if (/\/contrat(?:\.html)?\/?$/.test(pathname) && !html.includes("/js/inspection-v2.js")) {
+    const inspection = '<script src="/js/inspection-v2.js?v=1"></script>';
+    html = html.includes("</body>") ? html.replace("</body>", `${inspection}\n</body>`) : `${html}\n${inspection}`;
   }
 
   const headers = new Headers(response.headers);
