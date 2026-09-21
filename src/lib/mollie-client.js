@@ -88,4 +88,8 @@ function listCaptures(apiKey, paymentId) {
   return mollieRequest(apiKey, `/payments/${encodeURIComponent(paymentId)}/captures`);
 }
 
-module.exports = { createPayment, getPayment, cancelPayment, createCapture, listCaptures, MollieApiError };
+function releaseAuthorization(apiKey, paymentId) {
+  return mollieRequest(apiKey, `/payments/${encodeURIComponent(paymentId)}/release-authorization`, { method: "POST" });
+}
+
+module.exports = { releaseAuthorization, createPayment, getPayment, cancelPayment, createCapture, listCaptures, MollieApiError };

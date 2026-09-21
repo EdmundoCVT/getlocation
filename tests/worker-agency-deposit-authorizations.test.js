@@ -128,8 +128,9 @@ test("cycle complet : create -> autorisation (webhook simulé) -> capture partie
 
   const captureRes = await withQueuedFetch(
     [
+      { status: 200, body: { id: "tr_e2e2", status: "authorized", mode: "test" } },
       { status: 201, body: { id: "cpt_e2e", status: "pending" } },
-      { status: 200, body: { id: "tr_e2e2", status: "authorized", mode: "test" } }
+      { status: 200, body: { id: "tr_e2e2", status: "paid", mode: "test", amountCaptured: { currency: "EUR", value: "180.00" } } }
     ],
     () =>
       handleAgencyDepositAuthorizations(
@@ -154,10 +155,11 @@ test("cycle complet : create -> autorisation (webhook simulé) -> capture partie
   );
   const getBody = await getRes.json();
   assert.equal(getBody.history.length, 1);
-  assert.equal(getBody.active.status, "capturee_partielle");
+  assert.equal(getBody.active, null);
+  assert.equal(getBody.history[0].status, "capturee_partielle");
 
   const auditTypes = env.AGENCY_DB._raw.auditLog.map((e) => e.event_type);
-  assert.ok(auditTypes.includes("deposit_authorization_captured"));
+  assert.ok(auditTypes.includes("deposit_authorization_capture_requested"));
 });
 
 test("une seconde empreinte active pour la même location est refusée (400)", async () => {

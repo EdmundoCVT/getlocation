@@ -17,14 +17,14 @@
 const { requireAgencySession } = require("../lib/agency-auth.js");
 const {
   isTestApiKey,
-  STATUTS_TERMINAUX,
+  isAuthorizationTerminal,
   listDepositAuthorizationsForRental,
   createDepositAuthorization,
   captureDepositAuthorization,
   releaseDepositAuthorization,
   refreshDepositAuthorization
 } = require("../lib/deposit-authorizations.js");
-const { getRentalById } = require("../lib/rentals.js");
+const { getDepositSubject } = require("../lib/deposit-terms.js");
 const { MollieApiError } = require("../lib/mollie-client.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
 
@@ -72,10 +72,12 @@ async function handleGet(request, env, headers) {
   const rentalId = url.searchParams.get("rentalId");
   if (!rentalId) return new Response(JSON.stringify({ error: "Paramètre rentalId requis" }), { status: 400, headers });
 
+  const subject = await getDepositSubject(env, rentalId);
+  if (!subject) return new Response(JSON.stringify({ error: "Contrat introuvable" }), { status: 404, headers });
   const history = await listDepositAuthorizationsForRental(env, rentalId.slice(0, 100));
-  const active = history.find((a) => !STATUTS_TERMINAUX.includes(a.status)) || null;
+  const active = history.find((a) => !isAuthorizationTerminal(a)) || null;
   return new Response(
-    JSON.stringify({ active, history, mollieTestMode: isTestApiKey(env.MOLLIE_DEPOSIT_API_KEY) }),
+    JSON.stringify({ active, history, contractNumero: subject.contractNumero, depositAmount: subject.depositAmountCents == null ? null : subject.depositAmountCents / 100, configured: /^(test|live)_[^\s]+$/.test(env.MOLLIE_DEPOSIT_API_KEY || ""), mollieTestMode: isTestApiKey(env.MOLLIE_DEPOSIT_API_KEY) }),
     { status: 200, headers }
   );
 }
@@ -97,7 +99,7 @@ async function handlePost(request, env, headers) {
 
   try {
     if (body.action === "create") {
-      const rental = await getRentalById(env, body.rentalId);
+      const rental = await getDepositSubject(env, body.rentalId);
       if (!rental) return new Response(JSON.stringify({ error: "Location introuvable" }), { status: 404, headers });
       // Aucun montant lu depuis body ici : createDepositAuthorization
       // détermine seule le montant, toujours depuis rental.depositAmountCents
@@ -120,7 +122,7 @@ async function handlePost(request, env, headers) {
       if (!authorization) return new Response(JSON.stringify({ error: "Empreinte bancaire introuvable" }), { status: 404, headers });
       await recordAuditEvent(env, {
         actor: operator,
-        eventType: "deposit_authorization_captured",
+        eventType: "deposit_authorization_capture_requested",
         entityType: "deposit_authorization",
         entityId: authorization.id,
         metadata: { capturedAmountCents: authorization.capturedAmountCents, status: authorization.status }

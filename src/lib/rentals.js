@@ -65,12 +65,10 @@ function rowToRental(row) {
     kmDepart: row.km_depart,
     kmRetour: row.km_retour,
     priceTotalCents: row.price_total_cents,
-    // Dépôt de garantie figé pour cette location (voir migrations/0006) —
-    // NULL pour une location créée avant cette migration, voir
-    // buildRentalFields ci-dessous et defaultAmountCentsForRental dans
-    // deposit-authorizations.js pour le repli sur le tarif actuel du
-    // véhicule dans ce cas.
+    // Snapshot historique : NULL reste inconnu, jamais recalculé au tarif actuel.
     depositAmountCents: row.deposit_amount_cents,
+    depositAmount: row.deposit_amount_cents == null ? null : row.deposit_amount_cents / 100,
+    defaultDepositAmount: row.default_deposit_amount_cents == null ? null : row.default_deposit_amount_cents / 100,
     status: row.status,
     notes: row.notes || "",
     createdAt: row.created_at,
@@ -90,9 +88,9 @@ function rowToRental(row) {
 // snapshot à la création, jamais un recalcul silencieux ensuite.
 function resolveDepositAmountCents(data, vehiculeId, existing) {
   if (data.depositAmount !== undefined && data.depositAmount !== null && data.depositAmount !== "") {
-    return optionalPriceCents(data.depositAmount);
+    return Math.round(require("./deposit-terms.js").depositTerms({ vehiculeId, depositAmount: data.depositAmount }).depositAmount * 100);
   }
-  if (existing && existing.vehiculeId === vehiculeId && existing.depositAmountCents != null) {
+  if (existing && (existing.vehiculeId === vehiculeId || existing.status !== "brouillon")) {
     return existing.depositAmountCents;
   }
   const vehicule = getVehiculeParId(vehiculeId);
@@ -153,12 +151,12 @@ async function createRental(env, clientId, data, operator) {
   const id = generateId("rnt");
   const now = new Date().toISOString();
   await env.AGENCY_DB.prepare(
-    `INSERT INTO rentals (id, client_id, contract_numero, vehicule_id, immatriculation, date_debut, heure_debut, date_fin, heure_fin, lieu_prise, lieu_retour, adresse_prise, adresse_retour, km_depart, km_retour, price_total_cents, deposit_amount_cents, status, notes, created_at, updated_at, created_by, updated_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO rentals (id, client_id, contract_numero, vehicule_id, immatriculation, date_debut, heure_debut, date_fin, heure_fin, lieu_prise, lieu_retour, adresse_prise, adresse_retour, km_depart, km_retour, price_total_cents, deposit_amount_cents, default_deposit_amount_cents, status, notes, created_at, updated_at, created_by, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     id, clientId, null, fields.vehicule_id, fields.immatriculation, fields.date_debut, fields.heure_debut,
     fields.date_fin, fields.heure_fin, fields.lieu_prise, fields.lieu_retour, fields.adresse_prise,
-    fields.adresse_retour, fields.km_depart, fields.km_retour, fields.price_total_cents, fields.deposit_amount_cents, fields.status, fields.notes,
+    fields.adresse_retour, fields.km_depart, fields.km_retour, fields.price_total_cents, fields.deposit_amount_cents, Math.round(getVehiculeParId(fields.vehicule_id).caution * 100), fields.status, fields.notes,
     now, now, operator, operator
   ).run();
   return getRentalById(env, id);
@@ -179,6 +177,11 @@ async function updateRental(env, id, data, operator) {
   const existing = await getRentalById(env, id);
   if (!existing) return null;
   const fields = buildRentalFields(data, existing.status, existing);
+  if (fields.deposit_amount_cents !== existing.depositAmountCents) {
+    if (existing.status !== "brouillon") throw new Error("Montant verrouillé : contrat finalisé.");
+    const history = await env.AGENCY_DB.prepare("SELECT * FROM deposit_authorizations WHERE rental_id = ?").bind(id).all();
+    if ((history.results || []).some(a => !["liberee", "annulee", "expiree", "echouee"].includes(a.status))) throw new Error("Libérez ou annulez l’empreinte avant de modifier son montant.");
+  }
   const now = new Date().toISOString();
   await env.AGENCY_DB.prepare(
     `UPDATE rentals SET vehicule_id = ?, immatriculation = ?, date_debut = ?, heure_debut = ?, date_fin = ?, heure_fin = ?, lieu_prise = ?, lieu_retour = ?, adresse_prise = ?, adresse_retour = ?, km_depart = ?, km_retour = ?, price_total_cents = ?, deposit_amount_cents = ?, status = ?, notes = ?, updated_at = ?, updated_by = ? WHERE id = ?`

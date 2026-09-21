@@ -212,15 +212,16 @@ test("captureDepositAuthorization : capture partielle -> statut capturee_partiel
 
   await withQueuedFetch(
     [
+      { status: 200, body: { id: created.molliePaymentId, status: "authorized", mode: "test" } },
       { status: 201, body: { id: "cpt_1", status: "pending" } },
-      { status: 200, body: { id: created.molliePaymentId, status: "authorized", mode: "test" } }
+      { status: 200, body: { id: created.molliePaymentId, status: "paid", mode: "test", amountCaptured: { currency: "EUR", value: "180.00" } } }
     ],
     async (calls) => {
       const updated = await captureDepositAuthorization(env, created.id, 180, "Antonio");
       assert.equal(updated.status, "capturee_partielle");
       assert.equal(updated.capturedAmountCents, 18000);
-      assert.equal(JSON.parse(calls[0].init.body).amount.value, "180.00");
-      assert.match(calls[0].url, /\/captures$/);
+      assert.equal(JSON.parse(calls[1].init.body).amount.value, "180.00");
+      assert.match(calls[1].url, /\/captures$/);
     }
   );
 });
@@ -248,6 +249,7 @@ test("captureDepositAuthorization : capture intégrale -> statut capturee", asyn
   const created = await createAuthorized(env, rental);
   await withQueuedFetch(
     [
+      { status: 200, body: { id: created.molliePaymentId, status: "authorized", mode: "test" } },
       { status: 201, body: { id: "cpt_full", status: "pending" } },
       { status: 200, body: { id: created.molliePaymentId, status: "paid", mode: "test", amountCaptured: { currency: "EUR", value: "500.00" } } }
     ],
@@ -266,6 +268,7 @@ test("releaseDepositAuthorization : libère une caution autorisée non débitée
   const created = await createAuthorized(env, rental);
   await withQueuedFetch(
     [
+      { status: 200, body: { id: created.molliePaymentId, status: "authorized", mode: "test" } },
       { status: 204, body: undefined },
       { status: 200, body: { id: created.molliePaymentId, status: "canceled", mode: "test" } }
     ],
@@ -273,7 +276,8 @@ test("releaseDepositAuthorization : libère une caution autorisée non débitée
       const updated = await releaseDepositAuthorization(env, created.id, "Edmundo");
       assert.equal(updated.status, "liberee");
       assert.ok(updated.releasedAt);
-      assert.equal(calls[0].init.method, "DELETE");
+      assert.equal(calls[1].init.method, "POST");
+      assert.match(calls[1].url, /release-authorization$/);
     }
   );
 });
@@ -284,8 +288,9 @@ test("releaseDepositAuthorization : refuse si déjà partiellement capturée", a
   const created = await createAuthorized(env, rental);
   await withQueuedFetch(
     [
+      { status: 200, body: { id: created.molliePaymentId, status: "authorized", mode: "test" } },
       { status: 201, body: { id: "cpt_2", status: "pending" } },
-      { status: 200, body: { id: created.molliePaymentId, status: "authorized", mode: "test" } }
+      { status: 200, body: { id: created.molliePaymentId, status: "paid", mode: "test", amountCaptured: { currency: "EUR", value: "180.00" } } }
     ],
     () => captureDepositAuthorization(env, created.id, 100, "Antonio")
   );
@@ -322,6 +327,7 @@ test("getActiveDepositAuthorization : ignore les tentatives terminales, une nouv
   const created = await createAuthorized(env, rental);
   await withQueuedFetch(
     [
+      { status: 200, body: { id: created.molliePaymentId, status: "authorized", mode: "test" } },
       { status: 204, body: undefined },
       { status: 200, body: { id: created.molliePaymentId, status: "canceled", mode: "test" } }
     ],

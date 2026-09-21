@@ -329,6 +329,31 @@
         </div>
       </div>
 
+      <div class="card" id="depositPanel">
+        <h2>Dépôt de garantie — empreinte bancaire</h2>
+        <label for="depositAmount">Montant de la caution (€) — agence uniquement</label>
+        <input id="depositAmount" type="number" min="0.01" step="0.01">
+        <p id="depositDefault"></p>
+        <p>Choisissez le montant avant de générer le contrat officiel. Un contrat finalisé conserve son montant.</p>
+        <p id="depositStatus" role="status" aria-live="polite">Enregistrez le contrat pour créer une empreinte.</p>
+        <div class="actions">
+          <button type="button" class="btn" id="depositCreate" disabled>Créer l’empreinte</button>
+          <button type="button" class="btn" id="depositRefresh" disabled>Actualiser le statut</button>
+          <button type="button" class="btn" id="depositRelease" disabled>Annuler / libérer</button>
+        </div>
+        <div id="depositCheckout" hidden>
+          <label for="depositLink">Lien sécurisé à transmettre au client</label>
+          <input id="depositLink" readonly>
+          <button type="button" class="btn" id="depositCopy">Copier le lien client</button>
+          <a class="btn" id="depositOpen" target="_blank" rel="noopener noreferrer">Ouvrir le lien client</a>
+        </div>
+        <label for="depositCaptureAmount">Montant à débiter (€)</label>
+        <input id="depositCaptureAmount" type="number" min="0.01" step="0.01">
+        <button type="button" class="btn" id="depositCapture" disabled>Débiter ce montant</button>
+        <p>Le débit nécessite votre confirmation. Une capture partielle peut libérer le solde selon la configuration Mollie.</p>
+        <p id="depositError" role="alert"></p>
+      </div>
+
       <div class="card">
         <h2>Kilométrage</h2>
         <div class="grid">
@@ -1783,7 +1808,7 @@ function construirePayload(data, sigData, stamp){
     // celui réellement convenu à l'origine (voir CLAUDE.md, dépôt de
     // garantie). v.caution ne sert de repli que pour un contrat antérieur à
     // l'introduction de ce champ (rawData sans depositAmount).
-    caution: formatEUR(typeof data.depositAmount === 'number' && isFinite(data.depositAmount) ? data.depositAmount : v.caution),
+    caution: data.depositAmount === null ? 'À vérifier' : formatEUR(typeof data.depositAmount === 'number' && isFinite(data.depositAmount) ? data.depositAmount : v.caution),
     mode_reglement_caution: libelleModeCaution(data.modeCaution),
     locataire_prenom: data.prenom,
     locataire_nom: data.nom,
@@ -3671,6 +3696,14 @@ function lireImagesEtatDesLieux(){
 }
 
 function initOwnerView(prefill){
+  var contratEnCoursId = null;
+  var contratEnCoursDepositAmount = null;
+  var depositHistoriqueAbsent = false;
+  var depositState = null;
+  var depositBusy = false;
+  var depositContractId = null;
+  var contratOfficielCourant = null;
+
   var selectVehicule = document.getElementById('vehicule');
   var inputImmat = document.getElementById('immat');
   var selectLieu = document.getElementById('lieu');
@@ -3713,7 +3746,7 @@ function initOwnerView(prefill){
     // qui affecte .value sans déclencher cet événement) : le dépôt de
     // garantie figé ne correspond plus au véhicule choisi, on repart du
     // tarif actuel du nouveau véhicule (voir lireDonneesFormulaire()).
-    contratEnCoursDepositAmount = null;
+    if (!contratEnCoursId) contratEnCoursDepositAmount = null;
     appliquerPlaque();
     updateSummary();
     gestionEtatDepart.actualiserSchema();
@@ -3863,6 +3896,9 @@ function initOwnerView(prefill){
     // le tarif ACTUEL du véhicule (incohérent avec le PDF, qui lui affiche
     // bien le montant d'origine) — voir contratEnCoursDepositAmount.
     var cautionRecap = (contratEnCoursDepositAmount !== null) ? contratEnCoursDepositAmount : v.caution;
+    document.getElementById('depositAmount').value = depositHistoriqueAbsent ? '' : cautionRecap;
+    document.getElementById('depositDefault').textContent = 'Caution par défaut du véhicule : ' + formatEUR(v.caution);
+    document.getElementById('depositAmount').disabled = !!contratEnCoursId;
     document.getElementById('vehiculeRecap').innerHTML =
       '<span><strong>' + v.nom + '</strong> — ' + v.prixJour + ' €/jour</span>' +
       '<span>Caution : ' + formatEUR(cautionRecap) + '</span>';
@@ -4033,9 +4069,8 @@ function initOwnerView(prefill){
       // garantie. Sur un contrat neuf (ou "Dupliquer", ou véhicule changé),
       // contratEnCoursDepositAmount est null : le montant courant du
       // véhicule sélectionné s'applique, comme avant.
-      depositAmount: (contratEnCoursDepositAmount !== null)
-        ? contratEnCoursDepositAmount
-        : (currentVehicule() ? currentVehicule().caution : null),
+      defaultDepositAmount: currentVehicule() ? currentVehicule().caution : null,
+      depositAmount: depositHistoriqueAbsent ? null : (contratEnCoursId ? contratEnCoursDepositAmount : Number(document.getElementById("depositAmount").value)),
       modeCaution: modeCaution,
       modePaiement: modePaiement,
       montantRegle: document.getElementById('montantRegle').value,
@@ -4184,6 +4219,7 @@ function initOwnerView(prefill){
     // `typeof === 'number'` : un contrat créé avant ce champ n'a pas
     // rawData.depositAmount, donc null ici -> repli sur le tarif courant du
     // véhicule (lireDonneesFormulaire()), comme avant cette fonctionnalité.
+    depositHistoriqueAbsent = !!inclureDonneesInstance && rawData.depositAmount == null;
     contratEnCoursDepositAmount = (inclureDonneesInstance && typeof rawData.depositAmount === 'number' && isFinite(rawData.depositAmount))
       ? rawData.depositAmount
       : null;
@@ -4288,7 +4324,7 @@ function initOwnerView(prefill){
   // "Ouvrir" — null si on prépare un contrat neuf. Détermine si le clic sur
   // le bouton principal crée un nouveau contrat manuel (nouveau numéro) ou
   // met à jour l'existant en place (même numéro, même id).
-  var contratEnCoursId = null;
+
 
   // Dépôt de garantie figé du contrat rouvert via "Ouvrir" — null tant
   // qu'aucun contrat existant n'est chargé (contrat neuf) ou dès que le
@@ -4298,7 +4334,76 @@ function initOwnerView(prefill){
   // par remplirFormulaire() sur "Ouvrir" uniquement (jamais sur
   // "Dupliquer" : un contrat dupliqué est une NOUVELLE location, qui doit
   // utiliser le tarif en vigueur — voir CLAUDE.md, dépôt de garantie).
-  var contratEnCoursDepositAmount = null;
+
+
+
+
+
+  var depositLabels = { lien_cree: 'Lien créé', en_attente: 'En attente du client', autorisee: 'Empreinte autorisée', liberee: 'Empreinte libérée', annulee: 'Demande annulée', expiree: 'Empreinte expirée', echouee: 'Échec', capturee: 'Débit total confirmé', capturee_partielle: 'Débit partiel confirmé' };
+  function afficherEmpreinte(state) {
+    depositState = state;
+    var auth = state && (state.active || state.history[0]);
+    var active = state && state.active;
+    var canCapture = active && active.status === 'autorisee' && !active.captureRequested;
+    document.getElementById('depositAmount').disabled = !!contratEnCoursId;
+    document.getElementById('depositCreate').disabled = depositBusy || !state || !state.configured || !!active || !(state.depositAmount > 0);
+    document.getElementById('depositRefresh').disabled = depositBusy || !auth;
+    document.getElementById('depositRelease').disabled = depositBusy || !active || (!!active.captureRequested && !active.capturedAmountCents);
+    document.getElementById('depositCapture').disabled = depositBusy || !canCapture;
+    document.getElementById('depositCaptureAmount').disabled = depositBusy || !canCapture;
+    document.getElementById('depositCaptureAmount').max = auth ? auth.authorizedAmountCents / 100 : '';
+    document.getElementById('depositCaptureAmount').value = auth ? (auth.authorizedAmountCents - auth.capturedAmountCents) / 100 : '';
+    var text = state && state.contractNumero ? 'Contrat ' + state.contractNumero + ' — ' : '';
+    text += !state ? 'Enregistrez le contrat pour créer une empreinte.' : !state.configured ? 'Clé caution non configurée.' : (state.mollieTestMode ? 'MOLLIE — MODE TEST' : 'MOLLIE — MODE LIVE');
+    if (state && state.depositAmount != null) text += ' — Montant enregistré : ' + formatEUR(state.depositAmount);
+    if (state && state.depositAmount == null) text += ' — Montant historique absent : aucune empreinte ne peut être créée.';
+    if (auth) text += ' — ' + (depositLabels[auth.status] || auth.status) + ' (' + (auth.testMode ? 'TEST' : 'LIVE') + ') — ' + formatEUR(auth.authorizedAmountCents / 100) + '. Débité : ' + formatEUR(auth.capturedAmountCents / 100) + '. Capture avant : ' + (auth.captureBefore ? new Date(auth.captureBefore).toLocaleString('fr-FR') : 'non communiquée par Mollie') + (auth.captureRequested && auth.mollieStatus === 'authorized' ? ' — Demande de capture envoyée : actualisez pour confirmation.' : '');
+    document.getElementById('depositStatus').textContent = text;
+    var checkout = active && active.checkoutUrl;
+    try { if (checkout && new URL(checkout).protocol !== 'https:') checkout = null; } catch(e) { checkout = null; }
+    document.getElementById('depositCheckout').hidden = !checkout;
+    document.getElementById('depositLink').value = checkout || '';
+    document.getElementById('depositOpen').href = checkout || '#';
+  }
+  async function chargerEmpreinte() {
+    var id = depositContractId;
+    if (!id) return afficherEmpreinte(null);
+    afficherEmpreinte(null);
+    try {
+      var response = await fetch('/api/agency-deposit-authorizations?rentalId=' + encodeURIComponent(id), { credentials: 'same-origin' });
+      var body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Impossible de charger la caution.');
+      if (id === depositContractId) afficherEmpreinte(body);
+    } catch(e) { document.getElementById('depositError').textContent = e.message; }
+  }
+  async function agirEmpreinte(action) {
+    if (depositBusy || !depositState) return;
+    var auth = depositState.active || depositState.history[0];
+    var amount = Number(document.getElementById('depositCaptureAmount').value);
+    var label = action === 'capture' ? 'Confirmer le débit de ' + formatEUR(amount) + ' sur le contrat ' + (depositState.contractNumero || depositContractId) + ' ?' : action === 'release' ? 'Confirmer l’annulation / libération de cette empreinte ?' : 'Créer un lien d’empreinte de ' + formatEUR(depositState.depositAmount) + ' pour le contrat ' + (depositState.contractNumero || depositContractId) + ' ?';
+    if (action !== 'refresh' && !window.confirm(label)) return;
+    depositBusy = true;
+    afficherEmpreinte(depositState);
+    document.getElementById('depositError').textContent = '';
+    try {
+      await appelApiContrat('/api/agency-deposit-authorizations', { action: action, rentalId: depositContractId, id: auth && auth.id, amount: amount });
+    } catch(e) {
+      document.getElementById('depositError').textContent = decrireEchecRequete(e) + (e.json && e.json.mollie ? ' — ' + e.json.mollie.detail : '');
+    } finally { depositBusy = false; await chargerEmpreinte(); }
+  }
+  document.getElementById('depositAmount').addEventListener('change', function(){
+    if (contratEnCoursId) return;
+    if (!this.checkValidity()) return;
+    contratEnCoursDepositAmount = Number(this.value);
+    updateSummary(); regenererLien();
+  });
+  ['Create', 'Refresh', 'Release', 'Capture'].forEach(function(name){
+    document.getElementById('deposit' + name).addEventListener('click', function(){ agirEmpreinte(name.toLowerCase()); });
+  });
+  document.getElementById('depositCopy').addEventListener('click', async function(){
+    try { await navigator.clipboard.writeText(document.getElementById('depositLink').value); document.getElementById('depositError').textContent = 'Lien copié.'; }
+    catch(e) { document.getElementById('depositLink').select(); document.getElementById('depositError').textContent = 'Sélectionnez et copiez le lien affiché.'; }
+  });
 
   // Lien COURT (jeton) le plus récent obtenu pour ce contrat, tant que les
   // données du formulaire n'ont pas changé depuis son émission — voir
@@ -4308,7 +4413,7 @@ function initOwnerView(prefill){
   // moins une fois côté serveur ; reste à null tant qu'aucun contrat n'a
   // encore été généré/ouvert (le lien `?data=` reste alors utilisé, comme
   // avant ce correctif — rien ne change pour ce cas).
-  var contratOfficielCourant = null;
+
 
   // Émission best-effort (voir CLAUDE.md, règle sur les échecs non
   // bloquants) : si l'appel échoue (réseau, jeton non configuré...),
@@ -4330,6 +4435,9 @@ function initOwnerView(prefill){
 
   function entrerModeEdition(id, numero){
     contratEnCoursId = id;
+    depositContractId = id;
+    document.getElementById('depositAmount').disabled = true;
+    chargerEmpreinte();
     document.getElementById('genererContratTitre').textContent = 'Mettre à jour le contrat ' + numero;
     document.getElementById('genererContratLead').textContent = 'Complétez ou corrigez les informations, puis enregistrez : le numéro et l\'identifiant du contrat sont conservés.';
     document.getElementById('genererContratBtn').textContent = '💾 Mettre à jour le contrat';
@@ -4338,7 +4446,11 @@ function initOwnerView(prefill){
   }
   function sortirModeEdition(){
     contratEnCoursId = null;
+    depositContractId = null;
+    depositHistoriqueAbsent = false;
     contratEnCoursDepositAmount = null;
+    afficherEmpreinte(null);
+    updateSummary();
     document.getElementById('genererContratTitre').textContent = 'Générer le contrat officiel';
     document.getElementById('genererContratLead').textContent = 'Attribue un numéro de contrat unique, enregistre le contrat (pour l\'historique et la duplication) et télécharge le PDF final.';
     document.getElementById('genererContratBtn').textContent = '📄 Générer le contrat officiel';
@@ -4412,7 +4524,8 @@ function initOwnerView(prefill){
             ? 'Contrat ' + result.numero + ' mis à jour ✓'
             : 'Contrat ' + result.numero + ' généré ✓';
           msg.classList.remove('hidden');
-          if(enEdition) sortirModeEdition();
+          contratEnCoursDepositAmount = rawData.depositAmount;
+          entrerModeEdition(result.id, result.numero);
           chargerHistorique();
           mettreAJourLienCourt(result.id, rawData);
           // Le lien client est juste en dessous : on l'amène à l'écran pour
@@ -4496,6 +4609,14 @@ function initOwnerView(prefill){
         actions.appendChild(ouvrirBtn);
         actions.appendChild(dupliquerBtn);
       }
+      var cautionBtn = document.createElement('button');
+      cautionBtn.type = 'button'; cautionBtn.className = 'btn'; cautionBtn.textContent = 'Gérer la caution';
+      cautionBtn.addEventListener('click', function(){
+        depositContractId = entry.id;
+        chargerEmpreinte();
+        document.getElementById('depositPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      actions.appendChild(cautionBtn);
       conteneur.appendChild(row);
     });
   }

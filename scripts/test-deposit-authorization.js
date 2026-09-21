@@ -105,10 +105,10 @@ async function main() {
     } else {
       console.log("  (pas de champ amountCaptured tant qu'aucune capture n'a eu lieu — normal.)");
     }
-    if (last.authorizationExpiresAt) {
-      console.log("  Date limite de capture (authorizationExpiresAt) :", last.authorizationExpiresAt);
+    if (last.captureBefore) {
+      console.log("  Date limite de capture (captureBefore) :", last.captureBefore);
     } else {
-      console.log("  Aucun champ authorizationExpiresAt dans la réponse : à vérifier et, si Mollie");
+      console.log("  Aucun champ captureBefore dans la réponse : à vérifier et, si Mollie");
       console.log("  utilise un autre nom, à corriger dans");
       console.log("  src/lib/deposit-authorizations.js#syncFromMolliePayment (commentaire dédié).");
     }

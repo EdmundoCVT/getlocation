@@ -21,6 +21,8 @@ function createFakeD1() {
 
   // Tables génériques (Lot 2 + Lot 3) : clé = nom de table, valeur = Map(id -> row).
   const tables = {
+    deposit_subjects: new Map(),
+    deposit_capture_requests: new Map(),
     clients: new Map(),
     rentals: new Map(),
     payments: new Map(),
@@ -40,6 +42,7 @@ function createFakeD1() {
     const row = {};
     columns.forEach((col, i) => { row[col] = args[i]; });
     if (!row.id) throw new Error("fake-d1: INSERT générique sans colonne id : " + norm);
+    if (table === "deposit_authorizations") row.capture_requested = 0;
     tables[table].set(row.id, row);
     return { success: true };
   }
@@ -147,6 +150,13 @@ function createFakeD1() {
             throw new Error("fake-d1: requête .run() non reconnue : " + norm);
           },
           async first() {
+            if (norm.includes("action_lock") && norm.endsWith("RETURNING id")) {
+              const row = tables.deposit_authorizations.get(args[args.length - 1]);
+              if (!row || (row.action_lock && !(args[0] === "release" && row.action_lock === "capture" && row.captured_amount_cents > 0))) return null;
+              if (norm.includes("capture_requested")) row.capture_requested = args[0];
+              row.action_lock = args[args.length - 2];
+              return { id: row.id };
+            }
             // ---- Lot 1, inchangé ----
             if (norm.startsWith("SELECT id, operator, code_hash, expires_at, revoked_at FROM sessions")) {
               const [id] = args;

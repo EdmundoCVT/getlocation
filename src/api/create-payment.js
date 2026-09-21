@@ -244,6 +244,7 @@ async function handleCreatePayment(request, env) {
     // n'affiche jamais un montant recalculé après coup si ce tarif change
     // ensuite. Voir resolveDepositAmount() dans js/data.js pour le repli
     // appliqué aux réservations antérieures à ce champ.
+    defaultDepositAmount: vehicule.caution,
     depositAmount: vehicule.caution,
     cglVersion: payload.cglVersion,
     cglAcceptedAt: new Date().toISOString(),

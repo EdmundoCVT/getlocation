@@ -1,45 +1,18 @@
-// src/lib/deposit-authorizations.js
-//
-// Empreinte bancaire / préautorisation de carte Mollie (captureMode
-// "manual") pour le dépôt de garantie d'une location — voir CLAUDE.md.
-//
-// JAMAIS confondue avec la caution "classique" enregistrée à la main (voir
-// src/lib/deposits.js, table `deposits`, modes carte physique/espèces/
-// virement) : mécanisme séparé, table séparée (migrations/
-// 0005_deposit_authorizations.sql), jamais les deux pour la même location.
-//
-// Principe central, comme pour un paiement de location (voir
-// create-payment.js/mollie-webhook.js) : le serveur ne fait JAMAIS
-// confiance à un statut ou un montant transmis par le navigateur ou par le
-// corps d'un webhook. Toute mise à jour de statut passe par
-// syncFromMolliePayment(), qui ne prend en entrée que la réponse de l'API
-// Mollie elle-même (GET /v2/payments/:id, toujours rappelé après toute
-// action — création, capture, libération, ou notification webhook).
-//
-// Montant : TOUJOURS celui figé sur la location (rental.depositAmountCents,
-// voir migrations/0006 et src/lib/rentals.js — snapshot de
-// VEHICULES[].caution au moment de la création, seule source de vérité pour
-// ce tarif, voir CLAUDE.md règle n°1), jamais un montant transmis par
-// l'agence/le navigateur à la création de l'empreinte (cahier des charges
-// §6) — voir resolveDepositAmountCentsForRental(). Pour corriger le dépôt
-// de garantie d'une location, passer par sa mise à jour (rentals.js),
-// jamais par un paramètre de createDepositAuthorization.
-//
-// Clé Mollie utilisée : MOLLIE_DEPOSIT_API_KEY, secret Cloudflare Worker
-// DISTINCT de MOLLIE_API_KEY (paiement de location, déjà en mode live en
-// production) — voir DEPLOIEMENT.md et migrations/0005.
+// Mollie deposit authorizations. Server-saved amounts only; separate deposit key.
+// captureBefore and release-authorization follow the Mollie Payments API.
+// A capture is counted only from the provider response, never from its request.
+// Ambiguous failures remain locked for reconciliation (no automatic new payment).
 
-const { getVehiculeParId } = require("../../js/data.js");
+const { getDepositSubject } = require("./deposit-terms.js");
 const { generateId } = require("./id.js");
-const { getRentalById } = require("./rentals.js");
 const {
   createPayment: createMolliePayment,
   getPayment,
   cancelPayment,
+  releaseAuthorization,
   createCapture
 } = require("./mollie-client.js");
 
-// États "actifs" possibles avant l'un des états terminaux ci-dessous.
 const STATUTS_INTERNES = [
   "lien_cree",
   "en_attente",
@@ -52,14 +25,13 @@ const STATUTS_INTERNES = [
   "echouee"
 ];
 
-// États terminaux : plus aucune action Mollie possible sur cette ligne — une
-// nouvelle demande de caution pour la même location crée une NOUVELLE ligne
-// (voir getActiveDepositAuthorization, qui ignore les lignes terminales).
-const STATUTS_TERMINAUX = ["liberee", "capturee", "expiree", "annulee", "echouee"];
+const STATUTS_TERMINAUX = ["liberee", "capturee", "capturee_partielle", "expiree", "annulee", "echouee"];
 
-// Actionnable par l'agence : "Débiter tout ou partie" reste possible tant
-// que le montant autorisé n'est pas intégralement capturé.
-const STATUTS_CAPTURABLES = ["autorisee", "capturee_partielle"];
+function isAuthorizationTerminal(auth) {
+  return auth.status === "capturee_partielle" ? auth.mollieStatus !== "authorized" : STATUTS_TERMINAUX.includes(auth.status);
+}
+
+const STATUTS_CAPTURABLES = ["autorisee"];
 
 function isTestApiKey(apiKey) {
   return typeof apiKey === "string" && apiKey.startsWith("test_");
@@ -67,37 +39,21 @@ function isTestApiKey(apiKey) {
 
 function toCents(amount) {
   const n = Number(amount);
-  if (!Number.isFinite(n) || n <= 0) throw new Error("Montant invalide");
+  if (!["string", "number"].includes(typeof amount) || !Number.isFinite(n) || n <= 0 || !Number.isSafeInteger(Math.round(n * 100)) || Math.abs(n * 100 - Math.round(n * 100)) > 0.000001) throw new Error("Montant invalide");
   return Math.round(n * 100);
 }
 
-// Lit un montant Mollie ({ currency, value }, value étant une chaîne du
-// type "12.34") — renvoie null si le champ est absent, jamais une valeur
-// devinée. Utilisé pour payment.amountCaptured, dont le nom exact n'a pas
-// pu être vérifié en conditions réelles dans cet environnement (accès
-// réseau sortant vers l'API Mollie bloqué ici, voir scripts/
-// test-deposit-authorization.js) : si Mollie ne renvoie pas ce champ tel
-// quel, le code se rabat sur son propre décompte (voir captureCents dans
-// captureDepositAuthorization) plutôt que d'échouer.
 function centsFromMollieAmount(amount) {
   if (!amount || typeof amount.value !== "string") return null;
   const n = Number(amount.value);
   return Number.isFinite(n) ? Math.round(n * 100) : null;
 }
 
-// Montant à envoyer à Mollie pour CETTE location : celui figé sur la
-// location elle-même (rental.depositAmountCents, voir migrations/0006 et
-// src/lib/rentals.js) quand il existe, jamais un montant fixe ni un montant
-// transmis par le navigateur — voir createDepositAuthorization ci-dessous,
-// qui n'accepte plus aucun montant en provenance de l'agence pour cette
-// raison. Repli sur le tarif actuellement configuré pour le véhicule
-// (VEHICULES[].caution, js/data.js) uniquement pour une location créée
-// avant l'introduction de ce snapshot.
 function resolveDepositAmountCentsForRental(rental) {
-  if (rental.depositAmountCents != null) return rental.depositAmountCents;
-  const vehicule = getVehiculeParId(rental.vehiculeId);
-  if (!vehicule) throw new Error("Véhicule inconnu pour cette location");
-  return Math.round(vehicule.caution * 100);
+  if (!Number.isSafeInteger(rental.depositAmountCents) || rental.depositAmountCents <= 0) {
+    throw new Error("Montant de caution historique absent ou invalide : vérification agence requise.");
+  }
+  return rental.depositAmountCents;
 }
 
 function rowToAuthorization(row) {
@@ -114,6 +70,7 @@ function rowToAuthorization(row) {
     checkoutUrl: row.checkout_url || null,
     captureBefore: row.capture_before || null,
     testMode: Boolean(row.test_mode),
+    captureRequested: Boolean(row.capture_requested),
     authorizedAt: row.authorized_at || null,
     releasedAt: row.released_at || null,
     capturedAt: row.captured_at || null,
@@ -145,30 +102,11 @@ async function listDepositAuthorizationsForRental(env, rentalId) {
   return (res.results || []).map(rowToAuthorization);
 }
 
-// La ligne "active" (au plus une par location) — celle que l'interface
-// agence doit afficher/agir dessus. Les tentatives terminées (libérée,
-// expirée, capturée, annulée, échouée) restent consultables via
-// listDepositAuthorizationsForRental mais ne bloquent jamais une nouvelle
-// demande.
 async function getActiveDepositAuthorization(env, rentalId) {
   const rows = await listDepositAuthorizationsForRental(env, rentalId);
-  return rows.find((r) => !STATUTS_TERMINAUX.includes(r.status)) || null;
+  return rows.find((r) => !isAuthorizationTerminal(r)) || null;
 }
 
-// Traduit le statut Mollie BRUT (jamais inventé — uniquement open, pending,
-// authorized, paid, canceled, expired, failed, les seuls statuts
-// documentés par l'API Payments v2) en statut interne GET LOCATION.
-//
-// - "authorized" : distingue "autorisee" (rien encore débité) de
-//   "capturee_partielle" (au moins une capture déjà effectuée, le solde
-//   reste débitable) — Mollie garde le paiement en "authorized" tant que le
-//   montant autorisé n'est pas intégralement capturé.
-// - "paid" : atteint uniquement quand l'intégralité du montant autorisé a
-//   été capturée (ce module ne crée jamais de paiement en capture
-//   automatique) -> "capturee".
-// - "canceled" : "liberee" si l'autorisation avait déjà eu lieu (action
-//   agence "Libérer la caution", ou annulation bancaire), "annulee" sinon
-//   (le client n'a pas terminé la saisie de sa carte).
 function deriveInternalStatus(payment, existing) {
   const wasAuthorized = Boolean(existing && existing.authorizedAt);
   switch (payment.status) {
@@ -181,7 +119,7 @@ function deriveInternalStatus(payment, existing) {
       return effectiveCaptured > 0 ? "capturee_partielle" : "autorisee";
     }
     case "paid":
-      return "capturee";
+      return existing && existing.capturedAmountCents > 0 && existing.capturedAmountCents < existing.authorizedAmountCents ? "capturee_partielle" : "capturee";
     case "canceled":
       return wasAuthorized ? "liberee" : "annulee";
     case "expired":
@@ -193,36 +131,23 @@ function deriveInternalStatus(payment, existing) {
   }
 }
 
-// Point d'entrée UNIQUE pour mettre à jour une ligne à partir d'une réponse
-// Mollie authentique (jamais depuis un corps de webhook non revérifié, voir
-// src/api/mollie-deposit-webhook.js). `hintCapturedCents` sert de repli
-// quand payment.amountCaptured est absent de la réponse (voir
-// centsFromMollieAmount) : GET LOCATION additionne alors lui-même le
-// montant qu'il vient de faire capturer, sans jamais inventer une valeur
-// venue d'ailleurs.
-async function syncFromMolliePayment(env, existing, payment, operator, hintCapturedCents = null) {
+async function syncFromMolliePayment(env, existing, payment, operator) {
+  if (!payment || payment.id !== existing.molliePaymentId) throw new Error("Identifiant Mollie incohérent.");
+  if (payment.mode && (payment.mode === "test") !== existing.testMode) throw new Error("Mode Mollie incohérent.");
+  if (payment.amount && (payment.amount.currency !== "EUR" || centsFromMollieAmount(payment.amount) !== existing.authorizedAmountCents)) throw new Error("Montant Mollie incohérent.");
   const capturedFromPayment = centsFromMollieAmount(payment.amountCaptured);
+  if (capturedFromPayment !== null && (capturedFromPayment < 0 || capturedFromPayment > existing.authorizedAmountCents || payment.amountCaptured.currency !== "EUR")) throw new Error("Montant capturé Mollie incohérent.");
   const capturedAmountCents =
     capturedFromPayment !== null
       ? capturedFromPayment
-      : hintCapturedCents !== null
-        ? hintCapturedCents
-        : existing.capturedAmountCents;
-  // deriveInternalStatus lit existing.capturedAmountCents pour distinguer
-  // "autorisee" de "capturee_partielle" (voir cas "authorized") : on lui
-  // passe donc le montant déjà résolu ci-dessus (y compris hintCapturedCents
-  // juste après une capture), jamais la valeur potentiellement obsolète de
-  // `existing`.
+      : existing.capturedAmountCents;
   const status = deriveInternalStatus(payment, { ...existing, capturedAmountCents });
 
   const now = new Date().toISOString();
   const authorizedAt = status === "autorisee" || status === "capturee_partielle" || status === "capturee"
     ? existing.authorizedAt || now
     : existing.authorizedAt;
-  // Champ non vérifié en conditions réelles dans cet environnement (voir
-  // en-tête de fichier) : recopié tel quel s'il est présent, jamais une
-  // valeur calculée localement.
-  const captureBefore = payment.authorizationExpiresAt || existing.captureBefore || null;
+  const captureBefore = payment.captureBefore || existing.captureBefore || null;
   const releasedAt = status === "liberee" && !existing.releasedAt ? now : existing.releasedAt;
   const capturedAt = (status === "capturee" || status === "capturee_partielle") && !existing.capturedAt ? now : existing.capturedAt;
   const testMode = typeof payment.mode === "string" ? (payment.mode === "test" ? 1 : 0) : (existing.testMode ? 1 : 0);
@@ -246,31 +171,17 @@ async function syncFromMolliePayment(env, existing, payment, operator, hintCaptu
   return getDepositAuthorizationById(env, existing.id);
 }
 
-// Crée la demande d'empreinte bancaire : enregistre la ligne "lien_cree"
-// AVANT d'appeler Mollie (même schéma que create-payment.js/
-// createReservation), puis la complète avec l'id/l'URL de paiement Mollie.
-// Si l'appel Mollie échoue, la ligne passe "echouee" et l'erreur Mollie
-// d'origine (MollieApiError : statusCode, body, message) est propagée telle
-// quelle à l'appelant — voir src/api/agency-deposit-authorizations.js, qui
-// doit l'afficher clairement à l'agence (cahier des charges §5 : ne jamais
-// masquer la réponse Mollie en cas d'échec de la préautorisation).
-//
-// Le montant N'EST JAMAIS accepté depuis l'agence/le navigateur : il est
-// TOUJOURS celui déterminé côté serveur par resolveDepositAmountCentsForRental()
-// à partir de la location elle-même (voir cahier des charges §6 — "ne
-// jamais accepter directement comme montant fiable une valeur envoyée par
-// le navigateur"). Pour corriger le dépôt de garantie d'une location avant
-// de créer son empreinte, passer par la mise à jour de la location
-// (src/lib/rentals.js, data.depositAmount), jamais par ce paramètre.
 async function createDepositAuthorization(env, rentalId, operator, { origin }) {
   if (!rentalId || typeof rentalId !== "string") throw new Error("Location manquante");
-  const rental = await getRentalById(env, rentalId);
+  const rental = await getDepositSubject(env, rentalId);
   if (!rental) throw new Error("Location introuvable");
 
-  if (!env.MOLLIE_DEPOSIT_API_KEY) {
+  if (!/^(test|live)_[^\s]+$/.test(env.MOLLIE_DEPOSIT_API_KEY || "")) {
     throw new Error("MOLLIE_DEPOSIT_API_KEY manquante : l'empreinte bancaire n'est pas configurée.");
   }
 
+  const manual = await env.AGENCY_DB.prepare("SELECT * FROM deposits WHERE rental_id = ?").bind(rentalId).first();
+  if (manual && ["attendue", "recue"].includes(manual.status)) throw new Error("Une caution manuelle existe déjà pour ce contrat.");
   const active = await getActiveDepositAuthorization(env, rentalId);
   if (active) throw new Error("Une empreinte bancaire est déjà en cours pour cette location.");
 
@@ -299,7 +210,7 @@ async function createDepositAuthorization(env, rentalId, operator, { origin }) {
         webhookUrl: `${origin}/api/mollie-deposit-webhook`,
         metadata: { depositAuthorizationId: id, rentalId }
       },
-      crypto.randomUUID()
+      `deposit-create-${id}`
     );
 
     await env.AGENCY_DB.prepare(
@@ -315,24 +226,21 @@ async function createDepositAuthorization(env, rentalId, operator, { origin }) {
 
     return getDepositAuthorizationById(env, id);
   } catch (err) {
+    const rejected = err && err.statusCode >= 400 && err.statusCode < 500 && err.statusCode !== 429;
     await env.AGENCY_DB.prepare(
       "UPDATE deposit_authorizations SET status = ?, failure_reason = ?, updated_at = ?, updated_by = ? WHERE id = ?"
-    ).bind("echouee", (err && err.message) || "Erreur Mollie inconnue", new Date().toISOString(), operator, id).run();
+    ).bind(rejected ? "echouee" : "lien_cree", (err && err.message) || "Erreur Mollie inconnue", new Date().toISOString(), operator, id).run();
     throw err;
   }
 }
 
-// Débite tout ou partie de l'empreinte — DÉCLENCHÉE UNIQUEMENT depuis
-// l'espace agence (jamais automatiquement, voir cahier des charges §10).
-// Le montant maximum capturable est TOUJOURS vérifié ici contre le solde
-// réellement restant (authorizedAmountCents - capturedAmountCents), jamais
-// laissé au client/à Mollie seul à trancher (cahier des charges §11).
 async function captureDepositAuthorization(env, id, amount, operator) {
-  const existing = await getDepositAuthorizationById(env, id);
+  let existing = await getDepositAuthorizationById(env, id);
   if (!existing) return null;
   if (!STATUTS_CAPTURABLES.includes(existing.status)) {
     throw new Error(`Cette caution ne peut pas être débitée dans son état actuel (${existing.status}).`);
   }
+  if (existing.captureBefore && Date.parse(existing.captureBefore) <= Date.now()) throw new Error("L'autorisation a expiré.");
   const captureCents = toCents(amount);
   const remaining = existing.authorizedAmountCents - existing.capturedAmountCents;
   if (captureCents > remaining) {
@@ -343,56 +251,51 @@ async function captureDepositAuthorization(env, id, amount, operator) {
   if (!env.MOLLIE_DEPOSIT_API_KEY) throw new Error("MOLLIE_DEPOSIT_API_KEY manquante.");
   if (!existing.molliePaymentId) throw new Error("Aucune autorisation Mollie associée à cette caution.");
 
+  existing = await refreshDepositAuthorization(env, id, operator);
+  if (existing.status !== "autorisee" || existing.capturedAmountCents > 0 || (existing.captureBefore && Date.parse(existing.captureBefore) <= Date.now())) throw new Error("L’autorisation n’est plus disponible.");
+  const claim = await env.AGENCY_DB.prepare("UPDATE deposit_authorizations SET capture_requested = ?, action_lock = ? WHERE id = ? AND action_lock IS NULL RETURNING id").bind(1, "capture", id).first();
+  if (!claim) throw new Error("Une capture a déjà été demandée. Actualisez le statut avant toute autre action.");
   await createCapture(
     env.MOLLIE_DEPOSIT_API_KEY,
     existing.molliePaymentId,
     { amount: { currency: "EUR", value: (captureCents / 100).toFixed(2) } },
-    crypto.randomUUID()
+    `deposit-capture-${id}`
   );
 
-  // Revérifie toujours l'état réel auprès de Mollie après l'action — jamais
-  // une simple addition locale sans confirmation (même principe que
-  // mollie-webhook.js pour le paiement de location).
   const payment = await getPayment(env.MOLLIE_DEPOSIT_API_KEY, existing.molliePaymentId);
-  return syncFromMolliePayment(env, existing, payment, operator, existing.capturedAmountCents + captureCents);
+  return syncFromMolliePayment(env, existing, payment, operator);
 }
 
-// Libère l'empreinte bancaire (mainlevée) — uniquement tant qu'aucune
-// capture n'a encore eu lieu (voir cahier des charges §12 : mécanisme
-// officiel Mollie, jamais une simple mise à jour locale du statut).
 async function releaseDepositAuthorization(env, id, operator) {
-  const existing = await getDepositAuthorizationById(env, id);
+  let existing = await getDepositAuthorizationById(env, id);
   if (!existing) return null;
-  if (existing.status !== "autorisee") {
+  if (!["autorisee", "en_attente", "lien_cree"].includes(existing.status) && !(existing.status === "capturee_partielle" && existing.mollieStatus === "authorized")) {
     throw new Error("Seule une caution intégralement autorisée et non encore débitée peut être libérée.");
   }
   if (!env.MOLLIE_DEPOSIT_API_KEY) throw new Error("MOLLIE_DEPOSIT_API_KEY manquante.");
   if (!existing.molliePaymentId) throw new Error("Aucune autorisation Mollie associée à cette caution.");
 
-  await cancelPayment(env.MOLLIE_DEPOSIT_API_KEY, existing.molliePaymentId);
+  if (existing.captureRequested && !existing.capturedAmountCents) throw new Error("Une capture a déjà été demandée : vérifiez son statut dans Mollie.");
+  existing = await refreshDepositAuthorization(env, id, operator);
+  if (!["autorisee", "en_attente", "lien_cree"].includes(existing.status) && !(existing.status === "capturee_partielle" && existing.mollieStatus === "authorized")) throw new Error("L’autorisation n’est plus libérable.");
+  const claim = await env.AGENCY_DB.prepare("UPDATE deposit_authorizations SET action_lock = ? WHERE id = ? AND (action_lock IS NULL OR (action_lock = 'capture' AND captured_amount_cents > 0)) RETURNING id").bind("release", id).first();
+  if (!claim) throw new Error("Une opération financière a déjà été demandée : actualisez le statut.");
+  if (existing.mollieStatus === "authorized") await releaseAuthorization(env.MOLLIE_DEPOSIT_API_KEY, existing.molliePaymentId);
+  else await cancelPayment(env.MOLLIE_DEPOSIT_API_KEY, existing.molliePaymentId);
   const payment = await getPayment(env.MOLLIE_DEPOSIT_API_KEY, existing.molliePaymentId);
   return syncFromMolliePayment(env, existing, payment, operator);
 }
 
-// Re-synchronise à la demande (l'agence ouvre le dossier, ou avant toute
-// action de capture/libération) : une préautorisation carte peut expirer
-// silencieusement côté banque sans notification webhook garantie — ne
-// jamais supposer qu'elle reste valable indéfiniment (cahier des charges
-// §9).
 async function refreshDepositAuthorization(env, id, operator) {
   const existing = await getDepositAuthorizationById(env, id);
   if (!existing) return null;
   if (!existing.molliePaymentId) return existing;
   if (!env.MOLLIE_DEPOSIT_API_KEY) throw new Error("MOLLIE_DEPOSIT_API_KEY manquante.");
+  if (existing.testMode !== isTestApiKey(env.MOLLIE_DEPOSIT_API_KEY)) throw new Error("Le mode de la clé caution ne correspond pas à cette empreinte (TEST/LIVE).");
   const payment = await getPayment(env.MOLLIE_DEPOSIT_API_KEY, existing.molliePaymentId);
   return syncFromMolliePayment(env, existing, payment, operator);
 }
 
-// Appelé par le webhook Mollie (voir src/api/mollie-deposit-webhook.js) une
-// fois le statut RÉEL revérifié auprès de l'API — jamais depuis le corps du
-// webhook lui-même. `updated_by` = "mollie" (acteur système, distinct des
-// noms d'opérateur agence) : la colonne est NOT NULL, jamais un champ libre
-// envoyé par le navigateur.
 async function syncDepositAuthorizationFromWebhook(env, payment) {
   const existing = await getDepositAuthorizationByMolliePaymentId(env, payment.id);
   if (!existing) return null;
@@ -404,6 +307,7 @@ module.exports = {
   STATUTS_TERMINAUX,
   STATUTS_CAPTURABLES,
   isTestApiKey,
+  isAuthorizationTerminal,
   deriveInternalStatus,
   getDepositAuthorizationById,
   getDepositAuthorizationByMolliePaymentId,
