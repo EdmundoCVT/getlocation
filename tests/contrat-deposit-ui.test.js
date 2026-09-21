@@ -50,6 +50,21 @@ test('/contrat: agency custom amount; reopening restores snapshot, LIVE status a
   assert.equal(JSON.parse(sent.options.body).action, 'capture');
   dom.window.close();
 });
+test('/contrat: la saisie au clavier de 50 € ne revient pas au montant par défaut', async () => {
+  const { w, dom } = await page({ configured: true, mollieTestMode: false, active: null, history: [], depositAmount: 650 });
+  const input = w.document.getElementById('depositAmount');
+  input.value = '';
+  input.dispatchEvent(new w.Event('input', { bubbles: true }));
+  assert.equal(input.value, '');
+  input.value = '5';
+  input.dispatchEvent(new w.Event('input', { bubbles: true }));
+  assert.equal(input.value, '5');
+  input.value = '50';
+  input.dispatchEvent(new w.Event('input', { bubbles: true }));
+  assert.equal(input.value, '50');
+  assert.match(w.document.getElementById('depositStatus').textContent, /Montant enregistré : 50/);
+  dom.window.close();
+});
 test('/contrat: unconfigured key disables create and labels no LIVE mode', async () => {
   const { w, dom } = await page({ configured: false, active: null, history: [], depositAmount: 650 });
   [...w.document.querySelectorAll('button')].find(b => b.textContent === 'Ouvrir').click();

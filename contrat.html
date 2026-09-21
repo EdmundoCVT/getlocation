@@ -3972,6 +3972,25 @@ function initOwnerView(prefill){
   }
 
   document.getElementById('ownerForm').addEventListener('input', function(e){
+    // Le champ caution fait partie du formulaire, donc cet écouteur délégué
+    // s'exécute pendant que l'agence est encore en train d'effacer puis de
+    // retaper le montant. updateSummary() réinjecte la valeur mémorisée dans
+    // le champ : sans ce traitement préalable, le premier chiffre saisi est
+    // aussitôt remplacé par le montant par défaut (650 €, par exemple).
+    if(e.target.id === 'depositAmount' && !contratEnCoursId){
+      var montantSaisi = Number(e.target.value);
+      if(e.target.value !== '' && e.target.checkValidity() && isFinite(montantSaisi)){
+        contratEnCoursDepositAmount = montantSaisi;
+        updateSummary();
+        // Avant l'enregistrement du contrat, l'état affiché est local : il
+        // doit suivre la saisie sans refaire un appel réseau à chaque touche.
+        if(depositState && !depositContractId){
+          afficherEmpreinte(Object.assign({}, depositState, { depositAmount: montantSaisi }));
+        }
+      }
+      regenererLien();
+      return;
+    }
     updateSummary();
     regenererLien();
     if(e.target.value) e.target.classList.remove('champ-manquant');
