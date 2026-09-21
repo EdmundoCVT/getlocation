@@ -69,6 +69,11 @@ async function handleGet(request, env, headers) {
   if (auth.error) return auth.error;
 
   const url = new URL(request.url);
+  const configured = /^(test|live)_[^\s]+$/.test(env.MOLLIE_DEPOSIT_API_KEY || "");
+  const mollieTestMode = isTestApiKey(env.MOLLIE_DEPOSIT_API_KEY);
+  if (url.searchParams.get("configuration") === "1") {
+    return new Response(JSON.stringify({ configured, mollieTestMode }), { status: 200, headers });
+  }
   const rentalId = url.searchParams.get("rentalId");
   if (!rentalId) return new Response(JSON.stringify({ error: "Paramètre rentalId requis" }), { status: 400, headers });
 
@@ -77,7 +82,7 @@ async function handleGet(request, env, headers) {
   const history = await listDepositAuthorizationsForRental(env, rentalId.slice(0, 100));
   const active = history.find((a) => !isAuthorizationTerminal(a)) || null;
   return new Response(
-    JSON.stringify({ active, history, contractNumero: subject.contractNumero, depositAmount: subject.depositAmountCents == null ? null : subject.depositAmountCents / 100, configured: /^(test|live)_[^\s]+$/.test(env.MOLLIE_DEPOSIT_API_KEY || ""), mollieTestMode: isTestApiKey(env.MOLLIE_DEPOSIT_API_KEY) }),
+    JSON.stringify({ active, history, contractNumero: subject.contractNumero, depositAmount: subject.depositAmountCents == null ? null : subject.depositAmountCents / 100, configured, mollieTestMode }),
     { status: 200, headers }
   );
 }

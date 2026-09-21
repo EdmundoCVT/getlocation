@@ -48,6 +48,17 @@ test("GET : 401 sans session agence", async () => {
   assert.equal(res.status, 401);
 });
 
+test("GET configuration : confirme le mode live sans contrat ni appel Mollie", async () => {
+  const env = makeAgencyEnv({ MOLLIE_DEPOSIT_API_KEY: "live_dummy_key" });
+  const session = await loginAgency(env);
+  const res = await handleAgencyDepositAuthorizations(
+    agencyRequest("https://getlocation.fr/api/agency-deposit-authorizations?configuration=1", { session }),
+    env
+  );
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { configured: true, mollieTestMode: false });
+});
+
 test("create : 200, ligne active renvoyée, mode test signalé", async () => {
   const env = makeAgencyEnv({ MOLLIE_DEPOSIT_API_KEY: "test_dummy_key" });
   const session = await loginAgency(env);

@@ -4346,7 +4346,7 @@ function initOwnerView(prefill){
     var active = state && state.active;
     var canCapture = active && active.status === 'autorisee' && !active.captureRequested;
     document.getElementById('depositAmount').disabled = !!contratEnCoursId;
-    document.getElementById('depositCreate').disabled = depositBusy || !state || !state.configured || !!active || !(state.depositAmount > 0);
+    document.getElementById('depositCreate').disabled = depositBusy || !depositContractId || !state || !state.configured || !!active || !(state.depositAmount > 0);
     document.getElementById('depositRefresh').disabled = depositBusy || !auth;
     document.getElementById('depositRelease').disabled = depositBusy || !active || (!!active.captureRequested && !active.capturedAmountCents);
     document.getElementById('depositCapture').disabled = depositBusy || !canCapture;
@@ -4367,7 +4367,18 @@ function initOwnerView(prefill){
   }
   async function chargerEmpreinte() {
     var id = depositContractId;
-    if (!id) return afficherEmpreinte(null);
+    if (!id) {
+      try {
+        var configResponse = await fetch('/api/agency-deposit-authorizations?configuration=1', { credentials: 'same-origin' });
+        var configBody = await configResponse.json();
+        if (!configResponse.ok) throw new Error(configBody.error || 'Impossible de vérifier la configuration Mollie.');
+        return afficherEmpreinte({ configured: configBody.configured, mollieTestMode: configBody.mollieTestMode, depositAmount: Number(document.getElementById('depositAmount').value), active: null, history: [] });
+      } catch(e) {
+        afficherEmpreinte(null);
+        document.getElementById('depositError').textContent = e.message;
+        return;
+      }
+    }
     afficherEmpreinte(null);
     try {
       var response = await fetch('/api/agency-deposit-authorizations?rentalId=' + encodeURIComponent(id), { credentials: 'same-origin' });
@@ -4449,7 +4460,7 @@ function initOwnerView(prefill){
     depositContractId = null;
     depositHistoriqueAbsent = false;
     contratEnCoursDepositAmount = null;
-    afficherEmpreinte(null);
+    chargerEmpreinte();
     updateSummary();
     document.getElementById('genererContratTitre').textContent = 'Générer le contrat officiel';
     document.getElementById('genererContratLead').textContent = 'Attribue un numéro de contrat unique, enregistre le contrat (pour l\'historique et la duplication) et télécharge le PDF final.';
@@ -4631,6 +4642,7 @@ function initOwnerView(prefill){
       .catch(function(){ /* historique = confort, ne bloque pas le reste de la page si indisponible */ });
   }
   chargerHistorique();
+  chargerEmpreinte();
 
   function regenererLien(){
     if(!tousLesChampsRequisRemplis()){
