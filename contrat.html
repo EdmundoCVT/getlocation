@@ -120,7 +120,7 @@
   .recap-row:last-child{border-bottom:none;}
   .recap-row span:first-child{color:#6b6478;}
   .recap-row span:last-child{font-weight:600;color:var(--gris-fonce);text-align:right;}
-  .historique-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--gris-clair);font-size:13.5px;}
+  .historique-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--gris-clair);font-size:13.5px;}
   .historique-row:last-child{border-bottom:none;}
   .historique-row .info{display:flex;flex-direction:column;gap:2px;}
   .historique-row .numero{font-weight:700;color:var(--bleu-nuit);}
@@ -4443,11 +4443,14 @@ function initOwnerView(prefill){
       var actions = row.querySelector('.actions');
 
       // Les contrats issus d'une réservation en ligne vivent dans le
-      // dossier sécurisé (jeton envoyé par e-mail à l'agence) : impossible
-      // de reconstruire cet accès depuis cette liste (le jeton brut n'est
-      // jamais reconservé, seule son empreinte l'est — voir
-      // contract-dossier-token.js). Ces entrées restent donc en lecture
-      // seule ici, uniquement pour référence/numérotation.
+      // dossier sécurisé (jeton envoyé par e-mail à l'agence au moment du
+      // paiement). Le jeton brut n'est jamais reconservé (seule son
+      // empreinte l'est — voir contract-dossier-token.js), donc impossible
+      // de le retrouver depuis cette liste : "Renvoyer le lien" en réémet
+      // un nouveau à la demande (voir contract-agency-link.js), pour ne
+      // plus dépendre de retrouver l'e-mail d'origine — par exemple pour
+      // transmettre directement à Antonio le lien du dossier afin qu'il
+      // complète l'état des lieux de retour depuis son téléphone.
       if(entry.origine === 'manuel'){
         var ouvrirBtn = document.createElement('button');
         ouvrirBtn.type = 'button'; ouvrirBtn.className = 'btn'; ouvrirBtn.textContent = 'Ouvrir';
@@ -4470,9 +4473,77 @@ function initOwnerView(prefill){
 
         actions.appendChild(ouvrirBtn);
         actions.appendChild(dupliquerBtn);
+      } else if(entry.origine === 'reservation'){
+        var lienBtn = document.createElement('button');
+        lienBtn.type = 'button'; lienBtn.className = 'btn'; lienBtn.textContent = 'Renvoyer le lien';
+        lienBtn.addEventListener('click', function(){
+          var texteInitial = lienBtn.textContent;
+          lienBtn.disabled = true; lienBtn.textContent = 'Génération…';
+          fetch('/api/contract-agency-link', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-Agency-Csrf': agenceCsrfToken || '' },
+            body: JSON.stringify({ id: entry.id })
+          }).then(function(r){
+            return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || 'Erreur'); return body; });
+          }).then(function(body){
+            afficherLienDossierAgence(row, body.agencyUrl);
+          }).catch(function(err){
+            alert(err.message || "Le lien n'a pas pu être généré.");
+          }).finally(function(){
+            lienBtn.disabled = false; lienBtn.textContent = texteInitial;
+          });
+        });
+        actions.appendChild(lienBtn);
       }
       conteneur.appendChild(row);
     });
+  }
+
+  // Affiche/rafraîchit, sous une ligne de l'historique, le lien fraîchement
+  // réémis pour le dossier agence de cette réservation (bouton "Renvoyer le
+  // lien" ci-dessus) avec copie et partage WhatsApp directs — même esprit
+  // que le link-box/share-actions déjà utilisés ailleurs dans cette page,
+  // mais localisé à la ligne concernée (plusieurs liens peuvent coexister
+  // dans l'historique).
+  function afficherLienDossierAgence(row, url){
+    var existant = row.querySelector('.historique-lien-dossier');
+    if(existant) existant.remove();
+
+    var bloc = document.createElement('div');
+    bloc.className = 'historique-lien-dossier';
+    bloc.style.cssText = 'flex-basis:100%;margin-top:8px;padding-top:8px;border-top:1px dashed var(--ligne);display:flex;flex-wrap:wrap;gap:6px;align-items:center;';
+
+    var input = document.createElement('input');
+    input.type = 'text'; input.readOnly = true; input.value = url;
+    input.style.cssText = 'flex:1 1 220px;min-width:0;background:var(--gris-clair);font-size:12.5px;color:#6b6478;padding:6px 8px;border:1px solid var(--ligne);border-radius:7px;';
+
+    var copierBtn = document.createElement('button');
+    copierBtn.type = 'button'; copierBtn.className = 'btn'; copierBtn.style.cssText = 'padding:6px 10px;font-size:13px;';
+    copierBtn.textContent = '📋 Copier';
+    copierBtn.addEventListener('click', function(){
+      input.select();
+      function marquerCopie(){
+        copierBtn.textContent = 'Copié ✓';
+        setTimeout(function(){ copierBtn.textContent = '📋 Copier'; }, 1500);
+      }
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(url).then(marquerCopie).catch(function(){ try{ document.execCommand('copy'); marquerCopie(); }catch(e){} });
+      } else {
+        try{ document.execCommand('copy'); marquerCopie(); }catch(e){}
+      }
+    });
+
+    var whatsappA = document.createElement('a');
+    whatsappA.className = 'btn'; whatsappA.style.cssText = 'padding:6px 10px;font-size:13px;';
+    whatsappA.target = '_blank'; whatsappA.rel = 'noopener';
+    whatsappA.textContent = '💬 WhatsApp';
+    whatsappA.href = 'https://wa.me/?text=' + encodeURIComponent('Lien du dossier (remise/état des lieux) : ' + url);
+
+    bloc.appendChild(input);
+    bloc.appendChild(copierBtn);
+    bloc.appendChild(whatsappA);
+    row.appendChild(bloc);
   }
 
   function chargerHistorique(){
