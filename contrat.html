@@ -98,6 +98,7 @@
     border-radius:9px;border:1px solid var(--ligne);background:var(--blanc);color:var(--gris-fonce);cursor:pointer;
   }
   .btn:hover{background:var(--gris-clair);}
+  .btn:disabled{opacity:.48;cursor:not-allowed;background:var(--gris-clair);}
   .btn-ghost{border-color:transparent;color:#6b6478;}
   .btn-primary{
     background:var(--bleu-ocean);border-color:var(--bleu-ocean);color:#fff;
@@ -4391,7 +4392,10 @@ function initOwnerView(prefill){
     var active = state && state.active;
     var canCapture = active && active.status === 'autorisee' && !active.captureRequested;
     document.getElementById('depositAmount').disabled = !!contratEnCoursId;
-    document.getElementById('depositCreate').disabled = depositBusy || !depositContractId || !state || !state.configured || !!active || !(state.depositAmount > 0);
+    var depositCreateBtn = document.getElementById('depositCreate');
+    depositCreateBtn.disabled = depositBusy || !depositContractId || !state || !state.configured || !!active || !(state.depositAmount > 0);
+    depositCreateBtn.textContent = !depositContractId ? 'Générez d’abord le contrat' : 'Créer l’empreinte';
+    depositCreateBtn.title = !depositContractId ? 'Le contrat officiel doit être enregistré avant de créer le lien Mollie.' : '';
     document.getElementById('depositRefresh').disabled = depositBusy || !auth;
     document.getElementById('depositRelease').disabled = depositBusy || !active || (!!active.captureRequested && !active.capturedAmountCents);
     document.getElementById('depositCapture').disabled = depositBusy || !canCapture;
@@ -4402,6 +4406,7 @@ function initOwnerView(prefill){
     text += !state ? 'Enregistrez le contrat pour créer une empreinte.' : !state.configured ? 'Clé caution non configurée.' : (state.mollieTestMode ? 'MOLLIE — MODE TEST' : 'MOLLIE — MODE LIVE');
     if (state && state.depositAmount != null) text += ' — Montant enregistré : ' + formatEUR(state.depositAmount);
     if (state && state.depositAmount == null) text += ' — Montant historique absent : aucune empreinte ne peut être créée.';
+    if (state && !depositContractId) text += ' — Étape suivante : cliquez sur « Générer le contrat officiel » plus bas dans la page.';
     if (auth) text += ' — ' + (depositLabels[auth.status] || auth.status) + ' (' + (auth.testMode ? 'TEST' : 'LIVE') + ') — ' + formatEUR(auth.authorizedAmountCents / 100) + '. Débité : ' + formatEUR(auth.capturedAmountCents / 100) + '. Capture avant : ' + (auth.captureBefore ? new Date(auth.captureBefore).toLocaleString('fr-FR') : 'non communiquée par Mollie') + (auth.captureRequested && auth.mollieStatus === 'authorized' ? ' — Demande de capture envoyée : actualisez pour confirmation.' : '');
     document.getElementById('depositStatus').textContent = text;
     var checkout = active && active.checkoutUrl;

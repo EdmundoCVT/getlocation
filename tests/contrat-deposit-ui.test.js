@@ -63,6 +63,9 @@ test('/contrat: la saisie au clavier de 50 € ne revient pas au montant par dé
   input.dispatchEvent(new w.Event('input', { bubbles: true }));
   assert.equal(input.value, '50');
   assert.match(w.document.getElementById('depositStatus').textContent, /Montant enregistré : 50/);
+  assert.match(w.document.getElementById('depositStatus').textContent, /Générer le contrat officiel/);
+  assert.equal(w.document.getElementById('depositCreate').textContent, 'Générez d’abord le contrat');
+  assert.equal(w.document.getElementById('depositCreate').disabled, true);
   dom.window.close();
 });
 test('/contrat: unconfigured key disables create and labels no LIVE mode', async () => {
