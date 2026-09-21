@@ -75,6 +75,19 @@ test("DMG_SHAPES : chaque vue de DMG_VIEWS a une géométrie définie pour 'car'
   assert.equal(win.DMG_VIEWS.length, 5, "5 vues attendues (dessus, côté gauche, côté droit, avant, arrière)");
 });
 
+test("DMG_SHAPES : les cinq croquis restent simples, lisibles et de proportions homogènes", () => {
+  const win = buildWindow();
+  assert.deepEqual(Array.from(win.DMG_VIEWS).map((vue) => vue.key), ["left", "right", "front", "rear", "top"]);
+  for (const family of ["car", "utility"]) {
+    for (const vue of win.DMG_VIEWS) {
+      const spec = win.DMG_SHAPES[family][vue.shape];
+      const ratio = spec.w / spec.h;
+      assert.ok(ratio >= 1.2 && ratio <= 2.5, `${family}.${vue.shape} ne doit plus produire un croquis très haut ou très étiré`);
+      assert.ok(spec.shapes.length <= 10, `${family}.${vue.shape} contient trop de détails pour un constat rapide`);
+    }
+  }
+});
+
 // Array.from() : les tableaux produits par le code exécuté en jsdom
 // appartiennent à ce "realm" et ne sont jamais réf.-égaux à un littéral du
 // realm Node malgré un contenu identique (deepEqual le voit comme une

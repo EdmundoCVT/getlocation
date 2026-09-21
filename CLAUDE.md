@@ -10,7 +10,7 @@ GETLOCATION — site de location de véhicules à Grasse (Alpes-Maritimes). Site
 
 - **Hébergement** : Cloudflare Workers. `wrangler.jsonc` déclare `main: src/worker.js` (routeur) + `assets` (fichiers statiques du dépôt) + deux espaces KV (`RESERVATIONS_KV`, `RATE_LIMITS_KV`) — IDs réels déjà configurés en production.
 - **Fonctions serveur** : `src/api/*.js` (create-payment, mollie-webhook, reservation-status), routées en same-origin (`/api/...`) par `src/worker.js`. Logique métier partagée dans `src/lib/*.js`.
-- **Paiement** : Mollie, via `src/lib/mollie-client.js` (appels `fetch()` directs à l'API REST — pas le SDK `@mollie/api-client`, non garanti compatible Workers).
+- **Paiement** : Mollie, via `src/lib/mollie-client.js` (appels `fetch()` directs à l'API REST — pas le SDK `@mollie/api-client`, non garanti compatible Workers). Depuis le 16/09/2026, ce même client sert aussi à l'**empreinte bancaire du dépôt de garantie** (préautorisation carte, `captureMode: manual`, secret **distinct** `MOLLIE_DEPOSIT_API_KEY`) — voir `src/lib/deposit-authorizations.js` et `DEPLOIEMENT.md` §0.7 (interface `/contrat` reliée, tests simulés TEST/LIVE, migrations 0005–0007 requises).
 - **Stockage** : Cloudflare KV (`src/lib/reservation-store.js`, `src/lib/rate-limiter.js`).
 - **Email** : API HTTP Resend (`src/lib/resend-client.js`, `send-confirmation-email.js`, `send-contract-email.js`) — pas de SMTP (incompatible avec le runtime Workers).
 - **`netlify.toml` et `netlify/functions/` sont legacy** : plus appelés par le site (l'ancien mécanisme cross-origin vers Netlify a été retiré de `js/app.js`), gardés temporairement comme filet de sécurité. **À supprimer** (+ dépendances `@netlify/blobs`, `@mollie/api-client`, `nodemailer` dans `package.json`) une fois la Phase B confirmée stable en production depuis un moment — demander confirmation avant de le faire.
@@ -186,6 +186,7 @@ Le dépôt est aussi connecté à un déploiement Git automatique Cloudflare (pu
 
 ## Chantiers ouverts connus
 
+- Empreinte bancaire Mollie : interface `/contrat` et historique reliés ; `MOLLIE_DEPOSIT_API_KEY` accepte TEST/LIVE, séparée de `MOLLIE_API_KEY`. Migrations 0005–0007 et validation du profil Mollie requises avant usage réel (DEPLOIEMENT.md §0.7). Aucun appel financier réel pendant la reprise. Les erreurs réseau ambiguës restent verrouillées pour réconciliation manuelle.
 - Suppression du code Netlify legacy (`netlify.toml`, `netlify/functions/`, dépendances associées) — en attente de confirmation utilisateur.
 - 12 informations légales manquantes (SIRET, mentions légales...) — voir `LEGAL-TODO.md`.
 - Retour utilisateur sur la présentation visuelle de `contrat.html` (pas de détail précis donné à ce jour — redemander si pertinent).

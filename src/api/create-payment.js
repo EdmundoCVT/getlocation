@@ -239,6 +239,13 @@ async function handleCreatePayment(request, env) {
     codePromo: prix.codePromo,
     reductionPromoMontant: prix.reductionPromoMontant,
     total: totalFacture,
+    // Dépôt de garantie figé au moment du paiement (VEHICULES[].caution,
+    // seule source de vérité — voir js/data.js) : un contrat déjà payé
+    // n'affiche jamais un montant recalculé après coup si ce tarif change
+    // ensuite. Voir resolveDepositAmount() dans js/data.js pour le repli
+    // appliqué aux réservations antérieures à ce champ.
+    defaultDepositAmount: vehicule.caution,
+    depositAmount: vehicule.caution,
     cglVersion: payload.cglVersion,
     cglAcceptedAt: new Date().toISOString(),
     // Langue dans laquelle le client a réservé (voir js/i18n.js), pour les

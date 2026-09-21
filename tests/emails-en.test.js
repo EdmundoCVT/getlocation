@@ -55,8 +55,11 @@ test("les e-mails français ne changent pas", () => {
   assert.equal(subject, "Confirmation de votre réservation GET LOCATION — Opel Corsa Business 1.2T");
   assert.match(text, /^Bonjour John,/);
   assert.match(text, /Véhicule : Opel Corsa Business 1\.2T/);
-  // formatEUR() sépare le montant du « € » par une espace insécable.
-  assert.match(text, /Caution du véhicule : 500\s€ \(prélevée avant la remise des clés\)/);
+  // formatEUR() sépare le montant du « € » par une espace insécable. 650 € :
+  // VEHICULES[].caution pour opel-corsa (voir js/data.js) — RESERVATION
+  // ci-dessus n'a pas de depositAmount figé, donc repli sur ce tarif
+  // courant (voir resolveDepositAmount() dans js/data.js).
+  assert.match(text, /Caution du véhicule : 650\s€ \(prélevée avant la remise des clés\)/);
   assert.match(text, /mercredi 16 septembre 2026 à 10:00/);
   assert.match(text, /L'équipe GET LOCATION$/);
 });

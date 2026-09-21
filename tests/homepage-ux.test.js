@@ -69,7 +69,11 @@ test("le sélecteur de véhicule utilise des icônes vectorielles sans emoji", (
 test("chaque véhicule de la homepage affiche sa caution exacte", () => {
   for (const vehicule of VEHICULES) {
     const card = document.querySelector(`[data-vehicle-link="vehicules.html?vehicule=${vehicule.id}"]`);
-    assert.match(card.textContent, new RegExp(`Caution ${vehicule.caution} €`));
+    // Séparateur de milliers (espace ASCII, convention du HTML en dur de ce
+    // dépôt — voir cgl.html "2 000 €") : nécessaire dès qu'une caution
+    // atteint 4 chiffres (ex. Toyota Proace, 1 000 €).
+    const montantAffiche = String(vehicule.caution).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    assert.match(card.textContent, new RegExp(`Caution ${montantAffiche} €`));
   }
 });
 

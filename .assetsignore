@@ -6,12 +6,20 @@
 # de build du 2026-08-14.
 node_modules
 .git
+.claude
 .wrangler
 tests
 netlify
+migrations
+scripts
 package.json
 package-lock.json
+*.md
 deployer.command
+.assetsignore
+.gitignore
+netlify.toml
+wrangler.jsonc
 .DS_Store
 # src/ contient le code serveur du Worker (paiement, webhook Mollie...),
 # bundlé séparément via `main` dans wrangler.jsonc — il ne doit jamais être

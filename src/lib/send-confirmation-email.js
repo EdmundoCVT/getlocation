@@ -22,7 +22,7 @@
 // (avertissement en log) mais la confirmation de paiement elle-même n'est
 // pas affectée.
 
-const { getVehiculeParId, formatEUR, libelleAdresseLivraison } = require("../../js/data.js");
+const { getVehiculeParId, resolveDepositAmount, formatEUR, libelleAdresseLivraison } = require("../../js/data.js");
 const { sendEmail } = require("./resend-client.js");
 const { traducteur, langueClient, formatDateHeure, lienPageClient, deuxPoints } = require("./textes-email.js");
 
@@ -95,7 +95,7 @@ function buildConfirmationEmailContent(reservation, siteUrl) {
   const prise = formatDateHeure(reservation.dateDebut, reservation.heureDebut, langue);
   const retour = formatDateHeure(reservation.dateFin, reservation.heureFin, langue);
   const total = typeof reservation.total === "number" ? formatEUR(reservation.total) : "";
-  const caution = vehicule ? formatEUR(vehicule.caution) : "";
+  const caution = vehicule ? formatEUR(resolveDepositAmount(reservation, vehicule)) : "";
   const prenom = reservation.conducteur ? reservation.conducteur.prenom : "";
   const checklistLignes = buildChecklistLignes(reservation, t);
   const whatsappUrl = buildWhatsappUrl(reservation.id, t);

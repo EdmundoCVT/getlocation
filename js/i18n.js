@@ -238,9 +238,10 @@
     "Manuelle": "Manual",
     "Automatique": "Automatic",
     "Climatisation": "Air conditioning",
-    "Caution 500 €": "€500 deposit",
-    "Caution 600 €": "€600 deposit",
-    "Caution 800 €": "€800 deposit",
+    "Caution 650 €": "€650 deposit",
+    "Caution 750 €": "€750 deposit",
+    "Caution 900 €": "€900 deposit",
+    "Caution 1 000 €": "€1,000 deposit",
     "À partir de": "From",
     "/ jour": " / day",
     "Voir le véhicule": "View this vehicle",
@@ -290,8 +291,8 @@
     "Nous sommes une agence en ligne : le véhicule est livré à l'adresse, à la gare ou au point de rendez-vous choisi sur la Côte d'Azur.":
       "We are an online agency: your vehicle is delivered to the address, railway station or meeting point you choose on the French Riviera.",
     "Une caution est-elle demandée ?": "Is a deposit required?",
-    "Oui, un dépôt de garantie de 500 à 800 € est demandé selon le véhicule loué. Son montant exact est affiché sur chaque fiche véhicule.":
-      "Yes, a security deposit of €500 to €800 is required depending on the vehicle. The exact amount is shown on each vehicle page.",
+    "Oui, un dépôt de garantie de 650 à 1 000 € est demandé selon le véhicule loué. Son montant exact est affiché sur chaque fiche véhicule.":
+      "Yes, a security deposit of €650 to €1,000 is required depending on the vehicle. The exact amount is shown on each vehicle page.",
     "Le paiement en ligne est-il sécurisé ?": "Is online payment secure?",
     "Oui, le paiement est traité par Mollie, un prestataire de paiement certifié. GETLOCATION ne stocke aucune donnée bancaire.":
       "Yes, payments are handled by Mollie, a certified payment provider. GETLOCATION never stores your card details.",

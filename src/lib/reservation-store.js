@@ -67,6 +67,7 @@ async function createManualContract(env, rawData, operator) {
   const now = new Date().toISOString();
   const record = {
     ...rawData,
+    ...require("./deposit-terms.js").depositTerms(rawData),
     id,
     contractNumero: numero,
     status: "manual_contract",
@@ -75,6 +76,7 @@ async function createManualContract(env, rawData, operator) {
     createdBy: operator || null,
     updatedBy: operator || null
   };
+  await require("./deposit-terms.js").saveContractDepositTerms(env, record);
   await env.RESERVATIONS_KV.put(id, JSON.stringify(record));
   return record;
 }
@@ -90,8 +92,11 @@ async function createManualContract(env, rawData, operator) {
 async function updateManualContract(env, id, rawData, operator) {
   const record = await getReservation(env, id);
   if (!record || record.status !== "manual_contract") return null;
+  if (rawData.depositAmount != null && rawData.depositAmount !== record.depositAmount) throw new Error("Le montant d’un contrat finalisé ne peut plus être modifié. Créez un nouveau contrat.");
   const updated = {
     ...rawData,
+    depositAmount: record.depositAmount,
+    defaultDepositAmount: record.defaultDepositAmount,
     id: record.id,
     contractNumero: record.contractNumero,
     status: "manual_contract",

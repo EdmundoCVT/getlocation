@@ -43,6 +43,7 @@ Le code est complet et testé (`npm test`), mais **rien de tout cela n'est dépl
 | Variable | Obligatoire | Rôle |
 |---|---|---|
 | `MOLLIE_API_KEY` | Oui, pour activer le paiement en ligne | Identique à l'ancienne variable Netlify (section 2) — jeton d'accès Mollie (`test_...` ou `live_...`). |
+| `MOLLIE_DEPOSIT_API_KEY` | Oui, pour activer l'empreinte bancaire (caution) | **Secret DISTINCT de `MOLLIE_API_KEY`** — jeton d'accès Mollie dédié à la préautorisation carte du dépôt de garantie (voir §0.7). Accepte `test_...` ou une clé `live_...` dédiée. Ne pas modifier la clé de paiement existante ; voir validation et limites en §0.7. |
 | `RESEND_API_KEY` | Oui, pour les emails (confirmation client + contrat agence) | Clé API Resend (remplace `GMAIL_USER`/`GMAIL_APP_PASSWORD`). Sans elle, le paiement fonctionne quand même, seuls les emails ne sont pas envoyés (comportement "best effort" inchangé). |
 | `RESEND_FROM` | Optionnel | Adresse expéditrice, format `"Nom <adresse@domaine>"`. Doit appartenir à un domaine vérifié dans Resend (voir 0.1.3). Par défaut : `"GET LOCATION <reservations@getlocation.fr>"`. |
 | `AGENCY_EMAIL` | Oui, pour recevoir le contrat pré-rempli et la copie cachée des confirmations | Remplace l'usage de `GMAIL_USER` comme adresse de réception (l'agence peut garder une adresse Gmail ordinaire ici — elle ne sert plus qu'en tant que destinataire, plus d'authentification SMTP). |
@@ -133,6 +134,24 @@ Le total affiché sur reservation.html reste volontairement le tarif normal (ind
 - **Kilométrage jamais calculé côté client** : `calculerKilometrage()` (`js/data.js`, seule source de vérité avec `KM_INCLUS_PAR_JOUR`/`SUPPLEMENT_KM_CENTIMES` — 200 km/jour, 0,25 €/km, valeurs reprises telles quelles depuis l'ancien code de `contrat.html`, qui les avait en dur) est appelée côté serveur à chaque `update-retour`, à partir des seuls relevés compteur bruts ; un retour inférieur au départ est rejeté (400, rien n'est enregistré). Le client (navigateur agence) affiche toujours le résultat renvoyé par le serveur, jamais un calcul local fait confiance.
 - Aucune donnée personnelle dans les journaux serveur : les handlers ne loggent jamais rien d'autre qu'un id de réservation (déjà un identifiant opaque, comme pour `mollie-webhook.js`/`documents-submit.js`).
 - `send-contract-email.js` utilise ce nouveau lien dès que `DOCUMENT_TOKEN_PEPPER` est configuré (jeton émis dans `mollie-webhook.js#handlePaid`, comme `documentAccess`) ; sans ce secret, repli automatique sur l'ancien lien `?prefill=` — aucune régression, juste moins sécurisé.
+
+### 0.7 Empreinte bancaire Mollie pour le dépôt de garantie (préautorisation carte, captureMode manual)
+
+**Reprise du 16/09/2026 : interface `/contrat` reliée et compatibilité TEST/LIVE vérifiée avec des réponses Mollie simulées. Aucun appel financier réel réalisé.**
+
+- Secret exclusif : `MOLLIE_DEPOSIT_API_KEY`. Ne jamais remplacer `MOLLIE_API_KEY` (paiements de location).
+- Avant de déployer ce code, appliquer les migrations D1 0005, 0006 puis 0007 dans l’ordre (les migrations déjà appliquées ne doivent pas être rejouées). Sauvegarder la base au préalable. Aucun changement de base distante n’a été exécuté pendant cette reprise.
+- 0007 conserve les empreintes existantes, relie aussi les contrats KV, ajoute les verrous atomiques de montant/création/action. Si des empreintes actives en doublon existaient déjà, la création de l’index unique échoue : réconcilier les dossiers avec Mollie avant de poursuivre, sans suppression automatique.
+- `/contrat` : choisir le montant agence avant génération officielle, puis créer l’empreinte, copier/ouvrir le lien, actualiser, annuler/libérer ou confirmer un débit total/partiel. L’historique permet aussi « Gérer la caution » pour une réservation en ligne.
+- `defaultDepositAmount` et `depositAmount` sont enregistrés côté serveur. La caution est indépendante de la protection/franchise. Les contrats finalisés ne changent plus de montant. Un brouillon D1 peut changer de montant après libération/annulation ; la base interdit les modifications tant qu’une empreinte subsiste.
+- Les anciennes données ne sont pas recalculées : montant historique absent = création d’empreinte refusée, vérification du contrat original nécessaire.
+- Champ Mollie confirmé dans la documentation : `captureBefore`. Libération : `POST /payments/{id}/release-authorization`; annulation d’un lien non autorisé : `DELETE /payments/{id}`. Création : `method: creditcard`, `captureMode: manual`, jamais de `captureDelay` ni de capture automatique.
+- Une demande de capture `pending` n’est pas un débit confirmé. Le montant capturé est lu depuis Mollie. Une seule demande de capture est permise par empreinte dans cette interface ; une capture partielle normale libère le reste (mode multi-capture carte désactivé par défaut chez Mollie).
+- Timeout/échec réseau après une demande financière : verrou conservé et pas de réémission automatique. Vérifier dans le tableau de bord Mollie et réconcilier l’enregistrement avant une nouvelle action. Cette limite protège contre les doubles opérations, y compris au-delà de la durée de validité de l’idempotence Mollie.
+- Les modes TEST/LIVE sont affichés séparément pour la configuration et l’empreinte. Une empreinte TEST ne peut pas être manipulée avec une clé LIVE et inversement.
+- Le script `scripts/test-deposit-authorization.js` reste réservé aux clés TEST et n’a pas été exécuté. La capacité de préautorisation de votre profil Mollie LIVE reste à confirmer avant le premier usage réel ; les tests simulés ne la prouvent pas.
+
+Références : [Mollie — préautorisation](https://docs.mollie.com/docs/place-a-hold-for-a-payment), [captures](https://docs.mollie.com/reference/create-capture).
 
 ## 1. Ce qui a été fait
 

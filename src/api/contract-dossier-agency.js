@@ -18,7 +18,7 @@
 // du dossier contrat, un contrat ne doit jamais pouvoir diverger de ce qui
 // a réellement été payé.
 
-const { getVehiculeParId, calculerKilometrage, joursFacturablesDepuisHeures, dureeEnHeures, KM_INCLUS_PAR_JOUR, SUPPLEMENT_KM_CENTIMES, CGL_VERSION, parseAdressePersonnalisee } = require("../../js/data.js");
+const { getVehiculeParId, resolveDepositAmount, calculerKilometrage, joursFacturablesDepuisHeures, dureeEnHeures, KM_INCLUS_PAR_JOUR, SUPPLEMENT_KM_CENTIMES, CGL_VERSION, parseAdressePersonnalisee } = require("../../js/data.js");
 const {
   updateContractDossier,
   findReservationByContractAgencyTokenHash,
@@ -104,7 +104,7 @@ function buildDossierView(reservation) {
       // confirmation.html. Peut être absent sur une réservation payée avant
       // l'introduction de ce champ.
       contractNumero: reservation.contractNumero || null,
-      vehicule: vehicule ? { id: vehicule.id, nom: vehicule.nom, immatriculation: vehicule.immatriculation, caution: vehicule.caution, prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, vin: vehicule.vin || null } : null,
+      vehicule: vehicule ? { id: vehicule.id, nom: vehicule.nom, immatriculation: vehicule.immatriculation, caution: resolveDepositAmount(reservation, vehicule), prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, vin: vehicule.vin || null } : null,
       dateDebut: reservation.dateDebut,
       heureDebut: reservation.heureDebut,
       dateFin: reservation.dateFin,

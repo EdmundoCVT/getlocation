@@ -99,7 +99,9 @@ async function handleContractsManualCreate(request, env) {
     return new Response(JSON.stringify({ error: "Champs requis manquants (véhicule, dates, nom, prénom)" }), { status: 400, headers });
   }
 
-  const record = await createManualContract(env, rawData, auth.session.operator);
+  let record;
+  try { record = await createManualContract(env, rawData, auth.session.operator);
+  } catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 400, headers }); }
   return new Response(JSON.stringify({ id: record.id, numero: record.contractNumero, createdAt: record.createdAt }), { status: 200, headers });
 }
 

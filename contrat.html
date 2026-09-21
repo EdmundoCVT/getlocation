@@ -98,6 +98,7 @@
     border-radius:9px;border:1px solid var(--ligne);background:var(--blanc);color:var(--gris-fonce);cursor:pointer;
   }
   .btn:hover{background:var(--gris-clair);}
+  .btn:disabled{opacity:.48;cursor:not-allowed;background:var(--gris-clair);}
   .btn-ghost{border-color:transparent;color:#6b6478;}
   .btn-primary{
     background:var(--bleu-ocean);border-color:var(--bleu-ocean);color:#fff;
@@ -175,15 +176,15 @@
     .contract-text{max-height:none;overflow:visible;border:none;padding:0;}
   }
 
-  /* État des lieux : présentation type fiche d'inspection automobile */
+  /* État des lieux : silhouettes simples, homogènes et faciles à pointer. */
   .dmg-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 22px;align-items:start;}
   .dmg-view{gap:7px;}
   .dmg-view-label{font-size:12px;font-weight:800;color:#34313b;text-transform:uppercase;letter-spacing:.025em;}
-  .dmg-canvas{background:#fff;border:0;border-radius:0;min-height:150px;overflow:visible;}
+  .dmg-canvas{background:#fbfbfd;border:1px solid #ddd9e4;border-radius:12px;min-height:0;overflow:hidden;padding:8px;}
   .dmg-canvas svg{width:100%;height:100%;display:block;}
-  .dmg-shape{stroke:#8b8b8b;stroke-width:1.35;vector-effect:non-scaling-stroke;fill:none;stroke-linecap:round;stroke-linejoin:round;}
-  .dmg-view:nth-child(5){grid-column:1 / -1;max-width:260px;justify-self:center;width:100%;}
-  @media(max-width:640px){.dmg-grid{grid-template-columns:1fr 1fr;gap:16px 14px}.dmg-canvas{min-height:125px}.dmg-view-label{font-size:11px}.dmg-view:nth-child(5){max-width:210px}}
+  .dmg-shape{stroke:#6f6879;stroke-width:1.65;vector-effect:non-scaling-stroke;fill:none;stroke-linecap:round;stroke-linejoin:round;}
+  .dmg-view:nth-child(5){grid-column:1 / -1;max-width:360px;justify-self:center;width:100%;}
+  @media(max-width:640px){.dmg-grid{grid-template-columns:1fr;gap:16px}.dmg-view:nth-child(5){grid-column:auto;max-width:none}.dmg-view-label{font-size:11px}}
 </style>
 </head>
 <body>
@@ -337,6 +338,31 @@
             <button type="button" class="tab-btn" data-mode="virement">Virement</button>
           </div>
         </div>
+      </div>
+
+      <div class="card" id="depositPanel">
+        <h2>Dépôt de garantie — empreinte bancaire</h2>
+        <label for="depositAmount">Montant de la caution (€) — agence uniquement</label>
+        <input id="depositAmount" type="number" min="0.01" step="0.01">
+        <p id="depositDefault"></p>
+        <p>Choisissez le montant avant de générer le contrat officiel. Un contrat finalisé conserve son montant.</p>
+        <p id="depositStatus" role="status" aria-live="polite">Enregistrez le contrat pour créer une empreinte.</p>
+        <div class="actions">
+          <button type="button" class="btn" id="depositCreate" disabled>Créer l’empreinte</button>
+          <button type="button" class="btn" id="depositRefresh" disabled>Actualiser le statut</button>
+          <button type="button" class="btn" id="depositRelease" disabled>Annuler / libérer</button>
+        </div>
+        <div id="depositCheckout" hidden>
+          <label for="depositLink">Lien sécurisé à transmettre au client</label>
+          <input id="depositLink" readonly>
+          <button type="button" class="btn" id="depositCopy">Copier le lien client</button>
+          <a class="btn" id="depositOpen" target="_blank" rel="noopener noreferrer">Ouvrir le lien client</a>
+        </div>
+        <label for="depositCaptureAmount">Montant à débiter (€)</label>
+        <input id="depositCaptureAmount" type="number" min="0.01" step="0.01">
+        <button type="button" class="btn" id="depositCapture" disabled>Débiter ce montant</button>
+        <p>Le débit nécessite votre confirmation. Une capture partielle peut libérer le solde selon la configuration Mollie.</p>
+        <p id="depositError" role="alert"></p>
       </div>
 
       <div class="card">
@@ -1165,9 +1191,9 @@ var DMG_TYPES = [
 ];
 
 var DMG_VIEWS = [
-  { key: 'left', label: 'Profil conducteur', shape: 'side' },
+  { key: 'left', label: 'Côté gauche · conducteur', shape: 'side' },
+  { key: 'right', label: 'Côté droit · passager', shape: 'side', mirror: true },
   { key: 'front', label: 'Avant', shape: 'front' },
-  { key: 'right', label: 'Profil passager', shape: 'side', mirror: true },
   { key: 'rear', label: 'Arrière', shape: 'rear' },
   { key: 'top', label: 'Dessus', shape: 'top' }
 ];
@@ -1178,67 +1204,46 @@ var DMG_VIEWS = [
 // l'écran quel que soit le véhicule choisi).
 var DMG_SHAPES = {
   car: {
-    // Croquis générique réaliste, volontairement sans marque/modèle : assez
-    // détaillé pour localiser précisément un dommage, sans laisser croire que
-    // le dessin représente le véhicule exact loué.
-    top: { w: 150, h: 280, shapes: [
-      ['poly', [[49,10],[101,10],[121,26],[132,58],[136,218],[125,251],[104,270],[46,270],[25,251],[14,218],[18,58],[29,26],[49,10]]],
-      ['poly', [[39,38],[111,38],[122,68],[119,105],[31,105],[28,68],[39,38]]],
-      ['poly', [[31,112],[119,112],[121,206],[29,206],[31,112]]],
-      ['poly', [[34,213],[116,213],[108,246],[96,257],[54,257],[42,246],[34,213]]],
-      ['line', 75, 38, 75, 257],
-      ['line', 31, 112, 119, 112],
-      ['line', 29, 206, 121, 206],
-      ['line', 23, 76, 10, 86], ['line', 127, 76, 140, 86],
-      ['rect', 5, 48, 11, 36, 4], ['rect', 134, 48, 11, 36, 4],
-      ['rect', 5, 198, 11, 36, 4], ['rect', 134, 198, 11, 36, 4]
+    // Croquis générique volontairement sobre : contour, vitrages, ouvrants
+    // principaux et roues seulement. Le dessin localise le dommage sans
+    // faire croire qu'il représente le modèle exact loué.
+    top: { w: 190, h: 140, shapes: [
+      ['poly', [[68,8],[122,8],[144,20],[155,45],[158,95],[144,120],[122,132],[68,132],[46,120],[32,95],[35,45],[46,20],[68,8]]],
+      ['poly', [[61,27],[129,27],[141,48],[138,91],[52,91],[49,48],[61,27]]],
+      ['line', 95,27,95,118], ['line', 52,91,138,91], ['line', 46,107,144,107],
+      ['rect', 23,37,10,25,4], ['rect', 157,37,10,25,4],
+      ['rect', 23,83,10,25,4], ['rect', 157,83,10,25,4]
     ] },
     side: { w: 300, h: 130, shapes: [
-      ['poly', [[12,91],[15,69],[30,57],[62,48],[91,25],[119,16],[199,16],[225,29],[246,49],[278,61],[289,73],[287,91],[268,99],[31,99],[12,91]]],
-      ['poly', [[83,48],[104,27],[124,22],[160,22],[160,49],[83,49]]],
-      ['poly', [[166,22],[195,22],[217,34],[232,49],[166,49],[166,22]]],
-      ['line', 160, 22, 160, 98],
-      ['line', 82, 49, 77, 96],
-      ['line', 235, 51, 240, 96],
-      ['line', 31, 67, 68, 62],
-      ['line', 249, 62, 279, 69],
-      ['line', 107, 57, 139, 57],
-      ['line', 184, 57, 215, 57],
-      ['line', 24, 83, 42, 83],
-      ['line', 259, 82, 283, 82],
-      ['ellipse', 70, 99, 27, 27], ['ellipse', 238, 99, 27, 27],
-      ['ellipse', 70, 99, 16, 16], ['ellipse', 238, 99, 16, 16]
+      ['poly', [[13,91],[18,68],[43,54],[76,47],[103,24],[126,16],[197,16],[223,29],[246,49],[279,61],[289,74],[286,92],[262,99],[37,99],[13,91]]],
+      ['poly', [[89,47],[109,27],[129,22],[158,22],[158,48],[89,48]]],
+      ['poly', [[165,22],[194,22],[215,33],[232,48],[165,48],[165,22]]],
+      ['line', 161, 22, 161, 98], ['line', 82, 49, 78, 96], ['line', 237, 50, 241, 96],
+      ['ellipse', 70, 99, 25, 25], ['ellipse', 239, 99, 25, 25],
+      ['ellipse', 70, 99, 13, 13], ['ellipse', 239, 99, 13, 13]
     ] },
     front: { w: 190, h: 140, shapes: [
-      ['poly', [[34,111],[22,101],[25,62],[38,39],[58,22],[132,22],[152,39],[165,62],[168,101],[156,111],[34,111]]],
-      ['poly', [[50,43],[62,27],[128,27],[140,43],[134,65],[56,65],[50,43]]],
-      ['poly', [[36,72],[72,68],[65,83],[38,84],[36,72]]],
-      ['poly', [[154,72],[118,68],[125,83],[152,84],[154,72]]],
-      ['poly', [[67,88],[123,88],[115,105],[75,105],[67,88]]],
-      ['line', 81, 74, 109, 74],
-      ['line', 27, 96, 51, 96], ['line', 139, 96, 163, 96],
-      ['ellipse', 43, 121, 18, 11], ['ellipse', 147, 121, 18, 11],
-      ['line', 18, 58, 6, 51], ['line', 172, 58, 184, 51]
+      ['poly', [[31,112],[23,99],[26,61],[42,35],[61,21],[129,21],[148,35],[164,61],[167,99],[159,112],[31,112]]],
+      ['poly', [[51,45],[63,28],[127,28],[139,45],[133,66],[57,66],[51,45]]],
+      ['poly', [[36,76],[67,71],[63,85],[39,86],[36,76]]],
+      ['poly', [[154,76],[123,71],[127,85],[151,86],[154,76]]],
+      ['line', 53, 101, 137, 101], ['line', 78, 90, 112, 90]
     ] },
     rear: { w: 190, h: 140, shapes: [
-      ['poly', [[34,111],[22,101],[25,61],[39,38],[58,22],[132,22],[151,38],[165,61],[168,101],[156,111],[34,111]]],
-      ['poly', [[51,42],[62,27],[128,27],[139,42],[134,64],[56,64],[51,42]]],
-      ['poly', [[31,70],[67,67],[65,83],[35,84],[31,70]]],
-      ['poly', [[159,70],[123,67],[125,83],[155,84],[159,70]]],
-      ['rect', 70, 78, 50, 18, 3],
-      ['line', 44, 101, 146, 101],
-      ['line', 28, 91, 49, 91], ['line', 141, 91, 162, 91],
-      ['ellipse', 43, 121, 18, 11], ['ellipse', 147, 121, 18, 11]
+      ['poly', [[31,112],[23,99],[26,61],[42,35],[61,21],[129,21],[148,35],[164,61],[167,99],[159,112],[31,112]]],
+      ['poly', [[51,44],[63,28],[127,28],[139,44],[133,65],[57,65],[51,44]]],
+      ['poly', [[34,75],[67,71],[64,85],[38,86],[34,75]]],
+      ['poly', [[156,75],[123,71],[126,85],[152,86],[156,75]]],
+      ['rect', 73, 78, 44, 16, 3], ['line', 49, 102, 141, 102]
     ] }
   },
   utility: {
-    top: { w: 150, h: 280, shapes: [
-      ['poly', [[40,8],[110,8],[128,22],[136,52],[136,238],[125,265],[25,265],[14,238],[14,52],[22,22],[40,8]]],
-      ['poly', [[31,31],[119,31],[128,65],[124,98],[26,98],[22,65],[31,31]]],
-      ['line', 26, 105, 124, 105], ['line', 26, 224, 124, 224],
-      ['line', 75, 105, 75, 265],
-      ['rect', 3, 43, 10, 38, 3], ['rect', 137, 43, 10, 38, 3],
-      ['rect', 3, 204, 10, 38, 3], ['rect', 137, 204, 10, 38, 3]
+    top: { w: 190, h: 140, shapes: [
+      ['poly', [[55,8],[135,8],[151,19],[158,42],[158,108],[145,131],[45,131],[32,108],[32,42],[39,19],[55,8]]],
+      ['poly', [[49,25],[141,25],[149,48],[145,68],[45,68],[41,48],[49,25]]],
+      ['line', 45,75,145,75], ['line', 95,75,95,131],
+      ['rect', 21,32,10,26,3], ['rect', 159,32,10,26,3],
+      ['rect', 21,86,10,26,3], ['rect', 159,86,10,26,3]
     ] },
     side: { w: 300, h: 130, shapes: [
       ['poly', [[12,99],[12,49],[25,31],[62,31],[70,15],[270,15],[288,31],[288,99],[12,99]]],
@@ -1248,18 +1253,15 @@ var DMG_SHAPES = {
       ['ellipse', 64, 101, 16, 16], ['ellipse', 241, 101, 16, 16]
     ] },
     front: { w: 190, h: 140, shapes: [
-      ['poly', [[31,112],[22,99],[22,42],[38,18],[152,18],[168,42],[168,99],[159,112],[31,112]]],
-      ['poly', [[42,29],[148,29],[142,64],[48,64],[42,29]]],
-      ['rect', 35, 72, 32, 17, 4], ['rect', 123, 72, 32, 17, 4],
-      ['rect', 69, 89, 52, 17, 3],
-      ['ellipse', 42, 123, 18, 10], ['ellipse', 148, 123, 18, 10]
+      ['poly', [[30,113],[22,100],[22,43],[39,18],[151,18],[168,43],[168,100],[160,113],[30,113]]],
+      ['poly', [[43,29],[147,29],[141,64],[49,64],[43,29]]],
+      ['rect', 35, 73, 31, 15, 4], ['rect', 124, 73, 31, 15, 4],
+      ['line', 54, 103, 136, 103]
     ] },
     rear: { w: 190, h: 140, shapes: [
-      ['poly', [[31,112],[22,99],[22,25],[35,16],[155,16],[168,25],[168,99],[159,112],[31,112]]],
-      ['rect', 34, 28, 54, 54, 3], ['rect', 102, 28, 54, 54, 3],
-      ['line', 95, 18, 95, 109],
-      ['rect', 71, 87, 48, 17, 3],
-      ['ellipse', 42, 123, 18, 10], ['ellipse', 148, 123, 18, 10]
+      ['poly', [[30,113],[22,100],[22,26],[36,16],[154,16],[168,26],[168,100],[160,113],[30,113]]],
+      ['rect', 35, 29, 53, 52, 3], ['rect', 102, 29, 53, 52, 3],
+      ['line', 95, 18, 95, 108], ['rect', 73, 88, 44, 15, 3]
     ] }
   }
 };
@@ -1802,7 +1804,14 @@ function construirePayload(data, sigData, stamp){
     modePaiementSolde: libelleModePaiement(data.modePaiementSolde),
     detailAcompte: detailAcompte,
     detailSolde: detailSolde,
-    caution: formatEUR(v.caution),
+    // Dépôt de garantie : `data.depositAmount` est le montant figé pour
+    // CETTE location (voir lireDonneesFormulaire()/remplirFormulaire()) —
+    // jamais une nouvelle lecture de v.caution ici, sinon rouvrir/dupliquer
+    // un contrat ancien afficherait le tarif ACTUEL du véhicule au lieu de
+    // celui réellement convenu à l'origine (voir CLAUDE.md, dépôt de
+    // garantie). v.caution ne sert de repli que pour un contrat antérieur à
+    // l'introduction de ce champ (rawData sans depositAmount).
+    caution: data.depositAmount === null ? 'À vérifier' : formatEUR(typeof data.depositAmount === 'number' && isFinite(data.depositAmount) ? data.depositAmount : v.caution),
     mode_reglement_caution: libelleModeCaution(data.modeCaution),
     locataire_prenom: data.prenom,
     locataire_nom: data.nom,
@@ -3690,6 +3699,14 @@ function lireImagesEtatDesLieux(){
 }
 
 function initOwnerView(prefill){
+  var contratEnCoursId = null;
+  var contratEnCoursDepositAmount = null;
+  var depositHistoriqueAbsent = false;
+  var depositState = null;
+  var depositBusy = false;
+  var depositContractId = null;
+  var contratOfficielCourant = null;
+
   var selectVehicule = document.getElementById('vehicule');
   var inputImmat = document.getElementById('immat');
   var selectLieu = document.getElementById('lieu');
@@ -3728,6 +3745,11 @@ function initOwnerView(prefill){
     if(v) inputImmat.value = v.immatriculation;
   }
   selectVehicule.addEventListener('change', function(){
+    // Changement manuel de véhicule (utilisateur, pas remplirFormulaire() —
+    // qui affecte .value sans déclencher cet événement) : le dépôt de
+    // garantie figé ne correspond plus au véhicule choisi, on repart du
+    // tarif actuel du nouveau véhicule (voir lireDonneesFormulaire()).
+    if (!contratEnCoursId) contratEnCoursDepositAmount = null;
     appliquerPlaque();
     updateSummary();
     gestionEtatDepart.actualiserSchema();
@@ -3872,9 +3894,17 @@ function initOwnerView(prefill){
       montantFinalConvenu: document.getElementById('montantFinalConvenu').value
     };
     var prix = calculerPrixContrat(donneesTarif);
+    // Reprend le même montant figé que lireDonneesFormulaire()/
+    // construirePayload() : sinon, rouvrir un ancien contrat affichait ici
+    // le tarif ACTUEL du véhicule (incohérent avec le PDF, qui lui affiche
+    // bien le montant d'origine) — voir contratEnCoursDepositAmount.
+    var cautionRecap = (contratEnCoursDepositAmount !== null) ? contratEnCoursDepositAmount : v.caution;
+    document.getElementById('depositAmount').value = depositHistoriqueAbsent ? '' : cautionRecap;
+    document.getElementById('depositDefault').textContent = 'Caution par défaut du véhicule : ' + formatEUR(v.caution);
+    document.getElementById('depositAmount').disabled = !!contratEnCoursId;
     document.getElementById('vehiculeRecap').innerHTML =
       '<span><strong>' + v.nom + '</strong> — ' + v.prixJour + ' €/jour</span>' +
-      '<span>Caution : ' + formatEUR(v.caution) + '</span>';
+      '<span>Caution : ' + formatEUR(cautionRecap) + '</span>';
     if(!prix){
       document.getElementById('dureeTxt').textContent = 'Dates invalides (retour avant départ)';
       document.getElementById('kmTxt').textContent = '—';
@@ -3919,6 +3949,25 @@ function initOwnerView(prefill){
   }
 
   document.getElementById('ownerForm').addEventListener('input', function(e){
+    // Le champ caution fait partie du formulaire, donc cet écouteur délégué
+    // s'exécute pendant que l'agence est encore en train d'effacer puis de
+    // retaper le montant. updateSummary() réinjecte la valeur mémorisée dans
+    // le champ : sans ce traitement préalable, le premier chiffre saisi est
+    // aussitôt remplacé par le montant par défaut (650 €, par exemple).
+    if(e.target.id === 'depositAmount' && !contratEnCoursId){
+      var montantSaisi = Number(e.target.value);
+      if(e.target.value !== '' && e.target.checkValidity() && isFinite(montantSaisi)){
+        contratEnCoursDepositAmount = montantSaisi;
+        updateSummary();
+        // Avant l'enregistrement du contrat, l'état affiché est local : il
+        // doit suivre la saisie sans refaire un appel réseau à chaque touche.
+        if(depositState && !depositContractId){
+          afficherEmpreinte(Object.assign({}, depositState, { depositAmount: montantSaisi }));
+        }
+      }
+      regenererLien();
+      return;
+    }
     updateSummary();
     regenererLien();
     if(e.target.value) e.target.classList.remove('champ-manquant');
@@ -4034,6 +4083,16 @@ function initOwnerView(prefill){
       rehausseur: rehausseurToggle.checked,
       depart: inputDepart.value,
       retour: inputRetour.value,
+      // Dépôt de garantie figé pour cette location : reprend le montant
+      // déjà enregistré (contratEnCoursDepositAmount, restauré par
+      // remplirFormulaire() lors d'un "Ouvrir" tant que le véhicule n'a pas
+      // changé) plutôt que de toujours relire le tarif ACTUEL du véhicule —
+      // voir construirePayload() et la note de CLAUDE.md sur le dépôt de
+      // garantie. Sur un contrat neuf (ou "Dupliquer", ou véhicule changé),
+      // contratEnCoursDepositAmount est null : le montant courant du
+      // véhicule sélectionné s'applique, comme avant.
+      defaultDepositAmount: currentVehicule() ? currentVehicule().caution : null,
+      depositAmount: depositHistoriqueAbsent ? null : (contratEnCoursId ? contratEnCoursDepositAmount : Number(document.getElementById("depositAmount").value)),
       modeCaution: modeCaution,
       modePaiement: modePaiement,
       montantRegle: document.getElementById('montantRegle').value,
@@ -4173,6 +4232,19 @@ function initOwnerView(prefill){
   // sont légitimement réutilisables tels quels.
   function remplirFormulaire(rawData, inclureDonneesInstance){
     if(rawData.vehiculeId){ selectVehicule.value = rawData.vehiculeId; appliquerPlaque(); }
+
+    // Dépôt de garantie : restauré tel que figé à l'origine UNIQUEMENT sur
+    // "Ouvrir" (inclureDonneesInstance=true) — une location déjà en cours
+    // garde son montant convenu. "Dupliquer" (false) prépare une NOUVELLE
+    // location : comme le tarif (tarifManuel non recopié plus bas), elle
+    // repart du tarif actuellement en vigueur pour le véhicule choisi.
+    // `typeof === 'number'` : un contrat créé avant ce champ n'a pas
+    // rawData.depositAmount, donc null ici -> repli sur le tarif courant du
+    // véhicule (lireDonneesFormulaire()), comme avant cette fonctionnalité.
+    depositHistoriqueAbsent = !!inclureDonneesInstance && rawData.depositAmount == null;
+    contratEnCoursDepositAmount = (inclureDonneesInstance && typeof rawData.depositAmount === 'number' && isFinite(rawData.depositAmount))
+      ? rawData.depositAmount
+      : null;
     if(rawData.immat) inputImmat.value = rawData.immat;
     if(rawData.lieu) selectLieu.value = rawData.lieu;
     if(rawData.depart) inputDepart.value = rawData.depart;
@@ -4274,7 +4346,101 @@ function initOwnerView(prefill){
   // "Ouvrir" — null si on prépare un contrat neuf. Détermine si le clic sur
   // le bouton principal crée un nouveau contrat manuel (nouveau numéro) ou
   // met à jour l'existant en place (même numéro, même id).
-  var contratEnCoursId = null;
+
+
+  // Dépôt de garantie figé du contrat rouvert via "Ouvrir" — null tant
+  // qu'aucun contrat existant n'est chargé (contrat neuf) ou dès que le
+  // véhicule est changé manuellement (voir plus bas) : dans ces deux cas,
+  // lireDonneesFormulaire() retombe sur le tarif ACTUEL du véhicule
+  // sélectionné, exactement comme avant l'introduction de ce champ. Restauré
+  // par remplirFormulaire() sur "Ouvrir" uniquement (jamais sur
+  // "Dupliquer" : un contrat dupliqué est une NOUVELLE location, qui doit
+  // utiliser le tarif en vigueur — voir CLAUDE.md, dépôt de garantie).
+
+
+
+
+
+  var depositLabels = { lien_cree: 'Lien créé', en_attente: 'En attente du client', autorisee: 'Empreinte autorisée', liberee: 'Empreinte libérée', annulee: 'Demande annulée', expiree: 'Empreinte expirée', echouee: 'Échec', capturee: 'Débit total confirmé', capturee_partielle: 'Débit partiel confirmé' };
+  function afficherEmpreinte(state) {
+    depositState = state;
+    var auth = state && (state.active || state.history[0]);
+    var active = state && state.active;
+    var canCapture = active && active.status === 'autorisee' && !active.captureRequested;
+    document.getElementById('depositAmount').disabled = !!contratEnCoursId;
+    var depositCreateBtn = document.getElementById('depositCreate');
+    depositCreateBtn.disabled = depositBusy || !depositContractId || !state || !state.configured || !!active || !(state.depositAmount > 0);
+    depositCreateBtn.textContent = !depositContractId ? 'Générez d’abord le contrat' : 'Créer l’empreinte';
+    depositCreateBtn.title = !depositContractId ? 'Le contrat officiel doit être enregistré avant de créer le lien Mollie.' : '';
+    document.getElementById('depositRefresh').disabled = depositBusy || !auth;
+    document.getElementById('depositRelease').disabled = depositBusy || !active || (!!active.captureRequested && !active.capturedAmountCents);
+    document.getElementById('depositCapture').disabled = depositBusy || !canCapture;
+    document.getElementById('depositCaptureAmount').disabled = depositBusy || !canCapture;
+    document.getElementById('depositCaptureAmount').max = auth ? auth.authorizedAmountCents / 100 : '';
+    document.getElementById('depositCaptureAmount').value = auth ? (auth.authorizedAmountCents - auth.capturedAmountCents) / 100 : '';
+    var text = state && state.contractNumero ? 'Contrat ' + state.contractNumero + ' — ' : '';
+    text += !state ? 'Enregistrez le contrat pour créer une empreinte.' : !state.configured ? 'Clé caution non configurée.' : (state.mollieTestMode ? 'MOLLIE — MODE TEST' : 'MOLLIE — MODE LIVE');
+    if (state && state.depositAmount != null) text += ' — Montant enregistré : ' + formatEUR(state.depositAmount);
+    if (state && state.depositAmount == null) text += ' — Montant historique absent : aucune empreinte ne peut être créée.';
+    if (state && !depositContractId) text += ' — Étape suivante : cliquez sur « Générer le contrat officiel » plus bas dans la page.';
+    if (auth) text += ' — ' + (depositLabels[auth.status] || auth.status) + ' (' + (auth.testMode ? 'TEST' : 'LIVE') + ') — ' + formatEUR(auth.authorizedAmountCents / 100) + '. Débité : ' + formatEUR(auth.capturedAmountCents / 100) + '. Capture avant : ' + (auth.captureBefore ? new Date(auth.captureBefore).toLocaleString('fr-FR') : 'non communiquée par Mollie') + (auth.captureRequested && auth.mollieStatus === 'authorized' ? ' — Demande de capture envoyée : actualisez pour confirmation.' : '');
+    document.getElementById('depositStatus').textContent = text;
+    var checkout = active && active.checkoutUrl;
+    try { if (checkout && new URL(checkout).protocol !== 'https:') checkout = null; } catch(e) { checkout = null; }
+    document.getElementById('depositCheckout').hidden = !checkout;
+    document.getElementById('depositLink').value = checkout || '';
+    document.getElementById('depositOpen').href = checkout || '#';
+  }
+  async function chargerEmpreinte() {
+    var id = depositContractId;
+    if (!id) {
+      try {
+        var configResponse = await fetch('/api/agency-deposit-authorizations?configuration=1', { credentials: 'same-origin' });
+        var configBody = await configResponse.json();
+        if (!configResponse.ok) throw new Error(configBody.error || 'Impossible de vérifier la configuration Mollie.');
+        return afficherEmpreinte({ configured: configBody.configured, mollieTestMode: configBody.mollieTestMode, depositAmount: Number(document.getElementById('depositAmount').value), active: null, history: [] });
+      } catch(e) {
+        afficherEmpreinte(null);
+        document.getElementById('depositError').textContent = e.message;
+        return;
+      }
+    }
+    afficherEmpreinte(null);
+    try {
+      var response = await fetch('/api/agency-deposit-authorizations?rentalId=' + encodeURIComponent(id), { credentials: 'same-origin' });
+      var body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Impossible de charger la caution.');
+      if (id === depositContractId) afficherEmpreinte(body);
+    } catch(e) { document.getElementById('depositError').textContent = e.message; }
+  }
+  async function agirEmpreinte(action) {
+    if (depositBusy || !depositState) return;
+    var auth = depositState.active || depositState.history[0];
+    var amount = Number(document.getElementById('depositCaptureAmount').value);
+    var label = action === 'capture' ? 'Confirmer le débit de ' + formatEUR(amount) + ' sur le contrat ' + (depositState.contractNumero || depositContractId) + ' ?' : action === 'release' ? 'Confirmer l’annulation / libération de cette empreinte ?' : 'Créer un lien d’empreinte de ' + formatEUR(depositState.depositAmount) + ' pour le contrat ' + (depositState.contractNumero || depositContractId) + ' ?';
+    if (action !== 'refresh' && !window.confirm(label)) return;
+    depositBusy = true;
+    afficherEmpreinte(depositState);
+    document.getElementById('depositError').textContent = '';
+    try {
+      await appelApiContrat('/api/agency-deposit-authorizations', { action: action, rentalId: depositContractId, id: auth && auth.id, amount: amount });
+    } catch(e) {
+      document.getElementById('depositError').textContent = decrireEchecRequete(e) + (e.json && e.json.mollie ? ' — ' + e.json.mollie.detail : '');
+    } finally { depositBusy = false; await chargerEmpreinte(); }
+  }
+  document.getElementById('depositAmount').addEventListener('change', function(){
+    if (contratEnCoursId) return;
+    if (!this.checkValidity()) return;
+    contratEnCoursDepositAmount = Number(this.value);
+    updateSummary(); regenererLien();
+  });
+  ['Create', 'Refresh', 'Release', 'Capture'].forEach(function(name){
+    document.getElementById('deposit' + name).addEventListener('click', function(){ agirEmpreinte(name.toLowerCase()); });
+  });
+  document.getElementById('depositCopy').addEventListener('click', async function(){
+    try { await navigator.clipboard.writeText(document.getElementById('depositLink').value); document.getElementById('depositError').textContent = 'Lien copié.'; }
+    catch(e) { document.getElementById('depositLink').select(); document.getElementById('depositError').textContent = 'Sélectionnez et copiez le lien affiché.'; }
+  });
 
   // Lien COURT (jeton) le plus récent obtenu pour ce contrat, tant que les
   // données du formulaire n'ont pas changé depuis son émission — voir
@@ -4284,7 +4450,7 @@ function initOwnerView(prefill){
   // moins une fois côté serveur ; reste à null tant qu'aucun contrat n'a
   // encore été généré/ouvert (le lien `?data=` reste alors utilisé, comme
   // avant ce correctif — rien ne change pour ce cas).
-  var contratOfficielCourant = null;
+
 
   // Émission best-effort (voir CLAUDE.md, règle sur les échecs non
   // bloquants) : si l'appel échoue (réseau, jeton non configuré...),
@@ -4306,6 +4472,9 @@ function initOwnerView(prefill){
 
   function entrerModeEdition(id, numero){
     contratEnCoursId = id;
+    depositContractId = id;
+    document.getElementById('depositAmount').disabled = true;
+    chargerEmpreinte();
     document.getElementById('genererContratTitre').textContent = 'Mettre à jour le contrat ' + numero;
     document.getElementById('genererContratLead').textContent = 'Complétez ou corrigez les informations, puis enregistrez : le numéro et l\'identifiant du contrat sont conservés.';
     document.getElementById('genererContratBtn').textContent = '💾 Mettre à jour le contrat';
@@ -4314,6 +4483,11 @@ function initOwnerView(prefill){
   }
   function sortirModeEdition(){
     contratEnCoursId = null;
+    depositContractId = null;
+    depositHistoriqueAbsent = false;
+    contratEnCoursDepositAmount = null;
+    chargerEmpreinte();
+    updateSummary();
     document.getElementById('genererContratTitre').textContent = 'Générer le contrat officiel';
     document.getElementById('genererContratLead').textContent = 'Attribue un numéro de contrat unique, enregistre le contrat (pour l\'historique et la duplication) et télécharge le PDF final.';
     document.getElementById('genererContratBtn').textContent = '📄 Générer le contrat officiel';
@@ -4387,7 +4561,8 @@ function initOwnerView(prefill){
             ? 'Contrat ' + result.numero + ' mis à jour ✓'
             : 'Contrat ' + result.numero + ' généré ✓';
           msg.classList.remove('hidden');
-          if(enEdition) sortirModeEdition();
+          contratEnCoursDepositAmount = rawData.depositAmount;
+          entrerModeEdition(result.id, result.numero);
           chargerHistorique();
           mettreAJourLienCourt(result.id, rawData);
           // Le lien client est juste en dessous : on l'amène à l'écran pour
@@ -4496,6 +4671,14 @@ function initOwnerView(prefill){
         });
         actions.appendChild(lienBtn);
       }
+      var cautionBtn = document.createElement('button');
+      cautionBtn.type = 'button'; cautionBtn.className = 'btn'; cautionBtn.textContent = 'Gérer la caution';
+      cautionBtn.addEventListener('click', function(){
+        depositContractId = entry.id;
+        chargerEmpreinte();
+        document.getElementById('depositPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      actions.appendChild(cautionBtn);
       conteneur.appendChild(row);
     });
   }
@@ -4556,6 +4739,7 @@ function initOwnerView(prefill){
       .catch(function(){ /* historique = confort, ne bloque pas le reste de la page si indisponible */ });
   }
   chargerHistorique();
+  chargerEmpreinte();
 
   function regenererLien(){
     if(!tousLesChampsRequisRemplis()){
@@ -4805,7 +4989,7 @@ function initClientView(data){
     '<div class="recap-row"><span>' + (data.livraison ? 'Livraison' : 'Lieu de prise en charge') + '</span><span>' + lieuAffiche + '</span></div>' +
     '<div class="recap-row"><span>Départ</span><span>' + formatDateHeureFR(data.depart) + '</span></div>' +
     '<div class="recap-row"><span>Retour</span><span>' + formatDateHeureFR(data.retour) + '</span></div>' +
-    '<div class="recap-row"><span>Caution</span><span>' + formatEUR(v.caution) + ' (' + libelleModeCaution(data.modeCaution).toLowerCase() + ')</span></div>';
+    '<div class="recap-row"><span>Caution</span><span>' + formatEUR(typeof data.depositAmount === 'number' && isFinite(data.depositAmount) ? data.depositAmount : v.caution) + ' (' + libelleModeCaution(data.modeCaution).toLowerCase() + ')</span></div>';
 
   document.getElementById('c-dureeTxt').textContent = formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours);
   document.getElementById('c-kmTxt').textContent = kmInclus.toLocaleString('fr-FR') + ' km';
@@ -4840,7 +5024,7 @@ function initClientView(data){
   setFill('modePaiement', libelleModePaiement(data.modePaiement).toLowerCase());
   setFill('detailAcompte', detailPaiementClient.detailAcompte);
   setFill('detailSolde', detailPaiementClient.detailSolde);
-  setFill('caution', formatEUR(v.caution));
+  setFill('caution', formatEUR(typeof data.depositAmount === 'number' && isFinite(data.depositAmount) ? data.depositAmount : v.caution));
   setFill('modeCaution', libelleModeCaution(data.modeCaution).toLowerCase());
   setFill('kmInclus', kmInclus.toLocaleString('fr-FR'));
   setFill('kmInclusParJour', getKmInclusParJour().toLocaleString('fr-FR'));

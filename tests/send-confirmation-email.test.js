@@ -64,9 +64,9 @@ test("sendConfirmationEmail : ne lève jamais si la réservation n'a pas d'email
 
 test("buildConfirmationEmailContent : inclut le montant de la caution du véhicule", () => {
   const { text, html } = buildConfirmationEmailContent(makeReservation());
-  // Peugeot 3008 : caution 600 € dans js/data.js
-  assert.match(text, /Caution du véhicule : 600/);
-  assert.match(html, /Caution du véhicule.*600/s);
+  // Peugeot 3008 : caution 900 € dans js/data.js
+  assert.match(text, /Caution du véhicule : 900/);
+  assert.match(html, /Caution du véhicule.*900/s);
 });
 
 test("buildConfirmationEmailContent : inclut la checklist de documents de base sans mention du second conducteur par défaut", () => {
@@ -114,7 +114,7 @@ test("buildConfirmationEmailContent : échappe le prénom du conducteur dans le 
 test("buildConfirmationEmailContent : la version texte et la version HTML contiennent les mêmes informations clés", () => {
   const reservation = makeReservation();
   const { text, html } = buildConfirmationEmailContent(reservation);
-  const faitsClefs = [reservation.id, "Peugeot 3008", "600", "138"];
+  const faitsClefs = [reservation.id, "Peugeot 3008", "900", "138"];
   faitsClefs.forEach((fait) => {
     assert.ok(text.includes(fait), `texte manquant : ${fait}`);
     assert.ok(html.includes(fait), `html manquant : ${fait}`);
