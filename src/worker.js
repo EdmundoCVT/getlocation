@@ -16,6 +16,7 @@ const { handleAgencyDocumentFile } = require("./api/agency-document-file.js");
 const { handleContractDossierAgency } = require("./api/contract-dossier-agency.js");
 const { handleContractDossierClient } = require("./api/contract-dossier-client.js");
 const { handleContractManualLink } = require("./api/contract-manual-link.js");
+const { handleContractAgencyLink } = require("./api/contract-agency-link.js");
 const { handleContractsManualCreate } = require("./api/contracts-manual-create.js");
 const { handleContractsManualUpdate } = require("./api/contracts-manual-update.js");
 const { handleContractsHistory } = require("./api/contracts-history.js");
@@ -27,6 +28,7 @@ const { handleAgencyRentals } = require("./api/agency-rentals.js");
 const { handleAgencyPayments } = require("./api/agency-payments.js");
 const { handleAgencyDeposits } = require("./api/agency-deposits.js");
 const { handleAgencyDepositAuthorizations } = require("./api/agency-deposit-authorizations.js");
+const { handleInspectionMedia } = require("./api/inspection-media.js");
 const { runScheduledTasks } = require("./lib/scheduled-tasks.js");
 const { estCheminAnglais, servirPageAnglaise } = require("./lib/pages-en.js");
 
@@ -43,6 +45,7 @@ const ROUTES = {
   "/api/contract-dossier-agency": handleContractDossierAgency,
   "/api/contract-dossier-client": handleContractDossierClient,
   "/api/contract-manual-link": handleContractManualLink,
+  "/api/contract-agency-link": handleContractAgencyLink,
   "/api/contracts-manual-create": handleContractsManualCreate,
   "/api/contracts-manual-update": handleContractsManualUpdate,
   "/api/contracts-history": handleContractsHistory,
@@ -53,7 +56,8 @@ const ROUTES = {
   "/api/agency-rentals": handleAgencyRentals,
   "/api/agency-payments": handleAgencyPayments,
   "/api/agency-deposits": handleAgencyDeposits,
-  "/api/agency-deposit-authorizations": handleAgencyDepositAuthorizations
+  "/api/agency-deposit-authorizations": handleAgencyDepositAuthorizations,
+  "/api/inspection-media": handleInspectionMedia
 };
 
 function isVehicleResultsPath(pathname) {
@@ -103,6 +107,11 @@ async function withClientUX(response, pathname) {
       : `${html}\n${script}`;
   } else {
     html = html.replace(/\/js\/deposit-ux\.js\?v=\d+/g, "/js/deposit-ux.js?v=3");
+  }
+
+  if (/\/contrat(?:\.html)?\/?$/.test(pathname) && !html.includes("/js/inspection-v2.js")) {
+    const inspection = '<script src="/js/inspection-v2.js?v=1"></script>';
+    html = html.includes("</body>") ? html.replace("</body>", `${inspection}\n</body>`) : `${html}\n${inspection}`;
   }
 
   const headers = new Headers(response.headers);

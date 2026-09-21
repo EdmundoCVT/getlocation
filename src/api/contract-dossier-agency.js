@@ -162,6 +162,7 @@ function buildDossierView(reservation) {
       depart,
       retour,
       kilometrage,
+      media: dossier && dossier.media ? dossier.media : { depart: [], retour: [] },
       observations: dossier ? dossier.observations || "" : ""
     }
   };
