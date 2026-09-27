@@ -48,6 +48,20 @@ function paiementFormHtml() {
       <input name="telephone" id="telephone" aria-describedby="err-telephone" aria-invalid="false"><div id="err-telephone"></div>
       <input name="naissance" id="naissance" aria-describedby="err-naissance" aria-invalid="false"><div id="err-naissance"></div>
       <input name="permisDate" id="permisDate" aria-describedby="err-permisDate" aria-invalid="false"><div id="err-permisDate"></div>
+      <div id="payment-adresse-prise-frequent"></div>
+      <div id="payment-adresse-prise-principal"></div>
+      <button type="button" id="payment-adresse-prise-other-toggle">Autre ville</button>
+      <button type="button" id="payment-adresse-prise-custom-toggle">Saisir une adresse</button>
+      <select id="payment-adresse-prise-other" hidden></select>
+      <div id="payment-adresse-prise-custom"></div>
+      <div id="payment-adresse-retour-frequent"></div>
+      <div id="payment-adresse-retour-principal"></div>
+      <button type="button" id="payment-adresse-retour-other-toggle">Autre ville</button>
+      <select id="payment-adresse-retour-other" hidden></select>
+      <div id="payment-adresse-retour-custom"></div>
+      <div id="payment-adresse-retour-wrap"></div>
+      <input type="checkbox" id="payment-retour-different">
+      <div id="err-payment-adresse-prise"></div>
       <input type="checkbox" id="cgl-accept">
       <div id="err-cgl-accept"></div>
       <button id="pay-button"><span class="btn-label">Payer</span></button>
@@ -94,6 +108,39 @@ test("initPaiementPage : ne pré-remplit rien pour une première visite (pas de 
 
   window.initPaiementPage();
   assert.equal(window.document.getElementById("nom").value, "");
+});
+
+test("initPaiementPage : les lieux fréquents se choisissent en un clic", () => {
+  const window = newWindow(paiementFormHtml(), "https://getlocation.fr/paiement.html");
+  window.localStorage.setItem("gl_reservation", JSON.stringify({
+    vehiculeId: "opel-corsa", dateDebut: "2026-08-10", heureDebut: "10:00",
+    dateFin: "2026-08-12", heureFin: "10:00", jours: 2, _savedAt: Date.now()
+  }));
+  window.initPaiementPage();
+  const button = [...window.document.querySelectorAll("#payment-adresse-prise-frequent button")]
+    .find((element) => element.textContent.includes("Aéroport Nice Côte d’Azur"));
+  assert.ok(button);
+  button.click();
+  const selectedButton = [...window.document.querySelectorAll("#payment-adresse-prise-frequent button")]
+    .find((element) => element.textContent.includes("Aéroport Nice Côte d’Azur"));
+  assert.equal(selectedButton.getAttribute("aria-pressed"), "true");
+  assert.match(window.document.querySelector("#payment-adresse-prise-principal").textContent, /Nice/);
+});
+
+test("initPaiementPage : Autre ville et adresse personnalisée restent masquées avant le choix", () => {
+  const window = newWindow(paiementFormHtml(), "https://getlocation.fr/paiement.html");
+  window.localStorage.setItem("gl_reservation", JSON.stringify({
+    vehiculeId: "opel-corsa", dateDebut: "2026-08-10", heureDebut: "10:00",
+    dateFin: "2026-08-12", heureFin: "10:00", jours: 2, _savedAt: Date.now()
+  }));
+  window.initPaiementPage();
+  const other = window.document.getElementById("payment-adresse-prise-other");
+  assert.equal(other.hidden, true);
+  window.document.getElementById("payment-adresse-prise-other-toggle").click();
+  assert.equal(other.hidden, false);
+  window.document.getElementById("payment-adresse-prise-custom-toggle").click();
+  assert.equal(window.document.getElementById("payment-adresse-prise-custom").style.display, "grid");
+  assert.ok(window.document.getElementById("payment-adresse-prise-rue"));
 });
 
 test("initReservationPage : n'exige plus de coordonnées conducteur (options avant paiement)", () => {

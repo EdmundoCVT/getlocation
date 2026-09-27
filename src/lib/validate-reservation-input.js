@@ -12,7 +12,7 @@
 // confirmée en production — ne pas laisser les deux diverger si l'une des
 // deux est modifiée avant la suppression définitive de l'ancienne.
 
-const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS, anciennetePermisAnnees, PROTECTIONS, PROTECTION_PAR_DEFAUT } = require("../../js/data.js");
+const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, LIEUX_FREQUENTS_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS, anciennetePermisAnnees, PROTECTIONS, PROTECTION_PAR_DEFAUT } = require("../../js/data.js");
 
 const MAX_LEN = {
   nom: 100,
@@ -27,6 +27,7 @@ const OPTION_IDS = new Set(OPTIONS.map(o => o.id));
 // livraison : l'ancien lieu n'est plus proposé, mais un onglet déjà ouvert
 // peut encore terminer sa réservation sans erreur.
 const LIEUX_HISTORIQUES = new Set(["Agence Grasse"]);
+const TYPES_LIEU_LIVRAISON = new Set(["frequent", "zone", "custom"]);
 
 function isNonEmptyString(v, max, min = 1) {
   return typeof v === "string" && v.trim().length >= min && v.length <= max;
@@ -88,6 +89,8 @@ function validateReservationInput(payload) {
     lieuRetour,
     adressePrise,
     adresseRetour,
+    lieuPriseType,
+    lieuRetourType,
     options,
     codePromo,
     conducteur,
@@ -135,6 +138,18 @@ function validateReservationInput(payload) {
   } else if (adressePrise !== undefined && adressePrise !== null && adressePrise !== "") {
     errors.push("Lieu de livraison (prise en charge) invalide");
   }
+
+  function normaliserTypeLieu(type, adresse) {
+    if (type !== undefined && !TYPES_LIEU_LIVRAISON.has(type)) errors.push("Type de lieu de livraison invalide");
+    if (type === "frequent" && !LIEUX_FREQUENTS_LIVRAISON.includes(adresse)) errors.push("Lieu fréquent de livraison invalide");
+    if (type === "zone" && !VILLES_LIVRAISON.includes(adresse)) errors.push("Zone de livraison invalide");
+    if (type === "custom" && !parseAdressePersonnalisee(adresse)) errors.push("Adresse personnalisée invalide");
+    if (type && TYPES_LIEU_LIVRAISON.has(type)) return type;
+    if (parseAdressePersonnalisee(adresse)) return "custom";
+    return LIEUX_FREQUENTS_LIVRAISON.includes(adresse) ? "frequent" : "zone";
+  }
+  const lieuPriseTypeNormalise = lieuPrise === LIEU_LIVRAISON ? normaliserTypeLieu(lieuPriseType, adressePrise) : null;
+  const lieuRetourTypeNormalise = lieuRetour === LIEU_LIVRAISON ? normaliserTypeLieu(lieuRetourType, adresseRetour) : null;
   if (lieuRetour === LIEU_LIVRAISON) {
     if (!VILLES_LIVRAISON.includes(adresseRetour) && !parseAdressePersonnalisee(adresseRetour)) errors.push("Lieu de livraison (restitution) invalide");
   } else if (adresseRetour !== undefined && adresseRetour !== null && adresseRetour !== "") {
@@ -258,6 +273,10 @@ function validateReservationInput(payload) {
     codePromo: codePromoNormalise,
     langue: langueNormalisee,
     protection: protectionNormalisee,
+    lieuPriseType: lieuPriseTypeNormalise,
+    lieuRetourType: lieuRetourTypeNormalise,
+    adresseExactePriseAConfirmer: lieuPriseTypeNormalise === "zone",
+    adresseExacteRetourAConfirmer: lieuRetourTypeNormalise === "zone",
     enfantAge: avecSiegeEnfant ? enfantAgeNormalise : null,
     enfantPoids: avecSiegeEnfant ? enfantPoidsNormalise : null
   };

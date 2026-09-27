@@ -12,6 +12,13 @@
 
 const LIEU_LIVRAISON = "Livraison à l'adresse de votre choix";
 const ADRESSE_PERSONNALISEE = "Saisir une adresse personnalisée";
+const LIEUX_FREQUENTS_LIVRAISON = [
+  "Aéroport Nice Côte d’Azur",
+  "Gare SNCF Nice Saint-Augustin",
+  "Gare SNCF Nice-Ville",
+  "Gare SNCF Cagnes-sur-Mer"
+];
+const VILLES_PRINCIPALES_LIVRAISON = ["Nice", "Cannes", "Antibes", "Grasse"];
 
 const LIEUX = [
   LIEU_LIVRAISON
@@ -42,11 +49,10 @@ const VILLES_LIVRAISON = [
   "Gare SNCF de Cannes",
   "Gare SNCF de Cannes-la-Bocca",
   "Gare SNCF d'Antibes",
-  "Gare SNCF de Cagnes-sur-Mer",
+  "Gare SNCF Cagnes-sur-Mer",
   "Gare SNCF de Saint-Laurent-du-Var",
-  "Gare de Nice-Ville",
-  "Gare de Nice-Saint-Augustin",
-  "Aéroport Nice Côte d'Azur"
+  "Gare SNCF Nice-Ville",
+  "Gare SNCF Nice Saint-Augustin"
 ];
 
 function formatAdressePersonnalisee(rue, codePostal, ville) {
@@ -818,6 +824,8 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     LIEU_LIVRAISON,
     ADRESSE_PERSONNALISEE,
+    LIEUX_FREQUENTS_LIVRAISON,
+    VILLES_PRINCIPALES_LIVRAISON,
     formatAdressePersonnalisee,
     parseAdressePersonnalisee,
     libelleAdresseLivraison,

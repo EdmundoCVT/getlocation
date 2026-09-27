@@ -2,7 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { validateReservationInput } = require("../netlify/functions/lib/validate-reservation-input.js");
-const { CGL_VERSION, LIEU_LIVRAISON, VILLES_LIVRAISON, OPTIONS, formatAdressePersonnalisee } = require("../js/data.js");
+const { CGL_VERSION, LIEU_LIVRAISON, LIEUX_FREQUENTS_LIVRAISON, VILLES_LIVRAISON, OPTIONS, formatAdressePersonnalisee } = require("../js/data.js");
 
 // Dates calculées par rapport à aujourd'hui (plutôt que codées en dur) pour
 // que ces tests restent valides indéfiniment : le validateur rejette toute
@@ -163,6 +163,24 @@ test("accepte une ville de livraison valide (Côte d'Azur) quand le lieu est \"L
     );
     assert.equal(valid, true, `${ville} devrait être acceptée : ${errors.join(", ")}`);
   }
+});
+
+test("normalise le type de lieu et marque l'adresse de zone comme à confirmer", () => {
+  const frequent = validateReservationInput(basePayload({
+    lieuPrise: LIEU_LIVRAISON, lieuRetour: LIEU_LIVRAISON,
+    adressePrise: LIEUX_FREQUENTS_LIVRAISON[2], adresseRetour: LIEUX_FREQUENTS_LIVRAISON[2],
+    lieuPriseType: "frequent", lieuRetourType: "frequent"
+  }));
+  assert.equal(frequent.valid, true);
+  assert.equal(frequent.lieuPriseType, "frequent");
+  assert.equal(frequent.adresseExactePriseAConfirmer, false);
+
+  const zone = validateReservationInput(basePayload({
+    lieuPrise: LIEU_LIVRAISON, lieuRetour: LIEU_LIVRAISON,
+    adressePrise: "Nice", adresseRetour: "Nice", lieuPriseType: "zone", lieuRetourType: "zone"
+  }));
+  assert.equal(zone.valid, true);
+  assert.equal(zone.adresseExactePriseAConfirmer, true);
 });
 
 test("impose un lieu précis dans la liste lorsque la livraison est choisie", () => {

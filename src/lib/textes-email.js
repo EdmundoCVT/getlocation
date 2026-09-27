@@ -39,6 +39,8 @@ const TRADUCTIONS = {
   "(prélevée avant la remise des clés)": "(taken before the keys are handed over)",
   "Lieu à confirmer avec l'agence": "Location to be confirmed with the agency",
   "à confirmer": "to be confirmed",
+  "Adresse exacte à confirmer avant la remise du véhicule": "Exact address to be confirmed before the vehicle is handed over",
+  "Adresse exacte de restitution à confirmer avant la remise du véhicule": "Exact return address to be confirmed before the vehicle is handed over",
 
   // --- E-mail de confirmation de réservation
   "Confirmation de votre réservation GET LOCATION — {vehicule}":

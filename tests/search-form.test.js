@@ -70,7 +70,7 @@ function newWindow() {
 
 test("GETLOCATION ne propose plus d'agence physique et couvre les principales villes et gares", () => {
   assert.deepEqual(LIEUX, [LIEU_LIVRAISON]);
-  for (const lieu of ["Grasse", "Cannes", "Cannes-la-Bocca", "Antibes", "Nice", "Gare SNCF de Saint-Laurent-du-Var", "Gare de Nice-Ville"]) {
+  for (const lieu of ["Grasse", "Cannes", "Cannes-la-Bocca", "Antibes", "Nice", "Gare SNCF de Saint-Laurent-du-Var", "Gare SNCF Nice-Ville"]) {
     assert.ok(VILLES_LIVRAISON.includes(lieu), `${lieu} doit être proposé`);
   }
 });
@@ -159,7 +159,7 @@ test("restitution indépendante : le lieu et la ville de retour choisis sont res
   const selectAdresseRetour = document.getElementById("adresse-retour");
   selectRetour.value = LIEU_LIVRAISON;
   selectRetour.dispatchEvent(new window.Event("change", { bubbles: true }));
-  selectAdresseRetour.value = "Gare de Nice-Ville";
+  selectAdresseRetour.value = "Gare SNCF Nice-Ville";
 
   document.getElementById("search-form").dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
 
@@ -167,6 +167,6 @@ test("restitution indépendante : le lieu et la ville de retour choisis sont res
   assert.equal(recherche.lieuPrise, LIEU_LIVRAISON);
   assert.equal(recherche.adressePrise, "Nice");
   assert.equal(recherche.lieuRetour, LIEU_LIVRAISON);
-  assert.equal(recherche.adresseRetour, "Gare de Nice-Ville");
+  assert.equal(recherche.adresseRetour, "Gare SNCF Nice-Ville");
   assert.notEqual(selectAdresseRetour, null);
 });

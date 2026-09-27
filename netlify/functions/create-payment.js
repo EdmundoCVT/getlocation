@@ -163,7 +163,7 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "Requête invalide" }) };
   }
 
-  const { valid, errors, vehicule, options, codePromo } = validateReservationInput(payload);
+  const { valid, errors, vehicule, options, codePromo, lieuPriseType, lieuRetourType, adresseExactePriseAConfirmer, adresseExacteRetourAConfirmer } = validateReservationInput(payload);
   if (!valid) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "Requête invalide", details: errors }) };
   }
@@ -224,6 +224,10 @@ exports.handler = async (event) => {
     lieuRetour: payload.lieuRetour || null,
     adressePrise: payload.adressePrise || null,
     adresseRetour: payload.adresseRetour || null,
+    lieuPriseType,
+    lieuRetourType,
+    adresseExactePriseAConfirmer,
+    adresseExacteRetourAConfirmer,
     jours: prix.jours,
     sousTotalBrut: prix.sousTotalBrut,
     reductionDuree: prix.reductionDuree,

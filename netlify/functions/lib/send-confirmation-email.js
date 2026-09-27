@@ -101,8 +101,8 @@ function buildConfirmationEmailContent(reservation) {
   const prenom = reservation.conducteur ? reservation.conducteur.prenom : "";
   const checklistLignes = buildChecklistLignes(reservation);
   const whatsappUrl = buildWhatsappUrl(reservation.id);
-  const lieuPrise = [reservation.lieuPrise, libelleAdresseLivraison(reservation.adressePrise)].filter(Boolean).join(" — ");
-  const lieuRetour = [reservation.lieuRetour, libelleAdresseLivraison(reservation.adresseRetour)].filter(Boolean).join(" — ");
+  const lieuPrise = [reservation.lieuPrise, libelleAdresseLivraison(reservation.adressePrise), reservation.adresseExactePriseAConfirmer ? "Adresse exacte à confirmer avant la remise du véhicule" : ""].filter(Boolean).join(" — ");
+  const lieuRetour = [reservation.lieuRetour, libelleAdresseLivraison(reservation.adresseRetour), reservation.adresseExacteRetourAConfirmer ? "Adresse exacte de restitution à confirmer avant la remise du véhicule" : ""].filter(Boolean).join(" — ");
 
   const subject = `Confirmation de votre réservation GET LOCATION — ${vehiculeNom}`;
 

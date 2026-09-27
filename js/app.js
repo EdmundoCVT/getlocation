@@ -498,9 +498,10 @@ function initSearchForm() {
 
 // Libellé lisible d'un lieu : si c'est une livraison avec adresse renseignée,
 // affiche l'adresse plutôt que le libellé générique.
-function libelleLieu(lieu, adresse) {
+function libelleLieu(lieu, adresse, type) {
   if (lieu === LIEU_LIVRAISON && adresse) {
-    return t("Livraison — {adresse}", { adresse: libelleAdresseLivraison(adresse) });
+    const libelle = t("Livraison — {adresse}", { adresse: libelleAdresseLivraison(adresse) });
+    return type === "zone" ? `${libelle} — ${t("adresse exacte à confirmer")}` : libelle;
   }
   // Les lieux viennent de js/data.js, donc en français (« Livraison à
   // l'adresse de votre choix ») : leur traduction est indexée sur ce texte.
@@ -553,7 +554,7 @@ function initVehiculesPage() {
   function updateInfoBar() {
     if (!infoBar) return;
     infoBar.textContent = t("{lieu} · du {debut} au {fin} ({jours})", {
-      lieu: libelleLieu(recherche.lieuPrise, recherche.adressePrise),
+      lieu: libelleLieu(recherche.lieuPrise, recherche.adressePrise, recherche.lieuPriseType),
       debut: formatDateHeureFR(recherche.dateDebut, recherche.heureDebut),
       fin: formatDateHeureFR(recherche.dateFin, recherche.heureFin),
       jours: libelleJours(jours)
@@ -1113,7 +1114,7 @@ function initReservationPage() {
     nameDiv.textContent = vehicule.nom;
     const routeDiv = document.createElement("div");
     routeDiv.className = "hint-text";
-    routeDiv.textContent = `${libelleLieu(data.lieuPrise, data.adressePrise)} → ${libelleLieu(data.lieuRetour, data.adresseRetour)}`;
+    routeDiv.textContent = `${libelleLieu(data.lieuPrise, data.adressePrise, data.lieuPriseType)} → ${libelleLieu(data.lieuRetour, data.adresseRetour, data.lieuRetourType)}`;
     const datesDiv = document.createElement("div");
     datesDiv.className = "hint-text";
     datesDiv.textContent = `${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${libelleJours(data.jours)})`;
@@ -1809,8 +1810,15 @@ function initPaiementPage() {
   // Le lieu de livraison est demandé ici, après le choix du véhicule et des
   // options, mais avant le paiement. Il reste dans les mêmes champs métier
   // qu'auparavant afin de préserver les réservations et les contrats.
-  const deliverySelect = document.getElementById("payment-adresse-prise");
-  const returnSelect = document.getElementById("payment-adresse-retour");
+  const deliveryFrequent = document.getElementById("payment-adresse-prise-frequent");
+  const deliveryPrincipal = document.getElementById("payment-adresse-prise-principal");
+  const deliveryOther = document.getElementById("payment-adresse-prise-other");
+  const deliveryOtherToggle = document.getElementById("payment-adresse-prise-other-toggle");
+  const deliveryCustomToggle = document.getElementById("payment-adresse-prise-custom-toggle");
+  const returnFrequent = document.getElementById("payment-adresse-retour-frequent");
+  const returnPrincipal = document.getElementById("payment-adresse-retour-principal");
+  const returnOther = document.getElementById("payment-adresse-retour-other");
+  const returnOtherToggle = document.getElementById("payment-adresse-retour-other-toggle");
   const returnToggle = document.getElementById("payment-retour-different");
   const deliveryCustom = document.getElementById("payment-adresse-prise-custom");
   const returnCustom = document.getElementById("payment-adresse-retour-custom");
@@ -1841,55 +1849,98 @@ function initPaiementPage() {
 
   const deliveryInputs = createDeliveryInputs(deliveryCustom, "adresse-prise");
   const returnInputs = createDeliveryInputs(returnCustom, "adresse-retour");
-  [deliverySelect, returnSelect].forEach((select) => {
-    if (!select) return;
-    select.add(new Option("Choisissez un lieu de livraison", "", true, true));
-    select.options[0].disabled = true;
-    select.add(new Option(ADRESSE_PERSONNALISEE, ADRESSE_PERSONNALISEE));
-    VILLES_LIVRAISON.forEach((ville) => select.add(new Option(ville, ville)));
-  });
 
-  function fillDeliverySelect(select, customValue, inputs) {
-    if (!select) return;
-    const parsed = parseAdressePersonnalisee(customValue || "");
-    select.value = parsed ? ADRESSE_PERSONNALISEE : (customValue || "");
-    if (parsed && inputs) Object.keys(inputs).forEach((key) => { inputs[key].value = parsed[key]; });
-    const custom = select === deliverySelect ? deliveryCustom : returnCustom;
-    if (custom) custom.style.display = select.value === ADRESSE_PERSONNALISEE ? "grid" : "none";
-    if (inputs) Object.values(inputs).forEach((input) => { input.required = select.value === ADRESSE_PERSONNALISEE; });
+  function makeChoiceButton(container, value, type, selected, onSelect) {
+    if (!container) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "delivery-choice";
+    button.textContent = t(value);
+    button.setAttribute("aria-pressed", String(selected));
+    button.classList.toggle("is-selected", selected);
+    button.addEventListener("click", () => onSelect(value, type));
+    container.appendChild(button);
   }
 
-  fillDeliverySelect(deliverySelect, data.adressePrise, deliveryInputs);
+  function createDeliveryPicker({ frequent, principal, other, otherToggle, customToggle, custom, inputs, initialValue, initialType, isReturn }) {
+    const state = { value: initialValue || "", type: initialType || "" };
+    const parsed = parseAdressePersonnalisee(state.value);
+    if (parsed && inputs) Object.keys(inputs).forEach((key) => { inputs[key].value = parsed[key]; });
+    if (parsed) state.type = "custom";
+
+    function selected(value) { return state.value === value; }
+    function render() {
+      [frequent, principal].forEach((container) => { if (container) container.textContent = ""; });
+      LIEUX_FREQUENTS_LIVRAISON.forEach((value) => makeChoiceButton(frequent, value, "frequent", selected(value), choose));
+      VILLES_PRINCIPALES_LIVRAISON.forEach((value) => makeChoiceButton(principal, value, "zone", selected(value), choose));
+      if (other) {
+        other.textContent = "";
+        other.add(new Option("Choisissez une autre ville", "", true, true));
+        other.options[0].disabled = true;
+        VILLES_LIVRAISON.filter((value) => !LIEUX_FREQUENTS_LIVRAISON.includes(value) && !VILLES_PRINCIPALES_LIVRAISON.includes(value))
+          .forEach((value) => other.add(new Option(t(value), value)));
+        other.value = VILLES_PRINCIPALES_LIVRAISON.includes(state.value) || LIEUX_FREQUENTS_LIVRAISON.includes(state.value) ? "" : state.value;
+        other.hidden = !other.value && !state.showOther;
+      }
+      if (custom) custom.style.display = state.type === "custom" ? "grid" : "none";
+      if (inputs) Object.values(inputs).forEach((input) => { input.required = state.type === "custom"; });
+      if (customToggle) customToggle.classList.toggle("is-selected", state.type === "custom");
+    }
+    function choose(value, type) {
+      state.value = value;
+      state.type = type;
+      state.showOther = false;
+      render();
+    }
+    if (otherToggle) otherToggle.addEventListener("click", () => { state.showOther = true; render(); if (other) other.focus(); });
+    if (other) other.addEventListener("change", () => { if (other.value) choose(other.value, "zone"); });
+    if (customToggle) customToggle.addEventListener("click", () => {
+      state.type = "custom";
+      state.value = ADRESSE_PERSONNALISEE;
+      state.showOther = false;
+      render();
+      if (inputs && inputs.rue) inputs.rue.focus();
+    });
+    render();
+    return {
+      getValue() {
+        if (state.type !== "custom") return { value: state.value, type: state.type };
+        return { value: formatAdressePersonnalisee(inputs.rue.value, inputs.codePostal.value, inputs.ville.value), type: "custom" };
+      },
+      setValue(value, type) { state.value = value || ""; state.type = type || ""; render(); },
+      isReturn
+    };
+  }
+
+  const initialTypePrise = data.lieuPriseType || (parseAdressePersonnalisee(data.adressePrise) ? "custom" : (LIEUX_FREQUENTS_LIVRAISON.includes(data.adressePrise) ? "frequent" : "zone"));
+  const initialTypeRetour = data.lieuRetourType || (parseAdressePersonnalisee(data.adresseRetour) ? "custom" : (LIEUX_FREQUENTS_LIVRAISON.includes(data.adresseRetour) ? "frequent" : "zone"));
+  const deliveryPicker = createDeliveryPicker({ frequent: deliveryFrequent, principal: deliveryPrincipal, other: deliveryOther, otherToggle: deliveryOtherToggle, customToggle: deliveryCustomToggle, custom: deliveryCustom, inputs: deliveryInputs, initialValue: data.adressePrise, initialType: initialTypePrise });
+  const returnPicker = createDeliveryPicker({ frequent: returnFrequent, principal: returnPrincipal, other: returnOther, otherToggle: returnOtherToggle, custom: returnCustom, inputs: returnInputs, initialValue: data.adresseRetour, initialType: initialTypeRetour, isReturn: true });
   if (data.adresseRetour && data.adresseRetour !== data.adressePrise) {
     if (returnToggle) returnToggle.checked = true;
     if (returnWrap) returnWrap.style.display = "flex";
-    fillDeliverySelect(returnSelect, data.adresseRetour, returnInputs);
   }
-  if (deliverySelect) deliverySelect.addEventListener("change", () => fillDeliverySelect(deliverySelect, deliverySelect.value, deliveryInputs));
-  if (returnSelect) returnSelect.addEventListener("change", () => fillDeliverySelect(returnSelect, returnSelect.value, returnInputs));
   if (returnToggle) returnToggle.addEventListener("change", () => {
     if (returnWrap) returnWrap.style.display = returnToggle.checked ? "flex" : "none";
-    if (returnSelect && !returnToggle.checked) returnSelect.value = "";
+    if (!returnToggle.checked) returnPicker.setValue("", "");
   });
 
-  function deliveryValue(select, inputs) {
-    if (!select || !select.value) return "";
-    if (select.value !== ADRESSE_PERSONNALISEE) return select.value;
-    return formatAdressePersonnalisee(inputs.rue.value, inputs.codePostal.value, inputs.ville.value);
-  }
-
   function validateDelivery() {
-    const prise = deliveryValue(deliverySelect, deliveryInputs);
-    const retour = returnToggle && returnToggle.checked ? deliveryValue(returnSelect, returnInputs) : prise;
-    const ok = Boolean(prise && retour);
+    const prise = deliveryPicker.getValue();
+    const retour = returnToggle && returnToggle.checked ? returnPicker.getValue() : prise;
+    const ok = Boolean(prise.value && retour.value);
     const error = document.getElementById("err-payment-adresse-prise");
     if (error) error.textContent = prise ? "" : "Merci d'indiquer le lieu de livraison.";
     if (!prise && deliverySelect) deliverySelect.focus();
     if (ok) {
       data.lieuPrise = LIEU_LIVRAISON;
       data.lieuRetour = LIEU_LIVRAISON;
-      data.adressePrise = prise;
-      data.adresseRetour = retour;
+      data.adressePrise = prise.value;
+      data.adresseRetour = retour.value;
+      data.lieuPriseType = prise.type;
+      data.lieuRetourType = retour.type;
+      data.adresseExactePriseAConfirmer = prise.type === "zone";
+      data.adresseExacteRetourAConfirmer = retour.type === "zone";
       writeReservationLocal(data);
     }
     return ok;
@@ -2031,6 +2082,10 @@ function initPaiementPage() {
           lieuRetour: data.lieuRetour,
           adressePrise: data.adressePrise,
           adresseRetour: data.adresseRetour,
+          lieuPriseType: data.lieuPriseType,
+          lieuRetourType: data.lieuRetourType,
+          adresseExactePriseAConfirmer: data.adresseExactePriseAConfirmer,
+          adresseExacteRetourAConfirmer: data.adresseExacteRetourAConfirmer,
           options: data.options,
           codePromo: data.codePromo,
           protection: data.protection,
@@ -2233,7 +2288,7 @@ function renderConfirmationDetails(container, data) {
   nameDiv.textContent = vehicule ? vehicule.nom : "Véhicule";
   const routeDiv = document.createElement("div");
   routeDiv.className = "hint-text";
-  routeDiv.textContent = `${libelleLieu(data.lieuPrise, data.adressePrise) || ""} → ${libelleLieu(data.lieuRetour, data.adresseRetour) || ""}`;
+  routeDiv.textContent = `${libelleLieu(data.lieuPrise, data.adressePrise, data.lieuPriseType) || ""} → ${libelleLieu(data.lieuRetour, data.adresseRetour, data.lieuRetourType) || ""}`;
   const datesDiv = document.createElement("div");
   datesDiv.className = "hint-text";
   datesDiv.textContent = `${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${libelleJours(data.jours)})`;

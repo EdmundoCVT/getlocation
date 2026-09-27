@@ -552,6 +552,49 @@ textarea:focus-visible,
   background: #fffaf5;
 }
 
+.delivery-picker-label {
+  display: block;
+  margin: 4px 0 9px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #6b6b74;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.delivery-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.delivery-choice {
+  min-height: 48px;
+  padding: 11px 13px;
+  border: 1px solid #dfe4ee;
+  border-radius: var(--radius-sm);
+  background: white;
+  color: var(--gris-fonce);
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.delivery-choice:hover,
+.delivery-choice.is-selected {
+  border-color: var(--bleu-ocean);
+  background: #eef5ff;
+  box-shadow: 0 0 0 2px rgba(0, 102, 255, 0.12);
+}
+
+.delivery-choice.is-selected::before { content: "✓ "; color: var(--bleu-ocean); }
+.delivery-secondary-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+.delivery-other-select { margin-top: 2px; }
+.delivery-later-hint { margin: 10px 0 0; }
+
 .checkbox-label {
   display: flex;
   align-items: center;
@@ -567,6 +610,8 @@ textarea:focus-visible,
   .custom-delivery-address {
     grid-template-columns: 1fr !important;
   }
+  .delivery-choice-grid { grid-template-columns: 1fr; }
+  .delivery-choice { min-height: 52px; }
 }
 
 .datetime-group {

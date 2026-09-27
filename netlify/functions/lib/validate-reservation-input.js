@@ -5,7 +5,7 @@
 // dates/heures bien formées et futures, longueurs de chaînes bornées) —
 // ne calcule et ne fait jamais confiance à un prix fourni par le client.
 
-const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS } = require("../../../js/data.js");
+const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, LIEUX_FREQUENTS_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS } = require("../../../js/data.js");
 
 const MAX_LEN = {
   nom: 100,
@@ -17,6 +17,7 @@ const MAX_LEN = {
 
 const OPTION_IDS = new Set(OPTIONS.map(o => o.id));
 const LIEUX_HISTORIQUES = new Set(["Agence Grasse"]);
+const TYPES_LIEU_LIVRAISON = new Set(["frequent", "zone", "custom"]);
 
 function isNonEmptyString(v, max, min = 1) {
   return typeof v === "string" && v.trim().length >= min && v.length <= max;
@@ -69,6 +70,8 @@ function validateReservationInput(payload) {
     lieuRetour,
     adressePrise,
     adresseRetour,
+    lieuPriseType,
+    lieuRetourType,
     options,
     codePromo,
     conducteur,
@@ -118,6 +121,18 @@ function validateReservationInput(payload) {
   } else if (adresseRetour !== undefined && adresseRetour !== null && adresseRetour !== "") {
     errors.push("Lieu de livraison (restitution) invalide");
   }
+
+  function normaliserTypeLieu(type, adresse) {
+    if (type !== undefined && !TYPES_LIEU_LIVRAISON.has(type)) errors.push("Type de lieu de livraison invalide");
+    if (type === "frequent" && !LIEUX_FREQUENTS_LIVRAISON.includes(adresse)) errors.push("Lieu fréquent de livraison invalide");
+    if (type === "zone" && !VILLES_LIVRAISON.includes(adresse)) errors.push("Zone de livraison invalide");
+    if (type === "custom" && !parseAdressePersonnalisee(adresse)) errors.push("Adresse personnalisée invalide");
+    if (type && TYPES_LIEU_LIVRAISON.has(type)) return type;
+    if (parseAdressePersonnalisee(adresse)) return "custom";
+    return LIEUX_FREQUENTS_LIVRAISON.includes(adresse) ? "frequent" : "zone";
+  }
+  const lieuPriseTypeNormalise = lieuPrise === LIEU_LIVRAISON ? normaliserTypeLieu(lieuPriseType, adressePrise) : null;
+  const lieuRetourTypeNormalise = lieuRetour === LIEU_LIVRAISON ? normaliserTypeLieu(lieuRetourType, adresseRetour) : null;
 
   // Options : liste facultative d'identifiants — chacun doit correspondre à
   // une option connue du catalogue (js/data.js). Un identifiant inconnu est
@@ -188,7 +203,17 @@ function validateReservationInput(payload) {
     errors.push("La version des conditions générales a été mise à jour, veuillez recharger la page et réessayer");
   }
 
-  return { valid: errors.length === 0, errors, vehicule, options: optionsNormalisees, codePromo: codePromoNormalise };
+  return {
+    valid: errors.length === 0,
+    errors,
+    vehicule,
+    options: optionsNormalisees,
+    codePromo: codePromoNormalise,
+    lieuPriseType: lieuPriseTypeNormalise,
+    lieuRetourType: lieuRetourTypeNormalise,
+    adresseExactePriseAConfirmer: lieuPriseTypeNormalise === "zone",
+    adresseExacteRetourAConfirmer: lieuRetourTypeNormalise === "zone"
+  };
 }
 
 module.exports = { validateReservationInput };

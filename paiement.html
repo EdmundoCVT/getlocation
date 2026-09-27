@@ -120,7 +120,7 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=32">
+<link rel="stylesheet" href="css/style.css?v=33">
 </head>
 <body>
 
@@ -229,21 +229,33 @@
         <p class="hint-text">Le permis de conduire et une pièce d'identité vous seront demandés par e-mail après la réservation.</p>
 
         <h2>Où souhaitez-vous recevoir le véhicule ?</h2>
-        <p class="hint-text">Indiquez l'adresse de livraison avant de finaliser votre commande.</p>
+        <p class="hint-text">Choisissez simplement une zone ou un lieu précis. L'adresse complète pourra être communiquée plus tard.</p>
         <div class="form-grid delivery-fields">
           <div class="field field-full">
-            <label for="payment-adresse-prise">Lieu de livraison</label>
-            <select id="payment-adresse-prise" required></select>
+            <span class="delivery-picker-label">Lieux fréquents</span>
+            <div class="delivery-choice-grid" id="payment-adresse-prise-frequent"></div>
+            <span class="delivery-picker-label">Villes principales</span>
+            <div class="delivery-choice-grid delivery-city-grid" id="payment-adresse-prise-principal"></div>
+            <div class="delivery-secondary-actions">
+              <button type="button" class="btn btn-secondary btn-sm" id="payment-adresse-prise-other-toggle">Autre ville</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="payment-adresse-prise-custom-toggle">Saisir une adresse</button>
+            </div>
+            <select id="payment-adresse-prise-other" class="delivery-other-select" hidden></select>
             <div class="error-text" id="err-payment-adresse-prise" aria-live="polite"></div>
+            <p class="hint-text delivery-later-hint" id="payment-adresse-prise-hint">Pas besoin de connaître l’adresse exacte maintenant. Vous pourrez nous communiquer le lieu précis de livraison jusqu’à 24 h avant la remise du véhicule.</p>
           </div>
           <div class="field field-full" id="payment-adresse-prise-custom" style="display:none;"></div>
           <div class="field field-full">
             <label class="checkbox-label"><input type="checkbox" id="payment-retour-different"> Restituer le véhicule à une autre adresse</label>
           </div>
           <div class="field field-full" id="payment-adresse-retour-wrap" style="display:none;">
-            <label for="payment-adresse-retour">Lieu de restitution</label>
-            <select id="payment-adresse-retour"></select>
+            <span class="delivery-picker-label">Lieu de restitution</span>
+            <div class="delivery-choice-grid" id="payment-adresse-retour-frequent"></div>
+            <div class="delivery-choice-grid delivery-city-grid" id="payment-adresse-retour-principal"></div>
+            <button type="button" class="btn btn-secondary btn-sm" id="payment-adresse-retour-other-toggle">Autre ville</button>
+            <select id="payment-adresse-retour-other" class="delivery-other-select" hidden></select>
             <div class="error-text" id="err-payment-adresse-retour" aria-live="polite"></div>
+            <p class="hint-text delivery-later-hint" id="payment-adresse-retour-hint">Pas besoin de connaître l’adresse exacte maintenant. Vous pourrez nous communiquer le lieu précis de restitution jusqu’à 24 h avant la remise du véhicule.</p>
           </div>
           <div class="field field-full" id="payment-adresse-retour-custom" style="display:none;"></div>
         </div>
@@ -311,8 +323,8 @@
   <div class="footer-bottom">© <span id="footer-year"></span> GETLOCATION — TLST SAS · SIRET 932 098 908 00019 · <a href="mentions-legales.html">Mentions légales</a></div>
 </footer>
 
-<script src="js/data.js?v=25"></script>
-<script src="js/i18n.js?v=5"></script>
-<script src="js/app.js?v=32"></script>
+<script src="js/data.js?v=26"></script>
+<script src="js/i18n.js?v=6"></script>
+<script src="js/app.js?v=33"></script>
 </body>
 </html>

@@ -101,8 +101,8 @@ function buildConfirmationEmailContent(reservation, siteUrl) {
   const whatsappUrl = buildWhatsappUrl(reservation.id, t);
   const documentsUrl = buildDocumentsUrl(reservation, siteUrl, langue);
   // Le lieu vient de js/data.js, donc en français : traduit comme sur le site.
-  const lieuPrise = [t(reservation.lieuPrise || ""), libelleAdresseLivraison(reservation.adressePrise)].filter(Boolean).join(" — ");
-  const lieuRetour = [t(reservation.lieuRetour || ""), libelleAdresseLivraison(reservation.adresseRetour)].filter(Boolean).join(" — ");
+  const lieuPrise = [t(reservation.lieuPrise || ""), libelleAdresseLivraison(reservation.adressePrise), reservation.adresseExactePriseAConfirmer ? t("Adresse exacte à confirmer avant la remise du véhicule") : ""].filter(Boolean).join(" — ");
+  const lieuRetour = [t(reservation.lieuRetour || ""), libelleAdresseLivraison(reservation.adresseRetour), reservation.adresseExacteRetourAConfirmer ? t("Adresse exacte de restitution à confirmer avant la remise du véhicule") : ""].filter(Boolean).join(" — ");
 
   const subject = t("Confirmation de votre réservation GET LOCATION — {vehicule}", { vehicule: vehiculeNom });
 
