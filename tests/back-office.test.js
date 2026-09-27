@@ -120,6 +120,19 @@ test("l'espace interne présente une navigation unique et un tableau de bord", (
   assert.ok(!html.includes("docs.google.com/spreadsheets/d/"), "l'URL du fichier ne doit jamais figurer dans l'asset public");
 });
 
+test("la navigation mobile ouvre et ferme la sidebar sans exposer de contenu supplémentaire", () => {
+  const window = buildWindow();
+  const sidebar = window.document.getElementById("internalSidebar");
+  const toggle = window.document.getElementById("mobileNavToggle");
+  const backdrop = window.document.getElementById("sidebarBackdrop");
+  toggle.click();
+  assert.ok(sidebar.classList.contains("is-open"));
+  assert.equal(toggle.getAttribute("aria-expanded"), "true");
+  backdrop.click();
+  assert.ok(!sidebar.classList.contains("is-open"));
+  assert.equal(toggle.getAttribute("aria-expanded"), "false");
+});
+
 // Régression Lot 5 : renderSyncStatus utilisait row(), qui échappe
 // systématiquement sa valeur (correct pour du texte utilisateur) — appliqué
 // au HTML de confiance renvoyé par syncBadge(), il affichait le balisage

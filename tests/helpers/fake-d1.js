@@ -187,6 +187,29 @@ function createFakeD1() {
             throw new Error("fake-d1: requête .first() non reconnue : " + norm);
           },
           async all() {
+            // ---- Tableau de bord : listes opérationnelles jointes ----
+            if (norm.includes("FROM deposits d JOIN rentals r ON r.id = d.rental_id JOIN clients c ON c.id = r.client_id")) {
+              const results = [...tables.deposits.values()]
+                .filter((deposit) => deposit.status === "attendue")
+                .map((deposit) => {
+                  const rental = tables.rentals.get(deposit.rental_id);
+                  const client = rental && tables.clients.get(rental.client_id);
+                  return rental && rental.status !== "annulee" ? { ...rental, deposit_id: deposit.id, first_name: client && client.first_name, last_name: client && client.last_name } : null;
+                }).filter(Boolean);
+              return { results };
+            }
+            if (norm.includes("FROM rentals r JOIN clients c ON c.id = r.client_id")) {
+              const today = args[0];
+              let rows = [...tables.rentals.values()].filter((rental) => rental.status !== "annulee");
+              if (norm.includes("(r.date_debut = ? OR r.date_fin = ?)")) rows = rows.filter((rental) => rental.date_debut === today || rental.date_fin === today);
+              else if (norm.includes("r.status = 'brouillon'")) rows = rows.filter((rental) => rental.status === "brouillon" && rental.date_debut >= today);
+              else rows = rows.filter((rental) => rental.date_debut >= today);
+              const results = rows.sort((a, b) => `${a.date_debut}${a.heure_debut}`.localeCompare(`${b.date_debut}${b.heure_debut}`)).slice(0, 5).map((rental) => {
+                const client = tables.clients.get(rental.client_id);
+                return { ...rental, first_name: client && client.first_name, last_name: client && client.last_name };
+              });
+              return { results };
+            }
             // ---- Lot 2 : recherche client par nom (seule requête LIKE) ----
             if (norm.startsWith("SELECT * FROM clients WHERE last_name LIKE ? OR first_name LIKE ?")) {
               const [lastLike, firstLike] = args;
