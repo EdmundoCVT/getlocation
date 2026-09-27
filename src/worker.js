@@ -26,6 +26,8 @@ const { handleAgencyClients } = require("./api/agency-clients.js");
 const { handleAgencyRentals } = require("./api/agency-rentals.js");
 const { handleAgencyPayments } = require("./api/agency-payments.js");
 const { handleAgencyDeposits } = require("./api/agency-deposits.js");
+const { handleAnalyticsEvents } = require("./api/analytics-events.js");
+const { handleAgencyAnalytics } = require("./api/agency-analytics.js");
 const { handleInspectionMedia } = require("./api/inspection-media.js");
 const { runScheduledTasks } = require("./lib/scheduled-tasks.js");
 const { estCheminAnglais, servirPageAnglaise } = require("./lib/pages-en.js");
@@ -53,6 +55,8 @@ const ROUTES = {
   "/api/agency-rentals": handleAgencyRentals,
   "/api/agency-payments": handleAgencyPayments,
   "/api/agency-deposits": handleAgencyDeposits,
+  "/api/analytics-events": handleAnalyticsEvents,
+  "/api/agency-analytics": handleAgencyAnalytics,
   "/api/inspection-media": handleInspectionMedia
 };
 
@@ -97,12 +101,17 @@ async function withClientUX(response, pathname) {
   }
 
   if (!html.includes("/js/deposit-ux.js")) {
-    const script = '<script src="/js/deposit-ux.js?v=3"></script>';
+    const script = '<script src="/js/deposit-ux.js?v=4"></script>';
     html = html.includes("</body>")
       ? html.replace("</body>", `${script}\n</body>`)
       : `${html}\n${script}`;
   } else {
-    html = html.replace(/\/js\/deposit-ux\.js\?v=\d+/g, "/js/deposit-ux.js?v=3");
+    html = html.replace(/\/js\/deposit-ux\.js\?v=\d+/g, "/js/deposit-ux.js?v=4");
+  }
+
+  if (!html.includes("/js/analytics.js")) {
+    const analytics = '<script src="/js/analytics.js?v=1"></script>';
+    html = html.includes("</body>") ? html.replace("</body>", `${analytics}\n</body>`) : `${html}\n${analytics}`;
   }
 
   if (/\/contrat(?:\.html)?\/?$/.test(pathname) && !html.includes("/js/inspection-v2.js")) {

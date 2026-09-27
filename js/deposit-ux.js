@@ -62,11 +62,11 @@
     var scope = root && root.querySelectorAll ? root : document;
     scope.querySelectorAll(".vehicle-specs span").forEach(function (span) {
       var text = (span.textContent || "").trim();
-      if (/^Caution\s+[\d\s.,]+\s*€$/i.test(text) || /^€\s*[\d\s.,]+\s*deposit$/i.test(text)) span.remove();
+      if (/^(?:Caution|Dépôt de garantie\s*:?)\s+[\d\s.,]+\s*€$/i.test(text) || /^€\s*[\d\s.,]+\s*deposit$/i.test(text)) span.remove();
     });
     scope.querySelectorAll(".choice-details p").forEach(function (p) {
       var text = (p.textContent || "").trim();
-      if (/caution\s+de\s+[\d\s.,]+\s*€/i.test(text) || /deposit\s+of\s+€?[\d\s.,]+/i.test(text)) {
+      if (/(?:caution|dépôt de garantie)\s+(?:de\s+)?[\d\s.,]+\s*€/i.test(text) || /deposit\s+of\s+€?[\d\s.,]+/i.test(text)) {
         p.textContent = isEnglish()
           ? "No extra charge. The applicable security-deposit terms will be shown at the payment step."
           : "Aucun supplément. Les conditions du dépôt de garantie seront rappelées au moment du règlement.";
@@ -149,21 +149,21 @@
     var box = document.createElement("div");
     box.id = "payment-deposit-disclosure";
     box.setAttribute("role", "note");
-    box.style.cssText = "margin-top:18px;padding:16px 18px;border:1px solid #e7e7e7;border-radius:14px;background:#fafafa;line-height:1.5";
+    box.style.cssText = "margin-top:10px;padding:8px 0;border-top:1px solid #ededed;line-height:1.4;color:#6b6b73";
 
     var title = document.createElement("strong");
-    title.style.cssText = "display:block;margin-bottom:6px;font-size:1rem;color:#1f1f1f";
-    title.textContent = isEnglish() ? "Security deposit" : "Caution";
+    title.style.cssText = "display:block;margin-bottom:2px;font-size:.82rem;font-weight:400;color:#6b6b73";
+    title.textContent = isEnglish() ? "Security deposit" : "Dépôt de garantie";
 
     var amount = document.createElement("div");
-    amount.style.cssText = "font-size:1.15rem;font-weight:700;margin-bottom:6px;color:#1f1f1f";
+    amount.style.cssText = "font-size:.9rem;font-weight:400;margin-bottom:3px;color:#4f4f58";
     amount.textContent = typeof formatEUR === "function" ? formatEUR(vehicle.caution) : vehicle.caution + " €";
 
     var text = document.createElement("p");
     text.style.cssText = "margin:0;color:#666";
     text.textContent = isEnglish()
       ? "This security deposit will be requested separately when the vehicle is handed over. It is not included in the amount paid today. Depending on the method used, it may be a card pre-authorisation or another deposit method provided for in the rental agreement."
-      : "Cette caution sera demandée séparément le jour de la prise en charge du véhicule. Elle n'est pas comprise dans le montant payé aujourd'hui. Selon le mode utilisé, il pourra s'agir d'une empreinte bancaire (préautorisation) ou d'un autre moyen prévu au contrat.";
+      : "Ce dépôt de garantie sera demandé séparément le jour de la prise en charge du véhicule. Il n'est pas compris dans le montant payé aujourd'hui. Selon le mode utilisé, il pourra s'agir d'une empreinte bancaire (préautorisation) ou d'un autre moyen prévu au contrat.";
 
     box.append(title, amount, text);
     summary.appendChild(box);

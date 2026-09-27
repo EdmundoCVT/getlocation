@@ -34,6 +34,13 @@
   .top-bar { margin-bottom: 20px; align-items: center; }
   .section-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
   .rentals-list > * + * { margin-top: 10px; }
+  .analytics-kpis { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:10px; }
+  .analytics-kpi { padding:14px; background:var(--gris-clair); border-radius:8px; }
+  .analytics-kpi strong { display:block; font-size:1.55rem; margin-top:4px; }
+  .analytics-events { max-height:420px; overflow:auto; }
+  .analytics-event { padding:9px 0; border-bottom:1px solid #eee; }
+  .analytics-event small { color:#666; }
+  @media (max-width:700px) { .analytics-kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
 </style>
 </head>
 <body>
@@ -60,6 +67,25 @@
       <span>Connecté : <strong id="operatorName"></strong></span>
       <button type="button" class="btn btn-sm" id="logoutBtn">Se déconnecter</button>
     </div>
+
+    <!-- ---- Statistiques internes pseudonymisées ---- -->
+    <section id="analyticsSection">
+      <h1 class="section-title">Statistiques</h1>
+      <p class="section-subtitle">Mesure agrégée du parcours, sans données personnelles.</p>
+      <div class="section-actions">
+        <button type="button" class="btn btn-secondary btn-sm analytics-period" data-days="1">Aujourd'hui</button>
+        <button type="button" class="btn btn-secondary btn-sm analytics-period" data-days="7">7 derniers jours</button>
+        <button type="button" class="btn btn-secondary btn-sm analytics-period" data-days="30">30 derniers jours</button>
+      </div>
+      <div class="card">
+        <div id="analyticsKpis" class="analytics-kpis"><p class="hint-text">Chargement…</p></div>
+        <p id="analyticsMeta" class="hint-text" style="margin-top:12px;"></p>
+      </div>
+      <div class="card" style="margin-top:14px;">
+        <h2 style="margin-top:0;">Visites récentes</h2>
+        <div id="analyticsSessions" class="analytics-events"><p class="hint-text">Chargement…</p></div>
+      </div>
+    </section>
 
     <!-- ---- Recherche client ---- -->
     <section id="searchSection">
@@ -351,7 +377,35 @@ function afficherApresConnexion(operator){
   document.getElementById('loginView').hidden = true;
   document.getElementById('mainView').hidden = false;
   showSection('searchSection');
+  chargerStatistiques(7);
 }
+
+function renderAnalytics(data){
+  var m = data.metrics || {};
+  var labels = [
+    ['Visites', m.visits], ['Visiteurs / sessions', m.visitors],
+    ['Commandes commencées', m.booking_started || m.search_started],
+    ['Paiements commencés', m.payment_started], ['Réservations confirmées', m.booking_confirmed]
+  ];
+  document.getElementById('analyticsKpis').innerHTML = labels.map(function(item){ return '<div class="analytics-kpi"><span>' + escapeHtml(item[0]) + '</span><strong>' + Number(item[1] || 0) + '</strong></div>'; }).join('');
+  document.getElementById('analyticsMeta').textContent = 'Conversion visite → réservation confirmée : ' + Number(m.conversionRate || 0).toLocaleString('fr-FR') + ' % · véhicules consultés : ' + Number(m.vehicle_results_viewed || 0) + ' · sélectionnés : ' + Number(m.vehicle_selected || 0) + ' · réservation/règlement : ' + Number(m.checkout_reached || 0);
+  var sessions = document.getElementById('analyticsSessions');
+  if(!data.sessions || !data.sessions.length){ sessions.innerHTML = '<p class="hint-text">Aucune visite sur cette période.</p>'; return; }
+  sessions.innerHTML = data.sessions.map(function(session){
+    var events = session.events.map(function(event){
+      var time = new Date(event.occurredAt).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+      var vehicle = event.vehicleId ? ' · véhicule ' + event.vehicleId : '';
+      return '<div><strong>' + escapeHtml(time) + '</strong> — ' + escapeHtml(event.eventType) + ' <small>' + escapeHtml(event.page + vehicle) + '</small></div>';
+    }).join('');
+    return '<div class="analytics-event"><strong>Session ' + escapeHtml(session.sessionId.slice(0, 8)) + '</strong> · ' + Number(session.pageCount || 0) + ' page(s) · ' + Number(session.durationSeconds || 0) + ' s<div>' + events + '</div></div>';
+  }).join('');
+}
+function chargerStatistiques(days){
+  apiGet('/api/agency-analytics?days=' + days).then(function(res){
+    if(res.ok) renderAnalytics(res.json); else document.getElementById('analyticsKpis').innerHTML = '<p class="error-text">' + escapeHtml(res.json.error || 'Statistiques indisponibles.') + '</p>';
+  }).catch(function(){ document.getElementById('analyticsKpis').innerHTML = '<p class="error-text">Statistiques indisponibles.</p>'; });
+}
+document.querySelectorAll('.analytics-period').forEach(function(button){ button.addEventListener('click', function(){ chargerStatistiques(Number(button.dataset.days)); }); });
 
 function initSession(){
   apiGet('/api/agency-session').then(function(res){

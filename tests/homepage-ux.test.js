@@ -68,10 +68,10 @@ test("le sélecteur de véhicule utilise des icônes vectorielles sans emoji", (
   assert.doesNotMatch(toggle.textContent, /🚗|🚐/);
 });
 
-test("chaque véhicule de la homepage affiche sa caution exacte", () => {
+test("chaque véhicule de la homepage affiche son dépôt de garantie exact", () => {
   for (const vehicule of VEHICULES) {
     const card = document.querySelector(`[data-vehicle-link="vehicules.html?vehicule=${vehicule.id}"]`);
-    assert.match(card.textContent, new RegExp(`Caution ${vehicule.caution} €`));
+    assert.match(card.textContent, new RegExp(`Dépôt de garantie : ${vehicule.caution} €`));
   }
 });
 

@@ -736,7 +736,7 @@ function initVehiculesPage() {
             <span>${v.transmission}</span>
             <span>${v.clim ? "Climatisation" : "Sans clim"}</span>
             ${v.hybride ? '<span>Hybride</span>' : ''}
-            <span>${t("Caution {montant}", { montant: formatEUR(v.caution) })}</span>
+            <span>${t("Dépôt de garantie : {montant}", { montant: formatEUR(v.caution) })}</span>
           </div>
           <p class="hint-text">${v.description}</p>
           ${v.modelGuaranteed === false ? '<p class="hint-text">Le modèle présenté est indicatif. Un véhicule de catégorie équivalente peut être proposé.</p>' : ""}

@@ -273,9 +273,9 @@
     "Manuelle": "Manual",
     "Automatique": "Automatic",
     "Climatisation": "Air conditioning",
-    "Caution 500 €": "€500 deposit",
-    "Caution 600 €": "€600 deposit",
-    "Caution 800 €": "€800 deposit",
+    "Dépôt de garantie : 500 €": "Security deposit: €500",
+    "Dépôt de garantie : 600 €": "Security deposit: €600",
+    "Dépôt de garantie : 800 €": "Security deposit: €800",
     "À partir de": "From",
     "/ jour": " / day",
     "Voir le véhicule": "View this vehicle",
@@ -329,7 +329,7 @@
     "Dans quelles villes puis-je récupérer mon véhicule ?": "Where can I pick up my vehicle?",
     "Nous sommes une agence en ligne : le véhicule est livré à l'adresse, à la gare ou au point de rendez-vous choisi sur la Côte d'Azur.":
       "We are an online agency: your vehicle is delivered to the address, railway station or meeting point you choose on the French Riviera.",
-    "Une caution est-elle demandée ?": "Is a deposit required?",
+    "Un dépôt de garantie est-il demandé ?": "Is a security deposit required?",
     "Oui, un dépôt de garantie de 500 à 800 € est demandé selon le véhicule loué. Son montant exact est affiché sur chaque fiche véhicule.":
       "Yes, a security deposit of €500 to €800 is required depending on the vehicle. The exact amount is shown on each vehicle page.",
     "Le paiement en ligne est-il sécurisé ?": "Is online payment secure?",
@@ -399,7 +399,7 @@
     "Payer maintenant": "Pay now",
     "🔒 Paiement chiffré de bout en bout par Mollie — GETLOCATION ne stocke aucune donnée bancaire.":
       "🔒 End-to-end encrypted payment by Mollie — GETLOCATION never stores your card details.",
-    "La caution est prélevée avant la remise des clés, selon le véhicule choisi.":
+    "Le dépôt de garantie est prélevé avant la remise des clés, selon le véhicule choisi.":
       "The security deposit is taken before the keys are handed over, depending on the vehicle.",
     "Résumé de la commande": "Order summary",
 
@@ -766,13 +766,13 @@
     "{nombre} jour": "{nombre} day",
     "{nombre} jours": "{nombre} days",
     "Total pour {jours} : {montant}": "Total for {jours}: {montant}",
-    "Caution {montant}": "{montant} deposit",
+    "Dépôt de garantie : {montant}": "Security deposit: {montant}",
     "Date invalide (JJ/MM/AAAA attendu) : {champ}.": "Invalid date (DD/MM/YYYY expected): {champ}.",
     "Demande de réservation — {vehicule}": "Booking request — {vehicule}",
     "{vehicule} — GETLOCATION": "{vehicule} — GETLOCATION",
     "Bonjour,\n\nJe souhaite faire une demande de réservation pour : {vehicule}\nDu {debut} au {fin}.\n\nMerci de me recontacter.":
       "Hello,\n\nI would like to request a booking for: {vehicule}\nFrom {debut} to {fin}.\n\nPlease get back to me.",
-    "Aucun supplément. Une caution de {caution} reste prévue pour ce véhicule. Les conditions exactes figurent dans les conditions de location.":
+    "Aucun supplément. Un dépôt de garantie de {caution} reste prévu pour ce véhicule. Les conditions exactes figurent dans les conditions de location.":
       "No extra charge. A deposit of {caution} still applies to this vehicle. The exact terms are set out in the rental conditions.",
     "{prix} / jour": "{prix} / day",
     "Choisir {protection}": "Choose {protection}",
