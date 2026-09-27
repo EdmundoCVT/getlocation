@@ -135,10 +135,11 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     // L'ancien écran « Admin » n'était qu'un lanceur vers les outils
-    // agence. Les deux anciens accès convergent donc vers l'entrée interne
-    // unique, sans toucher aux routes API ni à leurs autorisations.
-    if (["/admin", "/admin.html", "/back-office", "/back-office.html"].includes(url.pathname)) {
-      return Response.redirect(new URL("/espace-get-location", url), 302);
+    // agence : il rejoint l'entrée interne unique. `/back-office` reste la
+    // route technique de cette entrée pour éviter une boucle avec la
+    // normalisation automatique des assets HTML par Cloudflare.
+    if (["/admin", "/admin.html"].includes(url.pathname)) {
+      return Response.redirect(new URL("/back-office", url), 302);
     }
     if (["/espace-get-location", "/espace-get-location/"].includes(url.pathname)) {
       const assetRequest = new Request(new URL("/back-office.html", url), request);

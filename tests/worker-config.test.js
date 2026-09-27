@@ -83,11 +83,10 @@ test("le Worker route l'authentification agence (Lot 1)", () => {
   assert.match(worker, /"\/api\/agency-session"\s*:\s*handleAgencySession/);
 });
 
-test("les anciennes entrées internes convergent vers l'espace unique", () => {
+test("l'ancienne entrée Admin converge vers l'espace interne unique", () => {
   const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
   assert.match(worker, /"\/admin"/);
-  assert.match(worker, /"\/back-office"/);
-  assert.match(worker, /"\/espace-get-location"/);
+  assert.match(worker, /new URL\("\/back-office", url\)/);
   assert.match(worker, /Response\.redirect/);
 });
 
