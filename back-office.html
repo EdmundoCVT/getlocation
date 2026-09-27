@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<title>Espace agence — GETLOCATION</title>
+<title>Espace GET LOCATION — GETLOCATION</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="stylesheet" href="css/style.css?v=33">
 <style>
@@ -40,6 +40,9 @@
   .analytics-events { max-height:420px; overflow:auto; }
   .analytics-event { padding:9px 0; border-bottom:1px solid #eee; }
   .analytics-event small { color:#666; }
+  .internal-nav { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 24px; padding:10px; border:1px solid #e4e4e9; border-radius:10px; background:#fff; }
+  .internal-nav .btn { text-decoration:none; }
+  .internal-nav .is-active { background:#ff6b00; border-color:#ff6b00; color:#fff; }
   @media (max-width:700px) { .analytics-kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
 </style>
 </head>
@@ -50,8 +53,8 @@
 
   <!-- ================= CONNEXION ================= -->
   <div id="loginView">
-    <h1 class="section-title">Espace agence</h1>
-    <p class="section-subtitle">Connexion réservée à l'agence GETLOCATION.</p>
+    <h1 class="section-title">Espace GET LOCATION</h1>
+    <p class="section-subtitle">Connexion réservée à l'équipe GET LOCATION.</p>
     <div class="card">
       <form id="loginForm">
         <div class="field"><label for="loginCode">Code personnel</label><input type="password" id="loginCode" autocomplete="off" required></div>
@@ -68,9 +71,22 @@
       <button type="button" class="btn btn-sm" id="logoutBtn">Se déconnecter</button>
     </div>
 
+    <nav class="internal-nav" aria-label="Navigation de l'espace GET LOCATION">
+      <button type="button" class="btn btn-sm is-active" data-internal-view="dashboardSection">Tableau de bord</button>
+      <button type="button" class="btn btn-sm" data-internal-view="searchSection">Clients &amp; locations</button>
+      <a class="btn btn-sm" href="/contrat">Contrats &amp; états des lieux</a>
+      <button type="button" class="btn btn-sm" data-internal-view="dashboardSection" data-dashboard-focus="statistics">Statistiques</button>
+    </nav>
+
     <!-- ---- Statistiques internes pseudonymisées ---- -->
-    <section id="analyticsSection">
-      <h1 class="section-title">Statistiques</h1>
+    <section id="dashboardSection">
+      <h1 class="section-title">Tableau de bord</h1>
+      <p class="section-subtitle">Vue rapide de l'activité GET LOCATION.</p>
+      <div class="section-actions">
+        <button type="button" class="btn btn-primary" data-internal-view="searchSection">Gérer les clients et locations</button>
+        <a class="btn btn-secondary" href="/contrat">Préparer un contrat ou un état des lieux</a>
+      </div>
+      <h2 id="statistiques">Statistiques</h2>
       <p class="section-subtitle">Mesure agrégée du parcours, sans données personnelles.</p>
       <div class="section-actions">
         <button type="button" class="btn btn-secondary btn-sm analytics-period" data-days="1">Aujourd'hui</button>
@@ -88,7 +104,7 @@
     </section>
 
     <!-- ---- Recherche client ---- -->
-    <section id="searchSection">
+    <section id="searchSection" data-anchor="clients">
       <h1 class="section-title">Rechercher un client</h1>
       <p class="section-subtitle">Téléphone ou email en priorité ; nom/prénom en dernier recours.</p>
       <div class="card">
@@ -212,7 +228,7 @@
         </form>
       </div>
 
-      <h2>Caution</h2>
+      <h2>Dépôt de garantie</h2>
       <div class="card" id="depositCard"></div>
     </section>
   </div>
@@ -367,16 +383,23 @@ function alerteConnexion(){ alert('Connexion au serveur impossible. Vérifiez vo
 
 // ================= Connexion ================= //
 function showSection(id){
-  ['searchSection', 'clientFormSection', 'clientSheetSection', 'rentalFormSection', 'rentalDetailSection'].forEach(function(s){
+  ['dashboardSection', 'searchSection', 'clientFormSection', 'clientSheetSection', 'rentalFormSection', 'rentalDetailSection'].forEach(function(s){
     document.getElementById(s).hidden = (s !== id);
   });
+  document.querySelectorAll('[data-internal-view]').forEach(function(button){
+    button.classList.toggle('is-active', button.dataset.internalView === id && !button.dataset.dashboardFocus);
+  });
+}
+
+function sectionInitiale(){
+  return window.location.hash === '#clients' ? 'searchSection' : 'dashboardSection';
 }
 
 function afficherApresConnexion(operator){
   document.getElementById('operatorName').textContent = operator;
   document.getElementById('loginView').hidden = true;
   document.getElementById('mainView').hidden = false;
-  showSection('searchSection');
+  showSection(sectionInitiale());
   chargerStatistiques(7);
 }
 
@@ -406,6 +429,10 @@ function chargerStatistiques(days){
   }).catch(function(){ document.getElementById('analyticsKpis').innerHTML = '<p class="error-text">Statistiques indisponibles.</p>'; });
 }
 document.querySelectorAll('.analytics-period').forEach(function(button){ button.addEventListener('click', function(){ chargerStatistiques(Number(button.dataset.days)); }); });
+document.querySelectorAll('[data-internal-view]').forEach(function(button){ button.addEventListener('click', function(){
+  showSection(button.dataset.internalView);
+  if(button.dataset.dashboardFocus === 'statistics') document.getElementById('statistiques').scrollIntoView({ behavior:'smooth', block:'start' });
+}); });
 
 function initSession(){
   apiGet('/api/agency-session').then(function(res){
@@ -894,17 +921,17 @@ document.getElementById('paymentForm').addEventListener('submit', function(e){
   .finally(function(){ btn.disabled = false; });
 });
 
-// ================= Caution ================= //
+// ================= Dépôt de garantie ================= //
 function renderDeposit(deposit){
   var box = document.getElementById('depositCard');
 
   if(!deposit){
     box.innerHTML =
-      '<p class="hint-text">Aucune caution enregistrée pour cette location.</p>' +
+      '<p class="hint-text">Aucun dépôt de garantie enregistré pour cette location.</p>' +
       '<form id="depositCreateForm" class="form-grid" style="margin-top:10px;">' +
         '<div class="field"><label for="dep-amount">Montant (€)</label><input id="dep-amount" type="number" min="0.01" step="0.01" required></div>' +
         '<div class="field"><label for="dep-method">Mode de remise</label><select id="dep-method"><option value="carte">Carte bancaire</option><option value="especes">Espèces</option><option value="virement">Virement</option></select></div>' +
-        '<div class="field full"><button type="submit" class="btn btn-primary">Enregistrer la demande de caution</button></div>' +
+        '<div class="field full"><button type="submit" class="btn btn-primary">Enregistrer la demande de dépôt de garantie</button></div>' +
       '</form>';
     document.getElementById('depositCreateForm').addEventListener('submit', function(e){
       e.preventDefault();
@@ -940,7 +967,7 @@ function renderDeposit(deposit){
 
   if(deposit.status === 'attendue'){
     document.getElementById('receiveDepositBtn').addEventListener('click', function(){
-      if(!confirm('Confirmer la réception de la caution ?')) return;
+      if(!confirm('Confirmer la réception du dépôt de garantie ?')) return;
       apiPost('/api/agency-deposits', { action: 'receive', id: deposit.id }).then(function(res){
         if(!res.ok){ alert(res.json.error || 'Erreur'); return; }
         renderDeposit(res.json.deposit);
@@ -950,7 +977,7 @@ function renderDeposit(deposit){
   if(deposit.status === 'recue'){
     document.getElementById('returnDepositForm').addEventListener('submit', function(e){
       e.preventDefault();
-      if(!confirm('Confirmer la restitution de la caution ?')) return;
+      if(!confirm('Confirmer la restitution du dépôt de garantie ?')) return;
       var returned = Number(document.getElementById('ret-returned').value || 0);
       var retained = Number(document.getElementById('ret-retained').value || 0);
       var reason = document.getElementById('ret-reason').value;

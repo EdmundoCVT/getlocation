@@ -197,8 +197,8 @@
 
   <!-- ================= CONNEXION AGENCE (Lot 1) ================= -->
   <div id="agencyLoginView" class="hidden">
-    <h1>Espace agence</h1>
-    <p class="lead">Connexion réservée à l'agence GETLOCATION.</p>
+    <h1>Espace GET LOCATION</h1>
+    <p class="lead">Connexion réservée à l'équipe GET LOCATION.</p>
     <div class="card">
       <form id="agencyLoginForm">
         <div class="field">
@@ -217,6 +217,14 @@
       <div class="info"><span class="details">Connecté : <strong id="agencyUserName"></strong></span></div>
       <div class="actions"><button type="button" class="btn" id="agencyLogoutBtn">Se déconnecter</button></div>
     </div>
+    <nav class="historique-row" aria-label="Navigation de l'espace GET LOCATION" style="margin-bottom:18px;">
+      <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a class="btn" href="/espace-get-location">Tableau de bord</a>
+        <a class="btn" href="/espace-get-location#clients">Clients &amp; locations</a>
+        <a class="btn btn-primary" href="/contrat">Contrats &amp; états des lieux</a>
+        <a class="btn" href="/espace-get-location#statistiques">Statistiques</a>
+      </div>
+    </nav>
     <h1>Préparer un contrat de location</h1>
     <p class="lead">Remplissez les informations de la location. Un lien sera généré pour l'envoyer au client, qui n'aura plus qu'à vérifier et signer.</p>
 
@@ -330,7 +338,7 @@
           <label for="soldeRegle-toggle">Solde réglé (décocher si encore en attente)</label>
         </div>
         <div class="field full" style="margin-top:16px;">
-          <label>Mode de règlement de la caution</label>
+          <label>Mode de règlement du dépôt de garantie</label>
           <div class="tabs" id="cautionTabs">
             <button type="button" class="tab-btn active" data-mode="carte">Carte bancaire</button>
             <button type="button" class="tab-btn" data-mode="especes">Espèces</button>
@@ -601,7 +609,7 @@
         </p>
 
         <div id="ribClientBlock" style="display:none;margin-top:22px;padding-top:22px;border-top:1px dashed var(--ligne);">
-          <h2 style="margin:0 0 10px;">Coordonnées bancaires (restitution de la caution)</h2>
+          <h2 style="margin:0 0 10px;">Coordonnées bancaires (restitution du dépôt de garantie)</h2>
           <p class="meta-line" style="margin-bottom:12px;" id="ribClientBlockLead">Facultatif : vous pouvez dès maintenant indiquer le RIB sur lequel le dépôt de garantie devra vous être restitué (voir Article 4) — sinon l'agence le récupérera plus tard.</p>
           <div class="grid">
             <div class="field">
@@ -697,7 +705,7 @@
           </div>
         </div>
         <div class="field full" style="margin-top:16px;">
-          <label>Mode de règlement de la caution</label>
+          <label>Mode de règlement du dépôt de garantie</label>
           <div class="tabs" id="dfCautionTabs">
             <button type="button" class="tab-btn active" data-mode="carte">Carte bancaire</button>
             <button type="button" class="tab-btn" data-mode="especes">Espèces</button>
@@ -3173,7 +3181,7 @@ function initDossierAgencyView(token){
     recap.appendChild(recapRow('E-mail', r.conducteur ? r.conducteur.email : ''));
     recap.appendChild(recapRow('Téléphone', r.conducteur ? r.conducteur.telephone : ''));
     recap.appendChild(recapRow('Total réglé', formatEUR(r.total)));
-    recap.appendChild(recapRow('Caution', r.vehicule ? formatEUR(r.vehicule.caution) : ''));
+    recap.appendChild(recapRow('Dépôt de garantie', r.vehicule ? formatEUR(r.vehicule.caution) : ''));
 
     var f = view.dossier.fields || {};
     var prefill = view.documentsPrefill || {};
@@ -3470,7 +3478,7 @@ function initDossierClientView(token){
       recap.appendChild(recapRow('Départ', formatDateHeureFR(departISO)));
       recap.appendChild(recapRow('Retour', formatDateHeureFR(retourISO)));
       recap.appendChild(recapRow('Total', formatEUR(r.total)));
-      recap.appendChild(recapRow('Caution', r.vehicule ? (formatEUR(r.vehicule.caution) + ' (' + (f.modeCaution === 'carte' ? 'carte bancaire' : 'espèces') + ')') : ''));
+      recap.appendChild(recapRow('Dépôt de garantie', r.vehicule ? (formatEUR(r.vehicule.caution) + ' (' + (f.modeCaution === 'carte' ? 'carte bancaire' : 'espèces') + ')') : ''));
       recap.appendChild(recapRow('Locataire', r.conducteur ? (r.conducteur.prenom + ' ' + r.conducteur.nom) : ''));
       recap.appendChild(recapRow('N° de permis', f.permisNumero));
       if(f.secondConducteur){
@@ -3874,7 +3882,7 @@ function initOwnerView(prefill){
     var prix = calculerPrixContrat(donneesTarif);
     document.getElementById('vehiculeRecap').innerHTML =
       '<span><strong>' + v.nom + '</strong> — ' + v.prixJour + ' €/jour</span>' +
-      '<span>Caution : ' + formatEUR(v.caution) + '</span>';
+      '<span>Dépôt de garantie : ' + formatEUR(v.caution) + '</span>';
     if(!prix){
       document.getElementById('dureeTxt').textContent = 'Dates invalides (retour avant départ)';
       document.getElementById('kmTxt').textContent = '—';
@@ -4805,7 +4813,7 @@ function initClientView(data){
     '<div class="recap-row"><span>' + (data.livraison ? 'Livraison' : 'Lieu de prise en charge') + '</span><span>' + lieuAffiche + '</span></div>' +
     '<div class="recap-row"><span>Départ</span><span>' + formatDateHeureFR(data.depart) + '</span></div>' +
     '<div class="recap-row"><span>Retour</span><span>' + formatDateHeureFR(data.retour) + '</span></div>' +
-    '<div class="recap-row"><span>Caution</span><span>' + formatEUR(v.caution) + ' (' + libelleModeCaution(data.modeCaution).toLowerCase() + ')</span></div>';
+    '<div class="recap-row"><span>Dépôt de garantie</span><span>' + formatEUR(v.caution) + ' (' + libelleModeCaution(data.modeCaution).toLowerCase() + ')</span></div>';
 
   document.getElementById('c-dureeTxt').textContent = formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours);
   document.getElementById('c-kmTxt').textContent = kmInclus.toLocaleString('fr-FR') + ' km';

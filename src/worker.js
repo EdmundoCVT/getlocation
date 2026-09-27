@@ -134,6 +134,16 @@ async function withClientUX(response, pathname) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    // L'ancien écran « Admin » n'était qu'un lanceur vers les outils
+    // agence. Les deux anciens accès convergent donc vers l'entrée interne
+    // unique, sans toucher aux routes API ni à leurs autorisations.
+    if (["/admin", "/admin.html", "/back-office", "/back-office.html"].includes(url.pathname)) {
+      return Response.redirect(new URL("/espace-get-location", url), 302);
+    }
+    if (["/espace-get-location", "/espace-get-location/"].includes(url.pathname)) {
+      const assetRequest = new Request(new URL("/back-office.html", url), request);
+      return withClientUX(await env.ASSETS.fetch(assetRequest), url.pathname);
+    }
     const route = ROUTES[url.pathname];
     if (route) return route(request, env, ctx);
 

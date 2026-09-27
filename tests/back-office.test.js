@@ -108,6 +108,14 @@ test("chargement complet de la page sans exception (tous les écouteurs s'attach
   assert.doesNotThrow(() => buildWindow());
 });
 
+test("l'espace interne présente une navigation unique et un tableau de bord", () => {
+  const window = buildWindow();
+  assert.match(window.document.querySelector("#loginView h1").textContent, /Espace GET LOCATION/);
+  assert.ok(window.document.getElementById("dashboardSection"));
+  assert.equal(window.document.querySelectorAll("[data-internal-view]").length >= 3, true);
+  assert.match(window.document.querySelector(".internal-nav").textContent, /Contrats/);
+});
+
 // Régression Lot 5 : renderSyncStatus utilisait row(), qui échappe
 // systématiquement sa valeur (correct pour du texte utilisateur) — appliqué
 // au HTML de confiance renvoyé par syncBadge(), il affichait le balisage

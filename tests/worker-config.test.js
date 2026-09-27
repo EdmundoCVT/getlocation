@@ -83,6 +83,14 @@ test("le Worker route l'authentification agence (Lot 1)", () => {
   assert.match(worker, /"\/api\/agency-session"\s*:\s*handleAgencySession/);
 });
 
+test("les anciennes entrées internes convergent vers l'espace unique", () => {
+  const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
+  assert.match(worker, /"\/admin"/);
+  assert.match(worker, /"\/back-office"/);
+  assert.match(worker, /"\/espace-get-location"/);
+  assert.match(worker, /Response\.redirect/);
+});
+
 test("la base D1 de l'authentification agence (AGENCY_DB) est déclarée (Lot 1)", () => {
   assert.ok(Array.isArray(config.d1_databases) && config.d1_databases.length > 0, "d1_databases manquant");
   const db = config.d1_databases.find((d) => d.binding === "AGENCY_DB");
