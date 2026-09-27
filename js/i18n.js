@@ -176,19 +176,24 @@
     // --- Accueil : hero
     "La location simplifiée": "Car rental made simple",
     "Le véhicule qu'il vous faut, livré où vous voulez.": "Book. We deliver. You drive.",
-    "Choisissez vos dates et votre véhicule. GETLOCATION s'occupe du reste — livraison à domicile, à l'hôtel ou à l'aéroport, sur toute la Côte d'Azur.":
-      "Pick your dates and your vehicle. We take care of the rest — home, hotel or airport delivery across the French Riviera.",
+    "Commandez. On vous l'apporte. Vous roulez.": "Book it. We deliver it. You drive.",
+    "Renseignez votre besoin en quelques secondes. Choisissez votre véhicule, puis GETLOCATION s'occupe de la préparation et de la livraison à l'adresse qui vous convient.":
+      "Tell us what you need in a few seconds. Choose your vehicle, then GETLOCATION handles preparation and delivery to the address that suits you.",
     "Entreprise locale": "Local company",
     "Véhicules 2026": "2026 vehicles",
     "Paiement sécurisé": "Secure payment",
     "Assurance incluse": "Insurance included",
     "Trouver mon véhicule": "Find my vehicle",
+    "Commander mon véhicule": "Book my vehicle",
     "Voir les véhicules": "View vehicles",
 
     // --- Accueil : moteur de recherche
     "Trouvez votre véhicule": "Find your vehicle",
+    "Commandez votre véhicule": "Book your vehicle",
     "Choisissez vos dates et votre lieu de livraison pour consulter les disponibilités.":
       "Choose your dates and delivery location to see what is available.",
+    "Choisissez vos dates et votre véhicule. Le lieu de livraison sera précisé juste avant le paiement.":
+      "Choose your dates and vehicle. Your delivery location will be confirmed just before payment.",
     "Quel véhicule recherchez-vous ?": "What are you looking for?",
     "Voitures": "Cars",
     "Utilitaires": "Vans",
@@ -199,6 +204,16 @@
     "Lieu de livraison": "Delivery location",
     "Restituer à un endroit différent": "Return to a different location",
     "Lieu de restitution": "Return location",
+    "Où souhaitez-vous recevoir le véhicule ?": "Where would you like to receive the vehicle?",
+    "Indiquez l'adresse de livraison avant de finaliser votre commande.": "Enter your delivery address before finalising your booking.",
+    "Choisissez un lieu de livraison": "Choose a delivery location",
+    "Saisir une adresse personnalisée": "Enter a custom address",
+    "Adresse": "Address",
+    "Numéro et rue": "Number and street",
+    "Code postal": "Postcode",
+    "Ville": "Town or city",
+    "Nice": "Nice",
+    "Restituer le véhicule à une autre adresse": "Return the vehicle to a different address",
     "Voir les véhicules disponibles": "See available vehicles",
     "Rechercher": "Search",
 
@@ -249,15 +264,20 @@
     // --- Accueil : comment ça marche
     "Le parcours": "How it works",
     "La location de voiture simplifiée": "Car rental made simple",
-    "Commandez, faites-vous livrer, roulez : trois étapes, sans complication.":
-      "Book, get it delivered, drive away: three steps, no complications.",
+    "Commandez, on vous l'apporte, vous roulez": "Book it, we deliver it, you drive",
+    "Un parcours simple, pensé pour aller directement à l'essentiel.":
+      "A simple journey designed to get straight to what matters.",
     "Commandez votre véhicule": "Book your vehicle",
     "Sur": "On",
     "ou par téléphone.": "or by phone.",
     "Faites-vous livrer": "We deliver it to you",
+    "On vous l'apporte là où vous en avez besoin": "We bring it wherever you need it",
     "À l'adresse de votre choix ou au point de retrait.": "At the address of your choice or at a meeting point.",
+    "Domicile, hôtel, Airbnb, aéroport ou autre adresse disponible.": "Home, hotel, Airbnb, airport or another available address.",
     "Roulez": "You drive",
+    "Vous roulez, on s'occupe du reste": "You drive, we take care of the rest",
     "Prenez la route, on s'occupe du reste.": "Hit the road, we take care of the rest.",
+    "GETLOCATION gère la préparation et la logistique du véhicule.": "GETLOCATION handles vehicle preparation and logistics.",
 
     // --- Accueil : appel à l'action et contact
     "Prêt à réserver votre véhicule ?": "Ready to book your vehicle?",

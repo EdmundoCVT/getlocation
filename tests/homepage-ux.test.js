@@ -16,13 +16,20 @@ test("le hero précède le moteur de recherche sur la homepage", () => {
   assert.equal(hero.compareDocumentPosition(form) & 4, 4);
 });
 
-test("la promesse et le CTA mettent en avant la livraison et les disponibilités", () => {
+test("la promesse et le CTA mettent en avant la livraison et la commande", () => {
   assert.match(document.querySelector(".hero-text").textContent, /livr/i);
-  assert.match(document.querySelector(".hero-text").textContent, /Côte d'Azur/i);
+  assert.match(document.querySelector(".hero-text").textContent, /adresse/i);
   assert.equal(
     document.querySelector("#search-form button[type='submit']").textContent.trim(),
-    "Voir les véhicules disponibles"
+    "Commander mon véhicule"
   );
+});
+
+test("l'accueil demande uniquement les dates avant l'accès aux véhicules", () => {
+  assert.equal(document.querySelector("#lieu-prise"), null);
+  assert.equal(document.querySelector("#adresse-prise"), null);
+  assert.equal(document.querySelector("#adresse-retour"), null);
+  assert.match(document.querySelector(".search-card-heading").textContent, /juste avant le paiement/);
 });
 
 test("le hero ne présente pas de note en étoiles non sourcée", () => {
@@ -36,13 +43,8 @@ test("la homepage ne présente pas de section d'avis tant qu'ils ne sont pas dis
 });
 
 test("les CTA principaux utilisent des libellés cohérents", () => {
-  const availabilityCtas = [...document.querySelectorAll("a, button")]
-    .filter((element) => element.textContent.trim() === "Voir les véhicules disponibles");
-  // Le CTA principal du hero utilise désormais "Trouver mon véhicule"
-  // (positionnement §12 de la mission catalogue v2) ; les deux autres CTA
-  // de recherche/disponibilités restent inchangés.
-  assert.equal(availabilityCtas.length, 2);
-  assert.equal(document.querySelector(".hero-cta .btn-primary").textContent.trim(), "Trouver mon véhicule");
+  assert.equal(document.querySelectorAll("#search-form button[type='submit']").length, 1);
+  assert.equal(document.querySelector(".hero-cta .btn-primary").textContent.trim(), "Commander mon véhicule");
   assert.doesNotMatch(document.body.textContent, /Réserver maintenant|Voir la flotte|>Découvrir</);
 });
 

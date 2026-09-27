@@ -311,7 +311,7 @@ function initSearchForm() {
   }
 
   LIEUX.forEach(lieu => {
-    selectPrise.add(new Option(lieu, lieu));
+    if (selectPrise) selectPrise.add(new Option(lieu, lieu));
     if (selectRetour) selectRetour.add(new Option(lieu, lieu));
   });
   [selectAdressePrise, selectAdresseRetour].forEach(select => {
@@ -373,7 +373,7 @@ function initSearchForm() {
   // API existantes, mais le client voit directement le choix utile (ville,
   // gare ou aéroport).
   const livraisonUniquement = LIEUX.length === 1 && LIEUX[0] === LIEU_LIVRAISON;
-  if (livraisonUniquement) {
+  if (livraisonUniquement && selectPrise) {
     selectPrise.value = LIEU_LIVRAISON;
     if (selectRetour) selectRetour.value = LIEU_LIVRAISON;
     const champModePrise = selectPrise.closest(".field");
@@ -471,17 +471,18 @@ function initSearchForm() {
     e.preventDefault();
     corrigerFinSiNecessaire();
 
-    const adressePriseFinale = (selectPrise.value === LIEU_LIVRAISON && selectAdressePrise) ? valeurAdresse(selectAdressePrise, adressePersonnaliseePrise) : "";
+    const lieuPriseFinal = selectPrise ? selectPrise.value : LIEU_LIVRAISON;
+    const adressePriseFinale = (selectPrise && selectPrise.value === LIEU_LIVRAISON && selectAdressePrise) ? valeurAdresse(selectAdressePrise, adressePersonnaliseePrise) : "";
     // Sans restitution indépendante, on reprend silencieusement le lieu (et
     // la ville de livraison) de la prise en charge : pas besoin de le
     // ressaisir pour le cas le plus courant (même lieu au départ et au retour).
-    const lieuRetourFinal = retourIndependant ? selectRetour.value : selectPrise.value;
+    const lieuRetourFinal = retourIndependant && selectRetour ? selectRetour.value : lieuPriseFinal;
     const adresseRetourFinale = retourIndependant
       ? ((selectRetour.value === LIEU_LIVRAISON && selectAdresseRetour) ? valeurAdresse(selectAdresseRetour, adressePersonnaliseeRetour) : "")
       : adressePriseFinale;
 
     writeJSON(STORAGE.recherche, {
-      lieuPrise: selectPrise.value,
+      lieuPrise: lieuPriseFinal,
       lieuRetour: lieuRetourFinal,
       adressePrise: adressePriseFinale,
       adresseRetour: adresseRetourFinale,
@@ -1061,6 +1062,7 @@ function initReservationPage() {
     writeReservationLocal(data);
   }
   if (typeof data.codePromo !== "string") data.codePromo = "";
+
   // Réservation en cours démarrée avant les niveaux de protection : l'ancien
   // choix (« incluse » / « passagers ») est converti, et l'ancienne option
   // facturée séparément est retirée du panier — la protection
@@ -1804,6 +1806,95 @@ function initPaiementPage() {
   }
   if (typeof data.codePromo !== "string") data.codePromo = "";
 
+  // Le lieu de livraison est demandé ici, après le choix du véhicule et des
+  // options, mais avant le paiement. Il reste dans les mêmes champs métier
+  // qu'auparavant afin de préserver les réservations et les contrats.
+  const deliverySelect = document.getElementById("payment-adresse-prise");
+  const returnSelect = document.getElementById("payment-adresse-retour");
+  const returnToggle = document.getElementById("payment-retour-different");
+  const deliveryCustom = document.getElementById("payment-adresse-prise-custom");
+  const returnCustom = document.getElementById("payment-adresse-retour-custom");
+  const returnWrap = document.getElementById("payment-adresse-retour-wrap");
+
+  function createDeliveryInputs(container, suffix) {
+    if (!container) return null;
+    container.textContent = "";
+    container.className = "field field-full custom-delivery-address";
+    const inputs = {};
+    [{ key: "rue", label: "Adresse", placeholder: "Numéro et rue", maxLength: 200 },
+      { key: "codePostal", label: "Code postal", placeholder: "06000", maxLength: 5 },
+      { key: "ville", label: "Ville", placeholder: "Nice", maxLength: 80 }].forEach(({ key, label, placeholder, maxLength }) => {
+      const wrapper = document.createElement("label");
+      wrapper.textContent = label;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.id = `payment-${suffix}-${key}`;
+      input.placeholder = placeholder;
+      input.maxLength = maxLength;
+      input.required = false;
+      wrapper.appendChild(input);
+      container.appendChild(wrapper);
+      inputs[key] = input;
+    });
+    return inputs;
+  }
+
+  const deliveryInputs = createDeliveryInputs(deliveryCustom, "adresse-prise");
+  const returnInputs = createDeliveryInputs(returnCustom, "adresse-retour");
+  [deliverySelect, returnSelect].forEach((select) => {
+    if (!select) return;
+    select.add(new Option("Choisissez un lieu de livraison", "", true, true));
+    select.options[0].disabled = true;
+    select.add(new Option(ADRESSE_PERSONNALISEE, ADRESSE_PERSONNALISEE));
+    VILLES_LIVRAISON.forEach((ville) => select.add(new Option(ville, ville)));
+  });
+
+  function fillDeliverySelect(select, customValue, inputs) {
+    if (!select) return;
+    const parsed = parseAdressePersonnalisee(customValue || "");
+    select.value = parsed ? ADRESSE_PERSONNALISEE : (customValue || "");
+    if (parsed && inputs) Object.keys(inputs).forEach((key) => { inputs[key].value = parsed[key]; });
+    const custom = select === deliverySelect ? deliveryCustom : returnCustom;
+    if (custom) custom.style.display = select.value === ADRESSE_PERSONNALISEE ? "grid" : "none";
+    if (inputs) Object.values(inputs).forEach((input) => { input.required = select.value === ADRESSE_PERSONNALISEE; });
+  }
+
+  fillDeliverySelect(deliverySelect, data.adressePrise, deliveryInputs);
+  if (data.adresseRetour && data.adresseRetour !== data.adressePrise) {
+    if (returnToggle) returnToggle.checked = true;
+    if (returnWrap) returnWrap.style.display = "flex";
+    fillDeliverySelect(returnSelect, data.adresseRetour, returnInputs);
+  }
+  if (deliverySelect) deliverySelect.addEventListener("change", () => fillDeliverySelect(deliverySelect, deliverySelect.value, deliveryInputs));
+  if (returnSelect) returnSelect.addEventListener("change", () => fillDeliverySelect(returnSelect, returnSelect.value, returnInputs));
+  if (returnToggle) returnToggle.addEventListener("change", () => {
+    if (returnWrap) returnWrap.style.display = returnToggle.checked ? "flex" : "none";
+    if (returnSelect && !returnToggle.checked) returnSelect.value = "";
+  });
+
+  function deliveryValue(select, inputs) {
+    if (!select || !select.value) return "";
+    if (select.value !== ADRESSE_PERSONNALISEE) return select.value;
+    return formatAdressePersonnalisee(inputs.rue.value, inputs.codePostal.value, inputs.ville.value);
+  }
+
+  function validateDelivery() {
+    const prise = deliveryValue(deliverySelect, deliveryInputs);
+    const retour = returnToggle && returnToggle.checked ? deliveryValue(returnSelect, returnInputs) : prise;
+    const ok = Boolean(prise && retour);
+    const error = document.getElementById("err-payment-adresse-prise");
+    if (error) error.textContent = prise ? "" : "Merci d'indiquer le lieu de livraison.";
+    if (!prise && deliverySelect) deliverySelect.focus();
+    if (ok) {
+      data.lieuPrise = LIEU_LIVRAISON;
+      data.lieuRetour = LIEU_LIVRAISON;
+      data.adressePrise = prise;
+      data.adresseRetour = retour;
+      writeReservationLocal(data);
+    }
+    return ok;
+  }
+
   // Date d'obtention du permis telle que saisie dans le formulaire, au format
   // ISO attendu par calculerPrixTotal — ou null tant qu'elle est incomplète.
   function permisDateISOCourante() {
@@ -1898,6 +1989,8 @@ function initPaiementPage() {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (paymentErrors) paymentErrors.textContent = "";
+
+    if (!validateDelivery()) return;
 
     // Coordonnées d'abord (haut du formulaire), puis CGL — même ordre que
     // l'affichage, pour que le focus posé sur le premier champ en erreur

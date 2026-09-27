@@ -65,7 +65,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="css/style.css?v=30">
+<link rel="stylesheet" href="css/style.css?v=32">
 </head>
 <body>
 
@@ -93,8 +93,8 @@
   <div class="container hero-inner">
     <div class="hero-text">
       <span class="hero-eyebrow">La location simplifiée</span>
-      <h1>Le véhicule qu'il vous faut, livré où vous voulez.</h1>
-      <p class="hero-subtitle">Choisissez vos dates et votre véhicule. GETLOCATION s'occupe du reste — livraison à domicile, à l'hôtel ou à l'aéroport, sur toute la Côte d'Azur.</p>
+      <h1>Commandez. On vous l'apporte. Vous roulez.</h1>
+      <p class="hero-subtitle">Renseignez votre besoin en quelques secondes. Choisissez votre véhicule, puis GETLOCATION s'occupe de la préparation et de la livraison à l'adresse qui vous convient.</p>
       <div class="hero-badges">
         <span class="badge-item">Entreprise locale</span>
         <span class="badge-item">Véhicules 2026</span>
@@ -102,7 +102,7 @@
         <span class="badge-item">Assurance incluse</span>
       </div>
       <div class="hero-cta">
-        <a href="#search-form" class="btn btn-primary" data-conversion="hero_disponibilites">Trouver mon véhicule</a>
+        <a href="#search-form" class="btn btn-primary" data-conversion="hero_disponibilites">Commander mon véhicule</a>
         <a href="vehicules.html" class="btn btn-secondary">Voir les véhicules</a>
       </div>
     </div>
@@ -112,8 +112,8 @@
 <div class="container search-section">
   <form id="search-form" class="search-card">
     <div class="search-card-heading field-full">
-      <h2>Trouvez votre véhicule</h2>
-      <p>Choisissez vos dates et votre lieu de livraison pour consulter les disponibilités.</p>
+      <h2>Commandez votre véhicule</h2>
+      <p>Choisissez vos dates et votre véhicule. Le lieu de livraison sera précisé juste avant le paiement.</p>
     </div>
     <div class="field field-full">
       <label id="vehicle-type-label">Quel véhicule recherchez-vous ?</label>
@@ -143,29 +143,7 @@
         <select id="heure-fin" required></select>
       </div>
     </div>
-    <div class="field">
-      <label for="lieu-prise">Lieu de prise en charge</label>
-      <select id="lieu-prise" required></select>
-    </div>
-    <div class="field" id="adresse-prise-field" style="display:none;">
-      <label for="adresse-prise">Lieu de livraison</label>
-      <select id="adresse-prise"></select>
-    </div>
-    <div class="field field-toggle-retour">
-      <button type="button" class="toggle-retour" id="toggle-retour">
-        <svg class="icon-toggle" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h13l-3.5-3.5M20 17H7l3.5 3.5"/></svg>
-        Restituer à un endroit différent
-      </button>
-      <div class="field" id="retour-field" style="display:none;">
-        <label for="lieu-retour">Lieu de restitution</label>
-        <select id="lieu-retour" required></select>
-      </div>
-    </div>
-    <div class="field" id="adresse-retour-field" style="display:none;">
-      <label for="adresse-retour">Lieu de restitution</label>
-      <select id="adresse-retour"></select>
-    </div>
-    <button type="submit" class="btn btn-primary" data-conversion="recherche_disponibilites">Voir les véhicules disponibles</button>
+    <button type="submit" class="btn btn-primary" data-conversion="recherche_disponibilites">Commander mon véhicule</button>
   </form>
 </div>
 
@@ -306,8 +284,8 @@
 
 <section class="section container">
   <span class="section-eyebrow">Le parcours</span>
-  <h2 class="section-title">La location de voiture simplifiée</h2>
-  <p class="section-subtitle">Commandez, faites-vous livrer, roulez : trois étapes, sans complication.</p>
+  <h2 class="section-title">Commandez, on vous l'apporte, vous roulez</h2>
+  <p class="section-subtitle">Un parcours simple, pensé pour aller directement à l'essentiel.</p>
   <div class="how-steps">
     <div class="how-step">
       <div class="how-step-num">1</div>
@@ -317,14 +295,14 @@
     <div class="how-step-arrow" aria-hidden="true">→</div>
     <div class="how-step how-step-alt">
       <div class="how-step-num">2</div>
-      <h3>Faites-vous livrer</h3>
-      <p>À l'adresse de votre choix ou au point de retrait.</p>
+      <h3>On vous l'apporte là où vous en avez besoin</h3>
+      <p>Domicile, hôtel, Airbnb, aéroport ou autre adresse disponible.</p>
     </div>
     <div class="how-step-arrow" aria-hidden="true">→</div>
     <div class="how-step">
       <div class="how-step-num">3</div>
-      <h3>Roulez</h3>
-      <p>Prenez la route, on s'occupe du reste.</p>
+      <h3>Vous roulez, on s'occupe du reste</h3>
+      <p>GETLOCATION gère la préparation et la logistique du véhicule.</p>
     </div>
   </div>
 </section>
@@ -448,6 +426,6 @@
 
 <script src="js/data.js?v=25"></script>
 <script src="js/i18n.js?v=5"></script>
-<script src="js/app.js?v=31"></script>
+<script src="js/app.js?v=32"></script>
 </body>
 </html>

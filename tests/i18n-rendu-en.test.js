@@ -60,8 +60,8 @@ test("page anglaise : plus aucun texte français à l'écran", async () => {
   assert.deepEqual(restes, [], "ces textes français auraient dû être traduits à l'affichage");
 
   assert.equal(document.documentElement.lang, "en");
-  assert.match(document.body.textContent, /Book\. We deliver\. You drive\./);
-  assert.match(document.body.textContent, /Find your vehicle/);
+  assert.match(document.body.textContent, /Book it\. We deliver it\. You drive\./);
+  assert.match(document.body.textContent, /Book your vehicle/);
   dom.window.close();
 });
 
@@ -70,8 +70,8 @@ test("page française : strictement inchangée, aucun mot anglais injecté", asy
   const { document } = dom.window;
 
   assert.equal(document.documentElement.lang, "fr");
-  assert.match(document.body.textContent, /Le véhicule qu'il vous faut, livré où vous voulez\./);
-  assert.doesNotMatch(document.body.textContent, /Book\. We deliver\./);
+  assert.match(document.body.textContent, /Commandez\. On vous l'apporte\. Vous roulez\./);
+  assert.doesNotMatch(document.body.textContent, /Book it\. We deliver it\./);
   // Les liens gardent leur forme française d'origine.
   assert.equal(document.querySelector('.main-nav a[href]').getAttribute("href"), "index.html");
   dom.window.close();
