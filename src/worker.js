@@ -28,6 +28,8 @@ const { handleAgencyPayments } = require("./api/agency-payments.js");
 const { handleAgencyDeposits } = require("./api/agency-deposits.js");
 const { handleAnalyticsEvents } = require("./api/analytics-events.js");
 const { handleAgencyAnalytics } = require("./api/agency-analytics.js");
+const { handleAgencyGoogleSheets } = require("./api/agency-google-sheets.js");
+const { handleAgencyDashboard } = require("./api/agency-dashboard.js");
 const { handleInspectionMedia } = require("./api/inspection-media.js");
 const { runScheduledTasks } = require("./lib/scheduled-tasks.js");
 const { estCheminAnglais, servirPageAnglaise } = require("./lib/pages-en.js");
@@ -57,6 +59,8 @@ const ROUTES = {
   "/api/agency-deposits": handleAgencyDeposits,
   "/api/analytics-events": handleAnalyticsEvents,
   "/api/agency-analytics": handleAgencyAnalytics,
+  "/api/agency-google-sheets": handleAgencyGoogleSheets,
+  "/api/agency-dashboard": handleAgencyDashboard,
   "/api/inspection-media": handleInspectionMedia
 };
 

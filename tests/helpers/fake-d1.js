@@ -158,6 +158,19 @@ function createFakeD1() {
               ).length;
               return { count };
             }
+            // ---- Tableau de bord : agrégats D1 réellement utilisés ----
+            if (norm.startsWith("SELECT COALESCE(SUM(CASE WHEN date_debut = ?")) {
+              const [today] = args;
+              const rentals = [...tables.rentals.values()];
+              return {
+                departuresToday: rentals.filter((r) => r.date_debut === today && r.status !== "annulee").length,
+                returnsToday: rentals.filter((r) => r.date_fin === today && r.status !== "annulee").length,
+                activeRentals: rentals.filter((r) => r.status === "en_cours").length
+              };
+            }
+            if (norm === "SELECT COUNT(*) AS pendingDeposits FROM deposits WHERE status = ?") {
+              return { pendingDeposits: [...tables.deposits.values()].filter((d) => d.status === args[0]).length };
+            }
             // ---- Lot 2 : compteur atomique (UPSERT + RETURNING), voir
             // src/lib/contract-numero.js. Émule la sémantique D1/SQLite —
             // suffisant en test (un seul thread JS, pas de concurrence

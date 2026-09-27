@@ -40,10 +40,14 @@
   .analytics-events { max-height:420px; overflow:auto; }
   .analytics-event { padding:9px 0; border-bottom:1px solid #eee; }
   .analytics-event small { color:#666; }
-  .internal-nav { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 24px; padding:10px; border:1px solid #e4e4e9; border-radius:10px; background:#fff; }
+  .internal-nav { display:grid; grid-template-columns:repeat(auto-fit, minmax(145px, 1fr)); gap:8px; margin:0 0 24px; padding:10px; border:1px solid #e4e4e9; border-radius:10px; background:#fff; }
   .internal-nav .btn { text-decoration:none; }
   .internal-nav .is-active { background:#ff6b00; border-color:#ff6b00; color:#fff; }
-  @media (max-width:700px) { .analytics-kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+  .operations-links { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:10px; margin-top:16px; }
+  .operations-link { text-align:left; min-height:76px; }
+  .operations-link small { display:block; margin-top:4px; color:inherit; opacity:.78; font-weight:400; }
+  .google-sheets-link { display:inline-flex; align-items:center; gap:6px; }
+  @media (max-width:700px) { .analytics-kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); } .internal-nav { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
 </style>
 </head>
 <body>
@@ -73,20 +77,38 @@
 
     <nav class="internal-nav" aria-label="Navigation de l'espace GET LOCATION">
       <button type="button" class="btn btn-sm is-active" data-internal-view="dashboardSection">Tableau de bord</button>
-      <button type="button" class="btn btn-sm" data-internal-view="searchSection">Clients &amp; locations</button>
+      <button type="button" class="btn btn-sm" data-internal-view="searchSection">Réservations</button>
+      <button type="button" class="btn btn-sm" data-internal-view="planningSection">Planning</button>
+      <button type="button" class="btn btn-sm" data-internal-view="deliveriesSection">Livraisons</button>
       <a class="btn btn-sm" href="/contrat">Contrats &amp; états des lieux</a>
-      <button type="button" class="btn btn-sm" data-internal-view="dashboardSection" data-dashboard-focus="statistics">Statistiques</button>
+      <button type="button" class="btn btn-sm" data-internal-view="depositsSection">Dépôts de garantie</button>
+      <button type="button" class="btn btn-sm" data-internal-view="vehiclesSection">Véhicules</button>
+      <button type="button" class="btn btn-sm" data-internal-view="statisticsSection">Statistiques</button>
+      <button type="button" class="btn btn-sm" data-internal-view="settingsSection">Paramètres</button>
     </nav>
 
-    <!-- ---- Statistiques internes pseudonymisées ---- -->
+    <!-- ---- Tableau de bord ---- -->
     <section id="dashboardSection">
       <h1 class="section-title">Tableau de bord</h1>
-      <p class="section-subtitle">Vue rapide de l'activité GET LOCATION.</p>
-      <div class="section-actions">
-        <button type="button" class="btn btn-primary" data-internal-view="searchSection">Gérer les clients et locations</button>
-        <a class="btn btn-secondary" href="/contrat">Préparer un contrat ou un état des lieux</a>
+      <p class="section-subtitle">Accès rapide aux opérations actuellement disponibles dans GET LOCATION.</p>
+      <div id="operationsKpis" class="analytics-kpis"><p class="hint-text">Chargement des opérations…</p></div>
+      <p class="hint-text" id="operationsKpisMeta" style="margin-top:10px;">Les indicateurs ci-dessous concernent les locations déjà enregistrées dans GET LOCATION.</p>
+      <div class="operations-links">
+        <button type="button" class="btn btn-primary operations-link" data-internal-view="searchSection">Réservations<small>Rechercher un client, créer ou suivre une location.</small></button>
+        <button type="button" class="btn btn-secondary operations-link" data-internal-view="planningSection">Planning<small>Le planning opérationnel reste dans Google Sheets pendant la transition.</small></button>
+        <a class="btn btn-secondary operations-link" href="/contrat">Contrats &amp; états des lieux<small>Préparer un contrat et accéder aux dossiers existants.</small></a>
+        <button type="button" class="btn btn-secondary operations-link" data-internal-view="depositsSection">Dépôts de garantie<small>Consulter et traiter un dépôt depuis la location concernée.</small></button>
       </div>
-      <h2 id="statistiques">Statistiques</h2>
+      <div class="card" style="margin-top:16px;">
+        <h2 style="margin-top:0;">Google Sheets</h2>
+        <p class="hint-text">Le fichier reste le planning opérationnel de référence durant cette transition. La synchronisation existante reste unidirectionnelle depuis D1 vers l'onglet « Réservations ».</p>
+        <div class="section-actions" data-google-sheets-link></div>
+      </div>
+    </section>
+
+    <!-- ---- Statistiques internes pseudonymisées ---- -->
+    <section id="statisticsSection" hidden>
+      <h1 class="section-title">Statistiques</h1>
       <p class="section-subtitle">Mesure agrégée du parcours, sans données personnelles.</p>
       <div class="section-actions">
         <button type="button" class="btn btn-secondary btn-sm analytics-period" data-days="1">Aujourd'hui</button>
@@ -103,10 +125,61 @@
       </div>
     </section>
 
+    <!-- ---- Planning : Google Sheets reste la référence actuelle ---- -->
+    <section id="planningSection" hidden>
+      <h1 class="section-title">Planning</h1>
+      <p class="section-subtitle">Planning des réservations.</p>
+      <div class="card">
+        <p>Le planning opérationnel reste actuellement géré dans Google Sheets. Cette page prépare l'emplacement d'un planning interne sans dupliquer ni synchroniser les données dans les deux sens.</p>
+        <div class="section-actions" data-google-sheets-link></div>
+      </div>
+    </section>
+
+    <!-- ---- Livraisons : structure sans recréer une seconde base ---- -->
+    <section id="deliveriesSection" hidden>
+      <h1 class="section-title">Livraisons</h1>
+      <p class="section-subtitle">Suivi opérationnel des remises et récupérations.</p>
+      <div class="card">
+        <p>Le suivi détaillé des livraisons reste actuellement dans l'onglet « LIVRAISON » de Google Sheets. Les locations D1 conservent déjà leurs lieux de prise et de retour, mais ne disposent pas encore d'un statut opérationnel de livraison fiable.</p>
+        <div class="section-actions" data-google-sheets-link></div>
+      </div>
+    </section>
+
+    <!-- ---- Dépôts : traitement existant depuis une location ---- -->
+    <section id="depositsSection" hidden>
+      <h1 class="section-title">Dépôts de garantie</h1>
+      <p class="section-subtitle">Les dépôts existants restent rattachés à leur location pour préserver le suivi et la traçabilité.</p>
+      <div class="card">
+        <p>Recherchez une réservation puis ouvrez sa fiche pour consulter ou mettre à jour le dépôt de garantie associé.</p>
+        <div class="section-actions"><button type="button" class="btn btn-primary" data-internal-view="searchSection">Rechercher une réservation</button></div>
+      </div>
+    </section>
+
+    <!-- ---- Véhicules : catalogue fiable, sans inventer disponibilité/rentabilité ---- -->
+    <section id="vehiclesSection" hidden>
+      <h1 class="section-title">Véhicules</h1>
+      <p class="section-subtitle">Catalogue actuellement configuré dans GET LOCATION.</p>
+      <div class="card">
+        <div id="vehiclesCatalog" class="rentals-list"></div>
+        <p class="hint-text" style="margin:14px 0 0;">La disponibilité détaillée et les calculs de flotte restent gérés dans Google Sheets pendant la transition.</p>
+      </div>
+    </section>
+
+    <!-- ---- Paramètres : informations de configuration, pas de faux panneau ---- -->
+    <section id="settingsSection" hidden>
+      <h1 class="section-title">Paramètres</h1>
+      <p class="section-subtitle">Configuration opérationnelle disponible dans cette version.</p>
+      <div class="card">
+        <h2 style="margin-top:0;">Google Sheets</h2>
+        <p class="hint-text">L'accès est réservé aux sessions authentifiées. Aucun lien vers le fichier n'est présent sur le site client.</p>
+        <div class="section-actions" data-google-sheets-link></div>
+      </div>
+    </section>
+
     <!-- ---- Recherche client ---- -->
     <section id="searchSection" data-anchor="clients">
-      <h1 class="section-title">Rechercher un client</h1>
-      <p class="section-subtitle">Téléphone ou email en priorité ; nom/prénom en dernier recours.</p>
+      <h1 class="section-title">Réservations</h1>
+      <p class="section-subtitle">Rechercher un client, créer une location ou consulter les réservations déjà saisies dans GET LOCATION.</p>
       <div class="card">
         <form id="searchForm" class="form-grid">
           <div class="field"><label for="searchPhone">Téléphone</label><input type="text" id="searchPhone"></div>
@@ -383,11 +456,11 @@ function alerteConnexion(){ alert('Connexion au serveur impossible. Vérifiez vo
 
 // ================= Connexion ================= //
 function showSection(id){
-  ['dashboardSection', 'searchSection', 'clientFormSection', 'clientSheetSection', 'rentalFormSection', 'rentalDetailSection'].forEach(function(s){
+  ['dashboardSection', 'statisticsSection', 'planningSection', 'deliveriesSection', 'depositsSection', 'vehiclesSection', 'settingsSection', 'searchSection', 'clientFormSection', 'clientSheetSection', 'rentalFormSection', 'rentalDetailSection'].forEach(function(s){
     document.getElementById(s).hidden = (s !== id);
   });
   document.querySelectorAll('[data-internal-view]').forEach(function(button){
-    button.classList.toggle('is-active', button.dataset.internalView === id && !button.dataset.dashboardFocus);
+    button.classList.toggle('is-active', button.dataset.internalView === id && button.closest('.internal-nav'));
   });
 }
 
@@ -401,6 +474,60 @@ function afficherApresConnexion(operator){
   document.getElementById('mainView').hidden = false;
   showSection(sectionInitiale());
   chargerStatistiques(7);
+  chargerAccesGoogleSheets();
+  chargerOperations();
+  renderVehiclesCatalog();
+}
+
+function renderOperations(data){
+  var labels = [
+    ['Départs aujourd’hui', data.departuresToday], ['Retours aujourd’hui', data.returnsToday],
+    ['Locations en cours', data.activeRentals], ['Dépôts à traiter', data.pendingDeposits]
+  ];
+  document.getElementById('operationsKpis').innerHTML = labels.map(function(item){
+    return '<div class="analytics-kpi"><span>' + escapeHtml(item[0]) + '</span><strong>' + Number(item[1] || 0) + '</strong></div>';
+  }).join('');
+}
+
+function chargerOperations(){
+  apiGet('/api/agency-dashboard').then(function(res){
+    if(res.ok) renderOperations(res.json);
+    else document.getElementById('operationsKpis').innerHTML = '<p class="hint-text">Indicateurs opérationnels indisponibles.</p>';
+  }).catch(function(){ document.getElementById('operationsKpis').innerHTML = '<p class="hint-text">Indicateurs opérationnels indisponibles.</p>'; });
+}
+
+function renderGoogleSheetsLinks(data){
+  document.querySelectorAll('[data-google-sheets-link]').forEach(function(container){
+    container.innerHTML = '';
+    if(data && data.configured && data.url){
+      var link = document.createElement('a');
+      link.className = 'btn btn-secondary google-sheets-link';
+      link.href = data.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = 'Ouvrir le planning Google Sheets ↗';
+      container.appendChild(link);
+    } else {
+      container.innerHTML = '<p class="hint-text">Lien Google Sheets non configuré.</p>';
+    }
+  });
+}
+
+function chargerAccesGoogleSheets(){
+  apiGet('/api/agency-google-sheets').then(function(res){
+    renderGoogleSheetsLinks(res.ok ? res.json : null);
+  }).catch(function(){ renderGoogleSheetsLinks(null); });
+}
+
+function renderVehiclesCatalog(){
+  var container = document.getElementById('vehiclesCatalog');
+  if(typeof VEHICULES === 'undefined' || !Array.isArray(VEHICULES)){
+    container.innerHTML = '<p class="hint-text">Catalogue indisponible.</p>';
+    return;
+  }
+  container.innerHTML = VEHICULES.map(function(vehicle){
+    return '<div class="summary-row"><span><strong>' + escapeHtml(vehicle.nom) + '</strong><br><small>' + escapeHtml([vehicle.categorie, vehicle.immatriculation].filter(Boolean).join(' · ')) + '</small></span><span>' + escapeHtml(vehicle.emoji || '🚗') + '</span></div>';
+  }).join('');
 }
 
 function renderAnalytics(data){
@@ -431,7 +558,6 @@ function chargerStatistiques(days){
 document.querySelectorAll('.analytics-period').forEach(function(button){ button.addEventListener('click', function(){ chargerStatistiques(Number(button.dataset.days)); }); });
 document.querySelectorAll('[data-internal-view]').forEach(function(button){ button.addEventListener('click', function(){
   showSection(button.dataset.internalView);
-  if(button.dataset.dashboardFocus === 'statistics') document.getElementById('statistiques').scrollIntoView({ behavior:'smooth', block:'start' });
 }); });
 
 function initSession(){

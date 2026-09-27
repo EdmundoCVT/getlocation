@@ -112,8 +112,12 @@ test("l'espace interne présente une navigation unique et un tableau de bord", (
   const window = buildWindow();
   assert.match(window.document.querySelector("#loginView h1").textContent, /Espace GET LOCATION/);
   assert.ok(window.document.getElementById("dashboardSection"));
-  assert.equal(window.document.querySelectorAll("[data-internal-view]").length >= 3, true);
+  ["planningSection", "deliveriesSection", "depositsSection", "vehiclesSection", "statisticsSection", "settingsSection"].forEach((id) => assert.ok(window.document.getElementById(id), id));
+  assert.equal(window.document.querySelectorAll("[data-internal-view]").length >= 8, true);
   assert.match(window.document.querySelector(".internal-nav").textContent, /Contrats/);
+  assert.match(window.document.querySelector(".internal-nav").textContent, /Planning/);
+  assert.match(window.document.getElementById("deliveriesSection").textContent, /LIVRAISON/);
+  assert.ok(!html.includes("docs.google.com/spreadsheets/d/"), "l'URL du fichier ne doit jamais figurer dans l'asset public");
 });
 
 // Régression Lot 5 : renderSyncStatus utilisait row(), qui échappe

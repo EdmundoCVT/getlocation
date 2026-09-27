@@ -83,6 +83,12 @@ test("le Worker route l'authentification agence (Lot 1)", () => {
   assert.match(worker, /"\/api\/agency-session"\s*:\s*handleAgencySession/);
 });
 
+test("le Worker route les accès internes Google Sheets et tableau de bord", () => {
+  const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
+  assert.match(worker, /"\/api\/agency-google-sheets"\s*:\s*handleAgencyGoogleSheets/);
+  assert.match(worker, /"\/api\/agency-dashboard"\s*:\s*handleAgencyDashboard/);
+});
+
 test("l'ancienne entrée Admin converge vers l'espace interne unique", () => {
   const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
   assert.match(worker, /"\/admin"/);
