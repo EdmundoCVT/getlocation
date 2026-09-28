@@ -1589,14 +1589,6 @@ textarea:focus-visible,
 .price-request small { margin-top: 4px; text-transform: none; letter-spacing: 0; }
 .compact-info { padding: 9px 11px; border-radius: 10px; background: #f5f8ff; color: #4f5663; font-size: .82rem; }
 
-.vehicle-total {
-  color: var(--gris-fonce);
-  font-size: .88rem;
-  font-weight: 700;
-}
-
-.vehicle-total .badge-remise { font-weight: 600; }
-
 .vehicle-footer {
   margin-top: auto;
   display: flex;
@@ -1614,7 +1606,7 @@ textarea:focus-visible,
   line-height: 1.1;
 }
 
-.price .price-from {
+.price .price-label {
   display: block;
   font-size: 0.7rem;
   font-weight: 600;
@@ -1622,6 +1614,8 @@ textarea:focus-visible,
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
+
+.price strong { display: block; font-size: 1.45rem; font-weight: 850; }
 
 .price small {
   font-size: 0.78rem;

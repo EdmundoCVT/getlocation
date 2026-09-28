@@ -297,7 +297,8 @@
     "Dépôt de garantie : 750 €": "Security deposit: €750",
     "Dépôt de garantie : 900 €": "Security deposit: €900",
     "Dépôt de garantie : 1 000 €": "Security deposit: €1,000",
-    "À partir de": "From",
+    "Tarif pour {jours}": "Price for {jours}",
+    "Tarif journalier": "Daily rate",
     "/ jour": " / day",
     "Voir le véhicule": "View this vehicle",
     "Voir tous les véhicules": "View all vehicles",
@@ -361,8 +362,8 @@
     ", Monaco et dans les autres villes proposées pendant la commande. La livraison est aussi disponible à l'": ", Monaco and the other locations offered during booking. Delivery is also available at ",
     "aéroport de Nice": "Nice Airport",
     "et dans plusieurs gares.": "and at several railway stations.",
-    "Depuis Grasse, GETLOCATION livre votre voiture à l'adresse, à l'hôtel, à la gare ou au point de rendez-vous choisi sur la Côte d'Azur. Réservez en ligne, nous organisons la livraison.":
-      "From Grasse, GETLOCATION delivers your car to your chosen address, hotel, railway station or meeting point on the French Riviera. Book online and we arrange delivery.",
+    "GETLOCATION livre votre voiture à l'adresse, à l'hôtel, à la gare ou au point de rendez-vous choisi sur la Côte d'Azur. Réservez en ligne, nous organisons la livraison.":
+      "GETLOCATION delivers your car to your chosen address, hotel, railway station or meeting point on the French Riviera. Book online and we arrange delivery.",
     "À Nice, Cannes, Antibes, Grasse, Monaco et dans les autres villes proposées pendant la commande. La livraison est aussi disponible à l'aéroport de Nice et dans plusieurs gares.":
       "In Nice, Cannes, Antibes, Grasse, Monaco and the other locations offered during booking. Delivery is also available at Nice Airport and several railway stations.",
     "Nous sommes une agence en ligne : le véhicule est livré à l'adresse, à la gare ou au point de rendez-vous choisi sur la Côte d'Azur.":

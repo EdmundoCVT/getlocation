@@ -212,9 +212,9 @@ function initTimeSelects() {
 
 function familyIconSvg(family) {
   const paths = {
-    car: '<path d="M3.5 13.5 5.4 8.8a3 3 0 0 1 2.8-1.9h9.6a3 3 0 0 1 2.8 1.9l1.9 4.7"/><path d="M2.5 13.5h21v3.2a1.8 1.8 0 0 1-1.8 1.8H4.3a1.8 1.8 0 0 1-1.8-1.8v-3.2Z"/><path d="M7 7 9.2 3.8h7.6L19 7M7 14.5h.01M19 14.5h.01"/>',
+    car: '<path d="M3.5 14.5 5.7 8.7a3 3 0 0 1 2.8-1.9h12.9a3 3 0 0 1 2.8 1.9l2.3 5.8v3.2h-23v-3.2Z"/><path d="m7.5 6.8 2.4-3h8.8l2.4 3M5.5 14.5h19"/><circle cx="8" cy="17.7" r="2"/><circle cx="23" cy="17.7" r="2"/>',
     utility: '<path d="M2.5 5.5h12.8v12H2.5z"/><path d="M15.3 9h4l3.2 3.8v4.7h-7.2zM5.8 9h6.2M5.5 17.5h.01M19.5 17.5h.01"/><circle cx="5.5" cy="17.5" r="2"/><circle cx="19.5" cy="17.5" r="2"/>',
-    "license-free": '<path d="M4 13.5 5.4 9A2.8 2.8 0 0 1 8 7h6.8a2.8 2.8 0 0 1 2.6 2l1.4 4.5"/><path d="M3 13.5h17v3a1.7 1.7 0 0 1-1.7 1.7H4.7A1.7 1.7 0 0 1 3 16.5v-3Z"/><path d="M8 7V4.5h5.5L16 7M7 14.5h.01M16 14.5h.01"/>'
+    "license-free": '<path d="M4.5 14.5 6 9.3a2.8 2.8 0 0 1 2.7-2h8.8a2.8 2.8 0 0 1 2.7 2l1.5 5.2v3h-17v-3Z"/><path d="m8 7.3 1.8-2.5h5.8l2 2.5M7 14.5h13"/><circle cx="8.5" cy="17.5" r="1.9"/><circle cx="19" cy="17.5" r="1.9"/>'
   };
   return `<svg viewBox="0 0 26 22" fill="none" aria-hidden="true">${paths[family] || paths.car}</svg>`;
 }
@@ -810,7 +810,7 @@ function initVehiculesPage() {
           ${v.modelGuaranteed === false ? '<p class="hint-text">Le modèle présenté est indicatif. Un véhicule de catégorie équivalente peut être proposé.</p>' : ""}
           <div class="vehicle-footer">
             ${estInstant
-              ? `<div class="price"><span class="price-from">${t("À partir de")}</span>${formatEUR(prixJourMinimum(v))}<small>${t("/ jour")}</small><div class="vehicle-total">${t("Total pour {jours} : {montant}", { jours: libelleJours(jours), montant: formatEUR(total) })}${remise ? ` <span class="badge-remise">${t("-{montant}/jour dès {palier}", { montant: formatEUR(remise.montantParJour), palier: t(remise.libelle).toLowerCase() })}</span>` : ""}</div></div>`
+              ? `<div class="price"><span class="price-label">${t("Tarif pour {jours}", { jours: libelleJours(jours) })}</span><strong>${formatEUR(total)}</strong></div>`
               : `<div class="price price-request">${t("Tarif sur demande")}<small>${t("Disponibilité à confirmer")}</small></div>`}
             <button class="btn btn-primary btn-sm" data-id="${v.id}">${estInstant ? t("Choisir ce véhicule") : t("Demander ce véhicule")}</button>
           </div>

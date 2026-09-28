@@ -17,7 +17,8 @@ test("les cartes véhicules utilisent le vocabulaire compact et sans description
   const app = read("js/app.js");
   assert.doesNotMatch(app, /<p class="hint-text">\$\{v\.description\}/);
   assert.ok(app.includes('t("Choisir ce véhicule")'));
-  assert.ok(app.includes('class="vehicle-total"'));
+  assert.ok(app.includes('class="price-label"'));
+  assert.doesNotMatch(app, /Total pour \{jours\}|Total for \{jours\}/);
   assert.ok(app.includes('t(`${v.places} places`)'));
   assert.ok(app.includes('t("Tarif sur demande")'));
   assert.ok(app.includes('class="vehicle-details"'));
