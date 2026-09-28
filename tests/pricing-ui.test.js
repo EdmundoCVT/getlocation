@@ -111,8 +111,8 @@ test("initReservationPage : étoiles, accordéon et sélection restent indépend
 
   const niveaux = {
     essentiel: "☆☆☆",
-    confort: "★★☆",
-    serenite: "★★★",
+    confort: "★☆☆",
+    serenite: "★★☆",
     "serenite-plus": "★★★"
   };
   Object.entries(niveaux).forEach(([id, etoiles]) => {

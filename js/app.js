@@ -1166,8 +1166,8 @@ function initReservationPage() {
   // trois niveaux de comparaison sans modifier le catalogue métier.
   const PROTECTION_COVERAGE_LEVELS = Object.freeze({
     essentiel: 0,
-    confort: 2,
-    serenite: 3,
+    confort: 1,
+    serenite: 2,
     "serenite-plus": 3
   });
 
