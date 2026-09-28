@@ -153,8 +153,7 @@ test("initPaiementPage : la barre de dates recalcule le total à régler sans re
 
 test("initVehiculesPage : la barre de dates recalcule le nombre de jours et les totaux de la grille", () => {
   const window = newWindow(
-    `<p id="search-summary"></p>
-     <div class="filter-bar" id="filter-bar"></div>
+    `<div class="filter-bar" id="filter-bar"></div>
      <div class="vehicle-grid" id="vehicle-grid"></div>
      ${dateBarHtml()}`,
     "https://getlocation.fr/vehicules.html"
@@ -167,12 +166,10 @@ test("initVehiculesPage : la barre de dates recalcule le nombre de jours et les 
   }));
 
   window.initVehiculesPage();
-  assert.match(window.document.getElementById("search-summary").textContent, /2 jours/);
   assert.match(window.document.getElementById("vehicle-grid").textContent, /2 jours/);
 
   applyNewDates(window, { dateDebut: "2026-08-10", heureDebut: "10:00", dateFin: "2026-08-15", heureFin: "10:00" });
 
-  assert.match(window.document.getElementById("search-summary").textContent, /5 jours/);
   assert.match(window.document.getElementById("vehicle-grid").textContent, /5 jours/);
   const persisted = JSON.parse(window.localStorage.getItem("gl_recherche"));
   assert.equal(persisted.dateFin, "2026-08-15");

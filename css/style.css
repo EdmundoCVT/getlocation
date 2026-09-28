@@ -1213,8 +1213,12 @@ textarea:focus-visible,
 .vehicle-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 28px;
+  gap: 20px;
 }
+
+.vehicle-selection { padding-top: 30px; }
+.vehicle-selection > .section-title { margin-bottom: 16px; }
+.vehicle-selection .filter-bar { margin-bottom: 18px; gap: 8px; }
 
 .vehicle-card {
   background: white;
@@ -1430,10 +1434,10 @@ textarea:focus-visible,
 }
 
 .vehicle-body {
-  padding: 22px 22px 24px;
+  padding: 17px 18px 18px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   flex: 1;
 }
 
@@ -1446,7 +1450,7 @@ textarea:focus-visible,
 }
 
 .vehicle-name {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 800;
   color: var(--gris-fonce);
 }
@@ -1461,10 +1465,18 @@ textarea:focus-visible,
 
 .vehicle-specs span {
   background: var(--gris-clair);
-  padding: 5px 10px;
+  padding: 4px 8px;
   border-radius: 20px;
   font-weight: 500;
 }
+
+.vehicle-total {
+  color: var(--gris-fonce);
+  font-size: .88rem;
+  font-weight: 700;
+}
+
+.vehicle-total .badge-remise { font-weight: 600; }
 
 .vehicle-footer {
   margin-top: auto;
@@ -2557,6 +2569,25 @@ textarea:focus-visible,
   }
   .main-nav a:last-child { border-bottom: none; }
   .header-inner { position: relative; }
+
+  .date-bar-summary { gap: 7px; padding: 8px 12px; font-size: .8rem; }
+  .date-bar-edit { padding: 5px 4px; font-size: .78rem; }
+  .vehicle-selection { padding-top: 18px; }
+  .vehicle-selection > .section-title { margin-bottom: 12px; font-size: clamp(1.55rem, 7vw, 1.9rem); }
+  .vehicle-selection .filter-bar { margin-bottom: 14px; gap: 7px; }
+  .vehicle-selection .vehicle-grid { gap: 14px; }
+  .vehicle-selection .vt-option { padding: 10px 8px; gap: 4px; font-size: .82rem; }
+  .vehicle-selection .filters-drawer summary { padding: 8px 14px; font-size: .82rem; }
+  .vehicle-selection .vehicle-media { height: 154px; }
+  .vehicle-selection .vehicle-body { padding: 14px 15px 15px; gap: 7px; }
+  .vehicle-selection .vehicle-category { font-size: .7rem; }
+  .vehicle-selection .vehicle-name { font-size: 1.03rem; }
+  .vehicle-selection .booking-mode-badge { margin: 1px 0 4px; padding: 3px 8px; }
+  .vehicle-selection .vehicle-specs { gap: 5px; font-size: .77rem; }
+  .vehicle-selection .vehicle-specs span { padding: 4px 7px; }
+  .vehicle-selection .vehicle-footer { padding-top: 9px; }
+  .vehicle-selection .price { font-size: 1.18rem; }
+  .vehicle-selection .vehicle-footer .btn { padding: 10px 14px; }
 
   .search-section { margin-top: -12px; }
   .search-card { grid-template-columns: 1fr; margin: 12px 0 24px; padding: 22px; }

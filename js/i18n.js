@@ -269,7 +269,11 @@
     "Citadine": "City car",
     "SUV Hybride": "Hybrid SUV",
     "Utilitaire": "Van",
+    "2 places": "2 seats",
+    "4 places": "4 seats",
     "5 places": "5 seats",
+    "7 places": "7 seats",
+    "9 places": "9 seats",
     "Manuelle": "Manual",
     "Automatique": "Automatic",
     "Climatisation": "Air conditioning",
@@ -461,6 +465,7 @@
     "Citadine, SUV et utilitaire — assurance et assistance incluses, livrés à l'adresse ou au point de rendez-vous choisi à Nice.":
       "City cars, SUVs and vans — insurance and roadside assistance included, delivered to your address or meeting point in Nice.",
     "Réserver": "Book",
+    "Commander": "Order",
     "Questions fréquentes — Nice": "Frequently asked questions — Nice",
     "Livrez-vous vraiment jusqu'à Nice ?": "Do you really deliver to Nice?",
     "Oui. Choisissez d'abord Nice, une gare ou l'aéroport lors de la réservation, puis indiquez l'adresse ou le point de rencontre exact après le paiement.":
@@ -618,6 +623,7 @@
     // --- Réservation immédiate / demande (flotte GETLOCATION vs partenaires)
     "Disponibilité à confirmer": "Subject to confirmation",
     "Faire une demande": "Request this vehicle",
+    "Demander ce véhicule": "Request this vehicle",
     "Vous pouvez finaliser votre réservation directement avec notre équipe :":
       "You can complete this booking directly with our team:",
 

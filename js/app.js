@@ -222,9 +222,17 @@ function initDateBar({ getData, onApply }) {
 
   function refresh() {
     const d = getData();
+    const compact = window.matchMedia && window.matchMedia("(max-width: 640px)").matches;
+    const locale = langueSite() === "en" ? "en-GB" : "fr-FR";
+    const dateOptions = compact ? { day: "numeric", month: "short" } : { day: "numeric", month: "short", year: "numeric" };
+    const formatDateBar = (iso, heure) => {
+      const date = new Date(`${iso}T12:00:00`);
+      const dateText = Number.isFinite(date.getTime()) ? date.toLocaleDateString(locale, dateOptions) : formatDateFR(iso);
+      return heure ? `${dateText}${langueSite() === "en" ? " at " : " à "}${heure}` : dateText;
+    };
     textEl.textContent = t("{debut} → {fin} ({jours})", {
-      debut: formatDateHeureFR(d.dateDebut, d.heureDebut),
-      fin: formatDateHeureFR(d.dateFin, d.heureFin),
+      debut: formatDateBar(d.dateDebut, d.heureDebut),
+      fin: formatDateBar(d.dateFin, d.heureFin),
       jours: libelleJours(d.jours)
     });
     inputDebut.value = d.dateDebut;
@@ -550,18 +558,6 @@ function initVehiculesPage() {
     dureeEnHeures(recherche.dateDebut, recherche.heureDebut, recherche.dateFin, recherche.heureFin)
   );
 
-  const infoBar = document.getElementById("search-summary");
-  function updateInfoBar() {
-    if (!infoBar) return;
-    infoBar.textContent = t("{lieu} · du {debut} au {fin} ({jours})", {
-      lieu: libelleLieu(recherche.lieuPrise, recherche.adressePrise, recherche.lieuPriseType),
-      debut: formatDateHeureFR(recherche.dateDebut, recherche.heureDebut),
-      fin: formatDateHeureFR(recherche.dateFin, recherche.heureFin),
-      jours: libelleJours(jours)
-    });
-  }
-  updateInfoBar();
-
   const filterBar = document.getElementById("filter-bar");
 
   // Famille (Voitures/Utilitaires/Sans permis, voir FAMILLES_VEHICULE dans
@@ -730,21 +726,18 @@ function initVehiculesPage() {
         <div class="vehicle-body">
           <div class="vehicle-category">${v.categorie}</div>
           <div class="vehicle-name">${v.nom}${v.modelGuaranteed === false ? ' <span class="hint-text">ou similaire</span>' : ""}</div>
-          <div class="booking-mode-badge ${estInstant ? "is-instant" : "is-request"}">${estInstant ? "Réservation immédiate" : "Disponibilité à confirmer"}</div>
+          <div class="booking-mode-badge ${estInstant ? "is-instant" : "is-request"}">${estInstant ? t("Réservation immédiate") : t("Disponibilité à confirmer")}</div>
           <div class="vehicle-specs">
-            <span>${v.places} places</span>
-            <span>${v.transmission}</span>
-            <span>${v.clim ? "Climatisation" : "Sans clim"}</span>
-            ${v.hybride ? '<span>Hybride</span>' : ''}
-            <span>${t("Dépôt de garantie : {montant}", { montant: formatEUR(v.caution) })}</span>
+            <span>${t(`${v.places} places`)}</span>
+            <span>${t(v.transmission)}</span>
+            <span>${t(v.clim ? "Climatisation" : "Sans clim")}</span>
+            ${v.hybride ? `<span>${t("Hybride")}</span>` : ''}
           </div>
-          <p class="hint-text">${v.description}</p>
           ${v.modelGuaranteed === false ? '<p class="hint-text">Le modèle présenté est indicatif. Un véhicule de catégorie équivalente peut être proposé.</p>' : ""}
           <div class="vehicle-footer">
-            <div class="price"><span class="price-from">À partir de</span>${formatEUR(prixJourMinimum(v))}<small> / jour</small></div>
-            <button class="btn btn-primary btn-sm" data-id="${v.id}">${estInstant ? "Réserver" : "Faire une demande"}</button>
+            <div class="price"><span class="price-from">${t("À partir de")}</span>${formatEUR(prixJourMinimum(v))}<small>${t("/ jour")}</small>${estInstant ? `<div class="vehicle-total">${t("Total pour {jours} : {montant}", { jours: libelleJours(jours), montant: formatEUR(total) })}${remise ? ` <span class="badge-remise">${t("-{montant}/jour dès {palier}", { montant: formatEUR(remise.montantParJour), palier: t(remise.libelle).toLowerCase() })}</span>` : ""}</div>` : ""}</div>
+            <button class="btn btn-primary btn-sm" data-id="${v.id}">${estInstant ? t("Commander") : t("Demander ce véhicule")}</button>
           </div>
-          ${estInstant ? `<div class="hint-text">${t("Total pour {jours} : {montant}", { jours: libelleJours(jours), montant: formatEUR(total) })}${remise ? ` <span class="badge-remise">${t("-{montant}/jour dès {palier}", { montant: formatEUR(remise.montantParJour), palier: t(remise.libelle).toLowerCase() })}</span>` : ""}</div>` : ""}
         </div>
       `;
       card.querySelector("button").addEventListener("click", () => {
@@ -789,7 +782,6 @@ function initVehiculesPage() {
       jours = joursFacturablesDepuisHeures(
         dureeEnHeures(recherche.dateDebut, recherche.heureDebut, recherche.dateFin, recherche.heureFin)
       );
-      updateInfoBar();
       renderGrid();
     }
   });
