@@ -65,7 +65,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="css/style.css?v=35">
+<link rel="stylesheet" href="css/style.css?v=36">
 </head>
 <body>
 
@@ -166,16 +166,15 @@
 <section class="homepage-section homepage-local">
  <div class="container">
   <h2 class="section-title">Location de voiture sur la Côte d'Azur</h2>
-  <p class="section-subtitle">GETLOCATION est une agence de location de véhicules basée à Grasse, dans les Alpes-Maritimes (06). Nous proposons des véhicules récents (modèles 2026) et une réservation entièrement en ligne, avec paiement sécurisé.</p>
-  <div class="local-service-card">
-    <h3>Zones desservies</h3>
+  <p class="section-subtitle seo-intro">GETLOCATION est une agence de location de véhicules basée à Grasse, dans les Alpes-Maritimes (06). Réservez en ligne avec paiement sécurisé puis choisissez votre lieu de livraison sur la Côte d'Azur.</p>
+  <details class="ui-disclosure local-service-card">
+    <summary>Zones desservies</summary>
     <p class="hint-text">Notre agence se trouve à <a href="location-voiture-grasse.html"><strong>Grasse</strong></a>. Nous proposons également la <strong>livraison à l'adresse de votre choix</strong> sur <a href="location-voiture-nice.html">Nice</a>, <a href="location-voiture-cannes.html">Cannes</a>, <a href="location-voiture-antibes.html">Antibes</a> et <a href="location-voiture-monaco.html">Monaco</a>, ainsi que sur l'ensemble du bassin cannois et azuréen, sur demande. Voir aussi la <a href="location-voiture-aeroport-nice.html">location à l'aéroport de Nice</a>.</p>
-  </div>
-</div>
+  </details>
+ </div>
 </section>
 
-<section class="homepage-section homepage-faq">
- <div class="container">
+<section class="section container faq-section" id="faq">
   <h2 class="section-title">Questions fréquentes</h2>
   <div class="faq-list">
     <details class="faq-item">
@@ -187,8 +186,24 @@
       <p>Nous sommes une agence en ligne : le véhicule est livré à l'adresse, à la gare ou au point de rendez-vous choisi sur la Côte d'Azur.</p>
     </details>
     <details class="faq-item">
+      <summary>Puis-je être livré à domicile, à l'hôtel ou à l'aéroport ?</summary>
+      <p>Oui. Vous pouvez choisir une adresse, un hôtel, l'Aéroport Nice Côte d'Azur ou l'une des gares SNCF proposées pendant la commande.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Dois-je connaître l'adresse exacte au moment de commander ?</summary>
+      <p>Non. Vous pouvez sélectionner une ville ou une zone puis communiquer le lieu précis de livraison jusqu'à 24 h avant la remise du véhicule.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Quels documents dois-je fournir ?</summary>
+      <p>Le permis de conduire et une pièce d'identité vous seront demandés par e-mail après la réservation.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Une protection est-elle incluse ?</summary>
+      <p>Oui. La Protection Essentielle est incluse. Des niveaux de protection complémentaires peuvent être sélectionnés pendant la commande ; leurs prix, garanties et franchises sont affichés avant le paiement.</p>
+    </details>
+    <details class="faq-item">
       <summary>Un dépôt de garantie est-il demandé ?</summary>
-      <p>Oui, un dépôt de garantie de 500 à 800 € est demandé selon le véhicule loué. Son montant exact est affiché sur chaque fiche véhicule.</p>
+      <p>Oui. Son montant dépend du véhicule et reste affiché séparément du prix de la location sur la fiche du véhicule et dans le récapitulatif.</p>
     </details>
     <details class="faq-item">
       <summary>Le paiement en ligne est-il sécurisé ?</summary>
@@ -214,6 +229,26 @@
       "@type": "Question",
       "name": "Dans quelles villes puis-je récupérer mon véhicule ?",
       "acceptedAnswer": { "@type": "Answer", "text": "GETLOCATION est une agence en ligne : le véhicule est livré à l'adresse, à la gare ou au point de rendez-vous choisi sur la Côte d'Azur." }
+    },
+    {
+      "@type": "Question",
+      "name": "Puis-je être livré à domicile, à l'hôtel ou à l'aéroport ?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Oui. Vous pouvez choisir une adresse, un hôtel, l'Aéroport Nice Côte d'Azur ou l'une des gares SNCF proposées pendant la commande." }
+    },
+    {
+      "@type": "Question",
+      "name": "Dois-je connaître l'adresse exacte au moment de commander ?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Non. Vous pouvez sélectionner une ville ou une zone puis communiquer le lieu précis de livraison jusqu'à 24 h avant la remise du véhicule." }
+    },
+    {
+      "@type": "Question",
+      "name": "Quels documents dois-je fournir ?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Le permis de conduire et une pièce d'identité vous seront demandés par e-mail après la réservation." }
+    },
+    {
+      "@type": "Question",
+      "name": "Une protection est-elle incluse ?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Oui. La Protection Essentielle est incluse. Des niveaux complémentaires peuvent être sélectionnés pendant la commande ; leurs prix, garanties et franchises sont affichés avant le paiement." }
     },
     {
       "@type": "Question",
@@ -278,6 +313,6 @@
 
 <script src="js/data.js?v=27"></script>
 <script src="js/i18n.js?v=10"></script>
-<script src="js/app.js?v=36"></script>
+<script src="js/app.js?v=37"></script>
 </body>
 </html>

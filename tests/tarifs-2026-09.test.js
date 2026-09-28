@@ -121,7 +121,7 @@ test("la question « Quels véhicules proposez-vous ? » a disparu de la page et
   const blocs = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
   const faq = blocs.map((b) => JSON.parse(b[1])).find((d) => d["@type"] === "FAQPage");
   assert.ok(faq, "le balisage FAQPage doit rester présent");
-  assert.equal(faq.mainEntity.length, 4);
+  assert.equal(faq.mainEntity.length, 8);
 });
 
 // --- Contrat : aperçu jamais bloquant (cas K) ----------------------------

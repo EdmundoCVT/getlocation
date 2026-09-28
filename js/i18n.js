@@ -200,6 +200,9 @@
       "Choose your dates and delivery location to see what is available.",
     "Choisissez vos dates et votre véhicule. Le lieu de livraison sera précisé juste avant le paiement.":
       "Choose your dates and vehicle. Your delivery location will be confirmed just before payment.",
+    "Choisissez vos dates et votre véhicule.": "Choose your dates and vehicle.",
+    "On vous l'apporte là où vous en avez besoin.": "We deliver it where you need it.",
+    "Vous roulez.": "You drive.",
     "Quel véhicule recherchez-vous ?": "What are you looking for?",
     "Voitures": "Cars",
     "Utilitaires": "Vans",
@@ -330,6 +333,10 @@
 
     // --- Accueil : texte de présentation et zones desservies
     "Location de voiture sur la Côte d'Azur": "Car rental on the French Riviera",
+    "GETLOCATION est une agence de location de véhicules basée à Grasse, dans les Alpes-Maritimes. Réservez en ligne puis choisissez votre lieu de livraison sur la Côte d'Azur.":
+      "GETLOCATION is a vehicle rental agency based in Grasse, in the Alpes-Maritimes. Book online, then choose your delivery location on the French Riviera.",
+    "GETLOCATION est une agence de location de véhicules basée à Grasse, dans les Alpes-Maritimes (06). Réservez en ligne avec paiement sécurisé puis choisissez votre lieu de livraison sur la Côte d'Azur.":
+      "GETLOCATION is a vehicle rental agency based in Grasse, in the Alpes-Maritimes (06). Book online with secure payment, then choose your delivery location on the French Riviera.",
     "GETLOCATION est une agence de location de véhicules basée à Grasse, dans les Alpes-Maritimes (06). Nous proposons des véhicules récents (modèles 2026) et une réservation entièrement en ligne, avec paiement sécurisé.":
       "GETLOCATION is a vehicle rental agency based in Grasse, on the French Riviera. We offer recent vehicles (2026 models) and a fully online booking process with secure payment.",
     "Zones desservies": "Where we deliver",
@@ -355,6 +362,20 @@
     "Oui, un dépôt de garantie de 500 à 800 € est demandé selon le véhicule loué. Son montant exact est affiché sur chaque fiche véhicule.":
       "Yes, a security deposit of €500 to €800 is required depending on the vehicle. The exact amount is shown on each vehicle page.",
     "Le paiement en ligne est-il sécurisé ?": "Is online payment secure?",
+    "Puis-je être livré à domicile, à l'hôtel ou à l'aéroport ?": "Can the vehicle be delivered to my home, hotel or the airport?",
+    "Oui. Vous pouvez choisir une adresse, un hôtel, l'Aéroport Nice Côte d'Azur ou l'une des gares SNCF proposées pendant la commande.":
+      "Yes. You can choose an address, a hotel, Nice Côte d’Azur Airport or one of the SNCF railway stations offered during booking.",
+    "Dois-je connaître l'adresse exacte au moment de commander ?": "Do I need to know the exact address when I book?",
+    "Non. Vous pouvez sélectionner une ville ou une zone puis communiquer le lieu précis de livraison jusqu'à 24 h avant la remise du véhicule.":
+      "No. You can select a city or area, then provide the precise delivery location up to 24 hours before the vehicle is handed over.",
+    "Quels documents dois-je fournir ?": "Which documents do I need to provide?",
+    "Le permis de conduire et une pièce d'identité vous seront demandés par e-mail après la réservation.":
+      "Your driving licence and proof of identity will be requested by email after booking.",
+    "Une protection est-elle incluse ?": "Is protection included?",
+    "Oui. La Protection Essentielle est incluse. Des niveaux de protection complémentaires peuvent être sélectionnés pendant la commande ; leurs prix, garanties et franchises sont affichés avant le paiement.":
+      "Yes. Essential Protection is included. Additional protection levels can be selected during booking; their prices, cover and excesses are shown before payment.",
+    "Oui. Son montant dépend du véhicule et reste affiché séparément du prix de la location sur la fiche du véhicule et dans le récapitulatif.":
+      "Yes. The amount depends on the vehicle and is always shown separately from the rental price on the vehicle page and in the summary.",
     "Oui, le paiement est traité par Mollie, un prestataire de paiement certifié. GETLOCATION ne stocke aucune donnée bancaire.":
       "Yes, payments are handled by Mollie, a certified payment provider. GETLOCATION never stores your card details.",
 

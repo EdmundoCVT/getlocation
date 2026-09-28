@@ -1277,6 +1277,7 @@ function initReservationPage() {
     choix.append(marqueChoix, libelleChoix);
     choix.classList.toggle("is-selected", choisie);
     choix.addEventListener("click", () => selectProtection(protection.id));
+    entete.insertBefore(choix, titre);
 
     const niveau = niveauProtection(protection);
     const ligneResume = document.createElement("div");
@@ -1359,7 +1360,7 @@ function initReservationPage() {
     });
 
     ligneResume.append(niveauNode, franchise, prixNode, detailsToggle);
-    card.append(entete, choix, ligneResume, details);
+    card.append(entete, ligneResume, details);
     card.classList.toggle("is-selected", choisie);
     protectionList.appendChild(card);
   }
@@ -1460,7 +1461,7 @@ function initReservationPage() {
       texte.append(titre, price);
 
       const details = document.createElement("details");
-      details.className = "choice-details";
+      details.className = "choice-details ui-disclosure";
       const summary = document.createElement("summary");
       summary.textContent = "Voir le détail";
       const detailText = document.createElement("p");
@@ -1578,7 +1579,7 @@ function initReservationPage() {
     if (servicePlein) optionsList.appendChild(createOptionCard(servicePlein, "fuel"));
 
     const childrenGroup = document.createElement("details");
-    childrenGroup.className = "child-options-group";
+    childrenGroup.className = "child-options-group ui-disclosure";
     const childrenSummary = document.createElement("summary");
     childrenSummary.append(optionIcon("child"), document.createTextNode(" Voyager avec un enfant"));
     const childrenIntro = document.createElement("p");
@@ -1956,6 +1957,17 @@ function initPaiementPage() {
     if (parsed) state.type = "custom";
 
     function selected(value) { return state.value === value; }
+    function openChoiceGroup(container) {
+      const disclosure = container && container.closest("details.delivery-disclosure");
+      if (!disclosure) return;
+      const groupName = disclosure.getAttribute("name");
+      if (groupName) {
+        document.querySelectorAll(`details.delivery-disclosure[name="${groupName}"]`).forEach((item) => {
+          if (item !== disclosure) item.open = false;
+        });
+      }
+      disclosure.open = true;
+    }
     function render() {
       [frequent, principal].forEach((container) => { if (container) container.textContent = ""; });
       LIEUX_FREQUENTS_LIVRAISON.forEach((value) => makeChoiceButton(frequent, value, "frequent", selected(value), choose));
@@ -1972,6 +1984,8 @@ function initPaiementPage() {
       if (custom) custom.style.display = state.type === "custom" ? "grid" : "none";
       if (inputs) Object.values(inputs).forEach((input) => { input.required = state.type === "custom"; });
       if (customToggle) customToggle.classList.toggle("is-selected", state.type === "custom");
+      if (state.type === "frequent") openChoiceGroup(frequent);
+      if (state.type === "zone" && VILLES_PRINCIPALES_LIVRAISON.includes(state.value)) openChoiceGroup(principal);
     }
     function choose(value, type) {
       state.value = value;
@@ -2061,6 +2075,8 @@ function initPaiementPage() {
     });
     if (!prix) return;
     buildPaymentSummary(summary, vehicule, data, prix);
+    const totalCompact = document.getElementById("payment-summary-total");
+    if (totalCompact) totalCompact.textContent = formatEUR(prix.total);
   }
   renderSummary();
 
@@ -2633,7 +2649,9 @@ function initConversionUx() {
   const stickyCta = document.getElementById("mobile-availability-cta");
   const hero = document.querySelector(".hero");
   const searchForm = document.getElementById("search-form");
+  const faq = document.getElementById("faq");
   const footer = document.querySelector(".site-footer");
+  const equivalentCtas = Array.from(document.querySelectorAll('a[href="#search-form"]')).filter((element) => element !== stickyCta);
 
   function elementVisible(element) {
     if (!element) return false;
@@ -2645,12 +2663,11 @@ function initConversionUx() {
     if (!stickyCta || !hero || !searchForm) return;
     const mobile = window.matchMedia("(max-width: 640px)").matches;
     const heroMostlyPassed = window.scrollY > hero.offsetHeight * 0.55;
-    // Le CTA fixe prend le relais du formulaire, jamais sa place : il reste
-    // caché tant que le formulaire est visible et s'efface avant le footer.
-    stickyCta.classList.toggle(
-      "is-visible",
-      mobile && heroMostlyPassed && !elementVisible(searchForm) && !elementVisible(footer)
-    );
+    const equivalentVisible = equivalentCtas.some(elementVisible);
+    const protectedContentVisible = elementVisible(faq) || elementVisible(footer);
+    const visible = mobile && heroMostlyPassed && !elementVisible(searchForm) && !equivalentVisible && !protectedContentVisible;
+    stickyCta.classList.toggle("is-visible", visible);
+    document.body.classList.toggle("has-mobile-availability-cta", visible);
   }
 
   document.querySelectorAll("[data-conversion]").forEach((element) => {

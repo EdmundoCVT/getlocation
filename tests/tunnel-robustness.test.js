@@ -40,7 +40,7 @@ function driverFormHtml() {
 function paiementFormHtml() {
   return `<!DOCTYPE html><body>
     <div class="info-banner" id="info-banner"></div>
-    <div id="payment-summary"></div>
+    <strong id="payment-summary-total"></strong><div id="payment-summary"></div>
     <form id="payment-form">
       <input name="nom" id="nom" aria-describedby="err-nom" aria-invalid="false"><div id="err-nom"></div>
       <input name="prenom" id="prenom" aria-describedby="err-prenom" aria-invalid="false"><div id="err-prenom"></div>
@@ -76,6 +76,17 @@ function newWindow(html, url = "https://getlocation.fr/reservation.html") {
   return dom.window;
 }
 
+test("paiement.html : livraison et récapitulatif utilisent des accordéons natifs compacts", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "paiement.html"), "utf8");
+  const document = new JSDOM(html).window.document;
+  const pickupGroups = [...document.querySelectorAll('details.delivery-disclosure[name="delivery-pickup"]')];
+  assert.equal(pickupGroups.length, 2);
+  assert.equal(pickupGroups[0].open, true);
+  assert.equal(pickupGroups[1].open, false);
+  assert.ok(document.querySelector("details.payment-summary-card > summary #payment-summary-total"));
+  assert.equal(document.querySelector("details.payment-summary-card").open, false);
+});
+
 test("initPaiementPage : pré-remplit le formulaire si le conducteur avait déjà été saisi (retour arrière)", () => {
   const window = newWindow(paiementFormHtml(), "https://getlocation.fr/paiement.html");
   window.localStorage.setItem("gl_reservation", JSON.stringify({
@@ -108,6 +119,7 @@ test("initPaiementPage : ne pré-remplit rien pour une première visite (pas de 
 
   window.initPaiementPage();
   assert.equal(window.document.getElementById("nom").value, "");
+  assert.match(window.document.getElementById("payment-summary-total").textContent, /118/);
 });
 
 test("initPaiementPage : les lieux fréquents se choisissent en un clic", () => {

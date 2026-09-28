@@ -78,16 +78,15 @@ test("la homepage présente le service sans répliquer le catalogue", () => {
 
 test("la FAQ utilise des accordéons natifs accessibles", () => {
   const items = [...document.querySelectorAll(".faq-item")];
-  // 4 questions depuis le retrait de « Quels véhicules proposez-vous ? » :
-  // la plateforme peut proposer des véhicules partenaires, la liste figée de
-  // la flotte propre n'y répondait plus.
-  assert.equal(items.length, 4);
+  // FAQ opérationnelle enrichie sans réintroduire une liste de flotte figée.
+  assert.equal(items.length, 8);
   assert.equal(
     items.some((item) => /Quels véhicules proposez-vous/.test(item.textContent)),
     false,
     "cette question a été retirée de la FAQ"
   );
   assert.ok(items.every(item => item.tagName === "DETAILS" && item.querySelector(":scope > summary")));
+  assert.ok(items.every(item => !item.open), "toutes les réponses doivent être fermées par défaut");
 });
 
 test("les actions de conversion sont balisées sans traceur externe", () => {
