@@ -5,7 +5,7 @@
 // dates/heures bien formées et futures, longueurs de chaînes bornées) —
 // ne calcule et ne fait jamais confiance à un prix fourni par le client.
 
-const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, LIEUX_FREQUENTS_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS } = require("../../../js/data.js");
+const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, LIEUX_FREQUENTS_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS, HEURE_OUVERTURE, HEURE_FERMETURE } = require("../../../js/data.js");
 
 const MAX_LEN = {
   nom: 100,
@@ -29,6 +29,17 @@ function isValidDate(v) {
 
 function isValidHeure(v) {
   return typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+}
+
+function heureEnMinutes(v) {
+  if (!isValidHeure(v)) return null;
+  const [heures, minutes] = v.split(":").map(Number);
+  return heures * 60 + minutes;
+}
+
+function isHeureReservationAutorisee(v) {
+  const valeur = heureEnMinutes(v);
+  return valeur !== null && valeur >= heureEnMinutes(HEURE_OUVERTURE) && valeur <= heureEnMinutes(HEURE_FERMETURE);
 }
 
 function isValidEmail(v) {
@@ -87,6 +98,8 @@ function validateReservationInput(payload) {
   if (!isValidDate(dateFin)) errors.push("Date de fin invalide");
   if (!isValidHeure(heureDebut)) errors.push("Heure de début invalide");
   if (!isValidHeure(heureFin)) errors.push("Heure de fin invalide");
+  if (isValidHeure(heureDebut) && !isHeureReservationAutorisee(heureDebut)) errors.push("L'heure de début doit être comprise entre 07:00 et 23:30");
+  if (isValidHeure(heureFin) && !isHeureReservationAutorisee(heureFin)) errors.push("L'heure de fin doit être comprise entre 07:00 et 23:30");
 
   if (isValidDate(dateDebut) && isValidHeure(heureDebut)) {
     const debut = new Date(`${dateDebut}T${heureDebut}:00`);

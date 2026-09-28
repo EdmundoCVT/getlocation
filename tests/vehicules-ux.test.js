@@ -16,15 +16,16 @@ test("la page véhicules ne répète pas la recherche et conserve une seule modi
 test("les cartes véhicules utilisent le vocabulaire compact et sans description marketing", () => {
   const app = read("js/app.js");
   assert.doesNotMatch(app, /<p class="hint-text">\$\{v\.description\}/);
-  assert.ok(app.includes('t("Commander")'));
+  assert.ok(app.includes('t("Choisir ce véhicule")'));
   assert.ok(app.includes('class="vehicle-total"'));
-  assert.ok(app.includes('t("Réservation immédiate")'));
   assert.ok(app.includes('t(`${v.places} places`)'));
+  assert.ok(app.includes('t("Tarif sur demande")'));
+  assert.ok(app.includes('class="vehicle-details"'));
 });
 
 test("le responsive réduit la densité de la sélection véhicules sur mobile", () => {
   const css = read("css/style.css");
   assert.ok(css.includes(".vehicle-selection { padding-top: 18px; }"));
-  assert.ok(css.includes(".vehicle-selection .vehicle-media { height: 154px; }"));
+  assert.ok(css.includes(".vehicle-selection .vehicle-media { height: 210px; }"));
   assert.ok(css.includes(".vehicle-selection .vt-option"));
 });

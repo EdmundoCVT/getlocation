@@ -184,7 +184,7 @@ test("métadonnées anglaises : titre, description, canonique et langue du docum
   assert.match(traduit, /<link rel="canonical" href="https:\/\/getlocation\.fr\/en\/cars">/);
   assert.match(traduit, /og:locale["'] content=["']en_GB/);
   // Le contenu de la page, lui, n'est pas touché côté serveur.
-  assert.ok(traduit.includes("Choisissez votre véhicule"));
+  assert.ok(traduit.includes("Voici les véhicules disponibles pour vos dates"));
   // Les balises hreflang restent identiques dans les deux versions.
   assert.ok(traduit.includes('hreflang="fr"') && traduit.includes('hreflang="en"') && traduit.includes('hreflang="x-default"'));
 });

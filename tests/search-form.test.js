@@ -75,6 +75,34 @@ test("GETLOCATION ne propose plus d'agence physique et couvre les principales vi
   }
 });
 
+test("les horaires commencent à 07:00 et l'horloge est séparée du contrôle natif", () => {
+  const window = newWindow();
+  const select = window.document.getElementById("heure-debut");
+  const valeurs = [...select.options].map((option) => option.value);
+  assert.equal(valeurs[0], "07:00");
+  assert.equal(valeurs.includes("06:30"), false);
+  assert.equal(valeurs.includes("10:00"), true);
+
+  window.initTimeSelects();
+  assert.ok(select.parentElement.classList.contains("time-select-wrap"));
+  assert.equal(select.style.backgroundImage, "", "aucune horloge personnalisée ne doit être superposée dans le select");
+});
+
+test("le sélecteur d'heure conserve une largeur sûre à 375, 390 et 430 px", () => {
+  const css = fs.readFileSync(path.join(__dirname, "..", "css", "style.css"), "utf8");
+  assert.match(css, /grid-template-columns:\s*minmax\(0, 1\.35fr\) minmax\(108px, \.65fr\)/);
+  assert.match(css, /@media \(max-width: 380px\)[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) 108px/);
+  assert.match(css, /\.time-select-wrap::before[\s\S]*pointer-events:\s*none/);
+  assert.match(css, /\.time-select-wrap select[\s\S]*padding-inline-start:\s*38px[\s\S]*padding-inline-end:\s*30px/);
+
+  [375, 390, 430].forEach((viewport) => {
+    const available = viewport - 32;
+    const timeColumn = viewport <= 380 ? 108 : Math.max(108, (available - 8) * (.65 / 2));
+    assert.ok(timeColumn >= 108, `${viewport}px doit réserver au moins 108px à l'heure`);
+    assert.ok(available - timeColumn >= 220, `${viewport}px doit garder une date lisible sans scroll horizontal`);
+  });
+});
+
 test("le lieu de restitution est masqué par défaut, le bouton pour le révéler est visible", () => {
   // On vérifie style.display (pas la propriété hidden, qui ne reflète que la
   // présence de l'attribut HTML et pas le rendu visuel réel une fois la

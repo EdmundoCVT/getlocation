@@ -72,6 +72,15 @@ test("rejette des formats de date/heure invalides", () => {
   assert.ok(errors.includes("Heure de début invalide"));
 });
 
+test("applique la plage horaire 07:00–23:30 côté serveur", () => {
+  const avantOuverture = validateReservationInput(basePayload({ heureDebut: "06:30" }));
+  assert.equal(avantOuverture.valid, false);
+  assert.ok(avantOuverture.errors.some((e) => e.includes("07:00")));
+
+  assert.equal(validateReservationInput(basePayload({ heureDebut: "07:00" })).valid, true);
+  assert.equal(validateReservationInput(basePayload({ heureDebut: "10:00" })).valid, true);
+});
+
 test("rejette un lieu hors liste", () => {
   const { valid, errors } = validateReservationInput(basePayload({ lieuPrise: "Un lieu inventé" }));
   assert.equal(valid, false);

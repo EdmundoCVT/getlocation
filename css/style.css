@@ -16,12 +16,12 @@
      pour ne pas casser les ~40 usages existants dans ce fichier — seules les valeurs changent.
      Nouvelle charte (logo pin/G) appliquée le 04/09/2026, couleurs extraites directement
      des fichiers logo fournis (pas du PDF, converti CMJN → RVB donc légèrement différent). */
-  --violet: #fd5301;         /* orange de marque (ex-violet) */
+  --violet: #FF6B00;         /* orange de marque (ex-violet) */
   --violet-dark: #d94700;
   --violet-light: #feede5;
   --bleu-nuit: #12101a;      /* noir/texte fort (nom conservé pour compat) */
-  --bleu-ocean: #0067fc;     /* bleu de marque (accent secondaire, logo) */
-  --turquoise: #0067fc;      /* alias bleu de marque (nom conservé pour compat) */
+  --bleu-ocean: #0066FF;     /* bleu de marque (accent secondaire, logo) */
+  --turquoise: #0066FF;      /* alias bleu de marque (nom conservé pour compat) */
   --sable: #feceb7;
   --sable-clair: #fef4ef;
   --gris-fonce: #1a1a1f;
@@ -695,7 +695,8 @@ textarea:focus-visible,
 }
 
 .datetime-group {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(108px, .65fr);
   gap: 8px;
 }
 
@@ -768,8 +769,7 @@ textarea:focus-visible,
    pour un rendu plus moderne. Purement décoratifs (fond CSS), donc pas
    besoin d'attribut alt/aria : le texte du <label> associé reste la seule
    information portée pour les lecteurs d'écran. */
-.datetime-group input[type="date"],
-.datetime-group select {
+.datetime-group input[type="date"] {
   background-repeat: no-repeat;
   background-position: 11px center;
   background-size: 15px 15px;
@@ -782,10 +782,31 @@ textarea:focus-visible,
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b74' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M16 3v4M8 3v4M3 10h18'/%3E%3C/svg%3E");
 }
 
-.datetime-group select {
-  flex: 1;
+.time-select-wrap {
+  position: relative;
+  display: block;
   min-width: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b74' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 3'/%3E%3C/svg%3E");
+}
+
+.time-select-wrap::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: 12px;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  transform: translateY(-50%);
+  background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b74' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 3'/%3E%3C/svg%3E");
+}
+
+.time-select-wrap select {
+  width: 100%;
+  min-width: 0;
+  padding-inline-start: 38px;
+  padding-inline-end: 30px;
+  background-image: none;
 }
 
 /* Bouton "Restituer à un endroit différent" : discret par défaut (lien avec
@@ -1316,6 +1337,11 @@ textarea:focus-visible,
   transform: translateY(-4px);
 }
 
+.vehicle-card:active {
+  transform: scale(.992);
+  box-shadow: var(--ombre-sm);
+}
+
 .vehicle-card-clickable {
   cursor: pointer;
 }
@@ -1326,12 +1352,12 @@ textarea:focus-visible,
 }
 
 .vehicle-media {
-  height: 190px;
+  height: 220px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 3.4rem;
-  background: var(--gris-clair);
+  background: #fff;
   position: relative;
   overflow: hidden;
 }
@@ -1343,7 +1369,8 @@ textarea:focus-visible,
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  padding: 14px;
   transition: transform 0.35s ease;
 }
 
@@ -1354,7 +1381,7 @@ textarea:focus-visible,
 }
 
 .vehicle-card:hover .vehicle-photo {
-  transform: scale(1.04);
+  transform: scale(1.025);
 }
 
 .vehicle-media[data-gallery] { cursor: pointer; }
@@ -1544,11 +1571,23 @@ textarea:focus-visible,
 }
 
 .vehicle-specs span {
-  background: var(--gris-clair);
-  padding: 4px 8px;
-  border-radius: 20px;
-  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
 }
+
+.vehicle-specs svg { width: 17px; height: 17px; flex: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.vehicle-details { border-top: 1px solid #eeeef2; }
+.vehicle-details summary { min-height: 40px; display: flex; align-items: center; cursor: pointer; list-style: none; color: #5f5f68; font-size: .82rem; font-weight: 700; }
+.vehicle-details summary::-webkit-details-marker { display: none; }
+.vehicle-details summary::after { content: "⌄"; margin-left: auto; color: var(--violet); transition: transform var(--motion-fast) ease; }
+.vehicle-details[open] summary::after { transform: rotate(180deg); }
+.vehicle-details > div { display: flex; gap: 14px; padding: 0 0 9px; color: #62626c; font-size: .8rem; }
+.price-request { font-size: 1.05rem; }
+.price-request small { margin-top: 4px; text-transform: none; letter-spacing: 0; }
+.compact-info { padding: 9px 11px; border-radius: 10px; background: #f5f8ff; color: #4f5663; font-size: .82rem; }
 
 .vehicle-total {
   color: var(--gris-fonce);
@@ -1812,26 +1851,6 @@ textarea:focus-visible,
   letter-spacing: 0.05em;
 }
 
-.protection-info-button {
-  width: 28px;
-  height: 28px;
-  display: inline-grid;
-  place-items: center;
-  margin-left: auto;
-  border: 1px solid #d8d8df;
-  border-radius: 50%;
-  background: #fff;
-  color: var(--violet-dark);
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.protection-info-button:hover,
-.protection-info-button:focus-visible {
-  border-color: var(--violet);
-  background: var(--violet-light);
-}
-
 /* Franchise : l'information comparée en premier, donc détachée du reste.
    Libellé au-dessus, montant en dessous : sur quatre colonnes, les mettre
    côte à côte faisait déborder « 2 000 € » hors de la carte. */
@@ -1948,6 +1967,8 @@ textarea:focus-visible,
   min-height: 0;
 }
 
+.protection-description { margin: 0 0 10px; color: #5f5f68; font-size: .84rem; line-height: 1.45; }
+
 .protection-garanties {
   margin: 0;
   padding: 0;
@@ -1993,55 +2014,12 @@ textarea:focus-visible,
   letter-spacing: -0.01em;
 }
 
-/* Plafond : deux lignes autorisées plutôt qu'une ligne tronquée. */
-.protection-plafond {
-  color: #62626c;
-  font-size: 0.78rem;
-  line-height: 1.3;
-}
-
 .protection-mention {
   grid-column: 1 / -1;
   margin: 2px 0 0;
   color: #62626c;
   font-size: .82rem;
   line-height: 1.5;
-}
-
-.protection-info-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(18, 16, 26, .46);
-}
-
-.protection-info-modal[hidden] { display: none; }
-
-.protection-info-dialog {
-  position: relative;
-  width: min(100%, 480px);
-  padding: 26px;
-  border-radius: 18px;
-  background: #fff;
-  box-shadow: 0 18px 60px rgba(18, 16, 26, .22);
-}
-
-.protection-info-title { margin: 0 34px 12px 0; }
-.protection-info-description { margin: 0 0 12px; color: var(--gris-fonce); }
-.protection-info-note { margin: 0; color: #62626c; font-size: .88rem; }
-.protection-info-close {
-  position: absolute;
-  top: 12px;
-  right: 14px;
-  border: 0;
-  background: transparent;
-  color: #62626c;
-  font-size: 1.7rem;
-  line-height: 1;
-  cursor: pointer;
 }
 
 .protection-select {
@@ -2063,7 +2041,6 @@ textarea:focus-visible,
   .protection-head { min-height: 34px; gap: 6px; }
   .protection-head { flex-wrap: nowrap; }
   .protection-nom { flex: 1; min-width: 0; font-size: .96rem; }
-  .protection-info-button { width: 26px; height: 26px; }
   .protection-summary {
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas: "level price toggle" "franchise price toggle";
@@ -2075,7 +2052,6 @@ textarea:focus-visible,
   .protection-details-toggle { grid-area: toggle; }
   .protection-franchise { font-size: .76rem; white-space: nowrap; }
   .protection-card .protection-price strong { font-size: 1rem; }
-  .protection-plafond { font-size: .7rem; }
   .protection-select { min-height: 42px; width: 42px; flex-basis: 42px; padding: 0; }
   .protection-details-toggle { width: 38px; min-width: 38px; height: 38px; }
 }
@@ -2105,7 +2081,6 @@ textarea:focus-visible,
   .protection-card { padding: 16px 13px; }
   .protection-nom { font-size: 1.05rem; }
   .protection-garanties li { font-size: 0.84rem; }
-  .protection-plafond { font-size: 0.73rem; }
   .protection-select { padding-left: 8px; padding-right: 8px; font-size: 0.88rem; }
 }
 
@@ -3017,13 +2992,13 @@ textarea:focus-visible,
   .vehicle-selection .vehicle-grid { gap: 14px; }
   .vehicle-selection .vt-option { padding: 10px 8px; gap: 4px; font-size: .82rem; }
   .vehicle-selection .filters-drawer summary { padding: 8px 14px; font-size: .82rem; }
-  .vehicle-selection .vehicle-media { height: 154px; }
+  .vehicle-selection .vehicle-media { height: 210px; }
   .vehicle-selection .vehicle-body { padding: 14px 15px 15px; gap: 7px; }
   .vehicle-selection .vehicle-category { font-size: .7rem; }
   .vehicle-selection .vehicle-name { font-size: 1.03rem; }
   .vehicle-selection .booking-mode-badge { margin: 1px 0 4px; padding: 3px 8px; }
   .vehicle-selection .vehicle-specs { gap: 5px; font-size: .77rem; }
-  .vehicle-selection .vehicle-specs span { padding: 4px 7px; }
+  .vehicle-selection .vehicle-specs span { padding: 0; }
   .vehicle-selection .vehicle-footer { padding-top: 9px; }
   .vehicle-selection .price { font-size: 1.18rem; }
   .vehicle-selection .vehicle-footer .btn { padding: 10px 14px; }
@@ -3207,6 +3182,25 @@ textarea:focus-visible,
   .footer-bottom { padding: 16px; }
 
   .mobile-availability-cta.is-visible { bottom: max(12px, calc(env(safe-area-inset-bottom) + 8px)); min-height: 50px; }
+
+  .homepage-journey { padding-top: 30px; padding-bottom: 30px; }
+  .homepage-journey .how-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .homepage-journey .how-step { display: block; min-width: 0; margin: 0; padding: 0 2px; }
+  .homepage-journey .how-step p { margin: 0; }
+  .homepage-local { padding-top: 30px; padding-bottom: 34px; }
+  .homepage-local .section-subtitle { margin-bottom: 0; }
+}
+
+@media (max-width: 380px) {
+  .datetime-group { grid-template-columns: minmax(0, 1fr) 108px; gap: 6px; }
+  .time-select-wrap select { padding-inline-start: 35px; padding-inline-end: 24px; }
+  .time-select-wrap::before { left: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vehicle-card,
+  .vehicle-photo,
+  .vehicle-details summary::after { transition: none; }
 }
 
 .child-options-group.ui-disclosure > summary::after {

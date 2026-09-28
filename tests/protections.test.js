@@ -203,6 +203,13 @@ test("validateReservationInput : protection absente => formule incluse, protecti
   });
 });
 
+test("validateReservationInput Worker : refuse 06:30 et accepte 07:00", () => {
+  const tropTot = validateReservationInput(entreeValide({ heureDebut: "06:30" }));
+  assert.equal(tropTot.valid, false);
+  assert.ok(tropTot.errors.some((erreur) => erreur.includes("07:00")));
+  assert.equal(validateReservationInput(entreeValide({ heureDebut: "07:00" })).valid, true);
+});
+
 // ---------------------------------------------------------------------
 // 4. Contrat PDF : protection, franchise et dépôt de garantie distincts
 // ---------------------------------------------------------------------

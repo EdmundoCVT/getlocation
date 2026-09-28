@@ -113,10 +113,9 @@ function getFamillesVehicule() { return FAMILLES_VEHICULE; }
 function getTypesVoiture() { return TYPES_VOITURE; }
 function getCarburants() { return CARBURANTS; }
 
-// Horaires de prise en charge / restitution : disponible 24h/24 sur
-// rendez-vous (évolution prévue vers un système de déverrouillage par
-// smartphone, sans horaires fixes à terme).
-const HEURE_OUVERTURE = "00:00";
+// Horaires proposés dans le tunnel client. Les créneaux nocturnes entre
+// 00:00 inclus et 07:00 exclus ne sont pas réservables en ligne.
+const HEURE_OUVERTURE = "07:00";
 const HEURE_FERMETURE = "23:30";
 
 // Identifiant de version des conditions générales de location (CGL) et de

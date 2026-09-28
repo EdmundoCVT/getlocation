@@ -95,13 +95,11 @@ test("initReservationPage : les cartes présentent les niveaux, franchises et ga
   assert.doesNotMatch(texte, /Responsabilité maximale/);
   assert.match(texte, /Protection Essentielle/);
   assert.match(texte, /Protection Premium/);
-  assert.equal(window.document.querySelectorAll(".protection-info-button").length, PROTECTIONS.length);
-
-  window.document.querySelector(".protection-info-button").click();
-  const modal = window.document.getElementById("protection-info-modal");
-  assert.ok(modal);
-  assert.equal(modal.hidden, false);
-  assert.match(modal.textContent, /responsabilité civile obligatoire/i);
+  assert.equal(window.document.querySelectorAll(".protection-info-button").length, 0, "un seul contrôle ouvre les détails");
+  assert.doesNotMatch(texte, /Maximum\s*:/i);
+  const detailsToggle = window.document.querySelector('[data-protection="essentiel"] .protection-details-toggle');
+  detailsToggle.click();
+  assert.match(window.document.querySelector('[data-protection="essentiel"] .protection-details').textContent, /responsabilité civile obligatoire/i);
 });
 
 test("initReservationPage : étoiles, accordéon et sélection restent indépendants", () => {

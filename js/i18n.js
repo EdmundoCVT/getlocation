@@ -244,6 +244,7 @@
     "Gare SNCF de Saint-Laurent-du-Var": "Saint-Laurent-du-Var SNCF station",
     "Restituer le véhicule à une autre adresse": "Return the vehicle to a different address",
     "Voir les véhicules disponibles": "See available vehicles",
+    "Voici les véhicules disponibles pour vos dates": "Vehicles available for your dates",
     "Rechercher": "Search",
 
     // --- Accueil : pourquoi nous choisir
@@ -355,7 +356,15 @@
     "Le conducteur doit être âgé d'au moins 21 ans et titulaire d'un permis de conduire valide depuis au moins 2 ans. Voir nos":
       "Drivers must be at least 21 years old and have held a valid driving licence for at least 2 years. See our",
     "conditions générales de location": "rental terms and conditions",
-    "Dans quelles villes puis-je récupérer mon véhicule ?": "Where can I pick up my vehicle?",
+    "Dans quelles villes puis-je recevoir mon véhicule ?": "Which towns and cities can you deliver to?",
+    "À": "In",
+    ", Monaco et dans les autres villes proposées pendant la commande. La livraison est aussi disponible à l'": ", Monaco and the other locations offered during booking. Delivery is also available at ",
+    "aéroport de Nice": "Nice Airport",
+    "et dans plusieurs gares.": "and at several railway stations.",
+    "Depuis Grasse, GETLOCATION livre votre voiture à l'adresse, à l'hôtel, à la gare ou au point de rendez-vous choisi sur la Côte d'Azur. Réservez en ligne, nous organisons la livraison.":
+      "From Grasse, GETLOCATION delivers your car to your chosen address, hotel, railway station or meeting point on the French Riviera. Book online and we arrange delivery.",
+    "À Nice, Cannes, Antibes, Grasse, Monaco et dans les autres villes proposées pendant la commande. La livraison est aussi disponible à l'aéroport de Nice et dans plusieurs gares.":
+      "In Nice, Cannes, Antibes, Grasse, Monaco and the other locations offered during booking. Delivery is also available at Nice Airport and several railway stations.",
     "Nous sommes une agence en ligne : le véhicule est livré à l'adresse, à la gare ou au point de rendez-vous choisi sur la Côte d'Azur.":
       "We are an online agency: your vehicle is delivered to the address, railway station or meeting point you choose on the French Riviera.",
     "Un dépôt de garantie est-il demandé ?": "Is a security deposit required?",
@@ -432,6 +441,8 @@
     "Date de naissance": "Date of birth",
     "Le permis de conduire et une pièce d'identité vous seront demandés par e-mail après la réservation.":
       "We will ask for your driving licence and ID by email after the booking.",
+    "ⓘ Le permis de conduire et une pièce d'identité vous seront demandés par e-mail après la réservation. Un supplément peut s'appliquer aux permis de moins de 3 ans.":
+      "ⓘ We will ask for your driving licence and ID by email after the booking. A surcharge may apply to licences held for less than 3 years.",
     "Vous allez être redirigé(e) vers notre prestataire de paiement sécurisé":
       "You will be redirected to our secure payment provider",
     "(carte bancaire, Apple Pay, etc.) pour finaliser le règlement, puis renvoyé(e) automatiquement ici.":
@@ -616,6 +627,8 @@
     "Motorisation": "Engine",
     "Automatique seulement": "Automatic only",
     "Sans clim": "No air conditioning",
+    "Détails du véhicule": "Vehicle details",
+    "portes": "doors",
     "Essence / Diesel": "Petrol / Diesel",
     "Hybride": "Hybrid",
     "Électrique": "Electric",
@@ -675,6 +688,8 @@
     "Disponibilité à confirmer": "Subject to confirmation",
     "Faire une demande": "Request this vehicle",
     "Demander ce véhicule": "Request this vehicle",
+    "Choisir ce véhicule": "Choose this vehicle",
+    "Tarif sur demande": "Price on request",
     "Vous pouvez finaliser votre réservation directement avec notre équipe :":
       "You can complete this booking directly with our team:",
 
@@ -833,6 +848,7 @@
       "No extra charge. A deposit of {caution} still applies to this vehicle. The exact terms are set out in the rental conditions.",
     "{prix} / jour": "{prix} / day",
     "Choisir {protection}": "Choose {protection}",
+    "Choisir {vehicule}": "Choose {vehicule}",
     "Franchise : {montant}": "Excess: {montant}",
     "Niveau de protection : {niveau} sur 3": "Protection level: {niveau} out of 3",
     "Afficher les détails de {protection}": "Show details for {protection}",

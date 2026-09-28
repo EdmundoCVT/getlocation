@@ -169,9 +169,9 @@ async function handleCreatePayment(request, env) {
   // validés/normalisés ci-dessus (options, codePromo) — jamais depuis
   // `payload.options`/`payload.codePromo` bruts, qui pourraient contenir des
   // valeurs non vérifiées.
-  // `permisDate` vient du conducteur validé : c'est elle qui déclenche (ou
-  // non) le supplément jeune conducteur, recalculé ici comme le reste du
-  // prix — jamais un montant envoyé par le navigateur.
+  // Si un ancien panier contient déjà `permisDate`, elle reste validée et
+  // déclenche le supplément jeune conducteur. Les nouvelles réservations la
+  // collectent après paiement dans le dossier sécurisé.
   const prix = calculerPrixTotal({
     ...payload,
     options,

@@ -28,7 +28,6 @@ function driverFormHtml() {
       <input name="email" id="email" aria-describedby="err-email" aria-invalid="false"><div id="err-email"></div>
       <input name="telephone" id="telephone" aria-describedby="err-telephone" aria-invalid="false"><div id="err-telephone"></div>
       <input name="naissance" id="naissance" aria-describedby="err-naissance" aria-invalid="false"><div id="err-naissance"></div>
-      <input name="permisDate" id="permisDate" aria-describedby="err-permisDate" aria-invalid="false"><div id="err-permisDate"></div>
       <button type="submit">Continuer</button>
     </form>
   </body>`;
@@ -47,7 +46,6 @@ function paiementFormHtml() {
       <input name="email" id="email" aria-describedby="err-email" aria-invalid="false"><div id="err-email"></div>
       <input name="telephone" id="telephone" aria-describedby="err-telephone" aria-invalid="false"><div id="err-telephone"></div>
       <input name="naissance" id="naissance" aria-describedby="err-naissance" aria-invalid="false"><div id="err-naissance"></div>
-      <input name="permisDate" id="permisDate" aria-describedby="err-permisDate" aria-invalid="false"><div id="err-permisDate"></div>
       <div id="payment-adresse-prise-frequent"></div>
       <div id="payment-adresse-prise-principal"></div>
       <button type="button" id="payment-adresse-prise-other-toggle">Autre ville</button>
@@ -186,7 +184,6 @@ test("validateDriverForm : marque aria-invalid et place le focus sur le premier 
   window.document.getElementById("email").value = "pas-un-email";
   window.document.getElementById("telephone").value = "0601020304";
   window.document.getElementById("naissance").value = "15/06/1995";
-  window.document.getElementById("permisDate").value = "20/09/2015";
 
   const valid = window.validateDriverForm(form);
 
@@ -206,7 +203,6 @@ test("validateDriverForm : accepte un formulaire valide et efface les messages d
   window.document.getElementById("email").value = "jean@example.com";
   window.document.getElementById("telephone").value = "0601020304";
   window.document.getElementById("naissance").value = "15/06/1995";
-  window.document.getElementById("permisDate").value = "20/09/2015";
 
   const valid = window.validateDriverForm(form);
   assert.equal(valid, true);
@@ -259,20 +255,10 @@ test("initPaiementPage : insère automatiquement les \"/\" pendant la saisie de 
   assert.equal(input.value, "15/06/1995");
 });
 
-test("validateDriverForm : refuse une date d'obtention du permis absente ou future", () => {
-  const window = newWindow(driverFormHtml());
-  const form = window.document.getElementById("driver-form");
-  function remplir(permis) {
-    window.document.getElementById("nom").value = "Dupont";
-    window.document.getElementById("prenom").value = "Jean";
-    window.document.getElementById("email").value = "jean@example.com";
-    window.document.getElementById("telephone").value = "0601020304";
-    window.document.getElementById("naissance").value = "15/06/1995";
-    window.document.getElementById("permisDate").value = permis;
-    return window.validateDriverForm(form);
-  }
-
-  assert.equal(remplir(""), false, "la date de permis est obligatoire : elle détermine le supplément jeune conducteur");
-  assert.equal(remplir("01/01/2099"), false, "une date future est refusée");
-  assert.equal(remplir("20/09/2015"), true);
+test("paiement.html : la date d'obtention du permis est collectée après réservation", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "paiement.html"), "utf8");
+  const document = new JSDOM(html).window.document;
+  assert.equal(document.querySelector('[name="permisDate"]'), null);
+  assert.match(document.querySelector(".compact-info").textContent, /demandés par e-mail après la réservation/i);
+  assert.match(document.querySelector(".compact-info").textContent, /permis de moins de 3 ans/i);
 });

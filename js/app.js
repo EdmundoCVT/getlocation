@@ -167,8 +167,9 @@ function initMobileMenu() {
   });
 }
 
-// Remplit un <select> avec la liste des horaires d'ouverture (08:00 à 19:00,
-// par pas de 30 min) : garantit qu'on ne peut choisir qu'un créneau valide.
+// Remplit un <select> avec la liste des horaires autorisés, par pas de
+// 30 minutes. La même borne est revalidée côté serveur : cette liste n'est
+// jamais la seule protection contre une valeur HTML modifiée.
 // Fonction partagée par le formulaire de recherche (initSearchForm) et la
 // barre de dates persistante du tunnel de réservation (initDateBar).
 function remplirOptionsHeure(select) {
@@ -183,6 +184,46 @@ function remplirOptionsHeure(select) {
     select.add(new Option(`${h}:${m}`, `${h}:${m}`));
     minutes += 30;
   }
+}
+
+function heureReservationAutorisee(heure) {
+  if (typeof heure !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(heure)) return false;
+  const enMinutes = (valeur) => {
+    const [h, m] = valeur.split(":").map(Number);
+    return h * 60 + m;
+  };
+  const valeur = enMinutes(heure);
+  return valeur >= enMinutes(HEURE_OUVERTURE) && valeur <= enMinutes(HEURE_FERMETURE);
+}
+
+// L'ancienne horloge était une image de fond dessinée à l'intérieur du
+// <select>. Sur Safari iOS, elle partageait la même zone que le texte et le
+// contrôle natif, d'où le chevauchement à 375–430 px. L'icône vit désormais
+// dans un wrapper séparé ; le chevron natif du navigateur garde sa zone.
+function initTimeSelects() {
+  document.querySelectorAll(".datetime-group select").forEach((select) => {
+    if (select.parentElement && select.parentElement.classList.contains("time-select-wrap")) return;
+    const wrapper = document.createElement("span");
+    wrapper.className = "time-select-wrap";
+    select.parentNode.insertBefore(wrapper, select);
+    wrapper.appendChild(select);
+  });
+}
+
+function familyIconSvg(family) {
+  const paths = {
+    car: '<path d="M3.5 13.5 5.4 8.8a3 3 0 0 1 2.8-1.9h9.6a3 3 0 0 1 2.8 1.9l1.9 4.7"/><path d="M2.5 13.5h21v3.2a1.8 1.8 0 0 1-1.8 1.8H4.3a1.8 1.8 0 0 1-1.8-1.8v-3.2Z"/><path d="M7 7 9.2 3.8h7.6L19 7M7 14.5h.01M19 14.5h.01"/>',
+    utility: '<path d="M2.5 5.5h12.8v12H2.5z"/><path d="M15.3 9h4l3.2 3.8v4.7h-7.2zM5.8 9h6.2M5.5 17.5h.01M19.5 17.5h.01"/><circle cx="5.5" cy="17.5" r="2"/><circle cx="19.5" cy="17.5" r="2"/>',
+    "license-free": '<path d="M4 13.5 5.4 9A2.8 2.8 0 0 1 8 7h6.8a2.8 2.8 0 0 1 2.6 2l1.4 4.5"/><path d="M3 13.5h17v3a1.7 1.7 0 0 1-1.7 1.7H4.7A1.7 1.7 0 0 1 3 16.5v-3Z"/><path d="M8 7V4.5h5.5L16 7M7 14.5h.01M16 14.5h.01"/>'
+  };
+  return `<svg viewBox="0 0 26 22" fill="none" aria-hidden="true">${paths[family] || paths.car}</svg>`;
+}
+
+function initCategoryIcons() {
+  document.querySelectorAll(".vt-option[data-type]").forEach((button) => {
+    const icon = button.querySelector(".vt-icon");
+    if (icon) icon.innerHTML = familyIconSvg(button.dataset.type);
+  });
 }
 
 // Mesure la hauteur réelle de l'en-tête et l'expose en variable CSS
@@ -267,6 +308,10 @@ function initDateBar({ getData, onApply }) {
     const dateFin = inputFin.value;
     const heureFin = selectHeureFin.value;
     const duree = dureeEnHeures(dateDebut, heureDebut, dateFin, heureFin);
+    if (!heureReservationAutorisee(heureDebut) || !heureReservationAutorisee(heureFin)) {
+      if (errorEl) errorEl.textContent = "Les départs et retours sont disponibles à partir de 07:00.";
+      return;
+    }
     if (!dateDebut || !dateFin || !isFinite(duree) || duree <= 0) {
       if (errorEl) errorEl.textContent = "La date/heure de retour doit être après la date/heure de départ.";
       return;
@@ -446,6 +491,9 @@ function initSearchForm() {
   inputFin.value = todayISO(5);
   if (selectHeureDebut) selectHeureDebut.value = "10:00";
   if (selectHeureFin) selectHeureFin.value = "10:00";
+  [selectHeureDebut, selectHeureFin].forEach((select) => {
+    if (select) select.addEventListener("change", () => select.setCustomValidity(""));
+  });
 
   // Si la date/heure de retour tombe avant ou pile sur la date/heure de départ,
   // on corrige automatiquement pour garantir une durée de location positive.
@@ -478,6 +526,17 @@ function initSearchForm() {
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     corrigerFinSiNecessaire();
+
+    const horairesValides = heureReservationAutorisee(selectHeureDebut && selectHeureDebut.value)
+      && heureReservationAutorisee(selectHeureFin && selectHeureFin.value);
+    if (!horairesValides) {
+      const cible = !heureReservationAutorisee(selectHeureDebut && selectHeureDebut.value) ? selectHeureDebut : selectHeureFin;
+      if (cible) {
+        cible.setCustomValidity("Les départs et retours sont disponibles à partir de 07:00.");
+        cible.reportValidity();
+      }
+      return;
+    }
 
     const lieuPriseFinal = selectPrise ? selectPrise.value : LIEU_LIVRAISON;
     const adressePriseFinale = (selectPrise && selectPrise.value === LIEU_LIVRAISON && selectAdressePrise) ? valeurAdresse(selectAdressePrise, adressePersonnaliseePrise) : "";
@@ -514,6 +573,16 @@ function libelleLieu(lieu, adresse, type) {
   // Les lieux viennent de js/data.js, donc en français (« Livraison à
   // l'adresse de votre choix ») : leur traduction est indexée sur ce texte.
   return t(lieu);
+}
+
+function vehicleSpecSvg(type) {
+  const paths = {
+    seats: '<circle cx="9" cy="7" r="2.5"/><path d="M4.5 18v-2.2A4.5 4.5 0 0 1 9 11.3a4.5 4.5 0 0 1 4.5 4.5V18M17 9.5a2 2 0 1 0 0-4M15.5 12.2a4 4 0 0 1 4 4V18"/>',
+    transmission: '<circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/><path d="M8 6h8M6 8v8M18 8v8M8 18h8M12 6v12"/>',
+    fuel: '<path d="M5 21V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v17M4 21h14M8 6h6v5H8zM17 7h2l2 3v7a2 2 0 0 1-4 0v-3"/>',
+    climate: '<path d="M12 2v20M4 6l16 12M20 6 4 18M8.5 3.8 12 6l3.5-2.2M8.5 20.2 12 18l3.5 2.2"/>'
+  };
+  return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">${paths[type]}</svg>`;
 }
 
 /* ---------------------------------------------------------
@@ -604,7 +673,7 @@ function initVehiculesPage() {
       btn.type = "button";
       btn.className = "vt-option" + (f.id === activeFamily ? " active" : "");
       btn.setAttribute("aria-pressed", String(f.id === activeFamily));
-      btn.textContent = f.label;
+      btn.innerHTML = `<span class="vt-icon">${familyIconSvg(f.id)}</span><span>${t(f.label)}</span>`;
       btn.addEventListener("click", () => {
         if (activeFamily === f.id) return;
         activeFamily = f.id;
@@ -713,10 +782,16 @@ function initVehiculesPage() {
       // un futur véhicule nécessitant confirmation, sans jamais exposer la
       // provenance interne/externe au client.
       const estInstant = v.bookingMode !== "request";
-      const card = document.createElement("div");
-      card.className = "vehicle-card";
+      const card = document.createElement("article");
+      card.className = "vehicle-card vehicle-card-clickable";
       card.id = `vehicule-${v.id}`;
       const nbPhotos = v.photos ? v.photos.length : 0;
+      const carburant = CARBURANTS.find((item) => item.id === v.fuel);
+      const specsEssentielles = [
+        `<span>${vehicleSpecSvg("seats")} ${t(`${v.places} places`)}</span>`,
+        `<span>${vehicleSpecSvg("transmission")} ${t(v.transmission)}</span>`,
+        carburant ? `<span>${vehicleSpecSvg("fuel")} ${t(carburant.label)}</span>` : ""
+      ].filter(Boolean).join("");
       card.innerHTML = `
         <div class="vehicle-media"${nbPhotos ? ` data-gallery="${v.id}"` : ""}>
           ${pictureVehicule(v, "vehicle-photo", true)}
@@ -726,21 +801,22 @@ function initVehiculesPage() {
         <div class="vehicle-body">
           <div class="vehicle-category">${v.categorie}</div>
           <div class="vehicle-name">${v.nom}${v.modelGuaranteed === false ? ' <span class="hint-text">ou similaire</span>' : ""}</div>
-          <div class="booking-mode-badge ${estInstant ? "is-instant" : "is-request"}">${estInstant ? t("Réservation immédiate") : t("Disponibilité à confirmer")}</div>
-          <div class="vehicle-specs">
-            <span>${t(`${v.places} places`)}</span>
-            <span>${t(v.transmission)}</span>
-            <span>${t(v.clim ? "Climatisation" : "Sans clim")}</span>
-            ${v.hybride ? `<span>${t("Hybride")}</span>` : ''}
-          </div>
+          ${!estInstant ? `<div class="booking-mode-badge is-request">${t("Disponibilité à confirmer")}</div>` : ""}
+          <div class="vehicle-specs">${specsEssentielles}</div>
+          <details class="vehicle-details">
+            <summary>${t("Détails du véhicule")}</summary>
+            <div><span>${v.portes ? `${v.portes} ${t("portes")}` : ""}</span><span>${t(v.clim ? "Climatisation" : "Sans clim")}</span></div>
+          </details>
           ${v.modelGuaranteed === false ? '<p class="hint-text">Le modèle présenté est indicatif. Un véhicule de catégorie équivalente peut être proposé.</p>' : ""}
           <div class="vehicle-footer">
-            <div class="price"><span class="price-from">${t("À partir de")}</span>${formatEUR(prixJourMinimum(v))}<small>${t("/ jour")}</small>${estInstant ? `<div class="vehicle-total">${t("Total pour {jours} : {montant}", { jours: libelleJours(jours), montant: formatEUR(total) })}${remise ? ` <span class="badge-remise">${t("-{montant}/jour dès {palier}", { montant: formatEUR(remise.montantParJour), palier: t(remise.libelle).toLowerCase() })}</span>` : ""}</div>` : ""}</div>
-            <button class="btn btn-primary btn-sm" data-id="${v.id}">${estInstant ? t("Commander") : t("Demander ce véhicule")}</button>
+            ${estInstant
+              ? `<div class="price"><span class="price-from">${t("À partir de")}</span>${formatEUR(prixJourMinimum(v))}<small>${t("/ jour")}</small><div class="vehicle-total">${t("Total pour {jours} : {montant}", { jours: libelleJours(jours), montant: formatEUR(total) })}${remise ? ` <span class="badge-remise">${t("-{montant}/jour dès {palier}", { montant: formatEUR(remise.montantParJour), palier: t(remise.libelle).toLowerCase() })}</span>` : ""}</div></div>`
+              : `<div class="price price-request">${t("Tarif sur demande")}<small>${t("Disponibilité à confirmer")}</small></div>`}
+            <button class="btn btn-primary btn-sm" data-id="${v.id}">${estInstant ? t("Choisir ce véhicule") : t("Demander ce véhicule")}</button>
           </div>
         </div>
       `;
-      card.querySelector("button").addEventListener("click", () => {
+      const choisirVehicule = () => {
         if (estInstant) {
           writeReservationLocal({
             vehiculeId: v.id,
@@ -757,6 +833,11 @@ function initVehiculesPage() {
             { vehicule: v.nom, debut: recherche.dateDebut, fin: recherche.dateFin });
           window.location.href = `mailto:contact@getlocation.fr?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
         }
+      };
+      card.querySelector(".vehicle-footer .btn").addEventListener("click", choisirVehicule);
+      card.addEventListener("click", (event) => {
+        if (event.target.closest("button, details, .vehicle-media[data-gallery]")) return;
+        choisirVehicule();
       });
       grid.appendChild(card);
     });
@@ -1195,41 +1276,13 @@ function initReservationPage() {
     render();
   }
 
-  // Libellé du prix d'une protection : « Incluse » ou « 12 €/jour » avec le
-  // plafond juste en dessous, pour que le client voie tout de suite ce qu'il
-  // paiera au maximum.
+  // Libellé du prix d'une protection. Le plafond reste dans les données et
+  // le calcul, mais la mention « Maximum » n'est plus affichée ici car elle
+  // prêtait à confusion.
   function prixProtection(protection) {
-    if (protection.prixParJour <= 0) return { principal: t("Incluse"), secondaire: "" };
-    return {
-      principal: t("{prix} / jour", { prix: formatEUR(protection.prixParJour) }),
-      secondaire: t("Maximum : {montant}", { montant: formatEUR(protection.prixMax) })
-    };
-  }
-
-  function ouvrirInfoProtection(protection) {
-    let modal = document.getElementById("protection-info-modal");
-    if (!modal) {
-      modal = document.createElement("div");
-      modal.id = "protection-info-modal";
-      modal.className = "protection-info-modal";
-      modal.hidden = true;
-      modal.setAttribute("role", "dialog");
-      modal.setAttribute("aria-modal", "true");
-      modal.innerHTML = '<div class="protection-info-dialog" role="document"><button type="button" class="protection-info-close" aria-label=""></button><h3 class="protection-info-title"></h3><p class="protection-info-description"></p><p class="protection-info-note"></p></div>';
-      document.body.appendChild(modal);
-      const boutonFermer = modal.querySelector(".protection-info-close");
-      boutonFermer.textContent = "×";
-      boutonFermer.setAttribute("aria-label", t("Fermer"));
-      const fermer = () => { modal.hidden = true; };
-      boutonFermer.addEventListener("click", fermer);
-      modal.addEventListener("click", (event) => { if (event.target === modal) fermer(); });
-      document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !modal.hidden) fermer(); });
-    }
-    modal.querySelector(".protection-info-title").textContent = t(protection.nom);
-    modal.querySelector(".protection-info-description").textContent = t(protection.description);
-    modal.querySelector(".protection-info-note").textContent = t("Les garanties sont détaillées dans les Conditions Générales de Location et restent soumises aux exclusions et limitations applicables.");
-    modal.hidden = false;
-    modal.querySelector(".protection-info-close").focus();
+    return protection.prixParJour <= 0
+      ? { principal: t("Incluse") }
+      : { principal: t("{prix} / jour", { prix: formatEUR(protection.prixParJour) }) };
   }
 
   function addProtectionCard(protection) {
@@ -1245,13 +1298,6 @@ function initReservationPage() {
     titre.className = "protection-nom";
     titre.textContent = t(protection.nom);
     entete.appendChild(titre);
-    const info = document.createElement("button");
-    info.type = "button";
-    info.className = "protection-info-button";
-    info.setAttribute("aria-label", t("Informations sur {protection}", { protection: t(protection.nom) }));
-    info.textContent = "i";
-    info.addEventListener("click", () => ouvrirInfoProtection(protection));
-    entete.appendChild(info);
     if (protection.recommande) {
       const badge = document.createElement("span");
       badge.className = "protection-badge";
@@ -1303,12 +1349,6 @@ function initReservationPage() {
     const prixPrincipal = document.createElement("strong");
     prixPrincipal.textContent = prix.principal;
     prixNode.appendChild(prixPrincipal);
-    if (prix.secondaire) {
-      const plafond = document.createElement("span");
-      plafond.className = "protection-plafond";
-      plafond.textContent = prix.secondaire;
-      prixNode.appendChild(plafond);
-    }
 
     const detailsId = `protection-details-${protection.id}`;
     const detailsToggle = document.createElement("button");
@@ -1328,6 +1368,11 @@ function initReservationPage() {
     details.id = detailsId;
     details.setAttribute("aria-hidden", "true");
     const detailsInner = document.createElement("div");
+
+    const description = document.createElement("p");
+    description.className = "protection-description";
+    description.textContent = t(protection.description);
+    detailsInner.appendChild(description);
 
     // Garanties : toutes listées, cochées ou non, pour rendre la progression
     // d'un niveau à l'autre immédiatement lisible.
@@ -1754,20 +1799,6 @@ function validateDriverForm(form) {
         return age !== null && age >= 21 && age <= 99;
       },
       msg: "Date de naissance invalide (JJ/MM/AAAA) — le conducteur doit avoir entre 21 et 99 ans"
-    },
-    {
-      // Date d'obtention du permis : détermine le supplément jeune
-      // conducteur (voir SUPPLEMENT_JEUNE_CONDUCTEUR, js/data.js). Une date
-      // future ou antérieure à la majorité du conducteur est refusée.
-      id: "permisDate",
-      test: v => {
-        const iso = naissanceFrVersISO(v);
-        if (!iso) return false;
-        const obtention = new Date(`${iso}T00:00:00Z`);
-        if (!isFinite(obtention.getTime()) || obtention.getTime() > Date.now()) return false;
-        return anciennetePermisAnnees(iso) <= 80;
-      },
-      msg: "Date d'obtention du permis invalide (JJ/MM/AAAA)"
     }
   ];
 
@@ -2047,14 +2078,6 @@ function initPaiementPage() {
     return ok;
   }
 
-  // Date d'obtention du permis telle que saisie dans le formulaire, au format
-  // ISO attendu par calculerPrixTotal — ou null tant qu'elle est incomplète.
-  function permisDateISOCourante() {
-    const champ = document.getElementById("permisDate");
-    const saisie = champ ? champ.value : (data.conducteur && data.conducteur.permisDate);
-    return naissanceFrVersISO(saisie || "") || null;
-  }
-
   // Affichage strictement indicatif : le montant qui fait foi est
   // recalculé côté serveur lors de la création du paiement (voir
   // netlify/functions/create-payment.js). Le client n'envoie jamais
@@ -2069,9 +2092,9 @@ function initPaiementPage() {
       options: data.options,
       codePromo: data.codePromo,
       protection: data.protection,
-      // Date de permis déjà saisie : le supplément jeune conducteur apparaît
-      // dans le récapitulatif dès qu'elle est renseignée, avant paiement.
-      permisDate: permisDateISOCourante()
+      // Compatibilité avec un ancien panier déjà renseigné. Les nouvelles
+      // réservations collectent cette information après paiement.
+      permisDate: data.conducteur && data.conducteur.permisDate
     });
     if (!prix) return;
     buildPaymentSummary(summary, vehicule, data, prix);
@@ -2110,22 +2133,11 @@ function initPaiementPage() {
     naissanceInput.addEventListener("input", () => insererSlashesDateFr(naissanceInput));
   }
 
-  // Même confort de saisie pour la date de permis. Le récapitulatif est
-  // rafraîchi à chaque frappe : le supplément jeune conducteur apparaît (ou
-  // disparaît) dès que la date est complète, sans attendre le paiement.
-  const permisDateInput = form.querySelector('[name="permisDate"]');
-  if (permisDateInput) {
-    permisDateInput.addEventListener("input", () => {
-      insererSlashesDateFr(permisDateInput);
-      renderSummary();
-    });
-  }
-
   // Retour arrière sans perte : si le conducteur avait déjà rempli ces
   // champs (ex. retour depuis la page suivante via le bouton précédent du
   // navigateur), on pré-remplit plutôt que de les laisser vides.
   if (data.conducteur) {
-    ["nom", "prenom", "email", "telephone", "naissance", "permisDate"].forEach((id) => {
+    ["nom", "prenom", "email", "telephone", "naissance"].forEach((id) => {
       const input = form.querySelector(`[name="${id}"]`);
       if (input && data.conducteur[id] !== undefined) input.value = data.conducteur[id];
     });
@@ -2198,13 +2210,9 @@ function initPaiementPage() {
           // ISO YYYY-MM-DD — seule cette copie envoyée au réseau est
           // convertie, jamais `data.conducteur` lui-même (qui doit rester
           // au format du champ pour un pré-remplissage correct au retour).
-          // `naissance` et `permisDate` sont saisies et conservées localement au
-          // format JJ/MM/AAAA (affichage) ; le serveur attend l'ISO
-          // YYYY-MM-DD. Seule cette copie envoyée au réseau est convertie.
           conducteur: {
             ...data.conducteur,
-            naissance: naissanceFrVersISO(data.conducteur.naissance),
-            permisDate: naissanceFrVersISO(data.conducteur.permisDate)
+            naissance: naissanceFrVersISO(data.conducteur.naissance)
           },
           // Précisions rattachées à une option : transmises seulement quand
           // l'option correspondante est réellement retenue.
@@ -2696,6 +2704,8 @@ document.addEventListener("DOMContentLoaded", () => {
   setFooterYear();
   syncHeaderHeightVar();
   initMobileMenu();
+  initTimeSelects();
+  initCategoryIcons();
   initSearchForm();
   initVehiculesPage();
   initReservationPage();

@@ -12,7 +12,7 @@
 // confirmée en production — ne pas laisser les deux diverger si l'une des
 // deux est modifiée avant la suppression définitive de l'ancienne.
 
-const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, LIEUX_FREQUENTS_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS, anciennetePermisAnnees, PROTECTIONS, PROTECTION_PAR_DEFAUT } = require("../../js/data.js");
+const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, LIEUX_FREQUENTS_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS, anciennetePermisAnnees, PROTECTIONS, PROTECTION_PAR_DEFAUT, HEURE_OUVERTURE, HEURE_FERMETURE } = require("../../js/data.js");
 
 const MAX_LEN = {
   nom: 100,
@@ -39,6 +39,17 @@ function isValidDate(v) {
 
 function isValidHeure(v) {
   return typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+}
+
+function heureEnMinutes(v) {
+  if (!isValidHeure(v)) return null;
+  const [heures, minutes] = v.split(":").map(Number);
+  return heures * 60 + minutes;
+}
+
+function isHeureReservationAutorisee(v) {
+  const valeur = heureEnMinutes(v);
+  return valeur !== null && valeur >= heureEnMinutes(HEURE_OUVERTURE) && valeur <= heureEnMinutes(HEURE_FERMETURE);
 }
 
 function isValidEmail(v) {
@@ -110,6 +121,8 @@ function validateReservationInput(payload) {
   if (!isValidDate(dateFin)) errors.push("Date de fin invalide");
   if (!isValidHeure(heureDebut)) errors.push("Heure de début invalide");
   if (!isValidHeure(heureFin)) errors.push("Heure de fin invalide");
+  if (isValidHeure(heureDebut) && !isHeureReservationAutorisee(heureDebut)) errors.push("L'heure de début doit être comprise entre 07:00 et 23:30");
+  if (isValidHeure(heureFin) && !isHeureReservationAutorisee(heureFin)) errors.push("L'heure de fin doit être comprise entre 07:00 et 23:30");
 
   if (isValidDate(dateDebut) && isValidHeure(heureDebut)) {
     const debut = new Date(`${dateDebut}T${heureDebut}:00`);
@@ -206,15 +219,15 @@ function validateReservationInput(payload) {
       const age = calculerAge(conducteur.naissance);
       if (age === null || age < 21 || age > 99) errors.push("Le conducteur doit avoir entre 21 et 99 ans");
     }
-    // Date d'obtention du permis : c'est elle, et elle seule, qui détermine
-    // le supplément jeune conducteur recalculé côté serveur (jamais un
-    // montant envoyé par le navigateur — règle n°2 du CLAUDE.md).
-    if (!isValidDate(conducteur.permisDate)) {
-      errors.push("Date d'obtention du permis invalide");
-    } else {
-      const anciennete = anciennetePermisAnnees(conducteur.permisDate);
-      if (anciennete === null || anciennete < 0) errors.push("La date d'obtention du permis ne peut pas être dans le futur");
-      else if (anciennete > 80) errors.push("Date d'obtention du permis invalide");
+    // Collectée après réservation dans le dossier sécurisé. Elle reste
+    // acceptée pour un ancien panier, mais n'est plus requise avant paiement.
+    if (conducteur.permisDate !== undefined && conducteur.permisDate !== null && conducteur.permisDate !== "") {
+      if (!isValidDate(conducteur.permisDate)) errors.push("Date d'obtention du permis invalide");
+      else {
+        const anciennete = anciennetePermisAnnees(conducteur.permisDate);
+        if (anciennete === null || anciennete < 0) errors.push("La date d'obtention du permis ne peut pas être dans le futur");
+        else if (anciennete > 80) errors.push("Date d'obtention du permis invalide");
+      }
     }
   }
 
