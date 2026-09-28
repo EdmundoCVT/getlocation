@@ -1165,14 +1165,14 @@ function initReservationPage() {
   // indépendant du prix. Les quatre offres existantes tiennent ainsi dans
   // trois niveaux de comparaison sans modifier le catalogue métier.
   const PROTECTION_COVERAGE_LEVELS = Object.freeze({
-    essentiel: 1,
+    essentiel: 0,
     confort: 2,
     serenite: 3,
     "serenite-plus": 3
   });
 
   function niveauProtection(protection) {
-    return PROTECTION_COVERAGE_LEVELS[protection.id] || 1;
+    return PROTECTION_COVERAGE_LEVELS[protection.id] ?? 1;
   }
 
   function selectProtection(value) {

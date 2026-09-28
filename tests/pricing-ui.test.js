@@ -110,7 +110,7 @@ test("initReservationPage : étoiles, accordéon et sélection restent indépend
   window.initReservationPage();
 
   const niveaux = {
-    essentiel: "★☆☆",
+    essentiel: "☆☆☆",
     confort: "★★☆",
     serenite: "★★★",
     "serenite-plus": "★★★"
