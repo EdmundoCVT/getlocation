@@ -62,11 +62,12 @@ test("les détails tarifaires ne sont pas affichés avant la recherche", () => {
   assert.doesNotMatch(searchSection, /Assurance incluse|km \/ jour|Livraison : \d+ €|Caution dès/);
 });
 
-test("le sélecteur de véhicule utilise des icônes vectorielles sans emoji", () => {
+test("le sélecteur utilise les deux silhouettes fournies sans SVG ni emoji", () => {
   const toggle = document.getElementById("vehicle-type-toggle");
-  // Trois familles désormais : Voitures / Utilitaires / Sans permis (voir
-  // FAMILLES_VEHICULE dans js/data.js et la mission catalogue v2, §2).
-  assert.equal(toggle.querySelectorAll(".vt-icon svg").length, 3);
+  assert.equal(toggle.querySelectorAll(".vt-option").length, 2);
+  assert.equal(toggle.querySelectorAll(".vt-icon svg").length, 0);
+  assert.ok(toggle.querySelector(".vt-icon-car"));
+  assert.ok(toggle.querySelector(".vt-icon-utility"));
   assert.doesNotMatch(toggle.textContent, /🚗|🚐/);
 });
 

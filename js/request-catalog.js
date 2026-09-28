@@ -7,10 +7,6 @@
 
   if (typeof VEHICULES === "undefined" || typeof TYPES_VOITURE === "undefined") return;
 
-  if (!TYPES_VOITURE.some(function (type) { return type.id === "cabriolet"; })) {
-    TYPES_VOITURE.splice(Math.max(TYPES_VOITURE.length - 1, 0), 0, { id: "cabriolet", label: "Cabriolet" });
-  }
-
   var PHOTO_LABELS = [
     "Vue 3/4 avant gauche",
     "Profil gauche",
@@ -41,6 +37,27 @@
   // ces véhicules : deposit-ux.js retire les caractéristiques/prix des cartes
   // `bookingMode=request`, et aucun paiement en ligne n'est possible.
   var REQUEST_VEHICLES = [
+    {
+      id: "sans-permis-request",
+      nom: "Véhicule sans permis",
+      categorie: "Sans permis",
+      vehicleFamily: "car",
+      type: "license-free",
+      fuel: null,
+      source: "external",
+      bookingMode: "request",
+      modelGuaranteed: true,
+      emoji: "🚗",
+      photo: "images/silhouette-voiture.webp",
+      photoCutout: "images/silhouette-voiture.webp",
+      places: null,
+      portes: null,
+      transmission: null,
+      clim: false,
+      prixJour: 0,
+      caution: 0,
+      specsOnRequest: true
+    },
     {
       id: "mercedes-cle-cabriolet-request",
       nom: "Mercedes-Benz CLE Cabriolet",

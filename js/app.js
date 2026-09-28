@@ -210,20 +210,8 @@ function initTimeSelects() {
   });
 }
 
-function familyIconSvg(family) {
-  const paths = {
-    car: '<path d="M3.5 14.5 5.7 8.7a3 3 0 0 1 2.8-1.9h12.9a3 3 0 0 1 2.8 1.9l2.3 5.8v3.2h-23v-3.2Z"/><path d="m7.5 6.8 2.4-3h8.8l2.4 3M5.5 14.5h19"/><circle cx="8" cy="17.7" r="2"/><circle cx="23" cy="17.7" r="2"/>',
-    utility: '<path d="M2.5 5.5h12.8v12H2.5z"/><path d="M15.3 9h4l3.2 3.8v4.7h-7.2zM5.8 9h6.2M5.5 17.5h.01M19.5 17.5h.01"/><circle cx="5.5" cy="17.5" r="2"/><circle cx="19.5" cy="17.5" r="2"/>',
-    "license-free": '<path d="M4.5 14.5 6 9.3a2.8 2.8 0 0 1 2.7-2h8.8a2.8 2.8 0 0 1 2.7 2l1.5 5.2v3h-17v-3Z"/><path d="m8 7.3 1.8-2.5h5.8l2 2.5M7 14.5h13"/><circle cx="8.5" cy="17.5" r="1.9"/><circle cx="19" cy="17.5" r="1.9"/>'
-  };
-  return `<svg viewBox="0 0 26 22" fill="none" aria-hidden="true">${paths[family] || paths.car}</svg>`;
-}
-
-function initCategoryIcons() {
-  document.querySelectorAll(".vt-option[data-type]").forEach((button) => {
-    const icon = button.querySelector(".vt-icon");
-    if (icon) icon.innerHTML = familyIconSvg(button.dataset.type);
-  });
+function familyIconClass(family) {
+  return family === "utility" ? "vt-icon-utility" : "vt-icon-car";
 }
 
 // Mesure la hauteur réelle de l'en-tête et l'expose en variable CSS
@@ -344,7 +332,7 @@ function initSearchForm() {
   const selectAdresseRetour = document.getElementById("adresse-retour");
   const toggleTypeVehicule = document.getElementById("vehicle-type-toggle");
 
-  // Sélecteur de famille (Voitures / Utilitaires / Sans permis, voir
+  // Sélecteur de famille (Voitures / Utilitaires, voir
   // FAMILLES_VEHICULE dans js/data.js) : choix exclusif, "car" par défaut.
   // Pré-filtre la famille affichée sur vehicules.html (voir
   // initVehiculesPage) sans dupliquer le catalogue.
@@ -629,19 +617,16 @@ function initVehiculesPage() {
 
   const filterBar = document.getElementById("filter-bar");
 
-  // Famille (Voitures/Utilitaires/Sans permis, voir FAMILLES_VEHICULE dans
+  // Famille (Voitures/Utilitaires, voir FAMILLES_VEHICULE dans
   // js/data.js) : pré-sélectionnée depuis le choix fait sur la page de
   // recherche (voir initSearchForm). Compatibilité avec les anciennes
   // valeurs stockées ("voiture"/"utilitaire") pour ne pas casser une
   // recherche déjà en cours dans le navigateur d'un client au moment de la
   // mise en ligne de cette nouvelle architecture.
-  const FAMILY_COMPAT = { voiture: "car", utilitaire: "utility" };
+  const FAMILY_COMPAT = { voiture: "car", utilitaire: "utility", "license-free": "car" };
   let activeFamily = FAMILY_COMPAT[recherche.typeVehicule]
     || (FAMILLES_VEHICULE.some(f => f.id === recherche.typeVehicule) ? recherche.typeVehicule : "car");
-  // Filtres additionnels, uniquement pertinents pour la famille "car" (voir
-  // mission §5/§6/§7 : les utilitaires et les sans-permis ont une
-  // expérience plus simple, sans ces filtres).
-  let activeType = null;
+  let activeType = recherche.typeVehicule === "license-free" ? "license-free" : null;
   let activeFuel = null; // "petrol-diesel" | "hybrid" | "electric"
   let activeAutoOnly = false;
   let activeSeats = null;
@@ -660,7 +645,13 @@ function initVehiculesPage() {
   }
 
   function vehiculesFiltres() {
-    return VEHICULES.filter(v => v.vehicleFamily === activeFamily && (activeFamily !== "car" || correspondFiltresVoiture(v)));
+    const filtered = VEHICULES.filter(v => v.vehicleFamily === activeFamily && (activeFamily !== "car" || correspondFiltresVoiture(v)));
+    // Le produit générique sur demande n'est utile qu'en l'absence d'une
+    // voiture sans permis réservable instantanément.
+    if (filtered.some(v => v.type === "license-free" && v.bookingMode !== "request")) {
+      return filtered.filter(v => v.id !== "sans-permis-request");
+    }
+    return filtered;
   }
 
   function renderFamilyTabs() {
@@ -671,9 +662,10 @@ function initVehiculesPage() {
     FAMILLES_VEHICULE.forEach(f => {
       const btn = document.createElement("button");
       btn.type = "button";
+      btn.dataset.type = f.id;
       btn.className = "vt-option" + (f.id === activeFamily ? " active" : "");
       btn.setAttribute("aria-pressed", String(f.id === activeFamily));
-      btn.innerHTML = `<span class="vt-icon">${familyIconSvg(f.id)}</span><span>${t(f.label)}</span>`;
+      btn.innerHTML = `<span class="vt-icon ${familyIconClass(f.id)}" aria-hidden="true"></span><span>${t(f.label)}</span>`;
       btn.addEventListener("click", () => {
         if (activeFamily === f.id) return;
         activeFamily = f.id;
@@ -717,9 +709,28 @@ function initVehiculesPage() {
     return groupe;
   }
 
-  // Filtres véhicules (uniquement famille "car") : repliés dans un panneau
-  // "Filtres" simple (<details>), pratique aussi bien sur mobile que sur
-  // desktop, sans bibliothèque JS supplémentaire (voir mission §10).
+  function renderCategories() {
+    const scroller = document.createElement("div");
+    scroller.className = "vehicle-categories";
+    scroller.setAttribute("role", "group");
+    scroller.setAttribute("aria-label", t("Catégorie de voiture"));
+    [{ id: null, label: "Toutes" }, ...TYPES_VOITURE].forEach(opt => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "filter-chip" + (opt.id === activeType ? " active" : "");
+      chip.setAttribute("aria-pressed", String(opt.id === activeType));
+      chip.textContent = t(opt.label);
+      chip.addEventListener("click", () => {
+        activeType = opt.id;
+        renderFilterBar();
+        renderGrid();
+      });
+      scroller.appendChild(chip);
+    });
+    return scroller;
+  }
+
+  // Les critères techniques restent dans le panneau secondaire.
   function renderCarFilters() {
     const details = document.createElement("details");
     details.className = "filters-drawer";
@@ -728,7 +739,6 @@ function initVehiculesPage() {
     summary.textContent = "Filtres";
     details.appendChild(summary);
 
-    details.appendChild(renderFilterGroup("Type", TYPES_VOITURE, o => o.id, activeType, v => { activeType = v; }));
     details.appendChild(renderFilterGroup("Motorisation", [
       { id: "petrol-diesel", label: "Essence / Diesel" },
       { id: "hybrid", label: "Hybride" },
@@ -749,6 +759,7 @@ function initVehiculesPage() {
     filterBar.innerHTML = "";
     filterBar.appendChild(renderFamilyTabs());
     if (activeFamily === "car") {
+      filterBar.appendChild(renderCategories());
       filterBar.appendChild(renderCarFilters());
     }
   }
@@ -757,9 +768,7 @@ function initVehiculesPage() {
     const liste = vehiculeCible ? [vehiculeCible] : vehiculesFiltres();
     grid.innerHTML = "";
     if (liste.length === 0) {
-      const message = activeFamily === "license-free"
-        ? "Aucun véhicule sans permis n'est disponible pour le moment. Contactez-nous, nous pouvons vous proposer une solution adaptée."
-        : "Aucun véhicule ne correspond à cette recherche pour le moment.";
+      const message = "Aucun véhicule ne correspond à cette recherche pour le moment.";
       grid.innerHTML = `<div class="empty-state">${message}</div>`;
       return;
     }
@@ -778,9 +787,6 @@ function initVehiculesPage() {
       const remise = prixInfo && prixInfo.reductionDuree ? prixInfo.reductionDuree : null;
       // bookingMode (voir js/data.js) : "instant" = paiement en ligne
       // immédiat (parcours inchangé) ; "request" = demande sans paiement.
-      // Aucun véhicule n'est "request" aujourd'hui — ce chemin est prêt pour
-      // un futur véhicule nécessitant confirmation, sans jamais exposer la
-      // provenance interne/externe au client.
       const estInstant = v.bookingMode !== "request";
       const card = document.createElement("article");
       card.className = "vehicle-card vehicle-card-clickable";
@@ -788,8 +794,8 @@ function initVehiculesPage() {
       const nbPhotos = v.photos ? v.photos.length : 0;
       const carburant = CARBURANTS.find((item) => item.id === v.fuel);
       const specsEssentielles = [
-        `<span>${vehicleSpecSvg("seats")} ${t(`${v.places} places`)}</span>`,
-        `<span>${vehicleSpecSvg("transmission")} ${t(v.transmission)}</span>`,
+        v.places ? `<span>${vehicleSpecSvg("seats")} ${t(`${v.places} places`)}</span>` : "",
+        v.transmission ? `<span>${vehicleSpecSvg("transmission")} ${t(v.transmission)}</span>` : "",
         carburant ? `<span>${vehicleSpecSvg("fuel")} ${t(carburant.label)}</span>` : ""
       ].filter(Boolean).join("");
       card.innerHTML = `
@@ -803,16 +809,16 @@ function initVehiculesPage() {
           <div class="vehicle-name">${v.nom}${v.modelGuaranteed === false ? ' <span class="hint-text">ou similaire</span>' : ""}</div>
           ${!estInstant ? `<div class="booking-mode-badge is-request">${t("Disponibilité à confirmer")}</div>` : ""}
           <div class="vehicle-specs">${specsEssentielles}</div>
-          <details class="vehicle-details">
+          ${v.specsOnRequest ? "" : `<details class="vehicle-details">
             <summary>${t("Détails du véhicule")}</summary>
             <div><span>${v.portes ? `${v.portes} ${t("portes")}` : ""}</span><span>${t(v.clim ? "Climatisation" : "Sans clim")}</span></div>
-          </details>
+          </details>`}
           ${v.modelGuaranteed === false ? '<p class="hint-text">Le modèle présenté est indicatif. Un véhicule de catégorie équivalente peut être proposé.</p>' : ""}
           <div class="vehicle-footer">
             ${estInstant
               ? `<div class="price"><span class="price-label">${t("Tarif pour {jours}", { jours: libelleJours(jours) })}</span><strong>${formatEUR(total)}</strong></div>`
               : `<div class="price price-request">${t("Tarif sur demande")}<small>${t("Disponibilité à confirmer")}</small></div>`}
-            <button class="btn btn-primary btn-sm" data-id="${v.id}">${estInstant ? t("Choisir ce véhicule") : t("Demander ce véhicule")}</button>
+            <button class="btn btn-primary btn-sm" data-id="${v.id}">${estInstant ? t("Choisir ce véhicule") : t(v.id === "sans-permis-request" ? "Faire une demande" : "Demander ce véhicule")}</button>
           </div>
         </div>
       `;
@@ -825,13 +831,7 @@ function initVehiculesPage() {
           });
           allerVers("reservation.html");
         } else {
-          // Aucune réservation "sur demande" n'existe encore aujourd'hui :
-          // repli simple par e-mail plutôt qu'un nouveau parcours serveur
-          // non testé (voir points restants du compte rendu final).
-          const sujet = t("Demande de réservation — {vehicule}", { vehicule: v.nom });
-          const corps = t("Bonjour,\n\nJe souhaite faire une demande de réservation pour : {vehicule}\nDu {debut} au {fin}.\n\nMerci de me recontacter.",
-            { vehicule: v.nom, debut: recherche.dateDebut, fin: recherche.dateFin });
-          window.location.href = `mailto:contact@getlocation.fr?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+          ouvrirDemandeVehicule(v, recherche);
         }
       };
       card.querySelector(".vehicle-footer .btn").addEventListener("click", choisirVehicule);
@@ -866,6 +866,57 @@ function initVehiculesPage() {
       renderGrid();
     }
   });
+}
+
+function ouvrirDemandeVehicule(vehicule, recherche) {
+  const dialog = document.createElement("dialog");
+  dialog.className = "vehicle-request-dialog";
+  dialog.innerHTML = `<form method="dialog" class="vehicle-request-form">
+    <button type="button" class="request-close" aria-label="${t("Fermer")}">×</button>
+    <h2>${t("Faire une demande")}</h2>
+    <p><strong>${vehicule.nom}</strong> · ${t("Disponibilité à confirmer")}</p>
+    <p>${t("Nous vérifions la disponibilité avant tout paiement.")}</p>
+    <label>${t("Votre nom")}<input name="name" autocomplete="name" maxlength="100" required></label>
+    <label>${t("Votre adresse e-mail")}<input name="email" type="email" autocomplete="email" maxlength="200" required></label>
+    <label>${t("Votre téléphone")}<input name="phone" type="tel" autocomplete="tel" maxlength="40" required></label>
+    <p class="request-feedback" role="status" aria-live="polite"></p>
+    <button type="submit" class="btn btn-primary">${t("Envoyer ma demande")}</button>
+  </form>`;
+  document.body.appendChild(dialog);
+  const close = () => { dialog.close(); dialog.remove(); };
+  dialog.querySelector(".request-close").addEventListener("click", close);
+  dialog.addEventListener("click", event => { if (event.target === dialog) close(); });
+  dialog.addEventListener("close", () => dialog.remove());
+  dialog.querySelector("form").addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submit = form.querySelector('[type="submit"]');
+    const feedback = form.querySelector(".request-feedback");
+    submit.disabled = true;
+    feedback.textContent = t("Envoi en cours…");
+    const fields = new FormData(form);
+    try {
+      const response = await fetch("/api/vehicle-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vehicleId: vehicule.id,
+          name: fields.get("name"), email: fields.get("email"), phone: fields.get("phone"),
+          dateDebut: recherche.dateDebut, heureDebut: recherche.heureDebut,
+          dateFin: recherche.dateFin, heureFin: recherche.heureFin,
+          adressePrise: recherche.adressePrise || ""
+        })
+      });
+      if (!response.ok) throw new Error("request failed");
+      form.querySelectorAll("input").forEach(input => input.disabled = true);
+      submit.remove();
+      feedback.textContent = t("Demande envoyée. GET LOCATION vous recontactera après vérification de la disponibilité.");
+    } catch (_) {
+      feedback.textContent = t("Envoi impossible. Réessayez ou contactez-nous par téléphone.");
+      submit.disabled = false;
+    }
+  });
+  dialog.showModal();
 }
 
 // Rend les cartes de la flotte de l'accueil entièrement cliquables, tout en
@@ -2705,7 +2756,6 @@ document.addEventListener("DOMContentLoaded", () => {
   syncHeaderHeightVar();
   initMobileMenu();
   initTimeSelects();
-  initCategoryIcons();
   initSearchForm();
   initVehiculesPage();
   initReservationPage();

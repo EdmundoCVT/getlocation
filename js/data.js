@@ -84,8 +84,7 @@ const CATEGORIES = ["Citadine", "SUV", "Utilitaire"];
 // endroit, sans reconstruire le moteur de recherche ni les filtres.
 const FAMILLES_VEHICULE = [
   { id: "car", label: "Voitures" },
-  { id: "utility", label: "Utilitaires" },
-  { id: "license-free", label: "Sans permis" }
+  { id: "utility", label: "Utilitaires" }
 ];
 
 // Types de voitures (niveau 2, uniquement pour vehicleFamily = "car").
@@ -96,8 +95,10 @@ const TYPES_VOITURE = [
   { id: "citadine", label: "Citadine" },
   { id: "suv", label: "SUV / 4x4" },
   { id: "berline", label: "Berline" },
+  { id: "cabriolet", label: "Cabriolet" },
   { id: "minibus", label: "Minibus" },
-  { id: "premium", label: "Premium" }
+  { id: "premium", label: "Premium" },
+  { id: "license-free", label: "Sans permis" }
 ];
 
 // Motorisation — critère transversal aux types de voitures (ex. SUV
