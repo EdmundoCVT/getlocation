@@ -1698,8 +1698,8 @@ textarea:focus-visible,
 .protection-card {
   display: flex;
   flex-direction: column;
-  padding: 18px 16px;
-  gap: 12px;
+  padding: 14px;
+  gap: 9px;
 }
 
 /* Hauteur réservée même sans badge : sans elle, la seule carte
@@ -1711,12 +1711,12 @@ textarea:focus-visible,
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px;
-  min-height: 52px;
+  min-height: 38px;
 }
 
 .protection-nom {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: -0.01em;
 }
@@ -1756,25 +1756,103 @@ textarea:focus-visible,
    Libellé au-dessus, montant en dessous : sur quatre colonnes, les mettre
    côte à côte faisait déborder « 2 000 € » hors de la carte. */
 .protection-franchise {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   margin: 0;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #efeff3;
   color: #62626c;
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
-.protection-franchise strong {
-  font-size: 1.35rem;
-  font-weight: 800;
+.protection-select {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 8px;
+  min-height: 44px;
+  width: auto;
+  padding: 7px 12px;
+  justify-content: flex-start;
+}
+
+.protection-radio-marker {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: inset 0 0 0 3px transparent;
+}
+
+.protection-select.is-selected .protection-radio-marker {
+  background: currentColor;
+  box-shadow: inset 0 0 0 3px #fff;
+}
+
+.protection-summary {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.protection-level {
+  display: inline-flex;
+  align-items: center;
+  min-width: 4.6em;
+}
+
+.protection-stars {
+  color: var(--violet);
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.protection-details-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  border: 1px solid #dedee5;
+  border-radius: 10px;
+  background: #fff;
   color: var(--encre, #1f1f27);
-  text-transform: none;
-  letter-spacing: -0.01em;
+  cursor: pointer;
+}
+
+.protection-details-toggle:hover,
+.protection-details-toggle:focus-visible {
+  border-color: var(--violet);
+  background: var(--violet-light);
+}
+
+.protection-chevron {
+  display: block;
+  font-size: 1.25rem;
+  line-height: 1;
+  transform: translateY(-2px);
+  transition: transform 0.18s ease;
+}
+
+.protection-details-toggle[aria-expanded="true"] .protection-chevron {
+  transform: rotate(180deg) translateY(2px);
+}
+
+.protection-details {
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  transition: grid-template-rows 0.18s ease;
+}
+
+.protection-details.is-open {
+  grid-template-rows: 1fr;
+}
+
+.protection-details > div {
+  min-height: 0;
 }
 
 .protection-garanties {
@@ -1817,7 +1895,7 @@ textarea:focus-visible,
 }
 
 .protection-card .protection-price strong {
-  font-size: 1.25rem;
+  font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: -0.01em;
 }
@@ -1874,8 +1952,6 @@ textarea:focus-visible,
 }
 
 .protection-select {
-  width: 100%;
-  justify-content: center;
   border: 1.5px solid var(--violet);
   background: #fff;
   color: var(--violet);
@@ -1886,6 +1962,25 @@ textarea:focus-visible,
   background: var(--violet);
   border-color: var(--violet);
   color: #fff;
+}
+
+@media (max-width: 640px) {
+  .protection-list { gap: 9px; }
+  .protection-card { padding: 11px; gap: 7px; border-radius: 13px; }
+  .protection-head { min-height: 34px; gap: 6px; }
+  .protection-nom { font-size: 1rem; }
+  .protection-info-button { width: 26px; height: 26px; }
+  .protection-summary { grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 6px; }
+  .protection-franchise { font-size: .76rem; white-space: nowrap; }
+  .protection-card .protection-price strong { font-size: 1rem; }
+  .protection-plafond { font-size: .7rem; }
+  .protection-select { min-height: 42px; padding: 6px 10px; font-size: .86rem; }
+  .protection-details-toggle { width: 38px; min-width: 38px; height: 38px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .protection-details,
+  .protection-chevron { transition: none; }
 }
 
 .protection-mention {

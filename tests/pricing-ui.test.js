@@ -85,13 +85,14 @@ test("initReservationPage : la protection est une étape dédiée et les autres 
   assert.equal(selectionnees[0].dataset.protection, "essentiel");
 });
 
-test("initReservationPage : les cartes présentent les garanties sans notion juridique et ouvrent leur information", () => {
+test("initReservationPage : les cartes présentent les niveaux, franchises et garanties", () => {
   const window = newWindow(reservationPageHtml());
   window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
   window.initReservationPage();
 
   const texte = window.document.getElementById("protection-list").textContent;
-  assert.doesNotMatch(texte, /Franchise|Responsabilité maximale/);
+  assert.match(texte, /Franchise : 2[\s\u00a0\u202f]000[\s\u00a0\u202f]€/);
+  assert.doesNotMatch(texte, /Responsabilité maximale/);
   assert.match(texte, /Protection Essentielle/);
   assert.match(texte, /Protection Premium/);
   assert.equal(window.document.querySelectorAll(".protection-info-button").length, PROTECTIONS.length);
@@ -101,6 +102,42 @@ test("initReservationPage : les cartes présentent les garanties sans notion jur
   assert.ok(modal);
   assert.equal(modal.hidden, false);
   assert.match(modal.textContent, /responsabilité civile obligatoire/i);
+});
+
+test("initReservationPage : étoiles, accordéon et sélection restent indépendants", () => {
+  const window = newWindow(reservationPageHtml());
+  window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
+  window.initReservationPage();
+
+  const niveaux = {
+    essentiel: "★☆☆",
+    confort: "★★☆",
+    serenite: "★★★",
+    "serenite-plus": "★★★"
+  };
+  Object.entries(niveaux).forEach(([id, etoiles]) => {
+    const carte = window.document.querySelector(`.protection-card[data-protection="${id}"]`);
+    assert.ok(carte);
+    assert.equal(carte.querySelector(".protection-stars").textContent, etoiles);
+    assert.match(carte.querySelector(".sr-only").textContent, /Niveau de protection/);
+    assert.match(carte.querySelector(".protection-franchise").textContent, /Franchise/);
+    assert.ok(carte.querySelector(".protection-price"));
+    assert.equal(carte.querySelector(".protection-details-toggle").getAttribute("aria-expanded"), "false");
+    assert.equal(carte.querySelector(".protection-details").getAttribute("aria-hidden"), "true");
+  });
+
+  const detailsToggle = window.document.querySelector('[data-protection="confort"] .protection-details-toggle');
+  const details = window.document.querySelector('[data-protection="confort"] .protection-details');
+  detailsToggle.click();
+  assert.equal(detailsToggle.getAttribute("aria-expanded"), "true");
+  assert.equal(details.getAttribute("aria-hidden"), "false");
+  assert.ok(details.classList.contains("is-open"));
+  assert.equal(JSON.parse(window.localStorage.getItem("gl_reservation")).protection, "essentiel");
+
+  window.document.querySelector('[data-protection="confort"] .protection-select').click();
+  assert.equal(JSON.parse(window.localStorage.getItem("gl_reservation")).protection, "confort");
+  assert.equal(window.document.querySelector('[data-protection="confort"] .protection-select').getAttribute("aria-checked"), "true");
+  assert.match(window.document.getElementById("reservation-summary").textContent, /130/);
 });
 
 test("initReservationPage : les forfaits kilométriques sont exclusifs et recalculent le total", () => {

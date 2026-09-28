@@ -1161,6 +1161,20 @@ function initReservationPage() {
   const continueToOptions = document.getElementById("continue-to-options");
   const protectionError = document.getElementById("protection-error");
 
+  // Niveau visuel explicite, fondé sur l'étendue réelle des garanties et
+  // indépendant du prix. Les quatre offres existantes tiennent ainsi dans
+  // trois niveaux de comparaison sans modifier le catalogue métier.
+  const PROTECTION_COVERAGE_LEVELS = Object.freeze({
+    essentiel: 1,
+    confort: 2,
+    serenite: 3,
+    "serenite-plus": 3
+  });
+
+  function niveauProtection(protection) {
+    return PROTECTION_COVERAGE_LEVELS[protection.id] || 1;
+  }
+
   function selectProtection(value) {
     data.protection = value;
     writeReservationLocal(data);
@@ -1170,9 +1184,12 @@ function initReservationPage() {
       const bouton = card.querySelector(".protection-select");
       if (bouton) {
         const choisie = card.dataset.protection === value;
-        bouton.textContent = choisie ? t("✓ Sélectionnée") : t("Choisir {protection}", { protection: card.dataset.protectionNom });
+        const libelle = bouton.querySelector(".protection-select-label");
+        if (libelle) libelle.textContent = choisie ? t("✓ Sélectionnée") : t("Choisir {protection}", { protection: card.dataset.protectionNom });
         bouton.classList.toggle("is-selected", choisie);
+        bouton.setAttribute("aria-label", choisie ? `${t("✓ Sélectionnée")} : ${card.dataset.protectionNom}` : t("Choisir {protection}", { protection: card.dataset.protectionNom }));
         bouton.setAttribute("aria-pressed", choisie ? "true" : "false");
+        bouton.setAttribute("aria-checked", choisie ? "true" : "false");
       }
     });
     render();
@@ -1242,6 +1259,75 @@ function initReservationPage() {
       entete.appendChild(badge);
     }
 
+    const choix = document.createElement("button");
+    choix.type = "button";
+    choix.className = "btn protection-select";
+    choix.setAttribute("role", "radio");
+    const choisie = data.protection === protection.id;
+    const nomProtection = t(protection.nom);
+    choix.setAttribute("aria-label", choisie ? `${t("✓ Sélectionnée")} : ${nomProtection}` : t("Choisir {protection}", { protection: nomProtection }));
+    choix.setAttribute("aria-pressed", choisie ? "true" : "false");
+    choix.setAttribute("aria-checked", choisie ? "true" : "false");
+    const marqueChoix = document.createElement("span");
+    marqueChoix.className = "protection-radio-marker";
+    marqueChoix.setAttribute("aria-hidden", "true");
+    const libelleChoix = document.createElement("span");
+    libelleChoix.className = "protection-select-label";
+    libelleChoix.textContent = choisie ? t("✓ Sélectionnée") : t("Choisir {protection}", { protection: nomProtection });
+    choix.append(marqueChoix, libelleChoix);
+    choix.classList.toggle("is-selected", choisie);
+    choix.addEventListener("click", () => selectProtection(protection.id));
+
+    const niveau = niveauProtection(protection);
+    const ligneResume = document.createElement("div");
+    ligneResume.className = "protection-summary";
+    const niveauNode = document.createElement("div");
+    niveauNode.className = "protection-level";
+    const etoiles = document.createElement("span");
+    etoiles.className = "protection-stars";
+    etoiles.setAttribute("aria-hidden", "true");
+    etoiles.textContent = "★".repeat(niveau) + "☆".repeat(3 - niveau);
+    const niveauAccessible = document.createElement("span");
+    niveauAccessible.className = "sr-only";
+    niveauAccessible.textContent = t("Niveau de protection : {niveau} sur 3", { niveau });
+    niveauNode.append(etoiles, niveauAccessible);
+
+    const franchise = document.createElement("p");
+    franchise.className = "protection-franchise";
+    franchise.textContent = t("Franchise : {montant}", { montant: formatEUR(protection.franchise) });
+
+    const prix = prixProtection(protection);
+    const prixNode = document.createElement("p");
+    prixNode.className = "protection-price";
+    const prixPrincipal = document.createElement("strong");
+    prixPrincipal.textContent = prix.principal;
+    prixNode.appendChild(prixPrincipal);
+    if (prix.secondaire) {
+      const plafond = document.createElement("span");
+      plafond.className = "protection-plafond";
+      plafond.textContent = prix.secondaire;
+      prixNode.appendChild(plafond);
+    }
+
+    const detailsId = `protection-details-${protection.id}`;
+    const detailsToggle = document.createElement("button");
+    detailsToggle.type = "button";
+    detailsToggle.className = "protection-details-toggle";
+    detailsToggle.setAttribute("aria-expanded", "false");
+    detailsToggle.setAttribute("aria-controls", detailsId);
+    detailsToggle.setAttribute("aria-label", t("Afficher les détails de {protection}", { protection: t(protection.nom) }));
+    const chevron = document.createElement("span");
+    chevron.className = "protection-chevron";
+    chevron.setAttribute("aria-hidden", "true");
+    chevron.textContent = "⌄";
+    detailsToggle.appendChild(chevron);
+
+    const details = document.createElement("div");
+    details.className = "protection-details";
+    details.id = detailsId;
+    details.setAttribute("aria-hidden", "true");
+    const detailsInner = document.createElement("div");
+
     // Garanties : toutes listées, cochées ou non, pour rendre la progression
     // d'un niveau à l'autre immédiatement lisible.
     const liste = document.createElement("ul");
@@ -1262,30 +1348,18 @@ function initReservationPage() {
       ligne.append(marque, etat, texte);
       liste.appendChild(ligne);
     });
+    detailsInner.appendChild(liste);
+    details.appendChild(detailsInner);
+    detailsToggle.addEventListener("click", () => {
+      const ouvert = detailsToggle.getAttribute("aria-expanded") === "true";
+      detailsToggle.setAttribute("aria-expanded", ouvert ? "false" : "true");
+      details.setAttribute("aria-hidden", ouvert ? "true" : "false");
+      details.classList.toggle("is-open", !ouvert);
+      detailsToggle.setAttribute("aria-label", t(ouvert ? "Afficher les détails de {protection}" : "Masquer les détails de {protection}", { protection: t(protection.nom) }));
+    });
 
-    const prix = prixProtection(protection);
-    const prixNode = document.createElement("p");
-    prixNode.className = "protection-price";
-    const prixPrincipal = document.createElement("strong");
-    prixPrincipal.textContent = prix.principal;
-    prixNode.appendChild(prixPrincipal);
-    if (prix.secondaire) {
-      const plafond = document.createElement("span");
-      plafond.className = "protection-plafond";
-      plafond.textContent = prix.secondaire;
-      prixNode.appendChild(plafond);
-    }
-
-    const bouton = document.createElement("button");
-    bouton.type = "button";
-    bouton.className = "btn protection-select";
-    const choisie = data.protection === protection.id;
-    bouton.textContent = choisie ? t("✓ Sélectionnée") : t("Choisir {protection}", { protection: t(protection.nom) });
-    bouton.classList.toggle("is-selected", choisie);
-    bouton.setAttribute("aria-pressed", choisie ? "true" : "false");
-    bouton.addEventListener("click", () => selectProtection(protection.id));
-
-    card.append(entete, liste, prixNode, bouton);
+    ligneResume.append(niveauNode, franchise, prixNode, detailsToggle);
+    card.append(entete, choix, ligneResume, details);
     card.classList.toggle("is-selected", choisie);
     protectionList.appendChild(card);
   }
