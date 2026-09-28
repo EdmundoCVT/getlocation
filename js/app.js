@@ -2633,6 +2633,7 @@ function initConversionUx() {
   const stickyCta = document.getElementById("mobile-availability-cta");
   const hero = document.querySelector(".hero");
   const searchForm = document.getElementById("search-form");
+  const footer = document.querySelector(".site-footer");
 
   function elementVisible(element) {
     if (!element) return false;
@@ -2644,7 +2645,12 @@ function initConversionUx() {
     if (!stickyCta || !hero || !searchForm) return;
     const mobile = window.matchMedia("(max-width: 640px)").matches;
     const heroMostlyPassed = window.scrollY > hero.offsetHeight * 0.55;
-    stickyCta.classList.toggle("is-visible", mobile && heroMostlyPassed && !elementVisible(searchForm));
+    // Le CTA fixe prend le relais du formulaire, jamais sa place : il reste
+    // caché tant que le formulaire est visible et s'efface avant le footer.
+    stickyCta.classList.toggle(
+      "is-visible",
+      mobile && heroMostlyPassed && !elementVisible(searchForm) && !elementVisible(footer)
+    );
   }
 
   document.querySelectorAll("[data-conversion]").forEach((element) => {
@@ -2660,6 +2666,15 @@ function initConversionUx() {
   window.addEventListener("resize", updateStickyCta);
 }
 
+function initHomepageFooterGroups() {
+  const groups = document.querySelectorAll(".homepage-footer .footer-group");
+  if (!groups.length) return;
+  const mobile = window.matchMedia("(max-width: 640px)");
+  const sync = () => groups.forEach((group) => group.toggleAttribute("open", !mobile.matches));
+  sync();
+  mobile.addEventListener("change", sync);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   setFooterYear();
   syncHeaderHeightVar();
@@ -2673,6 +2688,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initAgencyDocumentsPage();
   initTestimonialsSlider();
   initConversionUx();
+  initHomepageFooterGroups();
   initHomeVehicleLinks();
   initVehicleGalleries();
 });

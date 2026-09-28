@@ -177,6 +177,8 @@
     "La location simplifiée": "Car rental made simple",
     "Le véhicule qu'il vous faut, livré où vous voulez.": "Book. We deliver. You drive.",
     "Commandez. On vous l'apporte. Vous roulez.": "Book it. We deliver it. You drive.",
+    "Choisissez vos dates et votre véhicule, GETLOCATION s'occupe du reste.":
+      "Choose your dates and vehicle; GETLOCATION takes care of the rest.",
     "Renseignez votre besoin en quelques secondes. Choisissez votre véhicule, puis GETLOCATION s'occupe de la préparation et de la livraison à l'adresse qui vous convient.":
       "Tell us what you need in a few seconds. Choose your vehicle, then GETLOCATION handles preparation and delivery to the address that suits you.",
     "Entreprise locale": "Local company",
@@ -243,6 +245,7 @@
     "Une agence locale, des véhicules récents et une réservation pensée pour aller vite.":
       "A local agency, recent vehicles and a booking process built to be quick.",
     "Livraison partout sur la Côte d'Azur": "Delivery across the French Riviera",
+    "Livraison sur la Côte d'Azur": "Delivery across the French Riviera",
     "Récupérez votre véhicule à l'adresse de votre choix : domicile, hôtel ou aéroport.":
       "Get your vehicle wherever you need it: home, hotel or airport.",
     "Assurance comprise": "Insurance included",
@@ -263,7 +266,9 @@
 
     // --- Accueil : véhicules mis en avant
     "Nos offres": "Our fleet",
+    "La flotte": "The fleet",
     "Les véhicules disponibles": "Available vehicles",
+    "Une flotte pour chaque trajet": "A vehicle for every journey",
     "Citadine, SUV et utilitaire — assurance et assistance incluses.":
       "City cars, SUVs and vans — insurance and roadside assistance included.",
     "Citadine": "City car",
@@ -291,6 +296,7 @@
 
     // --- Accueil : comment ça marche
     "Le parcours": "How it works",
+    "Comment ça marche ?": "How does it work?",
     "La location de voiture simplifiée": "Car rental made simple",
     "Commandez, on vous l'apporte, vous roulez": "Book it, we deliver it, you drive",
     "Un parcours simple, pensé pour aller directement à l'essentiel.":
@@ -300,6 +306,10 @@
     "ou par téléphone.": "or by phone.",
     "Faites-vous livrer": "We deliver it to you",
     "On vous l'apporte là où vous en avez besoin": "We bring it wherever you need it",
+    "Choisissez vos dates et votre véhicule.": "Choose your dates and vehicle.",
+    "On vous l'apporte là où vous en avez besoin.": "We bring it wherever you need it.",
+    "Vous roulez.": "You drive.",
+    "Les engagements GETLOCATION": "GETLOCATION commitments",
     "À l'adresse de votre choix ou au point de retrait.": "At the address of your choice or at a meeting point.",
     "Domicile, hôtel, Airbnb, aéroport ou autre adresse disponible.": "Home, hotel, Airbnb, airport or another available address.",
     "Roulez": "You drive",

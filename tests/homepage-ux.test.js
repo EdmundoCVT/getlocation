@@ -3,25 +3,25 @@ const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
-const { VEHICULES } = require("../js/data.js");
 
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 const document = new JSDOM(html).window.document;
 
-test("le hero précède le moteur de recherche sur la homepage", () => {
+test("le hero contient directement le moteur de recherche sur la homepage", () => {
   const hero = document.querySelector(".hero");
   const form = document.getElementById("search-form");
 
   assert.ok(hero && form);
-  assert.equal(hero.compareDocumentPosition(form) & 4, 4);
+  assert.ok(hero.contains(form));
 });
 
-test("la promesse et le CTA mettent en avant la livraison et la commande", () => {
-  assert.match(document.querySelector(".hero-text").textContent, /livr/i);
-  assert.match(document.querySelector(".hero-text").textContent, /adresse/i);
+test("la promesse et le CTA mettent en avant la commande sans dupliquer les bénéfices", () => {
+  assert.match(document.querySelector(".hero-text").textContent, /s'occupe du reste/i);
+  assert.equal(document.querySelector(".hero-badges"), null);
+  assert.equal(document.querySelector(".hero-cta"), null);
   assert.equal(
     document.querySelector("#search-form button[type='submit']").textContent.trim(),
-    "Commander mon véhicule"
+    "Voir les véhicules disponibles"
   );
 });
 
@@ -29,7 +29,7 @@ test("l'accueil demande uniquement les dates avant l'accès aux véhicules", () 
   assert.equal(document.querySelector("#lieu-prise"), null);
   assert.equal(document.querySelector("#adresse-prise"), null);
   assert.equal(document.querySelector("#adresse-retour"), null);
-  assert.match(document.querySelector(".search-card-heading").textContent, /juste avant le paiement/);
+  assert.equal(document.querySelector(".search-card-heading"), null);
 });
 
 test("le hero ne présente pas de note en étoiles non sourcée", () => {
@@ -44,19 +44,20 @@ test("la homepage ne présente pas de section d'avis tant qu'ils ne sont pas dis
 
 test("les CTA principaux utilisent des libellés cohérents", () => {
   assert.equal(document.querySelectorAll("#search-form button[type='submit']").length, 1);
-  assert.equal(document.querySelector(".hero-cta .btn-primary").textContent.trim(), "Commander mon véhicule");
+  assert.equal(document.querySelector("#search-form .btn-primary").textContent.trim(), "Voir les véhicules disponibles");
   assert.doesNotMatch(document.body.textContent, /Réserver maintenant|Voir la flotte|>Découvrir</);
 });
 
-test("les blocs de réassurance répétitifs sont regroupés", () => {
+test("les blocs de réassurance répétitifs sont regroupés en une seule rangée", () => {
   assert.doesNotMatch(document.body.textContent, /Pourquoi nous faire confiance|Pourquoi GETLOCATION/);
-  assert.match(document.body.textContent, /Tarifs transparents/);
-  assert.match(document.body.textContent, /sans frais cachés/);
+  const items = document.querySelectorAll(".homepage-reassurance-list li");
+  assert.equal(items.length, 4);
+  assert.match(items[0].textContent, /Livraison sur la Côte d'Azur/);
 });
 
 test("les détails tarifaires ne sont pas affichés avant la recherche", () => {
   assert.equal(document.querySelector(".booking-inclusions"), null);
-  const searchSection = document.querySelector(".search-section").textContent;
+  const searchSection = document.querySelector("#search-form").textContent;
   assert.doesNotMatch(searchSection, /Assurance incluse|km \/ jour|Livraison : \d+ €|Caution dès/);
 });
 
@@ -68,11 +69,18 @@ test("le sélecteur de véhicule utilise des icônes vectorielles sans emoji", (
   assert.doesNotMatch(toggle.textContent, /🚗|🚐/);
 });
 
-test("chaque véhicule de la homepage affiche son dépôt de garantie exact", () => {
-  for (const vehicule of VEHICULES) {
-    const card = document.querySelector(`[data-vehicle-link="vehicules.html?vehicule=${vehicule.id}"]`);
-    assert.match(card.textContent, new RegExp(`Dépôt de garantie : ${String(vehicule.caution).replace("1000", "1\\s?000")} €`));
-  }
+test("la homepage présente trois véhicules représentatifs, sans dupliquer le catalogue", () => {
+  const cards = [...document.querySelectorAll(".homepage-vehicle-grid [data-vehicle-link]")];
+  assert.equal(cards.length, 3);
+  assert.deepEqual(
+    cards.map((card) => card.dataset.vehicleLink),
+    [
+      "vehicules.html?vehicule=opel-corsa",
+      "vehicules.html?vehicule=peugeot-2008-hybrid",
+      "vehicules.html?vehicule=toyota-proace-city"
+    ]
+  );
+  assert.ok(cards.every((card) => !/Dépôt de garantie/.test(card.textContent)));
 });
 
 test("la FAQ utilise des accordéons natifs accessibles", () => {
@@ -92,6 +100,6 @@ test("la FAQ utilise des accordéons natifs accessibles", () => {
 test("les actions de conversion sont balisées sans traceur externe", () => {
   assert.ok(document.querySelector('[data-conversion="recherche_disponibilites"]'));
   assert.ok(document.querySelector('[data-conversion="mobile_disponibilites"]'));
-  assert.ok(document.querySelector('[data-conversion="appel"]'));
-  assert.ok(document.querySelector('[data-conversion="whatsapp"]'));
+  assert.equal(document.querySelector('[data-conversion="appel"]'), null);
+  assert.equal(document.querySelector('[data-conversion="whatsapp"]'), null);
 });

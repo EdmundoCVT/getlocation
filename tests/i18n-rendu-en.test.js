@@ -61,7 +61,7 @@ test("page anglaise : plus aucun texte français à l'écran", async () => {
 
   assert.equal(document.documentElement.lang, "en");
   assert.match(document.body.textContent, /Book it\. We deliver it\. You drive\./);
-  assert.match(document.body.textContent, /Book your vehicle/);
+  assert.match(document.body.textContent, /See available vehicles/);
   dom.window.close();
 });
 
