@@ -6,21 +6,11 @@ const { JSDOM } = require("jsdom");
 
 const ROOT = path.join(__dirname, "..");
 
-test("chaque aperçu de véhicule de l'accueil mène vers sa fiche ciblée", () => {
+test("l'accueil ne duplique pas le catalogue et conserve son accès dans le menu", () => {
   const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
   const document = new JSDOM(html).window.document;
-  const cards = [...document.querySelectorAll(".vehicle-card[data-vehicle-link]")];
-
-  const apercus = ["opel-corsa", "peugeot-2008-hybrid", "toyota-proace-city"];
-  assert.equal(cards.length, apercus.length);
-  for (const id of apercus) {
-    const href = `vehicules.html?vehicule=${id}`;
-    const card = cards.find((item) => item.dataset.vehicleLink === href);
-    assert.ok(card, `la carte ${id} doit ouvrir ${href}`);
-    assert.equal(card.getAttribute("role"), "link");
-    assert.equal(card.getAttribute("tabindex"), "0");
-    assert.equal(card.querySelector("a.btn").getAttribute("href"), href);
-  }
+  assert.equal(document.querySelectorAll(".vehicle-card[data-vehicle-link]").length, 0);
+  assert.ok(document.querySelector('.main-nav a[href="vehicules.html"]'));
 });
 
 test("la page véhicules filtre le catalogue avec un paramètre validé", () => {

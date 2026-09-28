@@ -2651,12 +2651,6 @@ textarea:focus-visible,
 .homepage-section { padding: 72px 0; }
 .homepage-section .section-subtitle { margin-bottom: 28px; }
 
-.homepage-vehicles { padding: 68px 0 72px; }
-.homepage-vehicle-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.homepage-vehicle-grid .vehicle-body { padding: 18px; }
-.homepage-vehicle-grid .vehicle-specs { margin: 10px 0 0; }
-.homepage-fleet-link { margin-top: 28px; text-align: center; }
-
 .homepage-reassurance {
   background: var(--blanc);
   border-bottom: 1px solid #ededf1;
@@ -2738,7 +2732,6 @@ textarea:focus-visible,
 @media (max-width: 900px) {
   .homepage-search-card { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .homepage-search-card .btn[type="submit"] { grid-column: 1 / -1; }
-  .homepage-vehicle-grid { grid-template-columns: repeat(3, minmax(230px, 1fr)); }
   .homepage-reassurance-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -2755,21 +2748,6 @@ textarea:focus-visible,
   .homepage-search-card .field-full { grid-column: auto; }
   .homepage-search-card .btn[type="submit"] { width: 100%; }
   .homepage-section { padding: 48px 0; }
-  .homepage-vehicles { padding: 48px 0; }
-  .homepage-vehicle-grid {
-    display: grid;
-    grid-auto-columns: minmax(255px, 84vw);
-    grid-auto-flow: column;
-    grid-template-columns: none;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    padding: 2px 24px 12px;
-    margin: 0 -24px;
-    scroll-padding-inline: 24px;
-    scroll-snap-type: x mandatory;
-  }
-  .homepage-vehicle-grid .vehicle-card { scroll-snap-align: start; }
-  .homepage-fleet-link { margin-top: 20px; }
   .homepage-reassurance { padding: 22px 0; }
   .homepage-reassurance-list { grid-template-columns: 1fr 1fr; gap: 14px 10px; }
   .homepage-reassurance-list li { align-items: flex-start; font-size: .82rem; line-height: 1.35; }

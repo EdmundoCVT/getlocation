@@ -175,10 +175,14 @@
 
     // --- Accueil : hero
     "La location simplifiée": "Car rental made simple",
+    "La location de voiture simplifiée": "Car rental made simple",
     "Le véhicule qu'il vous faut, livré où vous voulez.": "Book. We deliver. You drive.",
     "Commandez. On vous l'apporte. Vous roulez.": "Book it. We deliver it. You drive.",
+    "Commandez votre véhicule, on vous l'apporte.": "Book your vehicle, and we deliver it.",
     "Choisissez vos dates et votre véhicule, GETLOCATION s'occupe du reste.":
       "Choose your dates and vehicle; GETLOCATION takes care of the rest.",
+    "Choisissez vos dates en quelques secondes. Nous organisons ensuite la livraison.":
+      "Choose your dates in seconds. We then arrange delivery.",
     "Renseignez votre besoin en quelques secondes. Choisissez votre véhicule, puis GETLOCATION s'occupe de la préparation et de la livraison à l'adresse qui vous convient.":
       "Tell us what you need in a few seconds. Choose your vehicle, then GETLOCATION handles preparation and delivery to the address that suits you.",
     "Entreprise locale": "Local company",

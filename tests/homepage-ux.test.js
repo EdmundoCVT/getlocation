@@ -15,8 +15,9 @@ test("le hero contient directement le moteur de recherche sur la homepage", () =
   assert.ok(hero.contains(form));
 });
 
-test("la promesse et le CTA mettent en avant la commande sans dupliquer les bénéfices", () => {
-  assert.match(document.querySelector(".hero-text").textContent, /s'occupe du reste/i);
+test("la promesse met le service de livraison au centre", () => {
+  assert.match(document.querySelector(".hero-eyebrow").textContent, /La location de voiture simplifiée/);
+  assert.match(document.querySelector(".hero-text").textContent, /Commandez votre véhicule, on vous l'apporte\./);
   assert.equal(document.querySelector(".hero-badges"), null);
   assert.equal(document.querySelector(".hero-cta"), null);
   assert.equal(
@@ -69,18 +70,10 @@ test("le sélecteur de véhicule utilise des icônes vectorielles sans emoji", (
   assert.doesNotMatch(toggle.textContent, /🚗|🚐/);
 });
 
-test("la homepage présente trois véhicules représentatifs, sans dupliquer le catalogue", () => {
-  const cards = [...document.querySelectorAll(".homepage-vehicle-grid [data-vehicle-link]")];
-  assert.equal(cards.length, 3);
-  assert.deepEqual(
-    cards.map((card) => card.dataset.vehicleLink),
-    [
-      "vehicules.html?vehicule=opel-corsa",
-      "vehicules.html?vehicule=peugeot-2008-hybrid",
-      "vehicules.html?vehicule=toyota-proace-city"
-    ]
-  );
-  assert.ok(cards.every((card) => !/Dépôt de garantie/.test(card.textContent)));
+test("la homepage présente le service sans répliquer le catalogue", () => {
+  assert.equal(document.querySelector(".homepage-vehicle-grid"), null);
+  assert.doesNotMatch(document.body.textContent, /La flotte|Une flotte pour chaque trajet/);
+  assert.ok(document.querySelector('.main-nav a[href="vehicules.html"]'));
 });
 
 test("la FAQ utilise des accordéons natifs accessibles", () => {
