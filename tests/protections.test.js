@@ -284,7 +284,7 @@ test("contrat PDF : niveau de protection, franchise et dépôt de garantie sont 
   // franchise vient de la formule, le dépôt du véhicule.
   assert.equal(payload.protection.id, "serenite");
   assert.equal(payload.protection.franchise, 750);
-  assert.ok(journal.some((e) => e.texte === "Serenity" || e.texte === "Sérénité"), "nom de la formule absent");
+  assert.ok(journal.some((e) => e.texte === "Comfort Protection" || e.texte === "Protection Confort"), "nom de la formule absent");
   assert.ok(journal.some((e) => memeMontant(e.texte, "750 €")), "franchise de la formule absente");
   assert.ok(journal.some((e) => memeMontant(e.texte, payload.caution)), "dépôt de garantie absent");
   assert.equal(memeMontant(payload.caution, "750 €"), false, "le dépôt ne doit pas être confondu avec la franchise");
@@ -295,9 +295,17 @@ test("contrat PDF : niveau de protection, franchise et dépôt de garantie sont 
   assert.equal(new Set(colonnes).size, 3, "les trois informations doivent occuper trois colonnes distinctes");
 });
 
+test("contrat PDF : la clause Dépôt de garantie précise sa portée financière", () => {
+  const { tout } = contratPdf({ protection: "serenite" });
+  assert.match(tout, /Dépôt de garantie\./);
+  assert.match(tout, /garantie financière/);
+  assert.match(tout, /ni un plafond de responsabilité ni une limitation/);
+  assert.match(tout, /complément pourra être réclamé/);
+});
+
 test("contrat PDF : la protection payante figure comme ligne de prix, la formule incluse non", () => {
   const payante = contratPdf({ protection: "serenite-plus" });
-  const ligne = payante.payload.syntheseFinanciere.options.find((o) => /Sérénité\+/.test(o.nom));
+  const ligne = payante.payload.syntheseFinanciere.options.find((o) => /Protection Premium/.test(o.nom));
   assert.ok(ligne, "la protection payante doit apparaître dans le détail des prix");
   assert.equal(ligne.montant, 100); // 5 jours × 20 €
 
@@ -324,7 +332,7 @@ test("contrat PDF anglais : la formule porte son nom anglais, la franchise le si
   assert.match(tout, /PROTECTION LEVEL/);
   assert.match(tout, /EXCESS \//);
   assert.match(tout, /MAXIMUM LIABILITY/);
-  assert.ok(tout.includes("Serenity"), "le nom de la formule doit être traduit");
+  assert.ok(tout.includes("Comfort Protection"), "le nom de la formule doit être traduit");
   assert.equal(/NIVEAU DE PROTECTION/.test(tout), false, "aucun intitulé français sur le contrat anglais");
 });
 

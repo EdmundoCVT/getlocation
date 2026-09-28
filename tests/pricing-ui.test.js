@@ -85,6 +85,24 @@ test("initReservationPage : la protection est une étape dédiée et les autres 
   assert.equal(selectionnees[0].dataset.protection, "essentiel");
 });
 
+test("initReservationPage : les cartes présentent les garanties sans notion juridique et ouvrent leur information", () => {
+  const window = newWindow(reservationPageHtml());
+  window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
+  window.initReservationPage();
+
+  const texte = window.document.getElementById("protection-list").textContent;
+  assert.doesNotMatch(texte, /Franchise|Responsabilité maximale/);
+  assert.match(texte, /Protection Essentielle/);
+  assert.match(texte, /Protection Premium/);
+  assert.equal(window.document.querySelectorAll(".protection-info-button").length, PROTECTIONS.length);
+
+  window.document.querySelector(".protection-info-button").click();
+  const modal = window.document.getElementById("protection-info-modal");
+  assert.ok(modal);
+  assert.equal(modal.hidden, false);
+  assert.match(modal.textContent, /responsabilité civile obligatoire/i);
+});
+
 test("initReservationPage : les forfaits kilométriques sont exclusifs et recalculent le total", () => {
   const window = newWindow(reservationPageHtml());
   window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));

@@ -112,10 +112,14 @@
     // (« Protection Sérénité ») : une entrée par formule, vérifiée par
     // tests/protections.test.js pour qu'aucune formule ajoutée plus tard ne
     // reste en français sur un contrat anglais.
-    "Protection Essentiel": "Essential protection",
-    "Protection Confort": "Comfort protection",
-    "Protection Sérénité": "Serenity protection",
-    "Protection Sérénité+": "Serenity+ protection",
+    "Protection Essentielle": "Essential Protection",
+    "Protection Standard": "Standard Protection",
+    "Protection Confort": "Comfort Protection",
+    "Protection Premium": "Premium Protection",
+    "Protection Protection Essentielle": "Essential Protection",
+    "Protection Protection Standard": "Standard Protection",
+    "Protection Protection Confort": "Comfort Protection",
+    "Protection Protection Premium": "Premium Protection",
     "Essentiel": "Essential",
     "Confort": "Comfort",
     "Sérénité": "Serenity",
@@ -247,6 +251,10 @@
           + "this security deposit — the amounts are set out in the General Rental Conditions. A condition report (photographs, "
           + "odometer reading, fuel level) is carried out at pick-up and at return; any damage not recorded at pick-up will be "
           + "charged on the basis of a repair quotation.",
+        "Security deposit. The security deposit is a financial guarantee. It may be used to cover damage, missing fuel, extra "
+          + "kilometres, exceptional cleaning and any amount still owed. It is neither a liability cap nor a limitation on the "
+          + "amounts that may be claimed from the renter. If the costs exceed the security deposit, the balance may be claimed "
+          + "in accordance with this agreement, the protection selected and the General Rental Conditions.",
         "On return of the vehicle and once the joint return condition report has been agreed: where the deposit was taken as a "
           + "card pre-authorisation, GETLOCATION releases it within 7 working days. Where the deposit was paid in cash or by bank "
           + "transfer, it is returned by bank transfer to the account details provided by the renter, within a minimum of 7 working "

@@ -56,7 +56,7 @@ test("les e-mails français ne changent pas", () => {
   assert.match(text, /^Bonjour John,/);
   assert.match(text, /Véhicule : Opel Corsa Business 1\.2T/);
   // formatEUR() sépare le montant du « € » par une espace insécable.
-  assert.match(text, /Caution du véhicule : 500\s€ \(prélevée avant la remise des clés\)/);
+  assert.match(text, /Caution du véhicule : 650\s€ \(prélevée avant la remise des clés\)/);
   assert.match(text, /mercredi 16 septembre 2026 à 10:00/);
   assert.match(text, /L'équipe GET LOCATION$/);
 });

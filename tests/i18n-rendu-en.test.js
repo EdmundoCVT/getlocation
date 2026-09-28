@@ -293,7 +293,7 @@ test("page juridique anglaise : le corps reste intégralement en français", asy
   // Et rien n'y a effectivement été traduit : les valeurs du tableau des
   // protections sont celles du texte français, au format français.
   const premiereLigne = document.querySelector('#cglProtections tr[data-protection="essentiel"]');
-  assert.equal(premiereLigne.querySelector("th").textContent.trim(), "Essentiel");
+  assert.equal(premiereLigne.querySelector("th").textContent.trim(), "Protection Essentielle");
   assert.equal(premiereLigne.querySelector("[data-prix]").textContent.trim(), "Inclus");
   assert.match(premiereLigne.querySelector("[data-franchise]").textContent, /2[\s  ]000 €/);
 

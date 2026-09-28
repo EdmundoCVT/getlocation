@@ -1155,7 +1155,8 @@ function initReservationPage() {
   // Étape dédiée à la protection : quatre niveaux comparables, un seul
   // sélectionnable. La formule incluse est retenue par défaut, donc l'étape
   // n'est jamais bloquante — le client peut continuer sans rien changer.
-  // Tous les montants, franchises et garanties viennent de js/data.js.
+  // Tous les montants et garanties viennent de js/data.js. Les notions
+  // juridiques détaillées restent dans le contrat et les CGL.
   const protectionList = document.getElementById("protection-list");
   const continueToOptions = document.getElementById("continue-to-options");
   const protectionError = document.getElementById("protection-error");
@@ -1184,8 +1185,34 @@ function initReservationPage() {
     if (protection.prixParJour <= 0) return { principal: t("Incluse"), secondaire: "" };
     return {
       principal: t("{prix} / jour", { prix: formatEUR(protection.prixParJour) }),
-      secondaire: t("{montant} maximum par location", { montant: formatEUR(protection.prixMax) })
+      secondaire: t("Maximum : {montant}", { montant: formatEUR(protection.prixMax) })
     };
+  }
+
+  function ouvrirInfoProtection(protection) {
+    let modal = document.getElementById("protection-info-modal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "protection-info-modal";
+      modal.className = "protection-info-modal";
+      modal.hidden = true;
+      modal.setAttribute("role", "dialog");
+      modal.setAttribute("aria-modal", "true");
+      modal.innerHTML = '<div class="protection-info-dialog" role="document"><button type="button" class="protection-info-close" aria-label=""></button><h3 class="protection-info-title"></h3><p class="protection-info-description"></p><p class="protection-info-note"></p></div>';
+      document.body.appendChild(modal);
+      const boutonFermer = modal.querySelector(".protection-info-close");
+      boutonFermer.textContent = "×";
+      boutonFermer.setAttribute("aria-label", t("Fermer"));
+      const fermer = () => { modal.hidden = true; };
+      boutonFermer.addEventListener("click", fermer);
+      modal.addEventListener("click", (event) => { if (event.target === modal) fermer(); });
+      document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !modal.hidden) fermer(); });
+    }
+    modal.querySelector(".protection-info-title").textContent = t(protection.nom);
+    modal.querySelector(".protection-info-description").textContent = t(protection.description);
+    modal.querySelector(".protection-info-note").textContent = t("Les garanties sont détaillées dans les Conditions Générales de Location et restent soumises aux exclusions et limitations applicables.");
+    modal.hidden = false;
+    modal.querySelector(".protection-info-close").focus();
   }
 
   function addProtectionCard(protection) {
@@ -1201,21 +1228,19 @@ function initReservationPage() {
     titre.className = "protection-nom";
     titre.textContent = t(protection.nom);
     entete.appendChild(titre);
+    const info = document.createElement("button");
+    info.type = "button";
+    info.className = "protection-info-button";
+    info.setAttribute("aria-label", t("Informations sur {protection}", { protection: t(protection.nom) }));
+    info.textContent = "i";
+    info.addEventListener("click", () => ouvrirInfoProtection(protection));
+    entete.appendChild(info);
     if (protection.recommande) {
       const badge = document.createElement("span");
       badge.className = "protection-badge";
       badge.textContent = t("Recommandé");
       entete.appendChild(badge);
     }
-
-    // Franchise : l'information que le client compare en premier.
-    const franchise = document.createElement("p");
-    franchise.className = "protection-franchise";
-    const franchiseLabel = document.createElement("span");
-    franchiseLabel.textContent = t("Franchise");
-    const franchiseValeur = document.createElement("strong");
-    franchiseValeur.textContent = formatEUR(protection.franchise);
-    franchise.append(franchiseLabel, franchiseValeur);
 
     // Garanties : toutes listées, cochées ou non, pour rendre la progression
     // d'un niveau à l'autre immédiatement lisible.
@@ -1260,7 +1285,7 @@ function initReservationPage() {
     bouton.setAttribute("aria-pressed", choisie ? "true" : "false");
     bouton.addEventListener("click", () => selectProtection(protection.id));
 
-    card.append(entete, franchise, liste, prixNode, bouton);
+    card.append(entete, liste, prixNode, bouton);
     card.classList.toggle("is-selected", choisie);
     protectionList.appendChild(card);
   }
@@ -1271,13 +1296,9 @@ function initReservationPage() {
 
     // Mention prudente sous les cartes : renvoie aux CGL plutôt que de
     // promettre une couverture que le texte contractuel ne décrit pas.
-    const mention = document.createElement("details");
-    mention.className = "protection-mention choice-details";
-    const resume = document.createElement("summary");
-    resume.textContent = t("Voir les détails et exclusions");
-    const texteMention = document.createElement("p");
-    texteMention.textContent = t(getProtectionMention());
-    mention.append(resume, texteMention);
+    const mention = document.createElement("p");
+    mention.className = "protection-mention";
+    mention.textContent = t(getProtectionMention());
     protectionList.appendChild(mention);
 
     // La formule incluse étant retenue par défaut, l'étape ne bloque jamais.

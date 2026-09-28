@@ -252,19 +252,24 @@ const OPTIONS = [
 // Chaque protection déclare celles qu'elle couvre ; les autres s'affichent
 // comme non couvertes, ce qui rend la progression lisible d'un coup d'œil.
 const PROTECTION_GARANTIES = [
-  { id: "rc", libelle: "Responsabilité civile / tiers" },
-  { id: "collision", libelle: "Collision, rayures et chocs" },
+  { id: "rc", libelle: "Responsabilité civile obligatoire" },
+  { id: "collision", libelle: "Collision" },
+  { id: "rayures", libelle: "Rayures" },
+  { id: "chocs", libelle: "Chocs" },
   { id: "vol", libelle: "Vol" },
   { id: "pneus", libelle: "Pneus" },
-  { id: "vitres", libelle: "Pare-brise et vitres" },
-  { id: "assistance", libelle: "Assistance / dépannage" },
-  { id: "personnes", libelle: "Protection conducteur et passagers" }
+  { id: "parebrise", libelle: "Pare-brise" },
+  { id: "vitres", libelle: "Vitres" },
+  { id: "assistance", libelle: "Assistance dépannage" },
+  { id: "conducteur", libelle: "Protection conducteur" },
+  { id: "passagers", libelle: "Protection passagers" }
 ];
 
 const PROTECTIONS = [
   {
     id: "essentiel",
-    nom: "Essentiel",
+    nom: "Protection Essentielle",
+    description: "La responsabilité civile obligatoire uniquement. Aucune protection complémentaire.",
     prixParJour: 0,
     joursFacturesMax: 0,
     prixMax: 0,
@@ -274,33 +279,36 @@ const PROTECTIONS = [
   },
   {
     id: "confort",
-    nom: "Confort",
+    nom: "Protection Standard",
+    description: "Une protection complémentaire pour les collisions, les rayures et les chocs.",
     prixParJour: 6,
     joursFacturesMax: 7,
     prixMax: 42,
     franchise: 1500,
     recommande: false,
-    garanties: ["rc", "collision", "vol"]
+    garanties: ["rc", "collision", "rayures", "chocs"]
   },
   {
     id: "serenite",
-    nom: "Sérénité",
+    nom: "Protection Confort",
+    description: "La protection Standard complétée par le vol, les pneus, le pare-brise, les vitres et l'assistance dépannage.",
     prixParJour: 12,
     joursFacturesMax: 7,
     prixMax: 84,
     franchise: 750,
     recommande: true,
-    garanties: ["rc", "collision", "vol", "pneus", "vitres", "assistance"]
+    garanties: ["rc", "collision", "rayures", "chocs", "vol", "pneus", "parebrise", "vitres", "assistance"]
   },
   {
     id: "serenite-plus",
-    nom: "Sérénité+",
+    nom: "Protection Premium",
+    description: "La protection Confort avec la protection du conducteur et des passagers.",
     prixParJour: 20,
     joursFacturesMax: 7,
     prixMax: 140,
     franchise: 300,
     recommande: false,
-    garanties: ["rc", "collision", "vol", "pneus", "vitres", "assistance", "personnes"]
+    garanties: ["rc", "collision", "rayures", "chocs", "vol", "pneus", "parebrise", "vitres", "assistance", "conducteur", "passagers"]
   }
 ];
 
@@ -309,7 +317,7 @@ const PROTECTION_PAR_DEFAUT = "essentiel";
 // Mention affichée sous les protections. Volontairement prudente : elle
 // renvoie aux CGL plutôt que de promettre une couverture que le texte
 // contractuel ne décrit pas encore.
-const PROTECTION_MENTION = "Les protections sont soumises aux conditions et exclusions prévues par les Conditions Générales de Location. Certains dommages, usages interdits ou manquements contractuels peuvent rester à la charge du locataire.";
+const PROTECTION_MENTION = "Les protections complémentaires permettent de réduire la participation financière du locataire dans les conditions prévues au contrat de location. Elles restent soumises aux exclusions, limitations et conditions générales applicables.";
 
 // Accesseurs : contrat.html et js/app.js passent par eux plutôt que par les
 // constantes ci-dessus, pour rester lisibles dans les environnements où
@@ -448,7 +456,7 @@ const VEHICULES = [
     // autres véhicules ci-dessous (voir LEGAL-TODO.md).
     carburant: "Essence",
     prixJour: 59,
-    caution: 500,
+    caution: 650,
     description: "Compacte et économique, parfaite pour vos déplacements pro entre Cannes, Antibes et Grasse."
   },
   {
@@ -479,7 +487,7 @@ const VEHICULES = [
     hybride: true,
     carburant: "Hybride essence",
     prixJour: 69,
-    caution: 500,
+    caution: 750,
     description: "SUV compact hybride, confortable et sobre pour rayonner sur toute la Côte d'Azur."
   },
   {
@@ -513,7 +521,7 @@ const VEHICULES = [
     hybride: true,
     carburant: "Hybride essence",
     prixJour: 79,
-    caution: 600,
+    caution: 900,
     description: "SUV familial haut de gamme, idéal pour vos trajets entre Nice, Cannes et l'arrière-pays."
   },
   {
@@ -555,7 +563,7 @@ const VEHICULES = [
     // (voir LEGAL-TODO.md). `null` plutôt qu'une valeur inventée.
     carburant: null,
     prixJour: 99,
-    caution: 800,
+    caution: 1000,
     description: "Ludospace polyvalent au grand volume de chargement, idéal bagages, matériel ou déménagement."
   }
 ];

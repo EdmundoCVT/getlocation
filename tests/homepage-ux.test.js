@@ -71,7 +71,7 @@ test("le sélecteur de véhicule utilise des icônes vectorielles sans emoji", (
 test("chaque véhicule de la homepage affiche son dépôt de garantie exact", () => {
   for (const vehicule of VEHICULES) {
     const card = document.querySelector(`[data-vehicle-link="vehicules.html?vehicule=${vehicule.id}"]`);
-    assert.match(card.textContent, new RegExp(`Dépôt de garantie : ${vehicule.caution} €`));
+    assert.match(card.textContent, new RegExp(`Dépôt de garantie : ${String(vehicule.caution).replace("1000", "1\\s?000")} €`));
   }
 });
 

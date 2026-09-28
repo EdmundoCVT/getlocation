@@ -432,7 +432,7 @@
         <div class="field full" style="margin-top:8px;">
           <label for="protection">Niveau de protection</label>
           <select id="protection"></select>
-          <small id="protectionAide">La franchise du niveau retenu est reprise sur le contrat. Elle ne se confond ni avec le prix de la protection ni avec le dépôt de garantie.</small>
+          <small id="protectionAide">Le niveau de protection choisi est repris automatiquement sur le contrat PDF.</small>
         </div>
 
         <!-- Équipement enfant : mêmes deux options que sur le site (voir
@@ -591,6 +591,7 @@
         <p>Le véhicule est loué avec un forfait de <strong><span class="fill" data-fill="kmInclusParJour">…</span> km inclus par jour de location</strong>, soit <span class="fill" data-fill="kmInclus">…</span> km au total pour la durée du contrat. Tout kilomètre parcouru au-delà de ce forfait est facturé <strong><span class="fill" data-fill="supplementKm">…</span> / km</strong> (voir le tableau de remise et restitution du véhicule pour le relevé kilométrique départ/retour). Le véhicule doit être restitué avec le même niveau de carburant qu'au départ.</p>
         <h3>Article 4 — Dépôt de garantie et assurance</h3>
         <p>Un dépôt de garantie de <span class="fill" data-fill="caution">…</span> est prélevé avant remise des clés, réglé par <span class="fill" data-fill="modeCaution">…</span>. Le véhicule est couvert par une assurance responsabilité civile et les garanties complémentaires en vigueur, souscrites auprès d'Allianz Assurance ; les franchises applicables en cas de sinistre responsable, de vol ou de bris de glace ne sont pas nécessairement égales à ce dépôt de garantie — leurs montants sont précisés dans les Conditions Générales de Location. Un état des lieux (photos, kilométrage, niveau de carburant) est réalisé au départ et à la restitution ; toute dégradation non mentionnée au départ sera facturée sur devis.</p>
+        <p><strong>Dépôt de garantie.</strong> Le dépôt de garantie constitue une garantie financière. Il peut être utilisé pour couvrir les dommages, le carburant manquant, les kilomètres supplémentaires, un nettoyage exceptionnel et toute somme restant due. Il ne constitue ni un plafond de responsabilité ni une limitation des sommes pouvant être réclamées au locataire. Si les frais dépassent le dépôt de garantie, le complément pourra être réclamé conformément au contrat, aux protections souscrites et aux Conditions Générales de Location.</p>
         <p>À la restitution du véhicule et après validation de l'état des lieux de retour contradictoire : pour une caution réglée par empreinte bancaire (pré-autorisation), la mainlevée est ordonnée par GETLOCATION sous 7 jours ouvrables. Pour une caution réglée en espèces ou par virement bancaire, le dépôt de garantie est restitué par virement bancaire, sur le RIB fourni par le locataire, sous 7 jours ouvrables minimum — aucun remboursement en espèces n'est effectué sur place au moment du retour. En cas de dégradation, de nettoyage requis, de carburant manquant ou d'infraction constatée, GETLOCATION peut conserver tout ou partie du dépôt de garantie le temps d'évaluer les frais, dans la limite de 30 jours (voir le détail complet dans les Conditions Générales de Location).</p>
         <p id="secondConducteurClause" style="display:none;">Un second conducteur, <span class="fill" data-fill="nom2">…</span> (permis n° <span class="fill" data-fill="permis2">…</span>), est autorisé à conduire le véhicule dans les mêmes conditions que le locataire principal, qui reste seul responsable vis-à-vis du présent contrat.</p>
         <p id="ribClientClause" style="display:none;">Coordonnées bancaires communiquées par le locataire pour la restitution du dépôt de garantie : IBAN <span class="fill" data-fill="ribIban">…</span>, titulaire <span class="fill" data-fill="ribTitulaire">…</span>.</p>
@@ -847,8 +848,8 @@
 
 </div>
 
-<script src="js/data.js?v=25"></script>
-<script src="js/contrat-en.js?v=3"></script>
+<script src="js/data.js?v=27"></script>
+<script src="js/contrat-en.js?v=4"></script>
 <script>
 // VEHICULES, formatEUR, joursFacturablesDepuisHeures, getVehiculeParId et
 // getOptionParId viennent de js/data.js (chargé juste avant ce script) —
@@ -1552,11 +1553,11 @@ function syntheseFinancierePdf(prix, totalFinal, montantRegleNombre, soldeNombre
     return { nom: opt.nom, montant: opt.montant, type: opt.type };
   });
   // Protection : ligne facturée seulement si la formule retenue est payante.
-  // « Essentiel » est incluse : elle figure dans le bloc GARANTIE du contrat,
+  // La formule incluse figure dans le bloc GARANTIE du contrat,
   // pas dans la tarification, pour ne pas ajouter une ligne à 0 €.
   if(prix.protection && prix.protection.montant > 0){
     lignesOptions.push({
-      nom: 'Protection ' + prix.protection.nom,
+      nom: prix.protection.nom.indexOf('Protection ') === 0 ? prix.protection.nom : 'Protection ' + prix.protection.nom,
       montant: prix.protection.montant,
       type: 'forfait'
     });
@@ -3750,7 +3751,7 @@ function initOwnerView(prefill){
   if(selectProtection){
     getProtections().forEach(function(p){
       var prix = p.prixParJour > 0 ? formatEUR(p.prixParJour) + '/jour' : 'incluse';
-      selectProtection.add(new Option(p.nom + ' — ' + prix + ', franchise ' + formatEUR(p.franchise), p.id));
+      selectProtection.add(new Option(p.nom + ' — ' + prix, p.id));
     });
     selectProtection.value = getProtectionParDefaut();
     selectProtection.addEventListener('change', updateSummary);
