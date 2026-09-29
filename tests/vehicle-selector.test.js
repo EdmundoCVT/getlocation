@@ -36,6 +36,15 @@ test("catégories voiture, filtres et demande sans permis", () => {
   assert.doesNotMatch(w.document.querySelector("#vehicle-grid").textContent, /partenaire|prestataire|marketplace/i);
 });
 
+test("Toutes exclut toujours les véhicules sans permis", () => {
+  const w = results();
+  const toutes = w.document.querySelector(".vehicle-categories button");
+  toutes.click();
+  assert.equal(toutes.textContent, "Toutes");
+  assert.doesNotMatch(w.document.querySelector("#vehicle-grid").textContent, /Véhicule sans permis/);
+  assert.doesNotMatch(w.document.querySelector("#vehicle-grid").textContent, /sans permis/i);
+});
+
 test("utilitaires et changement de famille conservent un seul choix actif", () => {
   const w = results("utility");
   assert.equal(w.document.querySelector(".vehicle-categories"), null);

@@ -635,6 +635,10 @@ function initVehiculesPage() {
   if (vehiculeCible && filterBar) filterBar.hidden = true;
 
   function correspondFiltresVoiture(v) {
+    // "Toutes" est représenté par null : il doit inclure les voitures
+    // classiques, mais jamais un véhicule de type license-free.
+    if (activeType === "license-free") return estVehiculeSansPermis(v);
+    if (estVehiculeSansPermis(v)) return false;
     if (activeType && v.type !== activeType) return false;
     if (activeFuel === "petrol-diesel" && v.fuel !== "petrol" && v.fuel !== "diesel") return false;
     if (activeFuel === "hybrid" && v.fuel !== "hybrid") return false;
@@ -644,8 +648,15 @@ function initVehiculesPage() {
     return true;
   }
 
+  // Le filtrage repose sur les identifiants techniques, jamais sur le
+  // libellé affiché, afin d'éviter qu'un véhicule sans permis soit inclus
+  // dans "Toutes", une catégorie automobile ou les utilitaires.
+  function estVehiculeSansPermis(v) {
+    return v && (v.vehicleFamily === "license-free" || v.type === "license-free");
+  }
+
   function vehiculesFiltres() {
-    const filtered = VEHICULES.filter(v => v.vehicleFamily === activeFamily && (activeFamily !== "car" || correspondFiltresVoiture(v)));
+    const filtered = VEHICULES.filter(v => v.vehicleFamily === activeFamily && (activeType === "license-free" || !estVehiculeSansPermis(v)) && (activeFamily !== "car" || correspondFiltresVoiture(v)));
     // Le produit générique sur demande n'est utile qu'en l'absence d'une
     // voiture sans permis réservable instantanément.
     if (filtered.some(v => v.type === "license-free" && v.bookingMode !== "request")) {
