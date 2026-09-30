@@ -28,6 +28,7 @@ const { handleAgencyPayments } = require("./api/agency-payments.js");
 const { handleAgencyDeposits } = require("./api/agency-deposits.js");
 const { handleAnalyticsEvents } = require("./api/analytics-events.js");
 const { handleVehicleRequest } = require("./api/vehicle-request.js");
+const { handleBusinessPartner } = require("./api/business-partner.js");
 const { handleAgencyAnalytics } = require("./api/agency-analytics.js");
 const { handleAgencyGoogleSheets } = require("./api/agency-google-sheets.js");
 const { handleAgencyDashboard } = require("./api/agency-dashboard.js");
@@ -60,10 +61,25 @@ const ROUTES = {
   "/api/agency-deposits": handleAgencyDeposits,
   "/api/analytics-events": handleAnalyticsEvents,
   "/api/vehicle-request": handleVehicleRequest,
+  "/api/business-partner": handleBusinessPartner,
   "/api/agency-analytics": handleAgencyAnalytics,
   "/api/agency-google-sheets": handleAgencyGoogleSheets,
   "/api/agency-dashboard": handleAgencyDashboard,
   "/api/inspection-media": handleInspectionMedia
+};
+
+// Les offres Business vivent chacune dans leur propre document statique,
+// mais sont volontairement exposées sans extension pour garder des URLs
+// pérennes et lisibles dès le lancement de l'espace B2B.
+const BUSINESS_PAGES = {
+  "/business": "business/index.html",
+  "/business/": "business/index.html",
+  "/business/tourism": "business/tourism.html",
+  "/business/garages": "business/garages.html",
+  "/business/corporate": "business/corporate.html",
+  "/business/hotels": "business/hotels.html",
+  "/business/events": "business/events.html",
+  "/business/partners": "business/partners.html"
 };
 
 function isVehicleResultsPath(pathname) {
@@ -153,6 +169,12 @@ export default {
     }
     const route = ROUTES[url.pathname];
     if (route) return route(request, env, ctx);
+
+    const businessPage = BUSINESS_PAGES[url.pathname];
+    if (businessPage) {
+      const assetUrl = new URL(`/${businessPage}`, url);
+      return withClientUX(await env.ASSETS.fetch(new Request(assetUrl, request)), url.pathname);
+    }
 
     if (estCheminAnglais(url.pathname)) {
       const pageAnglaise = await servirPageAnglaise(request, env, url);

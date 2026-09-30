@@ -47,7 +47,14 @@
     "location-voiture-aeroport-nice.html",
     "cgl.html",
     "mentions-legales.html",
-    "confidentialite.html"
+    "confidentialite.html",
+    "business/index.html",
+    "business/tourism.html",
+    "business/garages.html",
+    "business/corporate.html",
+    "business/hotels.html",
+    "business/events.html",
+    "business/partners.html"
   ];
 
   // Pages dont le CORPS reste en français (valeur juridique) : seuls
@@ -73,7 +80,14 @@
     "location-voiture-aeroport-nice.html": "car-rental-nice-airport",
     "cgl.html": "terms",
     "mentions-legales.html": "legal-notice",
-    "confidentialite.html": "privacy"
+    "confidentialite.html": "privacy",
+    "business/index.html": "business",
+    "business/tourism.html": "business/tourism",
+    "business/garages.html": "business/garages",
+    "business/corporate.html": "business/corporate",
+    "business/hotels.html": "business/hotels",
+    "business/events.html": "business/events",
+    "business/partners.html": "business/partners"
   };
 
   var FICHIERS_PAR_SLUG = {};
@@ -144,6 +158,34 @@
     "confidentialite.html": {
       titre: "Privacy Policy — GETLOCATION",
       description: "How GETLOCATION collects and protects your personal data. The French version is the legally binding version."
+    },
+    "business/index.html": {
+      titre: "GetLocation Business — Professional Mobility Solutions",
+      description: "GetLocation Business supports professionals with mobility solutions for tourism, garages, companies, hotels and events."
+    },
+    "business/tourism.html": {
+      titre: "GetLocation Business Tourism — Mobility for Your Guests",
+      description: "A mobility programme for Airbnb hosts, concierges, hotels, tourist residences and property managers on the French Riviera."
+    },
+    "business/garages.html": {
+      titre: "GetLocation Business Garages — Replacement Vehicles",
+      description: "GetLocation is preparing a replacement-vehicle solution for automotive garages."
+    },
+    "business/corporate.html": {
+      titre: "GetLocation Business Companies — Employee Mobility",
+      description: "GetLocation is preparing mobility solutions for companies and their employees."
+    },
+    "business/hotels.html": {
+      titre: "GetLocation Business Hotels — Mobility for Your Guests",
+      description: "GetLocation is preparing a mobility offer for hotels and their guests on the French Riviera."
+    },
+    "business/events.html": {
+      titre: "GetLocation Business Events — Event Mobility",
+      description: "GetLocation is preparing mobility solutions for event professionals."
+    },
+    "business/partners.html": {
+      titre: "GetLocation Partners — Partner Programme",
+      description: "GetLocation is preparing a partner programme for mobility and tourism professionals."
     }
   };
 
@@ -156,6 +198,87 @@
     "Véhicules": "Vehicles",
     "Contact": "Contact",
     "Nous appeler": "Call us",
+    "Business": "Business",
+    "Pour les professionnels": "For professionals",
+    "GetLocation Business": "GetLocation Business",
+    "Des solutions de mobilité adaptées aux professionnels.": "Mobility solutions designed for professionals.",
+    "GetLocation accompagne les acteurs de différents secteurs avec des solutions de mobilité souples, un service de proximité et des programmes partenaires conçus pour évoluer avec leurs besoins.": "GetLocation supports businesses across sectors with flexible mobility solutions, local service and partner programmes designed to grow with their needs.",
+    "Nos solutions": "Our solutions",
+    "La mobilité au service de votre activité": "Mobility that works for your business",
+    "Découvrez l'offre la plus adaptée à vos clients, vos équipes et vos projets.": "Find the offer best suited to your clients, teams and projects.",
+    "Tourisme": "Tourism",
+    "Solutions pour propriétaires Airbnb, conciergeries, hôtels et agences de gestion.": "Solutions for Airbnb hosts, concierges, hotels and property managers.",
+    "Découvrir": "Discover",
+    "Garages automobiles": "Automotive garages",
+    "Des véhicules de remplacement livrés directement à vos clients.": "Replacement vehicles delivered directly to your clients.",
+    "Entreprises": "Companies",
+    "Des solutions de mobilité pour vos collaborateurs.": "Mobility solutions for your employees.",
+    "Hôtels": "Hotels",
+    "Proposez un service de mobilité directement à vos clients.": "Offer a mobility service directly to your guests.",
+    "Événementiel": "Events",
+    "Des solutions de mobilité pour vos événements.": "Mobility solutions for your events.",
+    "Partenaires": "Partners",
+    "Rejoignez le programme GetLocation Partners.": "Join the GetLocation Partners programme.",
+    "contact@getlocation.fr": "contact@getlocation.fr",
+    "Informations": "Information",
+    "GetLocation Business · Tourisme": "GetLocation Business · Tourism",
+    "Une expérience de mobilité à la hauteur de vos voyageurs.": "A mobility experience worthy of your guests.",
+    "Simplifiez les déplacements de vos clients avec un partenaire local, réactif et attentif à chaque séjour.": "Make your guests’ journeys simpler with a local, responsive partner attentive to every stay.",
+    "Devenir partenaire": "Become a partner",
+    "Découvrir le programme": "Explore the programme",
+    "Pensé pour le tourisme": "Designed for tourism",
+    "Un service complémentaire pour vos clients": "An added service for your guests",
+    "Pour les propriétaires Airbnb, conciergeries, agences de gestion locative, hôtels et résidences touristiques, GetLocation apporte une solution de mobilité claire et personnalisable.": "For Airbnb hosts, concierges, property managers, hotels and tourist residences, GetLocation provides a clear, adaptable mobility solution.",
+    "Un séjour plus fluide": "A smoother stay",
+    "Offrez à vos voyageurs une réponse simple à leur besoin de mobilité dès leur arrivée sur la Côte d'Azur.": "Give your guests a simple mobility answer from the moment they arrive on the French Riviera.",
+    "Un partenaire de proximité": "A local partner",
+    "Une équipe locale pour accompagner vos demandes et organiser la livraison selon les besoins de vos clients.": "A local team to handle your requests and arrange delivery around your guests’ needs.",
+    "Une offre qui s'adapte": "An offer that adapts",
+    "Construisons un programme cohérent avec votre activité, vos volumes et le profil de votre clientèle.": "Let us build a programme suited to your business, volumes and guest profile.",
+    "Le partenariat": "The partnership",
+    "Comment fonctionne le partenariat ?": "How does the partnership work?",
+    "1. Échangeons": "1. Let’s talk",
+    "Présentez-nous votre activité, vos clients et vos attentes.": "Tell us about your business, guests and expectations.",
+    "2. Orienter vos clients": "2. Guide your guests",
+    "Partagez le programme GetLocation au moment le plus utile de leur séjour.": "Share the GetLocation programme at the most useful point in their stay.",
+    "3. Construire la suite": "3. Build what’s next",
+    "Nous faisons évoluer le partenariat au fil de votre expérience.": "We develop the partnership as your experience grows.",
+    "Vos avantages partenaires": "Your partner benefits",
+    "Une reconnaissance qui vous ressemble": "Recognition that suits you",
+    "Le programme ne se limite pas à une commission. Nous définissons les avantages les plus pertinents pour votre activité.": "The programme is more than a commission. We define the benefits most relevant to your business.",
+    "Rémunération partenaire": "Partner remuneration",
+    "Une rémunération pensée selon le cadre de notre collaboration.": "Remuneration designed around the framework of our collaboration.",
+    "Crédits GetLocation": "GetLocation credits",
+    "Des crédits à utiliser pour vos besoins de mobilité ou ceux de votre équipe.": "Credits to use for your own mobility needs or those of your team.",
+    "Journées de location offertes": "Complimentary rental days",
+    "Des journées à offrir ou à utiliser au rythme de votre activité.": "Days to offer or use in line with your business rhythm.",
+    "Avantages exclusifs": "Exclusive benefits",
+    "Des attentions et opportunités réservées à nos partenaires.": "Thoughtful extras and opportunities reserved for our partners.",
+    "Les avantages pourront évoluer selon le profil, les besoins et le développement de chaque partenaire.": "Benefits may evolve according to each partner’s profile, needs and development.",
+    "Rejoindre le programme": "Join the programme",
+    "Parlez-nous de votre activité. Nous vous recontacterons pour imaginer un partenariat adapté.": "Tell us about your business. We will contact you to imagine a partnership that fits.",
+    "Nom et prénom": "Full name",
+    "Entreprise ou établissement": "Company or establishment",
+    "E-mail professionnel": "Business email",
+    "Quels avantages vous intéressent ?": "Which benefits interest you?",
+    "Journées offertes": "Complimentary days",
+    "Je souhaite en discuter": "I would like to discuss it",
+    "Votre message": "Your message",
+    "Décrivez-nous votre activité et vos besoins.": "Tell us about your business and needs.",
+    "Envoyer ma demande": "Send my enquiry",
+    "Merci, votre demande a bien été envoyée. Notre équipe vous recontactera prochainement.": "Thank you, your enquiry has been sent. Our team will contact you shortly.",
+    "L'envoi est momentanément indisponible. Veuillez nous contacter par téléphone ou par e-mail.": "Sending is temporarily unavailable. Please contact us by phone or email.",
+    "Bientôt disponible": "Coming soon",
+    "Une continuité de mobilité pour vos clients": "Uninterrupted mobility for your clients",
+    "Nous préparons une solution pensée pour les garages qui souhaitent proposer un véhicule de remplacement simple à réserver et à organiser.": "We are preparing a solution for garages that want to offer replacement vehicles that are easy to book and arrange.",
+    "La mobilité qui accompagne vos équipes": "Mobility that supports your teams",
+    "Cette offre est en préparation. Elle réunira des solutions souples pour les déplacements professionnels de vos collaborateurs.": "This offer is in preparation. It will bring together flexible solutions for your employees’ business travel.",
+    "Un service qui prolonge l'expérience de séjour": "A service that extends the guest experience",
+    "Nous préparons une offre pour permettre aux établissements hôteliers de proposer une mobilité fluide à leurs clients.": "We are preparing an offer to help hotels provide seamless mobility to their guests.",
+    "Une mobilité à l'échelle de vos événements": "Mobility tailored to your events",
+    "Cette offre est en préparation pour accompagner les organisateurs, les équipes et les invités de vos événements.": "This offer is in preparation to support the organisers, teams and guests at your events.",
+    "Des partenariats conçus pour durer": "Partnerships designed to last",
+    "Le programme GetLocation Partners se construit pour créer des collaborations utiles, transparentes et adaptées à chaque secteur.": "The GetLocation Partners programme is being built to create useful, transparent collaborations tailored to every sector.",
     "Ouvrir le menu": "Open menu",
     "Fermer le menu": "Close menu",
     "Liens": "Links",
@@ -904,6 +1027,7 @@
       return FICHIERS_PAR_SLUG[slug] || "index.html";
     }
     var fichier = sansParametres.replace(/^\//, "");
+    if (fichier === "business" || fichier === "business/") return "business/index.html";
     return fichier || "index.html";
   }
 

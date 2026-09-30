@@ -94,8 +94,9 @@ function lienAnglais(href) {
   const chemin = (separateur === -1 ? valeur : valeur.slice(0, separateur)).replace(/^\//, "");
   const suite = separateur === -1 ? "" : valeur.slice(separateur);
   if (!chemin) return valeur;
-  if (!Object.prototype.hasOwnProperty.call(SLUGS_EN, chemin)) return absolutiser(valeur);
-  return `/en/${SLUGS_EN[chemin]}${suite}`;
+  const fichier = chemin === "business" ? "business/index.html" : chemin;
+  if (!Object.prototype.hasOwnProperty.call(SLUGS_EN, fichier)) return absolutiser(valeur);
+  return `/en/${SLUGS_EN[fichier]}${suite}`;
 }
 
 function reecrireRessources(html) {
