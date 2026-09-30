@@ -46,12 +46,26 @@ Le code est complet et testé (`npm test`), mais **rien de tout cela n'est dépl
 | `RESEND_API_KEY` | Oui, pour les emails (confirmation client + contrat agence) | Clé API Resend (remplace `GMAIL_USER`/`GMAIL_APP_PASSWORD`). Sans elle, le paiement fonctionne quand même, seuls les emails ne sont pas envoyés (comportement "best effort" inchangé). |
 | `RESEND_FROM` | Optionnel | Adresse expéditrice, format `"Nom <adresse@domaine>"`. Doit appartenir à un domaine vérifié dans Resend (voir 0.1.3). Par défaut : `"GET LOCATION <reservations@getlocation.fr>"`. |
 | `AGENCY_EMAIL` | Oui, pour recevoir le contrat pré-rempli et la copie cachée des confirmations | Remplace l'usage de `GMAIL_USER` comme adresse de réception (l'agence peut garder une adresse Gmail ordinaire ici — elle ne sert plus qu'en tant que destinataire, plus d'authentification SMTP). |
+| `BUSINESS_CONTACT_EMAIL` | Optionnel | Adresse destinataire dédiée au formulaire `/business/contact`. Si elle est absente, `AGENCY_EMAIL` reçoit les demandes Business. |
 | `TEST_DISCOUNT_CODE` | Optionnel, usage interne uniquement | Identique à l'ancienne variable Netlify (section 2, point détaillé) — ramène le montant facturé à 0,10 € pour un code promo secret de votre choix. Sa validité est confirmée dès la saisie sur reservation.html (avant même la page de paiement) via `/api/validate-promo` (`src/api/validate-promo.js`), sans jamais exposer sa valeur au navigateur — voir §0.5 ci-dessous. |
 | `ALLOWED_ORIGINS` | Optionnel | Liste d'origines CORS supplémentaires (séparées par des virgules). Moins utile qu'avant : site et API étant désormais same-origin, aucune valeur n'est nécessaire en usage normal — l'origine de chaque requête est de toute façon toujours auto-autorisée (voir `src/api/create-payment.js`). |
 | `SITE_URL` | Optionnel | Utilisé uniquement par `send-contract-email.js` pour construire le lien vers `contrat.html`. Par défaut `https://getlocation.fr`. |
 | `DOCUMENT_TOKEN_PEPPER` | Requis avant d'activer le parcours documentaire | Secret aléatoire long utilisé pour calculer l'empreinte HMAC des jetons d'accès aux documents. Le jeton brut n'est jamais stocké. |
 
 Aucune de ces variables ne doit être ajoutée à `wrangler.jsonc` (fichier commité) : toutes se configurent via `wrangler secret put NOM` (ou dans le dashboard Cloudflare → Workers & Pages → getlocation → Settings → Variables), jamais en clair dans le dépôt.
+
+### 0.2.1 Formulaire Business : réception des demandes
+
+`/business/contact` envoie ses données au Worker (`POST /api/business-contact`). Le Worker valide les champs obligatoires, limite les envois par adresse IP, puis envoie l'email via l'API HTTP de Resend : aucune clé email n'est exposée au navigateur. Le destinataire est `BUSINESS_CONTACT_EMAIL` quand ce secret est configuré ; sinon, c'est `AGENCY_EMAIL`.
+
+Pour l'activer ou le tester en production :
+
+1. vérifier que `RESEND_API_KEY` et `AGENCY_EMAIL` sont déjà configurés ;
+2. configurer si besoin `BUSINESS_CONTACT_EMAIL` avec `npx wrangler secret put BUSINESS_CONTACT_EMAIL` ;
+3. envoyer une demande de test depuis `/business/contact?type=corporate` ;
+4. vérifier le message de confirmation à l'écran et la réception de l'email « Nouvelle demande Business GetLocation ».
+
+Si l'email n'arrive pas, vérifier d'abord les logs du Worker, puis la clé Resend, l'adresse destinataire et la vérification du domaine de `RESEND_FROM`. Le formulaire conserve les informations saisies et affiche un message de repli si l'API est indisponible.
 
 ### 0.3 Ce qui n'a pas pu être testé dans cet environnement
 

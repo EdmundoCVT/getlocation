@@ -1,4 +1,4 @@
-// Formulaire de contact Business : préremplissage par URL et message WhatsApp.
+// Formulaire de contact Business : préremplissage par URL et envoi sécurisé.
 (function () {
   "use strict";
 
@@ -25,14 +25,37 @@
     if (error) error.hidden = !visible;
   }
 
+  function isEmailValid() {
+    var email = value("email");
+    return !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  function setEmailError(visible) {
+    var field = form.elements.email;
+    var error = document.getElementById("contact-email-error");
+    field.setAttribute("aria-invalid", visible ? "true" : "false");
+    if (error) error.hidden = !visible;
+  }
+
+  function showStatus(kind) {
+    var status = document.getElementById("business-contact-status");
+    if (!status) return;
+    status.hidden = false;
+    status.querySelector(".business-contact-success").hidden = kind !== "success";
+    status.querySelector(".business-contact-failure").hidden = kind !== "failure";
+    status.querySelector(".business-contact-solutions").hidden = kind !== "success";
+  }
+
   ["type", "name", "phone", "message"].forEach(function (name) {
     var field = form.elements[name];
     if (!field) return;
     field.addEventListener("input", function () { setError(field, !value(name)); });
     field.addEventListener("change", function () { setError(field, !value(name)); });
   });
+  form.elements.email.addEventListener("input", function () { setEmailError(!isEmailValid()); });
+  form.elements.email.addEventListener("change", function () { setEmailError(!isEmailValid()); });
 
-  form.addEventListener("submit", function (event) {
+  form.addEventListener("submit", async function (event) {
     event.preventDefault();
     var required = ["type", "name", "phone", "message"];
     var firstInvalid = null;
@@ -42,30 +65,41 @@
       setError(field, invalid);
       if (invalid && !firstInvalid) firstInvalid = field;
     });
-    if (firstInvalid) {
+    var invalidEmail = !isEmailValid();
+    setEmailError(invalidEmail);
+    if (firstInvalid || invalidEmail) {
+      if (!firstInvalid && invalidEmail) firstInvalid = form.elements.email;
       firstInvalid.focus();
       return;
     }
 
     var preference = form.querySelector('input[name="preference"]:checked');
-    var city = [value("city"), value("postcode")].filter(Boolean).join(" ");
-    var lines = [
-      "Bonjour GetLocation,",
-      "",
-      "Je souhaite être recontacté pour une demande professionnelle.",
-      "",
-      "Type de demande : " + selectedLabel(type),
-      "Nom : " + value("name"),
-      "Société : " + value("company"),
-      "Téléphone : " + value("phone"),
-      "Email : " + value("email"),
-      "Ville : " + city,
-      "Préférence de contact : " + (preference ? preference.value : ""),
-      "Message : " + value("message"),
-      "",
-      "Merci."
-    ];
-    var url = "https://wa.me/33667485430?text=" + encodeURIComponent(lines.join("\n"));
-    window.open(url, "_blank", "noopener");
+    var submit = form.querySelector('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    try {
+      var response = await fetch("/api/business-contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: value("type"), typeLabel: selectedLabel(type), name: value("name"),
+          company: value("company"), phone: value("phone"), email: value("email"),
+          city: value("city"), postcode: value("postcode"),
+          preference: preference ? preference.value : "", message: value("message"),
+          source: window.location.href
+        })
+      });
+      if (!response.ok) throw new Error("request failed");
+      form.reset();
+      if (requestedType) type.value = requestedType;
+      ["type", "name", "phone", "message", "email"].forEach(function (name) {
+        var field = form.elements[name];
+        if (field) field.removeAttribute("aria-invalid");
+      });
+      showStatus("success");
+    } catch (_) {
+      showStatus("failure");
+    } finally {
+      if (submit) submit.disabled = false;
+    }
   });
 }());
