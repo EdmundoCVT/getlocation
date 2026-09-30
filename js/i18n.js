@@ -160,8 +160,8 @@
       description: "How GETLOCATION collects and protects your personal data. The French version is the legally binding version."
     },
     "business/index.html": {
-      titre: "GetLocation Business — Professional Mobility Solutions",
-      description: "GetLocation Business supports professionals with mobility solutions for tourism, garages, companies, hotels and events."
+      titre: "GETLOCATION MOBILITY PRO — Professional Mobility Solutions",
+      description: "GETLOCATION MOBILITY PRO helps professionals add a vehicle service to their business with ease."
     },
     "business/tourism.html": {
       titre: "GetLocation Business Tourism — Mobility for Your Guests",
@@ -199,6 +199,22 @@
     "Contact": "Contact",
     "Nous appeler": "Call us",
     "Business": "Business",
+    "Mobility Pro": "Mobility Pro",
+    "GETLOCATION MOBILITY PRO": "GETLOCATION MOBILITY PRO",
+    "Ajoutez facilement un service de véhicule à votre activité.": "Easily add a vehicle service to your business.",
+    "Des solutions de mobilité complémentaires, conçues autour des besoins réels de vos clients et de vos équipes.": "Complementary mobility solutions, designed around the real needs of your clients and teams.",
+    "Vos besoins métier": "Your business needs",
+    "Une solution adaptée à chaque moment.": "A solution for every moment.",
+    "La première verticale est prête à être testée avec des garages et carrosseries.": "The first vertical is ready to be tested with garages and body shops.",
+    "Réparer un véhicule": "Repair a vehicle",
+    "Complétez vos véhicules de courtoisie lorsque nécessaire.": "Complement your courtesy vehicles whenever needed.",
+    "Découvrir la solution": "Explore the solution",
+    "Accueillir des voyageurs": "Welcome travellers",
+    "Une mobilité fluide pour enrichir l'expérience de séjour.": "Seamless mobility to enrich the guest experience.",
+    "Équiper vos collaborateurs": "Equip your employees",
+    "Des solutions souples pour vos déplacements professionnels.": "Flexible solutions for your business travel.",
+    "Accueillir vos clients": "Welcome your clients",
+    "Proposez simplement un service de mobilité à votre établissement.": "Easily offer a mobility service at your establishment.",
     "Pour les professionnels": "For professionals",
     "GetLocation Business": "GetLocation Business",
     "Des solutions de mobilité adaptées aux professionnels.": "Mobility solutions designed for professionals.",
