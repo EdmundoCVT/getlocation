@@ -514,6 +514,15 @@
     "On vous l'apporte là où vous en avez besoin.": "We bring it wherever you need it.",
     "Vous roulez.": "You drive.",
     "Les engagements GETLOCATION": "GETLOCATION commitments",
+    "La livraison, en toute simplicité": "Delivery made simple",
+    "On vous livre là où vous en avez besoin.": "We deliver wherever you need us.",
+    "À l’aéroport, à l’hôtel, à domicile ou sur votre lieu de séjour, GetLocation vous remet votre véhicule directement sur place.":
+      "At the airport, your hotel, home or holiday accommodation, GetLocation hands over your vehicle directly on site.",
+    "Réservez votre véhicule en ligne": "Book your vehicle online",
+    "Choisissez votre lieu de livraison": "Choose your delivery location",
+    "Récupérez les clés et prenez la route": "Collect the keys and hit the road",
+    "Livreur GetLocation remettant les clés d’un véhicule à des voyageurs à l’aéroport":
+      "GetLocation delivery driver handing vehicle keys to travellers at the airport",
     "À l'adresse de votre choix ou au point de retrait.": "At the address of your choice or at a meeting point.",
     "Domicile, hôtel, Airbnb, aéroport ou autre adresse disponible.": "Home, hotel, Airbnb, airport or another available address.",
     "Roulez": "You drive",
