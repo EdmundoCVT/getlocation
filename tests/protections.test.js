@@ -29,7 +29,8 @@ const {
 } = data;
 const { validateReservationInput } = require("../src/lib/validate-reservation-input.js");
 
-// Opel Corsa : 59 €/jour, le véhicule utilisé par les autres tests de prix.
+// Opel Corsa : le véhicule utilisé par les autres tests de prix. Son tarif
+// dépend désormais de la saison et des périodes commerciales.
 const VEHICULE = "opel-corsa";
 
 // Les espaces fines insécables des montants sont normalisées à l'écriture
@@ -107,25 +108,27 @@ test("identifiant de protection inconnu ou absent : repli silencieux sur la form
 
 test("10 jours en Sérénité : location remisée + protection plafonnée", () => {
   const resultat = prix(10, { protection: "serenite" });
-  // 10 × 59 = 590, remise longue durée -5 €/jour = -50, protection 84.
-  assert.equal(resultat.sousTotalBrut, 590);
-  assert.equal(resultat.reductionDuree.montant, 50);
+  // 05/10 → 15/10/2026 : 6 jours Normale à 49 €, puis 4 jours MIPCOM à 65 €.
+  // La remise de durée est de 10 % après la valorisation journalière.
+  assert.equal(resultat.sousTotalBrut, 554);
+  assert.equal(resultat.reductionDuree.montant, 55.4);
   assert.equal(resultat.protection.montant, 84);
   assert.equal(resultat.protection.plafonne, true);
-  assert.equal(resultat.total, 590 - 50 + 84);
+  assert.equal(resultat.total, 554 - 55.4 + 84);
 });
 
 test("protection, options enfant, livraison, jeune conducteur et remise durée se cumulent sans se recouvrir", () => {
   const resultat = prix(5, {
     protection: "serenite-plus",
     options: ["siege-enfant", "livraison-adresse"],
-    permisDate: "2025-01-01" // permis de moins de 3 ans
+    permisDate: "2025-01-01", // permis de moins de 3 ans
+    deliveryDistanceKm: 0
   });
   assert.equal(resultat.protection.montant, 100); // 5 j × 20 €
-  assert.equal(resultat.optionsMontant, 50 + 20); // siège 5 j × 10 € + livraison 20 €
+  assert.equal(resultat.optionsMontant, 50 + 25); // siège 5 j × 10 € + livraison minimum 25 €
   assert.equal(resultat.supplementJeuneConducteur.montant, 150); // 5 j × 30 €
-  assert.equal(resultat.reductionDuree.montant, 25); // 5 j × 5 €
-  assert.equal(resultat.total, 5 * 59 - 25 + 100 + 70 + 150);
+  assert.equal(resultat.reductionDuree.montant, 12.25); // 5 % après valorisation journalière
+  assert.equal(resultat.total, 245 - 12.25 + 100 + 75 + 150);
 });
 
 test("changer de formule remplace le montant au lieu de s'y ajouter", () => {
@@ -152,7 +155,7 @@ test("la protection n'est pas une option : elle n'apparaît jamais dans le catal
 test("une ancienne réservation demandant « assurance-passagers » n'est plus facturée pour cette option", () => {
   const resultat = prix(2, { options: ["assurance-passagers"], protection: PROTECTION_PAR_DEFAUT });
   assert.equal(resultat.optionsMontant, 0, "une option disparue du catalogue ne doit rien facturer");
-  assert.equal(resultat.total, 2 * 59);
+  assert.equal(resultat.total, 2 * 49);
 });
 
 // ---------------------------------------------------------------------
@@ -169,6 +172,7 @@ function entreeValide(extra = {}) {
     adresseRetour: data.LIEUX[0] === data.LIEU_LIVRAISON ? data.VILLES_LIVRAISON[0] : "",
     options: [],
     codePromo: "",
+    deliveryDistanceKm: 0,
     conducteur: {
       nom: "Dupont", prenom: "Jean", email: "jean@example.com",
       telephone: "0600000000", naissance: "1990-06-15", permisDate: "2012-06-15"
@@ -215,6 +219,7 @@ test("validateReservationInput Worker : refuse 06:30 et accepte 07:00", () => {
 // ---------------------------------------------------------------------
 
 const dataJsSource = fs.readFileSync(path.join(__dirname, "..", "js", "data.js"), "utf8");
+const pricingJsSource = fs.readFileSync(path.join(__dirname, "..", "js", "pricing.js"), "utf8");
 const contratEnSource = fs.readFileSync(path.join(__dirname, "..", "js", "contrat-en.js"), "utf8");
 const contratHtml = fs.readFileSync(path.join(__dirname, "..", "contrat.html"), "utf8");
 
@@ -269,6 +274,7 @@ function contratPdf(surcharges = {}) {
   const dom = new JSDOM(contratHtml, { url: "https://getlocation.fr/contrat.html", runScripts: "outside-only" });
   const win = dom.window;
   win.jspdf = { jsPDF: fauxJsPdf(journal) };
+  win.eval(pricingJsSource);
   win.eval(dataJsSource);
   win.eval(contratEnSource);
   win.eval(corpsScriptContrat());
@@ -279,27 +285,22 @@ function contratPdf(surcharges = {}) {
   return { journal, payload, tout: journal.map((e) => e.texte).join("\n") };
 }
 
-test("contrat PDF : niveau de protection, franchise et dépôt de garantie sont trois informations distinctes", () => {
+test("contrat PDF : protection choisie et dépôt de garantie sont distincts, sans promesse de plafond", () => {
   const { tout, journal, payload } = contratPdf({ protection: "serenite" });
 
-  assert.match(tout, /NIVEAU DE PROTECTION/);
-  assert.match(tout, /FRANCHISE \//);
-  assert.match(tout, /RESPONSABILITÉ MAXIMALE/);
+  assert.match(tout, /PROTECTION COMPLÉMENTAIRE/);
   assert.match(tout, /DÉPÔT DE GARANTIE/);
+  assert.doesNotMatch(tout, /FRANCHISE|RESPONSABILITÉ MAXIMALE/);
 
-  // Les trois valeurs figurent bien, et ne sont pas confondues : la
-  // franchise vient de la formule, le dépôt du véhicule.
+  // Le niveau choisi et le dépôt du véhicule ne sont pas confondus.
   assert.equal(payload.protection.id, "serenite");
-  assert.equal(payload.protection.franchise, 750);
   assert.ok(journal.some((e) => e.texte === "Comfort Protection" || e.texte === "Protection Confort"), "nom de la formule absent");
-  assert.ok(journal.some((e) => memeMontant(e.texte, "750 €")), "franchise de la formule absente");
   assert.ok(journal.some((e) => memeMontant(e.texte, payload.caution)), "dépôt de garantie absent");
-  assert.equal(memeMontant(payload.caution, "750 €"), false, "le dépôt ne doit pas être confondu avec la franchise");
 
-  // Chacune sur sa propre colonne : trois abscisses différentes.
+  // Les deux informations sont visuellement séparées dans le bloc garantie.
   const abscisse = (fragment) => journal.find((e) => e.texte.startsWith(fragment)).x;
-  const colonnes = [abscisse("NIVEAU DE PROTECTION"), abscisse("FRANCHISE"), abscisse("DÉPÔT DE GARANTIE")];
-  assert.equal(new Set(colonnes).size, 3, "les trois informations doivent occuper trois colonnes distinctes");
+  const colonnes = [abscisse("PROTECTION COMPLÉMENTAIRE"), abscisse("DÉPÔT DE GARANTIE")];
+  assert.equal(new Set(colonnes).size, 2, "la protection et le dépôt doivent occuper des colonnes distinctes");
 });
 
 test("contrat PDF : la clause Dépôt de garantie précise sa portée financière", () => {
@@ -323,8 +324,7 @@ test("contrat PDF : la protection payante figure comme ligne de prix, la formule
     "une protection gratuite ne doit pas créer une ligne à 0 €"
   );
   // Elle reste néanmoins affichée dans le bloc protection/garantie.
-  assert.match(incluse.tout, /NIVEAU DE PROTECTION/);
-  assert.equal(incluse.payload.protection.franchise, 2000);
+  assert.match(incluse.tout, /PROTECTION COMPLÉMENTAIRE/);
 });
 
 test("contrat PDF : total = location + options + protection, sans double comptage", () => {
@@ -334,11 +334,10 @@ test("contrat PDF : total = location + options + protection, sans double comptag
   assert.equal(synthese.location + sommeOptions, synthese.totalLocation);
 });
 
-test("contrat PDF anglais : la formule porte son nom anglais, la franchise le sien", () => {
+test("contrat PDF anglais : la formule porte son nom anglais sans promettre un plafond", () => {
   const { tout } = contratPdf({ protection: "serenite", langueClient: "en" });
-  assert.match(tout, /PROTECTION LEVEL/);
-  assert.match(tout, /EXCESS \//);
-  assert.match(tout, /MAXIMUM LIABILITY/);
+  assert.match(tout, /ADDITIONAL PROTECTION/);
+  assert.doesNotMatch(tout, /EXCESS|MAXIMUM LIABILITY/);
   assert.ok(tout.includes("Comfort Protection"), "le nom de la formule doit être traduit");
   assert.equal(/NIVEAU DE PROTECTION/.test(tout), false, "aucun intitulé français sur le contrat anglais");
 });
@@ -405,6 +404,7 @@ test("formulaire agence : la protection est un champ du contrat, lu, enregistré
 test("formulaire agence : la protection survit à l'encodage du lien de contrat (réouverture, duplication)", () => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { runScripts: "outside-only" });
   const win = dom.window;
+  win.eval(pricingJsSource);
   win.eval(dataJsSource);
   win.eval(corpsScriptContrat());
 

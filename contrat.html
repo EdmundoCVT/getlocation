@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 65932)
-Total output lines: 5022
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -430,7 +427,7 @@ Total output lines: 5022
 
         <!-- Niveau de protection : mêmes formules que sur le site (voir
              PROTECTIONS dans js/data.js), pour qu'un contrat établi au
-             comptoir reprend exactement les mêmes protections et tarifs qu'une
+             comptoir reprenne exactement les mêmes protections et tarifs qu'une
              réservation en ligne. -->
         <div class="field full" style="margin-top:8px;">
           <label for="protection">Niveau de protection</label>
@@ -630,10 +627,3568 @@ Total output lines: 5022
         <h2 style="margin-top:22px;padding-top:22px;border-top:1px dashed var(--ligne);">Signature</h2>
         <div class="check-row">
           <input type="checkbox" id="accept" required>
-          <label for="accept">Je déclare l'exactitude des informations fournies et être titulaire d'un permis de conduire valable. J'ai pris connaissance du présent contrat et des Conditions Générales de Location (<a href="cgl.html" target="_blank" rel="noopener">cgl.html</a>), et j'accepte la tarification convenue, les options éventuellement sélectionnées, les protections et leurs conditions et exclusions indiquées à l'article 4, ainsi que l'état du véhicule tel qu'indiqué lors de sa remise.</label>
+          <label for="accept">Je déclare l'exactitude des informations fournies et être titulaire d'un permis de conduire valable. J'ai pris connaissance du présent contrat et des Conditions Générales de Location (<a href="cgl.html" target="_blank" rel="noopener">cgl.html</a>), et j'accepte la tarification convenue, les options éventuellement sélectionnées, les garanties et franchises applicables indiquées à l'article 4, ainsi que l'état du véhicule tel qu'indiqué lors de sa remise.</label>
         </div>
 
-        <div class="si…45932 tokens truncated…ch(function(b){
+        <div class="sig-row" style="margin-top:16px;">
+          <span class="hint">Signez avec la souris, le trackpad ou le doigt</span>
+          <button type="button" class="btn btn-ghost no-print" id="clearBtn">Effacer</button>
+        </div>
+        <canvas id="pad" width="700" height="150"></canvas>
+        <p class="meta-line no-print" id="padHint">Le champ signature est requis avant validation.</p>
+
+        <button type="submit" class="btn btn-primary no-print" id="submitBtn" disabled>Signer et valider le contrat</button>
+
+        <div class="status" id="statusBox">
+          <span>✓</span>
+          <span id="statusText">Contrat signé électroniquement.</span>
+        </div>
+
+        <div class="signed-block" id="signedBlock">
+          <p class="meta-line" id="signedMeta"></p>
+          <div class="actions-final no-print">
+            <button type="button" class="btn" id="printBtn">📄 Télécharger le PDF</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= DOSSIER AGENCE SÉCURISÉ (#agencyToken=) ================= -->
+  <div id="dossierAgencyView" class="hidden">
+    <div id="dossierAgencyLoading" class="card"><p>Vérification de votre lien sécurisé…</p></div>
+    <div id="dossierAgencyError" class="card hidden"><h2>Lien indisponible</h2><p class="missing-fields" id="dossierAgencyErrorText"></p></div>
+
+    <div id="dossierAgencyContent" class="hidden">
+      <h1>Dossier de location<span class="badge-statut" id="dossierStatutBadge"></span></h1>
+      <p class="lead" id="dossierReference"></p>
+
+      <div class="card">
+        <h2>Récapitulatif de la réservation</h2>
+        <div id="dossierRecap"></div>
+      </div>
+
+      <div class="card">
+        <h2>Informations du contrat à compléter</h2>
+        <p class="lead" style="margin-bottom:10px;">Le véhicule, les dates et les coordonnées viennent de la réservation payée (ci-dessus, non modifiables ici). Complétez le reste avant d'envoyer le lien de signature au client.</p>
+        <div class="grid">
+          <div class="field">
+            <label for="df-immatriculation">Immatriculation</label>
+            <input id="df-immatriculation" type="text" placeholder="AA-123-BB">
+          </div>
+          <div class="field full">
+            <label for="df-adresse">Adresse du locataire (n° et rue)</label>
+            <input id="df-adresse" type="text">
+          </div>
+          <div class="field">
+            <label for="df-codePostal">Code postal</label>
+            <input id="df-codePostal" type="text" inputmode="numeric" maxlength="10">
+          </div>
+          <div class="field">
+            <label for="df-ville">Ville</label>
+            <input id="df-ville" type="text">
+          </div>
+          <div class="field">
+            <label for="df-permisNumero">N° de permis de conduire</label>
+            <input id="df-permisNumero" type="text">
+          </div>
+          <div class="field">
+            <label for="df-permisDate">Date d'obtention du permis</label>
+            <input id="df-permisDate" type="text" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" pattern="\d{2}/\d{2}/\d{4}">
+          </div>
+          <div class="field">
+            <label for="df-permisPays">Pays de délivrance (optionnel)</label>
+            <input id="df-permisPays" type="text" placeholder="France">
+          </div>
+          <div class="field">
+            <label for="df-permisValidite">Date de validité du permis (optionnel)</label>
+            <input id="df-permisValidite" type="text" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" pattern="\d{2}/\d{2}/\d{4}">
+          </div>
+        </div>
+        <div class="field full" style="margin-top:16px;">
+          <label>Mode de règlement du dépôt de garantie</label>
+          <div class="tabs" id="dfCautionTabs">
+            <button type="button" class="tab-btn active" data-mode="carte">Carte bancaire</button>
+            <button type="button" class="tab-btn" data-mode="especes">Espèces</button>
+          </div>
+        </div>
+        <div class="check-row">
+          <input type="checkbox" id="df-livraison-toggle">
+          <label for="df-livraison-toggle">Livraison du véhicule à une adresse</label>
+        </div>
+        <div class="second-conducteur" id="dfLivraisonBlock">
+          <div class="grid">
+            <div class="field full"><label for="df-livraisonRue">Adresse de livraison</label><input id="df-livraisonRue" type="text"></div>
+            <div class="field"><label for="df-livraisonCP">Code postal</label><input id="df-livraisonCP" type="text" inputmode="numeric" maxlength="10"></div>
+            <div class="field"><label for="df-livraisonVille">Ville</label><input id="df-livraisonVille" type="text"></div>
+          </div>
+        </div>
+        <div class="check-row">
+          <input type="checkbox" id="df-second-toggle">
+          <label for="df-second-toggle">Ajouter un second conducteur</label>
+        </div>
+        <div class="second-conducteur" id="dfSecondBlock">
+          <div class="grid">
+            <div class="field"><label for="df-secondNom">Nom (2<sup>e</sup> conducteur)</label><input id="df-secondNom" type="text"></div>
+            <div class="field"><label for="df-secondPrenom">Prénom (2<sup>e</sup> conducteur)</label><input id="df-secondPrenom" type="text"></div>
+            <div class="field"><label for="df-secondPermis">N° de permis</label><input id="df-secondPermis" type="text"></div>
+            <div class="field"><label for="df-secondPermisDate">Date d'obtention (optionnel)</label><input id="df-secondPermisDate" type="text" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" pattern="\d{2}/\d{2}/\d{4}"></div>
+            <div class="field full"><label for="df-secondPermisPays">Pays de délivrance (optionnel)</label><input id="df-secondPermisPays" type="text" placeholder="France"></div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-primary" id="dfSaveBtn" style="margin-top:16px;">Enregistrer ces informations</button>
+        <p class="meta-line" id="dfSaveMsg"></p>
+      </div>
+
+      <div class="card">
+        <h2>Aperçu PDF</h2>
+        <button type="button" class="btn btn-primary" id="dfDownloadPdfBtn">📄 Télécharger le PDF</button>
+      </div>
+
+      <div class="card">
+        <h2>Envoyer le contrat au client</h2>
+        <p class="lead" id="dfSendHint" style="margin-bottom:10px;">Complétez et enregistrez toutes les informations obligatoires ci-dessus pour pouvoir envoyer le lien de signature.</p>
+        <p class="missing-fields hidden" id="dfMissingFields"></p>
+        <button type="button" class="btn btn-primary" id="dfSendBtn">✉️ Envoyer au client pour signature</button>
+        <div class="link-box hidden" id="dfLinkBox">
+          <input type="text" id="dfLinkOutput" readonly>
+          <button type="button" class="btn" id="dfCopyBtn">📋 Copier</button>
+        </div>
+        <div class="share-actions hidden" id="dfShareActions">
+          <a class="btn share-btn" id="dfWhatsappBtn" target="_blank" rel="noopener">💬 WhatsApp</a>
+          <a class="btn share-btn" id="dfSmsBtn">📱 SMS</a>
+          <a class="btn share-btn" id="dfEmailBtn">✉️ E-mail</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Remise et restitution du véhicule</h2>
+        <div style="overflow-x:auto;">
+          <table class="rr-table">
+            <thead><tr><th></th><th>Départ</th><th>Retour</th></tr></thead>
+            <tbody>
+              <tr><td>Date et heure</td><td><input type="datetime-local" id="rr-depart-dateHeure"></td><td><input type="datetime-local" id="rr-retour-dateHeure"></td></tr>
+              <tr><td>Kilométrage compteur</td><td><input type="number" min="0" id="rr-depart-km"></td><td><input type="number" min="0" id="rr-retour-km"></td></tr>
+              <tr><td>Niveau de carburant</td><td><select id="rr-depart-carburant"></select></td><td><select id="rr-retour-carburant"></select></td></tr>
+              <tr><td>État de propreté</td><td><input type="text" id="rr-depart-proprete"></td><td><input type="text" id="rr-retour-proprete"></td></tr>
+              <tr><td>Dommages / observations</td><td><textarea id="rr-depart-dommages"></textarea></td><td><textarea id="rr-retour-dommages"></textarea></td></tr>
+              <tr><td>Photos (nombre / référence)</td><td><input type="text" id="rr-depart-photosRef" placeholder="ex. 6 photos (dossier départ)"></td><td><input type="text" id="rr-retour-photosRef" placeholder="ex. 6 photos (dossier retour)"></td></tr>
+              <tr><td>Nombre de clés</td><td><input type="number" min="0" max="5" step="1" id="rr-depart-cles" placeholder="2"></td><td><input type="number" min="0" max="5" step="1" id="rr-retour-cles"></td></tr>
+              <tr><td>Accessoires</td><td><input type="text" id="rr-depart-clesAccessoires" placeholder="carte grise, chargeur, triangle…"></td><td><input type="text" id="rr-retour-clesAccessoires"></td></tr>
+              <tr><td>Nom de l'agent</td><td><input type="text" id="rr-depart-agent"></td><td><input type="text" id="rr-retour-agent"></td></tr>
+              <tr><td>Signature client</td><td><input type="text" id="rr-depart-clientSigne" placeholder="Nom tapé par le client"></td><td><input type="text" id="rr-retour-clientSigne"></td></tr>
+              <tr><td>Signature agence</td><td><input type="text" id="rr-depart-agenceSigne" placeholder="Nom de l'agent"></td><td><input type="text" id="rr-retour-agenceSigne"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-primary" id="rrDepartSaveBtn" style="flex:1;">Enregistrer la remise (départ)</button>
+          <button type="button" class="btn btn-primary" id="rrRetourSaveBtn" style="flex:1;">Enregistrer la restitution (retour)</button>
+        </div>
+        <p class="meta-line" id="rrSaveMsg"></p>
+        <div class="vehicule-recap hidden" id="rrKilometrageResultat" style="margin-top:14px;"></div>
+
+        <div class="field full" style="margin-top:18px;">
+          <label for="rrObservations">Observations complémentaires</label>
+          <textarea id="rrObservations" rows="3"></textarea>
+        </div>
+        <button type="button" class="btn" id="rrObservationsSaveBtn" style="margin-top:8px;">Enregistrer les observations</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= DOSSIER CLIENT SÉCURISÉ (#clientToken=) ================= -->
+  <div id="dossierClientView" class="hidden">
+    <div id="dossierClientLoading" class="card"><p>Vérification de votre lien sécurisé…</p></div>
+    <div id="dossierClientError" class="card hidden"><h2>Lien indisponible</h2><p class="missing-fields" id="dossierClientErrorText"></p></div>
+
+    <div id="dossierClientContent" class="hidden">
+      <div class="badge">Vérification et signature</div>
+      <h1>Votre contrat de location</h1>
+      <p class="lead">Vérifiez les informations ci-dessous, puis signez pour valider votre réservation.</p>
+
+      <div class="card">
+        <h2>Récapitulatif</h2>
+        <div id="dcRecap"></div>
+        <button type="button" class="btn no-print" id="dcPreviewPdfBtn" style="margin-top:16px;width:100%;">📄 Aperçu PDF (avant signature)</button>
+      </div>
+
+      <div class="card" id="dcAlreadySigned" class="hidden">
+        <h2>Contrat déjà signé</h2>
+        <p class="meta-line" id="dcAlreadySignedMeta"></p>
+        <button type="button" class="btn" id="dcDownloadSignedPdfBtn">📄 Télécharger le PDF</button>
+      </div>
+
+      <div class="card" id="dcSignCard">
+        <h2>Conditions de location</h2>
+        <p class="meta-line">Ce contrat reprend les points essentiels de votre location. Les Conditions Générales de Location complètes (voir <a href="cgl.html" target="_blank" rel="noopener">cgl.html</a>) précisent les règles non spécifiques à cette réservation (annulation, contraventions, usage du véhicule, responsabilité...).</p>
+
+        <form id="dcSignForm">
+          <div class="check-row">
+            <input type="checkbox" id="dc-accept" required>
+            <label for="dc-accept">Je déclare l'exactitude des informations fournies, être titulaire d'un permis de conduire valable, avoir pris connaissance du présent contrat et des Conditions Générales de Location (<a href="cgl.html" target="_blank" rel="noopener">cgl.html</a>), et j'accepte les conditions de location, la tarification applicable, ainsi que l'état du véhicule tel qu'indiqué lors de sa remise.</label>
+          </div>
+
+          <div class="sig-row" style="margin-top:16px;">
+            <span class="hint">Signez avec la souris, le trackpad ou le doigt</span>
+            <button type="button" class="btn btn-ghost no-print" id="dcClearBtn">Effacer</button>
+          </div>
+          <canvas id="dcPad" width="700" height="150"></canvas>
+          <p class="meta-line no-print" id="dcPadHint">Le champ signature est requis avant validation.</p>
+
+          <button type="submit" class="btn btn-primary no-print" id="dcSubmitBtn" disabled>Signer et valider le contrat</button>
+          <div class="status" id="dcStatusBox">
+            <span>✓</span>
+            <span id="dcStatusText">Contrat signé électroniquement.</span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/pricing.js?v=1"></script>
+<script src="js/data.js?v=29"></script>
+<script src="js/contrat-en.js?v=4"></script>
+<script>
+// VEHICULES, formatEUR, joursFacturablesDepuisHeures, getVehiculeParId et
+// getOptionParId viennent de js/data.js (chargé juste avant ce script) —
+// source unique des tarifs/cautions/règles de calcul, jamais dupliqués ici
+// (cf. AUDIT.md, P0 : un contrat ne doit jamais pouvoir diverger du prix
+// affiché ailleurs sur le site).
+// LIEUX_CONTRAT (et non LIEUX, déjà déclaré par data.js dans ce même scope
+// de script global — une redéclaration ferait planter silencieusement tout
+// ce script). Le contrat utilise le même modèle de livraison que le parcours
+// de réservation ; l'adresse exacte est complétée dans le dossier sécurisé.
+const LIEUX_CONTRAT = ["Livraison à l'adresse de votre choix"];
+
+// Même texte que le libellé de la case à cocher d'acceptation (#accept,
+// #dc-accept) — voir le point "Signature" de la mission : la déclaration
+// du locataire doit être une zone finale claire, pas juste "en attente de
+// signature". Tenu manuellement synchronisé avec le HTML des deux vues.
+// Ce que le locataire accepte en signant. Volontairement court et lisible :
+// chaque point renvoie à une information présente ailleurs dans le contrat
+// (tarification, options, garanties de l'article 4, état des lieux), sans
+// créer d'obligation nouvelle.
+const DECLARATION_LOCATAIRE_TEXTE = "En signant ce contrat, le locataire déclare : l'exactitude des informations fournies ci-dessus ; être titulaire d'un permis de conduire valable ; avoir pris connaissance du présent contrat ainsi que des Conditions Générales de Location (cgl.html) ; accepter la tarification convenue et les options éventuellement sélectionnées ; avoir pris connaissance des garanties et franchises applicables indiquées à l'article 4 ; reconnaître l'état du véhicule tel qu'indiqué lors de sa remise (voir tableau de remise et restitution).";
+const SUPPLEMENT_LIVRAISON = getOptionParId('livraison-adresse').prix;
+
+function dureeHeures(a,b){
+  var h = (new Date(b) - new Date(a)) / (1000*60*60);
+  return Math.max(h, 1);
+}
+
+// Sépare une valeur <input type="datetime-local"> ("2026-08-20T10:00") en
+// { date, heure } séparés, tels qu'attendus par calculerPrixTotal() de
+// js/data.js.
+function splitDateHeure(v){
+  var idx = (v || '').indexOf('T');
+  return idx === -1 ? { date: v || '', heure: '00:00' } : { date: v.slice(0, idx), heure: v.slice(idx + 1) };
+}
+
+// Traduit les cases à cocher du formulaire (second conducteur, livraison)
+// en identifiants d'options tels que définis dans OPTIONS (js/data.js).
+function optionsDepuisFormulaire(data){
+  var ids = [];
+  if(data.secondConducteur) ids.push('second-conducteur');
+  if(data.livraison) ids.push('livraison-adresse');
+  if(data.kmForfait) ids.push(data.kmForfait);
+  if(data.siegeEnfant) ids.push('siege-enfant');
+  if(data.rehausseur) ids.push('rehausseur');
+  return ids;
+}
+
+// Recalcule le prix (avec détail : réduction durée, options, total...) à
+// partir de calculerPrixTotal() de js/data.js — la même fonction que le
+// reste du site, jamais un calcul local dupliqué (voir AUDIT.md, P0 : un
+// calcul local ici avait fini par diverger de js/data.js, en particulier
+// en oubliant la réduction durée à partir de 5 jours). Retourne `null` si
+// les dates sont incohérentes (retour ≤ départ) ou le véhicule inconnu —
+// les appelants doivent vérifier ce cas avant d'utiliser le résultat.
+function calculerPrixContrat(data){
+  var d = splitDateHeure(data.depart), r = splitDateHeure(data.retour);
+  return calculerPrixTotal({
+    vehiculeId: data.vehiculeId,
+    dateDebut: d.date, heureDebut: d.heure,
+    dateFin: r.date, heureFin: r.heure,
+    options: optionsDepuisFormulaire(data),
+    codePromo: data.codePromo || '',
+    protection: data.protection || getProtectionParDefaut(),
+    // Supplément jeune conducteur : déduit de la date de délivrance du
+    // permis déjà saisie dans le formulaire agence (JJ/MM/AAAA), exactement
+    // comme sur le site. Aucune case à cocher : la règle est la même pour
+    // tout le monde (voir SUPPLEMENT_JEUNE_CONDUCTEUR, js/data.js).
+    permisDate: jourMoisAnneeVersISO(data.permisDate)
+  });
+}
+// Applique un éventuel tarif manuel (case "Tarif spécial" du formulaire
+// agence) sur le tarif calculé automatiquement — remise OU majoration, les
+// deux sens autorisés. Fonction unique réutilisée par construirePayload()
+// (PDF), updateSummary() (récap agence en direct) et initClientView()
+// (récap client avant signature) : les 3 affichages du total ne doivent
+// jamais pouvoir diverger silencieusement (voir AUDIT.md P0, déjà rencontré
+// une fois exactement sur ce type de duplication).
+function appliquerTarifManuel(prix, data){
+  var tarifCalcule = prix ? prix.total : NaN;
+  var montantValide = data.montantFinalConvenu !== undefined && data.montantFinalConvenu !== '' && isFinite(Number(data.montantFinalConvenu));
+  var tarifManuelActif = !!(data.tarifManuel && montantValide);
+  var total = tarifManuelActif ? Number(data.montantFinalConvenu) : tarifCalcule;
+  return { tarifCalcule: tarifCalcule, total: total, tarifManuelActif: tarifManuelActif };
+}
+function formatJoursFactures(jours){ return jours + ' jour' + (jours > 1 ? 's' : ''); }
+function formatDuree(heures){
+  var total = Math.round(heures);
+  var jours = Math.floor(total/24);
+  var reste = total % 24;
+  var parts = [];
+  if(jours > 0) parts.push(jours + ' jour' + (jours>1?'s':''));
+  if(reste > 0 || jours === 0) parts.push(reste + ' heure' + (reste>1?'s':''));
+  return parts.join(' ');
+}
+// Date longue dans la langue du contrat : « 11 septembre 2026 a 20:30 » ou
+// « 11 September 2026 at 20:30 ». Sans langue, francais — c'est le cas de
+// tous les appels historiques.
+function formatDateHeureFR(v, langue){
+  if(!v) return '…';
+  var d = new Date(v);
+  var locale = (typeof localeContrat === 'function') ? localeContrat(langue) : 'fr-FR';
+  var date = d.toLocaleDateString(locale, { day:'2-digit', month:'long', year:'numeric' });
+  var heure = d.toLocaleTimeString(locale, { hour:'2-digit', minute:'2-digit', hour12: false });
+  return date + (locale === 'en-GB' ? ' at ' : ' à ') + heure;
+}
+// Convertit une date ISO "AAAA-MM-JJ" (seul format que produit la
+// réservation en ligne, voir validate-reservation-input.js) en "JJ/MM/AAAA"
+// pour préremplir les champs de date texte de ce formulaire (naissance,
+// permis...). Ne fait rien sur une valeur déjà dans un autre format —
+// jamais de valeur inventée.
+function isoVersJourMoisAnnee(iso){
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? (m[3] + '/' + m[2] + '/' + m[1]) : (iso || '');
+}
+// Conversion inverse : "JJ/MM/AAAA" (saisie agence) vers "AAAA-MM-JJ", seul
+// format compris par les calculs de js/data.js. Renvoie null si la valeur
+// n'est pas une date complète — une date incomplète ne doit jamais
+// déclencher un supplément au hasard.
+function jourMoisAnneeVersISO(valeur){
+  var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(valeur || '').trim());
+  if(!m) return null;
+  var iso = m[3] + '-' + m[2] + '-' + m[1];
+  var date = new Date(iso + 'T00:00:00Z');
+  if(!isFinite(date.getTime())) return null;
+  // Rejette les dates inexistantes (31/02) que Date normaliserait en silence.
+  return date.toISOString().slice(0, 10) === iso ? iso : null;
+}
+// Les champs JJ/MM/AAAA de ce formulaire utilisent inputmode="numeric" pour
+// afficher un clavier numérique sur mobile — mais ce clavier (iOS/Android)
+// n'a pas de touche "/", rendant le format demandé impossible à saisir
+// (constaté le 11/09/2026). Insère automatiquement les "/" à la frappe :
+// l'utilisateur ne tape que des chiffres, la mise en forme suit toute
+// seule. Ne touche jamais un champ déjà rempli par ailleurs (prefill,
+// remplirFormulaire...) : ne s'active que sur une frappe utilisateur
+// (événement "input"), jamais sur une affectation directe de .value.
+function activerSaisieDateAuto(input){
+  if(!input) return;
+  input.addEventListener('input', function(){
+    var chiffres = input.value.replace(/\D/g, '').slice(0, 8);
+    if(chiffres.length > 4) input.value = chiffres.slice(0,2) + '/' + chiffres.slice(2,4) + '/' + chiffres.slice(4);
+    else if(chiffres.length > 2) input.value = chiffres.slice(0,2) + '/' + chiffres.slice(2);
+    else input.value = chiffres;
+  });
+}
+['naissance', 'permisDate', 'permisValidite', 'naissance2', 'permis2Date', 'df-permisDate', 'df-permisValidite', 'df-secondPermisDate'].forEach(function(id){
+  activerSaisieDateAuto(document.getElementById(id));
+});
+// Encodage base64url (RFC 4648 §5) plutôt que le base64 standard : "+" et
+// "/" cassent silencieusement la lecture du lien (URLSearchParams décode
+// "+" en espace, corrompant le base64 avant même atob()), et le "="
+// terminal empêche certaines messageries (WhatsApp constaté le 18/08/2026)
+// de reconnaître le texte collé comme un lien cliquable. base64url ne
+// contient aucun de ces trois caractères. Même transformation que
+// encodeContractData() côté serveur (src/lib/send-contract-email.js) —
+// les deux doivent rester synchronisés pour que les liens envoyés par
+// e-mail après paiement restent lisibles par decodeData() ci-dessous.
+function encodeData(obj){
+  var standard = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+  return standard.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+// Le schéma d'URI "sms:" n'est pas standardisé entre plateformes : iOS
+// Safari n'ouvre l'app Messages avec le texte prérempli que si le corps est
+// passé après un "&" (sans numéro de destinataire), alors qu'Android exige
+// un "?" — utiliser systématiquement "?body=" laisse l'app Messages
+// s'ouvrir vide sur iPhone, sans erreur visible ni message d'échec.
+function smsHref(messageEnc){
+  var estIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  return estIOS ? ('sms:&body=' + messageEnc) : ('sms:?body=' + messageEnc);
+}
+// Accepte aussi bien un lien base64url (nouveau format, voir encodeData())
+// qu'un lien base64 standard déjà envoyé avant ce changement (ancien
+// format, avec "+"/"/"/"=" tels quels) : "-"/"_" n'existent jamais dans le
+// base64 standard, donc les remplacer ne modifie pas un ancien lien.
+function decodeData(str){
+  var standard = String(str).replace(/-/g, '+').replace(/_/g, '/');
+  while (standard.length % 4) { standard += '='; }
+  return JSON.parse(decodeURIComponent(escape(atob(standard))));
+}
+
+// Lit le texte des conditions de location via textContent (pas innerText) :
+// #contractText vit dans #clientView, qui reste dans le DOM mais passe en
+// display:none quand la vue AGENCE est affichée — innerText renvoie alors
+// une chaîne vide sur un élément non rendu (comportement standard, pas un
+// bug), alors que textContent reste fiable quel que soit l'affichage.
+// Reconstruit les sauts de paragraphe (perdus par textContent) en joignant
+// chaque titre/paragraphe séparément.
+//
+// IMPORTANT : ignore les noeuds masqués individuellement (style.display ===
+// 'none', ex. #secondConducteurClause quand aucun second conducteur n'est
+// sélectionné — voir remplirTexteArticles()/initClientView()). textContent
+// ignore le CSS et renvoie le texte même caché : sans ce filtre, la clause
+// second conducteur (avec ses "…" jamais remplis) apparaissait dans le PDF
+// et dans tout usage de cette fonction alors qu'elle restait bien invisible
+// à l'écran — c'était le bug réellement observé, pas un problème d'affichage.
+function texteConditionsLocation(){
+  var el = document.getElementById('contractText');
+  if(!el) return '';
+  var parties = [];
+  el.querySelectorAll('h3, p').forEach(function(node){
+    if(node.style && node.style.display === 'none') return;
+    parties.push(node.textContent.trim());
+  });
+  return parties.join('\n\n');
+}
+
+// Même filtre que texteConditionsLocation() ci-dessus (clauses masquées
+// ignorées), mais structuré par article (titre + paragraphes) plutôt qu'un
+// bloc de texte plat — permet au PDF (genererPDF) de garder un titre
+// d'article avec le début de son texte plutôt que de le laisser isolé en
+// bas de page (voir sautDePageSiBesoin).
+function sectionsConditionsLocation(){
+  var el = document.getElementById('contractText');
+  if(!el) return [];
+  var sections = [];
+  var courante = null;
+  Array.prototype.forEach.call(el.children, function(node){
+    if(node.style && node.style.display === 'none') return;
+    if(node.tagName === 'H3'){
+      courante = { titre: node.textContent.trim(), paragraphes: [] };
+      sections.push(courante);
+    } else if(node.tagName === 'P' && courante){
+      courante.paragraphes.push(node.textContent.trim());
+    }
+  });
+  return sections;
+}
+
+// Articles du contrat, dans la langue ou il est etabli.
+// Francais : lus dans #contractText (source de reference, deja remplie par
+// remplirTexteArticles). Anglais : construits depuis js/contrat-en.js avec
+// les memes valeurs, pour que les deux versions ne puissent pas diverger
+// sur les montants, dates ou kilometrages.
+function sectionsContrat(payload, dictionnaire){
+  if(!dictionnaire) return sectionsConditionsLocation();
+  var valeurs = {
+    vehicule: payload.vehicule,
+    immat: payload.immatriculation,
+    depart: payload.depart,
+    retour: payload.retour,
+    duree: payload.duree,
+    lieu: payload.lieu,
+    total: payload.total,
+    montantRegle: payload.montantRegle || payload.total,
+    soldeRestant: payload.soldeRestant,
+    detailAcompte: payload.detailAcompte,
+    detailSolde: payload.detailSolde,
+    kmInclusParJour: nombreContrat(getKmInclusParJour(), payload.langueClient),
+    kmInclus: payload.kmInclus,
+    supplementKm: formatEURPrecis((payload.supplementKmCentimes !== undefined ? payload.supplementKmCentimes : getSupplementKmCentimes()) / 100),
+    caution: payload.caution,
+    modeCaution: (payload.mode_reglement_caution || '').toLowerCase(),
+    nom2: (payload.second_conducteur_prenom + ' ' + payload.second_conducteur_nom).trim(),
+    permis2: payload.second_conducteur_permis,
+    ribIban: payload.rib_iban,
+    ribTitulaire: payload.rib_titulaire || (payload.locataire_prenom + ' ' + payload.locataire_nom).trim(),
+    cglVersion: payload.cglVersion || getCglVersion()
+  };
+  var sections = dictionnaire.articles(valeurs, {
+    secondConducteur: payload.second_conducteur === 'Oui',
+    ribClient: !!payload.rib_iban
+  });
+  // Remarques particulieres : saisies par l'agence, donc jamais traduites —
+  // reprises telles quelles sous leur intitule anglais.
+  if(payload.remarques){
+    sections.push({ titre: dictionnaire.texte('Remarques particulières'), paragraphes: [payload.remarques] });
+  }
+  return sections;
+}
+
+function libelleModePaiement(mode){
+  return mode === 'especes' ? 'Espèces' : (mode === 'virement' ? 'Virement bancaire' : 'Carte bancaire');
+}
+
+function libelleModeCaution(mode){
+  return mode === 'especes' ? 'Espèces' : (mode === 'virement' ? 'Virement bancaire' : 'Carte bancaire');
+}
+
+// Seul et unique calcul acompte/solde du fichier — utilisé À LA FOIS par
+// construirePayload() (PDF agence/client, lien ?data=) ET initClientView()
+// (affichage immédiat à l'ouverture d'un lien client, avant tout clic sur
+// un bouton). Avant l'existence de cette fonction, initClientView() avait
+// SA PROPRE logique, câblée en dur sur "payé en totalité, solde 0" —
+// exactement le bug remonté le 09/09/2026 ("le lien n'est pas à jour").
+// `false` explicite seul compte comme "en attente" — `undefined` (contrats
+// créés avant l'ajout de ce statut) reste "réglé", comme le comportement
+// d'avant.
+function calculerDetailPaiement(total, data){
+  var montantRegleNombre = (data.montantRegle !== undefined && data.montantRegle !== '' && isFinite(Number(data.montantRegle)))
+    ? Number(data.montantRegle) : total;
+  var soldeNombre = (isFinite(total) && isFinite(montantRegleNombre)) ? Math.max(Math.round((total - montantRegleNombre) * 100) / 100, 0) : NaN;
+  var detailAcompte = (data.acompteRegle === false ? 'à régler par ' : 'réglé par ') + libelleModePaiement(data.modePaiement).toLowerCase() + (data.acompteRegle === false ? ' (en attente)' : '');
+  var detailSolde = (data.soldeRegle === false ? 'à régler par ' : 'réglé par ') + libelleModePaiement(data.modePaiementSolde).toLowerCase() + (data.soldeRegle === false ? ' (en attente)' : '');
+  return { montantRegleNombre: montantRegleNombre, soldeNombre: soldeNombre, detailAcompte: detailAcompte, detailSolde: detailSolde };
+}
+
+// La caution nécessite un RIB de restitution (voir #ribClientBlock) pour
+// tout mode qui n'est pas une pré-autorisation carte : espèces (remboursée
+// par virement) et virement (déjà réglée par virement, donc déjà un RIB
+// connu du locataire).
+function cautionNecessiteRib(mode){
+  return mode === 'especes' || mode === 'virement';
+}
+
+// ---------------------------------------------------------------------
+// Schéma interactif d'état des lieux (dommages départ/retour) — demandé
+// le 01/09/2026. Un seul schéma générique "voiture" et un générique
+// "utilitaire" (voir VEHICULES[].vehicleFamily dans js/data.js), jamais un
+// schéma par modèle. Chaque vue (dessus/côté gauche/côté droit/avant/
+// arrière) est décrite comme une petite liste de primitives géométriques
+// (rect/ellipse/line/poly, coordonnées dans un repère fixe par vue) : cette
+// même description sert à la fois à construire le SVG affiché à l'écran
+// (construireSvgSchema) ET à redessiner le même schéma dans le PDF avec les
+// primitives vectorielles de jsPDF (dessinerSchemaPdf) — une seule source de
+// vérité, jamais une image bitmap ni une bibliothèque graphique. "Côté
+// droit" réutilise le schéma "side" simplement mirroré (voir mirror ci-
+// dessous), pas une géométrie redessinée.
+var DMG_TYPES = [
+  { id: 'rayure', label: 'Rayure', symbole: 'X' },
+  { id: 'bosse', label: 'Bosse / impact', symbole: 'O' },
+  { id: 'eclat', label: 'Éclat / petit impact', symbole: '●' }
+];
+
+var DMG_VIEWS = [
+  { key: 'left', label: 'Profil conducteur', shape: 'side' },
+  { key: 'front', label: 'Avant', shape: 'front' },
+  { key: 'right', label: 'Profil passager', shape: 'side', mirror: true },
+  { key: 'rear', label: 'Arrière', shape: 'rear' },
+  { key: 'top', label: 'Dessus', shape: 'top' }
+];
+
+// Primitives : ['rect',x,y,w,h,rx] | ['ellipse',cx,cy,rx,ry] | ['line',x1,y1,x2,y2] | ['poly',[[x,y],...]]
+// (rayon rx omis = 0). w/h identiques entre "car" et "utility" pour une même
+// vue : seul le contenu diffère, jamais le ratio (proportions stables à
+// l'écran quel que soit le véhicule choisi).
+var DMG_SHAPES = {
+  car: {
+    // Croquis générique réaliste, volontairement sans marque/modèle : assez
+    // détaillé pour localiser précisément un dommage, sans laisser croire que
+    // le dessin représente le véhicule exact loué.
+    top: { w: 150, h: 280, shapes: [
+      ['poly', [[49,10],[101,10],[121,26],[132,58],[136,218],[125,251],[104,270],[46,270],[25,251],[14,218],[18,58],[29,26],[49,10]]],
+      ['poly', [[39,38],[111,38],[122,68],[119,105],[31,105],[28,68],[39,38]]],
+      ['poly', [[31,112],[119,112],[121,206],[29,206],[31,112]]],
+      ['poly', [[34,213],[116,213],[108,246],[96,257],[54,257],[42,246],[34,213]]],
+      ['line', 75, 38, 75, 257],
+      ['line', 31, 112, 119, 112],
+      ['line', 29, 206, 121, 206],
+      ['line', 23, 76, 10, 86], ['line', 127, 76, 140, 86],
+      ['rect', 5, 48, 11, 36, 4], ['rect', 134, 48, 11, 36, 4],
+      ['rect', 5, 198, 11, 36, 4], ['rect', 134, 198, 11, 36, 4]
+    ] },
+    side: { w: 300, h: 130, shapes: [
+      ['poly', [[12,91],[15,69],[30,57],[62,48],[91,25],[119,16],[199,16],[225,29],[246,49],[278,61],[289,73],[287,91],[268,99],[31,99],[12,91]]],
+      ['poly', [[83,48],[104,27],[124,22],[160,22],[160,49],[83,49]]],
+      ['poly', [[166,22],[195,22],[217,34],[232,49],[166,49],[166,22]]],
+      ['line', 160, 22, 160, 98],
+      ['line', 82, 49, 77, 96],
+      ['line', 235, 51, 240, 96],
+      ['line', 31, 67, 68, 62],
+      ['line', 249, 62, 279, 69],
+      ['line', 107, 57, 139, 57],
+      ['line', 184, 57, 215, 57],
+      ['line', 24, 83, 42, 83],
+      ['line', 259, 82, 283, 82],
+      ['ellipse', 70, 99, 27, 27], ['ellipse', 238, 99, 27, 27],
+      ['ellipse', 70, 99, 16, 16], ['ellipse', 238, 99, 16, 16]
+    ] },
+    front: { w: 190, h: 140, shapes: [
+      ['poly', [[34,111],[22,101],[25,62],[38,39],[58,22],[132,22],[152,39],[165,62],[168,101],[156,111],[34,111]]],
+      ['poly', [[50,43],[62,27],[128,27],[140,43],[134,65],[56,65],[50,43]]],
+      ['poly', [[36,72],[72,68],[65,83],[38,84],[36,72]]],
+      ['poly', [[154,72],[118,68],[125,83],[152,84],[154,72]]],
+      ['poly', [[67,88],[123,88],[115,105],[75,105],[67,88]]],
+      ['line', 81, 74, 109, 74],
+      ['line', 27, 96, 51, 96], ['line', 139, 96, 163, 96],
+      ['ellipse', 43, 121, 18, 11], ['ellipse', 147, 121, 18, 11],
+      ['line', 18, 58, 6, 51], ['line', 172, 58, 184, 51]
+    ] },
+    rear: { w: 190, h: 140, shapes: [
+      ['poly', [[34,111],[22,101],[25,61],[39,38],[58,22],[132,22],[151,38],[165,61],[168,101],[156,111],[34,111]]],
+      ['poly', [[51,42],[62,27],[128,27],[139,42],[134,64],[56,64],[51,42]]],
+      ['poly', [[31,70],[67,67],[65,83],[35,84],[31,70]]],
+      ['poly', [[159,70],[123,67],[125,83],[155,84],[159,70]]],
+      ['rect', 70, 78, 50, 18, 3],
+      ['line', 44, 101, 146, 101],
+      ['line', 28, 91, 49, 91], ['line', 141, 91, 162, 91],
+      ['ellipse', 43, 121, 18, 11], ['ellipse', 147, 121, 18, 11]
+    ] }
+  },
+  utility: {
+    top: { w: 150, h: 280, shapes: [
+      ['poly', [[40,8],[110,8],[128,22],[136,52],[136,238],[125,265],[25,265],[14,238],[14,52],[22,22],[40,8]]],
+      ['poly', [[31,31],[119,31],[128,65],[124,98],[26,98],[22,65],[31,31]]],
+      ['line', 26, 105, 124, 105], ['line', 26, 224, 124, 224],
+      ['line', 75, 105, 75, 265],
+      ['rect', 3, 43, 10, 38, 3], ['rect', 137, 43, 10, 38, 3],
+      ['rect', 3, 204, 10, 38, 3], ['rect', 137, 204, 10, 38, 3]
+    ] },
+    side: { w: 300, h: 130, shapes: [
+      ['poly', [[12,99],[12,49],[25,31],[62,31],[70,15],[270,15],[288,31],[288,99],[12,99]]],
+      ['poly', [[28,38],[60,38],[60,65],[20,65],[28,38]]],
+      ['line', 70, 15, 70, 99], ['line', 180, 15, 180, 99], ['line', 273, 31, 273, 99],
+      ['ellipse', 64, 101, 27, 27], ['ellipse', 241, 101, 27, 27],
+      ['ellipse', 64, 101, 16, 16], ['ellipse', 241, 101, 16, 16]
+    ] },
+    front: { w: 190, h: 140, shapes: [
+      ['poly', [[31,112],[22,99],[22,42],[38,18],[152,18],[168,42],[168,99],[159,112],[31,112]]],
+      ['poly', [[42,29],[148,29],[142,64],[48,64],[42,29]]],
+      ['rect', 35, 72, 32, 17, 4], ['rect', 123, 72, 32, 17, 4],
+      ['rect', 69, 89, 52, 17, 3],
+      ['ellipse', 42, 123, 18, 10], ['ellipse', 148, 123, 18, 10]
+    ] },
+    rear: { w: 190, h: 140, shapes: [
+      ['poly', [[31,112],[22,99],[22,25],[35,16],[155,16],[168,25],[168,99],[159,112],[31,112]]],
+      ['rect', 34, 28, 54, 54, 3], ['rect', 102, 28, 54, 54, 3],
+      ['line', 95, 18, 95, 109],
+      ['rect', 71, 87, 48, 17, 3],
+      ['ellipse', 42, 123, 18, 10], ['ellipse', 148, 123, 18, 10]
+    ] }
+  }
+};
+
+var DMG_MARKS_MAX = 200;
+var DMG_OBSERVATIONS_MAX = 1000;
+
+// Normalise un état (départ ou retour) reçu depuis `data` — jamais confiance
+// aveugle dans sa forme (peut venir d'un lien ?data= reconstruit à la main) :
+// vue/type filtrés sur les valeurs connues, x/y bornés 0-100, listes et
+// texte tronqués (même logique que `remarques`, voir construirePayload).
+function normaliserEtatVehicule(etat){
+  var brut = (etat && Array.isArray(etat.marks)) ? etat.marks : [];
+  var marks = brut.slice(0, DMG_MARKS_MAX).map(function(m){
+    return {
+      id: String((m && m.id) || ''),
+      view: DMG_VIEWS.some(function(v){ return v.key === (m && m.view); }) ? m.view : 'top',
+      x: Math.max(0, Math.min(100, Number(m && m.x) || 0)),
+      y: Math.max(0, Math.min(100, Number(m && m.y) || 0)),
+      type: DMG_TYPES.some(function(t){ return t.id === (m && m.type); }) ? m.type : 'rayure'
+    };
+  });
+  return {
+    marks: marks,
+    observations: String((etat && etat.observations) || '').trim().slice(0, DMG_OBSERVATIONS_MAX)
+  };
+}
+
+function svgEl(tag, attrs){
+  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  Object.keys(attrs).forEach(function(k){ el.setAttribute(k, attrs[k]); });
+  return el;
+}
+
+// Construit le <svg> de fond (silhouette seule, sans marque) pour une vue
+// donnée. `mirror` retourne horizontalement le contenu (utilisé pour "Côté
+// droit", qui réutilise la géométrie "side" de "Côté gauche").
+function construireSvgSchema(shapeKey, vehicleFamily, mirror){
+  var groupe = DMG_SHAPES[vehicleFamily === 'utility' ? 'utility' : 'car'];
+  var spec = groupe[shapeKey];
+  var svg = svgEl('svg', { viewBox: '0 0 ' + spec.w + ' ' + spec.h, preserveAspectRatio: 'xMidYMid meet' });
+  var g = svgEl('g', mirror ? { transform: 'translate(' + spec.w + ',0) scale(-1,1)' } : {});
+  spec.shapes.forEach(function(prim){
+    if(prim[0] === 'rect'){
+      g.appendChild(svgEl('rect', { class: 'dmg-shape', x: prim[1], y: prim[2], width: prim[3], height: prim[4], rx: prim[5] || 0 }));
+    } else if(prim[0] === 'ellipse'){
+      g.appendChild(svgEl('ellipse', { class: 'dmg-shape', cx: prim[1], cy: prim[2], rx: prim[3], ry: prim[4] }));
+    } else if(prim[0] === 'line'){
+      g.appendChild(svgEl('line', { class: 'dmg-shape', x1: prim[1], y1: prim[2], x2: prim[3], y2: prim[4] }));
+    } else if(prim[0] === 'poly'){
+      var points = prim[1].map(function(p){ return p[0] + ',' + p[1]; }).join(' ');
+      g.appendChild(svgEl('polyline', { class: 'dmg-shape', points: points, fill: 'none' }));
+    }
+  });
+  svg.appendChild(g);
+  return svg;
+}
+
+// Redessine la même silhouette dans le PDF (jsPDF), à l'intérieur du
+// rectangle [boxX,boxY,boxW,boxH] — mêmes primitives que construireSvgSchema,
+// jamais une capture d'écran ni une image : le PDF reste net à toute échelle
+// et très léger. Pour un rect mirroré, le bord gauche affiché correspond au
+// bord droit d'origine (W - (x+w)) — un simple point mirroré (tx) ne suffit
+// pas pour un rectangle, contrairement à line/ellipse/poly.
+function dessinerSchemaPdf(doc, shapeKey, vehicleFamily, mirror, boxX, boxY, boxW, boxH){
+  var groupe = DMG_SHAPES[vehicleFamily === 'utility' ? 'utility' : 'car'];
+  var spec = groupe[shapeKey];
+  var scaleX = boxW / spec.w, scaleY = boxH / spec.h;
+  function tx(px){ return boxX + (mirror ? (spec.w - px) : px) * scaleX; }
+  function ty(py){ return boxY + py * scaleY; }
+  doc.setDrawColor(150, 150, 150);
+  doc.setLineWidth(0.7);
+  spec.shapes.forEach(function(prim){
+    if(prim[0] === 'rect'){
+      var rx = prim[1], ry = prim[2], rw = prim[3], rh = prim[4], rr = prim[5] || 0;
+      var leftRaw = mirror ? (spec.w - (rx + rw)) : rx;
+      var rrPt = rr * Math.min(scaleX, scaleY);
+      doc.roundedRect(boxX + leftRaw * scaleX, ty(ry), rw * scaleX, rh * scaleY, rrPt, rrPt, 'S');
+    } else if(prim[0] === 'ellipse'){
+      doc.ellipse(tx(prim[1]), ty(prim[2]), prim[3] * scaleX, prim[4] * scaleY, 'S');
+    } else if(prim[0] === 'line'){
+      doc.line(tx(prim[1]), ty(prim[2]), tx(prim[3]), ty(prim[4]));
+    } else if(prim[0] === 'poly'){
+      var pts = prim[1];
+      for(var i = 0; i < pts.length - 1; i++){
+        doc.line(tx(pts[i][0]), ty(pts[i][1]), tx(pts[i + 1][0]), ty(pts[i + 1][1]));
+      }
+    }
+  });
+}
+
+// Dessine une marque de dommage dans le PDF, toujours en noir/gris foncé et
+// distinguée par la FORME (croix/cercle vide/point plein), jamais par la
+// seule couleur — lisible même imprimé en noir et blanc (voir mission §8).
+function dessinerMarquePdf(doc, type, px, py){
+  var r = 3.2;
+  doc.setDrawColor(20, 20, 20);
+  doc.setFillColor(20, 20, 20);
+  doc.setLineWidth(1.1);
+  if(type === 'bosse'){
+    doc.ellipse(px, py, r, r, 'S');
+  } else if(type === 'eclat'){
+    doc.ellipse(px, py, r * 0.6, r * 0.6, 'F');
+  } else {
+    doc.line(px - r, py - r, px + r, py + r);
+    doc.line(px - r, py + r, px + r, py - r);
+  }
+}
+
+// Construit et pilote un bloc "État au départ"/"État au retour" du
+// formulaire agence : barre d'outils (type de marque courant), les 5 vues
+// cliquables et le champ observations. `vehicleFamilyGetter` est appelé à
+// chaque redessin du schéma (jamais mémorisé) pour refléter le véhicule
+// actuellement sélectionné, y compris s'il change après coup.
+function creerGestionEtat(container, vehicleFamilyGetter){
+  var marks = [];
+  var typeActuel = DMG_TYPES[0].id;
+  var nextId = 1;
+  var canvases = {};
+
+  var toolbar = document.createElement('div');
+  toolbar.className = 'dmg-toolbar';
+  DMG_TYPES.forEach(function(t){
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'dmg-tool' + (t.id === typeActuel ? ' active' : '');
+    btn.innerHTML = '<span class="dmg-tool-symbol">' + t.symbole + '</span>' + t.label;
+    btn.addEventListener('click', function(){
+      typeActuel = t.id;
+      Array.prototype.forEach.call(toolbar.querySelectorAll('.dmg-tool'), function(b){ b.classList.toggle('active', b === btn); });
+    });
+    toolbar.appendChild(btn);
+  });
+  container.appendChild(toolbar);
+
+  var grid = document.createElement('div');
+  grid.className = 'dmg-grid';
+  container.appendChild(grid);
+
+  DMG_VIEWS.forEach(function(vue){
+    var wrap = document.createElement('div');
+    wrap.className = 'dmg-view';
+    var label = document.createElement('div');
+    label.className = 'dmg-view-label';
+    label.textContent = vue.label;
+    var canvas = document.createElement('div');
+    canvas.className = 'dmg-canvas';
+    var dims = DMG_SHAPES.car[vue.shape];
+    canvas.style.aspectRatio = dims.w + ' / ' + dims.h;
+    // Clic sur le fond = ajoute une marque ; un clic sur une marque
+    // existante est intercepté par son propre gestionnaire (stopPropagation)
+    // et n'atteint donc jamais ce niveau.
+    canvas.addEventListener('click', function(e){
+      var rect = canvas.getBoundingClientRect();
+      if(!rect.width || !rect.height) return;
+      var x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+      var y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+      marks.push({ id: 'm' + (nextId++), view: vue.key, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, type: typeActuel });
+      redessinerMarques();
+    });
+    wrap.appendChild(label);
+    wrap.appendChild(canvas);
+    grid.appendChild(wrap);
+    canvases[vue.key] = canvas;
+  });
+
+  var obsWrap = document.createElement('div');
+  obsWrap.className = 'field full dmg-observations';
+  var obsLabel = document.createElement('label');
+  obsLabel.textContent = 'Observations état du véhicule';
+  var observationsEl = document.createElement('textarea');
+  observationsEl.rows = 3;
+  observationsEl.maxLength = DMG_OBSERVATIONS_MAX;
+  observationsEl.placeholder = 'Ex. Rayure légère porte arrière droite. Petit impact pare-chocs avant. Jante avant gauche frottée.';
+  obsWrap.appendChild(obsLabel);
+  obsWrap.appendChild(observationsEl);
+  container.appendChild(obsWrap);
+
+  function redessinerSchemas(){
+    var famille = vehicleFamilyGetter() === 'utility' ? 'utility' : 'car';
+    DMG_VIEWS.forEach(function(vue){
+      var canvas = canvases[vue.key];
+      var ancien = canvas.querySelector('svg');
+      if(ancien) ancien.remove();
+      canvas.insertBefore(construireSvgSchema(vue.shape, famille, !!vue.mirror), canvas.firstChild);
+    });
+  }
+
+  function redessinerMarques(){
+    DMG_VIEWS.forEach(function(vue){
+      Array.prototype.forEach.call(canvases[vue.key].querySelectorAll('.dmg-mark'), function(m){ m.remove(); });
+    });
+    marks.forEach(function(m){
+      var canvas = canvases[m.view];
+      if(!canvas) return;
+      var infoType = DMG_TYPES.filter(function(t){ return t.id === m.type; })[0] || DMG_TYPES[0];
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dmg-mark';
+      btn.dataset.type = m.type;
+      btn.style.left = m.x + '%';
+      btn.style.top = m.y + '%';
+      btn.textContent = infoType.symbole;
+      btn.title = infoType.label + ' — cliquer pour supprimer';
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        marks = marks.filter(function(x){ return x.id !== m.id; });
+        redessinerMarques();
+      });
+      canvas.appendChild(btn);
+    });
+  }
+
+  redessinerSchemas();
+  redessinerMarques();
+
+  return {
+    obtenirDonnees: function(){
+      return {
+        marks: marks.map(function(m){ return { id: m.id, view: m.view, x: m.x, y: m.y, type: m.type }; }),
+        observations: observationsEl.value
+      };
+    },
+    charger: function(data){
+      var norm = normaliserEtatVehicule(data);
+      marks = norm.marks.map(function(m){ return { id: m.id || ('m' + (nextId++)), view: m.view, x: m.x, y: m.y, type: m.type }; });
+      observationsEl.value = norm.observations;
+      redessinerMarques();
+    },
+    actualiserSchema: redessinerSchemas
+  };
+}
+
+// Construit les lignes du détail financier (voir genererPDF) à partir d'un
+// objet au format renvoyé par calculerPrixTotal() de js/data.js — utilisé
+// aussi bien pour un contrat manuel (calcul local, voir
+// calculerPrixContrat) qu'une réservation payée en ligne (même forme,
+// reconstruite à partir de ce que le serveur a figé — voir
+// construireDossierPayload) : jamais un second calcul qui pourrait
+// diverger de celui réellement facturé.
+function lignesDetailFinancier(prix){
+  if(!prix) return [];
+  var lignes = [];
+  lignes.push(['Location (' + prix.jours + ' jour' + (prix.jours > 1 ? 's' : '') + ' × ' + formatEUR(prix.vehicule.prixJour) + ')', formatEUR(prix.sousTotalBrut)]);
+  if(prix.reductionDuree){
+    lignes.push(['Réduction durée (' + prix.reductionDuree.libelle + ')', '− ' + formatEUR(prix.reductionDuree.montant)]);
+  }
+  (prix.optionsSelectionnees || []).forEach(function(opt){
+    lignes.push([opt.nom, formatEUR(opt.montant)]);
+  });
+  if(prix.optionsSelectionnees && prix.optionsSelectionnees.length || prix.reductionDuree){
+    lignes.push(['Sous-total', formatEUR(prix.baseAvantPromo)]);
+  }
+  if(prix.codePromo){
+    // .pourcentage OU .montant selon le type de code (voir CODES_PROMO,
+    // js/data.js) — jamais les deux à la fois.
+    var suffixePromo = prix.codePromo.pourcentage !== undefined ? ('-' + prix.codePromo.pourcentage + ' %') : ('-' + formatEUR(prix.codePromo.montant));
+    lignes.push(['Code promo ' + prix.codePromo.code + ' (' + suffixePromo + ')', '− ' + formatEUR(prix.reductionPromoMontant)]);
+  }
+  lignes.push(['Total', formatEUR(prix.total)]);
+  return lignes;
+}
+
+// Synthèse financière CLIENT du PDF : trois montants seulement (location,
+// remises, total) puis l'état du règlement — le détail ligne à ligne
+// (réduction durée, code promo, remise commerciale...) reste disponible
+// dans detailFinancier, inchangé. AUCUN calcul n'est refait ici : seuls des
+// montants déjà produits par calculerPrixTotal() (js/data.js, seule source
+// de vérité) sont regroupés pour l'affichage.
+// `totalFinal` peut différer de prix.total quand l'agence a fixé un tarif
+// manuel (appliquerTarifManuel) : l'écart devient une remise commerciale,
+// ou une majoration s'il est positif.
+function syntheseFinancierePdf(prix, totalFinal, montantRegleNombre, soldeNombre){
+  if(!prix) return null;
+  var options = prix.optionsSelectionnees || [];
+  var optionsMontant = options.reduce(function(somme, opt){ return somme + opt.montant; }, 0);
+
+  // Le supplément jeune conducteur (js/data.js) est une ligne à part entière
+  // du contrat, au même titre qu'une option retenue : il apparaît donc dans
+  // cette liste, jamais fondu dans le prix de la location.
+  var lignesOptions = options.map(function(opt){
+    return { nom: opt.nom, montant: opt.montant, type: opt.type };
+  });
+  // Protection : ligne facturée seulement si la formule retenue est payante.
+  // La formule incluse figure dans le bloc GARANTIE du contrat,
+  // pas dans la tarification, pour ne pas ajouter une ligne à 0 €.
+  if(prix.protection && prix.protection.montant > 0){
+    lignesOptions.push({
+      nom: prix.protection.nom.indexOf('Protection ') === 0 ? prix.protection.nom : 'Protection ' + prix.protection.nom,
+      montant: prix.protection.montant,
+      type: 'forfait'
+    });
+    optionsMontant += prix.protection.montant;
+  }
+
+  if(prix.supplementJeuneConducteur){
+    lignesOptions.push({
+      nom: prix.supplementJeuneConducteur.libelle,
+      montant: prix.supplementJeuneConducteur.montant,
+      type: 'jour'
+    });
+    optionsMontant += prix.supplementJeuneConducteur.montant;
+  }
+
+  // PRIX DE LA LOCATION = total convenu MOINS les options réellement
+  // retenues. Quand l'agence fixe un tarif manuel, la ligne « Location »
+  // porte donc directement le prix convenu : le contrat client n'a pas à
+  // exposer une cascade « tarif théorique − remise + ajustement », qui
+  // n'explique rien au client et fait douter du montant final.
+  //
+  // Le détail interne (tarif théorique, remises, écart) reste disponible
+  // ci-dessous pour l'historique et le back-office — il n'est simplement
+  // jamais imprimé sur le document remis au client.
+  var location = Math.round((totalFinal - optionsMontant) * 100) / 100;
+
+  var remises = [];
+  if(prix.reductionDuree) remises.push({ libelle: 'durée', montant: prix.reductionDuree.montant });
+  if(prix.codePromo) remises.push({ libelle: 'code ' + prix.codePromo.code, montant: prix.reductionPromoMontant });
+  var ecartTarifManuel = Math.round((prix.total - totalFinal) * 100) / 100;
+  if(ecartTarifManuel > 0) remises.push({ libelle: 'remise commerciale', montant: ecartTarifManuel });
+
+  return {
+    jours: prix.jours,
+    location: location,
+    options: lignesOptions,
+    optionsMontant: optionsMontant,
+    totalLocation: totalFinal,
+    dejaRegle: montantRegleNombre,
+    resteAPayer: soldeNombre,
+    // --- Détail interne, jamais imprimé sur le contrat client ---
+    tarifTheorique: prix.sousTotalBrut,
+    remises: remises,
+    remisesTotal: remises.reduce(function(somme, r){ return somme + r.montant; }, 0),
+    ecartTarifManuel: ecartTarifManuel
+  };
+}
+
+// Reconstruit un objet au format calculerPrixTotal() à partir du détail
+// financier figé côté serveur au moment du paiement d'une réservation en
+// ligne (voir contract-dossier-agency.js/contract-dossier-client.js,
+// buildDossierView/buildClientView) — jamais recalculé ici : le contrat
+// doit refléter exactement ce qui a été facturé, y compris si les tarifs
+// ont changé depuis. Utilisé par construireDossierPayload (vue agence) et
+// construireDossierClientPayload (vue client).
+function detailFinancierDepuisReservation(r){
+  if(!r.vehicule || typeof r.sousTotalBrut !== 'number') return null;
+  var sousTotal = r.sousTotalBrut - (r.reductionDuree ? r.reductionDuree.montant : 0);
+  return {
+    vehicule: r.vehicule,
+    jours: r.jours,
+    sousTotalBrut: r.sousTotalBrut,
+    reductionDuree: r.reductionDuree || null,
+    optionsSelectionnees: r.options || [],
+    optionsMontant: r.optionsMontant || 0,
+    baseAvantPromo: sousTotal + (r.optionsMontant || 0),
+    codePromo: r.codePromo || null,
+    reductionPromoMontant: r.reductionPromoMontant || 0,
+    // Supplément jeune conducteur tel qu'appliqué au paiement en ligne
+    // (voir create-payment.js) : repris tel quel, jamais recalculé, pour que
+    // le contrat affiche exactement le montant facturé au client. Absent des
+    // réservations antérieures à cette règle : le contrat n'affiche alors
+    // aucune ligne, et leur historique financier reste intact.
+    supplementJeuneConducteur: r.supplementJeuneConducteur || null,
+    total: r.total
+  };
+}
+
+// Construit le payload attendu par genererPDF()/la soumission de signature
+// à partir d'un objet `data` (même forme que celui produit par
+// regenererLien() côté AGENCE ou reçu via ?data= côté CLIENT) — fonction
+// partagée par les deux vues, pour que le PDF téléchargeable depuis
+// l'agence (à tout moment, avant même l'envoi du lien) soit identique à
+// celui que verrait le client.
+// Langue du contrat : « fr » par defaut. Le contenu juridique francais
+// reste la reference ; l'anglais est une traduction de confort, ce que le
+// contrat indique lui-meme en tete de ses conditions (voir js/contrat-en.js).
+function estContratAnglais(langue){ return langue === 'en'; }
+
+// Dictionnaire du contrat anglais (js/contrat-en.js). Absent, tout reste en
+// francais plutot que de produire un document incomplet.
+function dictionnaireContrat(){
+  if(typeof CONTRAT_EN !== 'undefined') return CONTRAT_EN;
+  return (typeof window !== 'undefined' && window.CONTRAT_EN) ? window.CONTRAT_EN : null;
+}
+
+// Traduit un intitule du contrat quand celui-ci est etabli en anglais.
+function texteContrat(valeur, langue){
+  if(!estContratAnglais(langue)) return valeur;
+  var dico = dictionnaireContrat();
+  return dico ? dico.texte(valeur) : valeur;
+}
+
+// Formats numeriques et de date suivant la langue du contrat.
+function localeContrat(langue){ return estContratAnglais(langue) ? 'en-GB' : 'fr-FR'; }
+// Les CHIFFRES (kilometrages, montants) s'ecrivent a l'identique dans les
+// deux versions du contrat : un separateur different ferait lire deux
+// valeurs differentes sur deux documents censes dire la meme chose, ce qui
+// est exactement le risque que l'avertissement de traduction ecarte. Seules
+// les DATES suivent la langue (les mois y sont des mots, pas des chiffres).
+function nombreContrat(valeur, langue){ return Number(valeur).toLocaleString('fr-FR'); }
+
+// Traduit les VALEURS composees d'un contrat etabli en anglais (duree,
+// modes de reglement, lieu de livraison, libelles de remise...). Les
+// montants, dates-pivots et identifiants ne sont jamais touches : seule
+// leur formulation change, jamais leur contenu.
+function traduireValeursPayload(payload){
+  var dico = dictionnaireContrat();
+  if(!estContratAnglais(payload.langueClient) || !dico) return payload;
+  function T(v){ return dico.texte(v); }
+
+  // « 5 jours 4 heures - facture 5 jours »
+  payload.duree = dico.duree(String(payload.duree).replace(' \u2014 factur\u00e9 ', ' \u2014 charged as '));
+  payload.carburant = T(payload.carburant);
+  payload.livraison = payload.livraison === 'Non' ? 'No' : String(payload.livraison).replace('Oui', 'Yes');
+  payload.modePaiement = T(payload.modePaiement);
+  payload.modePaiementSolde = T(payload.modePaiementSolde);
+  payload.mode_reglement_caution = T(payload.mode_reglement_caution);
+  payload.detailAcompte = traduireDetailReglement(payload.detailAcompte, dico);
+  payload.detailSolde = traduireDetailReglement(payload.detailSolde, dico);
+
+  // Lieu : seul le prefixe « Livraison a » est une formulation ; l'adresse
+  // elle-meme reste telle que saisie.
+  function lieu(v){
+    var texte = String(v || '');
+    if(texte.indexOf('Livraison \u00e0 ') === 0) return 'Delivery to ' + texte.slice('Livraison \u00e0 '.length);
+    return T(texte);
+  }
+  payload.lieu = lieu(payload.lieu);
+  payload.lieuRetour = lieu(payload.lieuRetour);
+
+  if(payload.syntheseFinanciere){
+    // Les options de la synthèse sont des objets { nom, montant, type } :
+    // seul leur libellé est traduit, jamais le montant ni le type.
+    payload.syntheseFinanciere.options = (payload.syntheseFinanciere.options || []).map(function(option){
+      return { nom: T(option.nom), montant: option.montant, type: option.type };
+    });
+    payload.syntheseFinanciere.remises = (payload.syntheseFinanciere.remises || []).map(function(r){
+      // « code BIENVENUE20 » : seul le mot « code » est traduisible, le code
+      // promo lui-meme ne doit jamais etre reecrit.
+      var libelle = r.libelle.indexOf('code ') === 0 ? ('code ' + r.libelle.slice(5)) : T(r.libelle);
+      return { libelle: libelle, montant: r.montant };
+    });
+  }
+  payload.detailFinancier = (payload.detailFinancier || []).map(function(ligne){ return [T(ligne[0]), ligne[1]]; });
+  return payload;
+}
+
+// « regle par carte bancaire » / « a regler par especes (en attente) »
+function traduireDetailReglement(valeur, dico){
+  var texte = String(valeur || '');
+  var attente = / \(en attente\)$/.test(texte);
+  var aRegler = texte.indexOf('\u00e0 r\u00e9gler par ') === 0;
+  var mode = texte.replace(/^(\u00e0 r\u00e9gler par |r\u00e9gl\u00e9 par )/, '').replace(/ \(en attente\)$/, '');
+  // Le mode est en minuscules dans la phrase francaise : on retrouve son
+  // libelle pour le traduire, puis on le remet en minuscules.
+  var modeTraduit = dico.texte(mode.charAt(0).toUpperCase() + mode.slice(1)).toLowerCase();
+  return (aRegler ? 'to be paid by ' : 'paid by ') + modeTraduit + (attente ? ' (pending)' : '');
+}
+
+function construirePayload(data, sigData, stamp){
+  var prix = calculerPrixContrat(data);
+  var v = (prix && prix.vehicule) || getVehiculeParId(data.vehiculeId) || VEHICULES[0];
+  var heures = dureeHeures(data.depart, data.retour);
+  var jours = prix ? prix.jours : NaN;
+  var tarif = appliquerTarifManuel(prix, data);
+  var total = tarif.total;
+  var detailPaiement = calculerDetailPaiement(total, data);
+  var montantRegleNombre = detailPaiement.montantRegleNombre;
+  var soldeNombre = detailPaiement.soldeNombre;
+  var detailAcompte = detailPaiement.detailAcompte;
+  var detailSolde = detailPaiement.detailSolde;
+  var adresseComplete = [data.adresse, [data.codePostal, data.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  // Adresse de livraison RÉELLE dès qu'elle est renseignée, même si la case
+  // "livraison" n'a pas été cochée : le contrat affichait sinon le seul
+  // libellé du menu ("Livraison à l'adresse de votre choix"), inutilisable
+  // pour le client comme pour l'agence.
+  var adresseLivraison = [data.livraisonRue, [data.livraisonCP, data.livraisonVille].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  var lieuAffiche = adresseLivraison
+    ? 'Livraison à ' + adresseLivraison
+    : data.lieu;
+
+  // Détail financier de REPLI : utilisé uniquement quand la synthèse n'a pas
+  // pu être calculée (véhicule ou dates encore incomplets — voir
+  // syntheseFinancierePdf, qui prend le relais dès que le prix est connu).
+  // Quand un tarif manuel est convenu, la ligne « Location » porte
+  // directement ce prix : aucune ligne « Remise commerciale » ni
+  // « Ajustement tarif » ne doit apparaître sur un document client.
+  // `tarifMotif` n'est volontairement jamais lu ici : il reste uniquement
+  // dans rawData/l'historique (comme `notes`), jamais imprimé sur le PDF ni
+  // transmis via le lien ?data=.
+  var detailFinancier = lignesDetailFinancier(prix);
+  if(prix && tarif.tarifManuelActif){
+    detailFinancier = [['Location', formatEUR(total)]];
+  }
+
+  // État kilométrique manuel (nom délibérément distinct de
+  // `kilometrageResultat`, réservé au flux "dossier" des réservations
+  // payées, pour garantir qu'aucun des deux flux ne puisse jamais afficher
+  // la section de l'autre par erreur). Le calcul passe toujours par
+  // calculerKilometrage() de js/data.js — jamais de tarif recodé ici.
+  var kilometrageManuel = null;
+  if(data.kmDepart !== undefined && data.kmDepart !== ''){
+    kilometrageManuel = {
+      kmDepart: data.kmDepart,
+      kmRetour: data.kmRetour || '',
+      resultat: (data.kmRetour !== undefined && data.kmRetour !== '')
+        ? calculerKilometrage({ kmDepart: Number(data.kmDepart), kmRetour: Number(data.kmRetour), jours: jours })
+        : null
+    };
+  }
+
+  var payloadContrat = {
+    'form-name': 'contrat-signature',
+    vehicule: v.nom,
+    vehicleFamily: v.vehicleFamily || 'car',
+    carburant: v.carburant || '',
+    vin: v.vin || '',
+    immatriculation: data.immat,
+    lieu: lieuAffiche,
+    lieuRetour: lieuAffiche,
+    // Langue du client : ne change RIEN au contenu du contrat, qui reste
+    // rédigé en français (seule version faisant foi). Sert uniquement à
+    // ajouter une mention en anglais pour un client anglophone.
+    langueClient: data.langueClient === 'en' ? 'en' : 'fr',
+    livraison: data.livraison ? 'Oui (+20 €)' : 'Non',
+    depart: formatDateHeureFR(data.depart, data.langueClient),
+    retour: formatDateHeureFR(data.retour, data.langueClient),
+    duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
+    detailFinancier: detailFinancier,
+    syntheseFinanciere: syntheseFinancierePdf(prix, total, montantRegleNombre, soldeNombre),
+    // Instantané de la protection : niveau et franchise imprimés dans le
+    // bloc GARANTIE, distincts du prix de la protection et du dépôt.
+    protection: prix ? prix.protection : null,
+    kilometrageManuel: kilometrageManuel,
+    supplementKmCentimes: getSupplementKmCentimes(),
+    total: formatEUR(total),
+    montantRegle: formatEUR(montantRegleNombre),
+    soldeRestant: formatEUR(soldeNombre),
+    modePaiement: libelleModePaiement(data.modePaiement),
+    modePaiementSolde: libelleModePaiement(data.modePaiementSolde),
+    detailAcompte: detailAcompte,
+    detailSolde: detailSolde,
+    caution: formatEUR(v.caution),
+    mode_reglement_caution: libelleModeCaution(data.modeCaution),
+    locataire_prenom: data.prenom,
+    locataire_nom: data.nom,
+    locataire_naissance: data.naissance,
+    locataire_adresse: adresseComplete,
+    locataire_tel: data.tel,
+    locataire_email: data.email,
+    locataire_permis: data.permis,
+    locataire_permis_pays: data.permisPays || '',
+    locataire_permis_date: data.permisDate || '',
+    locataire_permis_validite: data.permisValidite || '',
+    second_conducteur: data.secondConducteur ? 'Oui' : 'Non',
+    second_conducteur_prenom: data.prenom2 || '',
+    second_conducteur_nom: data.nom2 || '',
+    second_conducteur_naissance: data.naissance2 || '',
+    second_conducteur_permis: data.permis2 || '',
+    second_conducteur_permis_pays: data.permis2Pays || '',
+    second_conducteur_permis_date: data.permis2Date || '',
+    kmInclus: kmInclusPourJours(jours).toLocaleString('fr-FR'),
+    notes: data.notes || '',
+    // slice(0,1500) : garde-fou serveur-équivalent (même logique que le
+    // reste du contrat — jamais confiance aveugle dans data), au cas où ce
+    // texte arriverait via un lien ?data= trafiqué plutôt que saisi dans le
+    // textarea (déjà borné par maxlength côté formulaire, mais maxlength ne
+    // protège qu'une saisie manuelle, pas une valeur assignée par script).
+    remarques: (data.remarques || '').trim().slice(0, 1500),
+    etatDepart: normaliserEtatVehicule(data.etatDepart),
+    etatRetour: normaliserEtatVehicule(data.etatRetour),
+    cglVersion: getCglVersion(),
+    horodatage_signature: stamp || '',
+    signature_image: sigData || '',
+    rib_iban: data.ribIban || '',
+    rib_titulaire: data.ribTitulaire || '',
+    photosEtatDesLieux: data.photosEtatDesLieux || []
+  };
+  return traduireValeursPayload(payloadContrat);
+}
+
+// Injecte les valeurs de `payload` dans les emplacements <span data-fill="...">
+// du texte des articles (#contractText) avant de le lire pour le PDF (voir
+// texteConditionsLocation() plus bas). Nécessaire ici car ces emplacements
+// ne sont sinon remplis QUE dans la vue CLIENT (initClientView, après
+// signature du lien) — le bouton "Télécharger l'aperçu" de la vue AGENCE
+// (initOwnerView) appelle genererPDF() sans jamais passer par cette étape,
+// ce qui produisait un PDF avec des "…" non remplis dans les articles
+// (véhicule/dates/caution/km jamais injectés), alors que le tableau
+// récapitulatif au-dessus, lui, était toujours correct (rempli séparément).
+function remplirTexteArticles(payload){
+  function setFill(name, value){
+    var el = document.querySelector('[data-fill="' + name + '"]');
+    if(el) el.textContent = value;
+  }
+  setFill('vehicule', payload.vehicule);
+  setFill('immat', payload.immatriculation);
+  setFill('depart', payload.depart);
+  setFill('retour', payload.retour);
+  setFill('duree', payload.duree);
+  setFill('lieu', payload.lieu);
+  setFill('total', payload.total);
+  setFill('montantRegle', payload.montantRegle || payload.total);
+  setFill('soldeRestant', payload.soldeRestant || formatEUR(0));
+  setFill('modePaiement', payload.modePaiement || 'carte bancaire');
+  setFill('detailAcompte', payload.detailAcompte || ('réglé par ' + (payload.modePaiement || 'carte bancaire').toLowerCase()));
+  setFill('detailSolde', payload.detailSolde || ('réglé par ' + (payload.modePaiementSolde || payload.modePaiement || 'carte bancaire').toLowerCase()));
+  setFill('caution', payload.caution);
+  setFill('modeCaution', (payload.mode_reglement_caution || '').toLowerCase());
+  setFill('kmInclus', payload.kmInclus);
+  setFill('kmInclusParJour', getKmInclusParJour().toLocaleString('fr-FR'));
+  setFill('supplementKm', formatEURPrecis((payload.supplementKmCentimes !== undefined ? payload.supplementKmCentimes : getSupplementKmCentimes()) / 100));
+  setFill('cglVersion', payload.cglVersion || getCglVersion());
+  if(payload.second_conducteur === 'Oui'){
+    setFill('nom2', (payload.second_conducteur_prenom + ' ' + payload.second_conducteur_nom).trim());
+    setFill('permis2', payload.second_conducteur_permis);
+    var clause = document.getElementById('secondConducteurClause');
+    if(clause) clause.style.display = '';
+  }
+  if(payload.rib_iban){
+    setFill('ribIban', payload.rib_iban);
+    setFill('ribTitulaire', payload.rib_titulaire || (payload.locataire_prenom + ' ' + payload.locataire_nom).trim());
+    var ribClause = document.getElementById('ribClientClause');
+    if(ribClause) ribClause.style.display = '';
+  }
+  // Remarques particulières : section absente du contrat (titre + paragraphe
+  // masqués) tant qu'aucun texte n'est saisi — jamais de "…" non rempli
+  // imprimé. Bascule explicitement dans les deux sens (contrairement aux
+  // clauses ci-dessus, qui ne sont jamais censées redevenir vides une fois
+  // affichées) : cette fonction peut être appelée plusieurs fois de suite
+  // sur le même DOM #contractText (aperçus PDF répétés côté agence pendant
+  // la saisie), et une remarque effacée après un premier aperçu ne doit pas
+  // rester visible sur les aperçus suivants.
+  var remarquesTitre = document.getElementById('remarquesTitre');
+  var remarquesClauseEl = document.getElementById('remarquesClause');
+  if(payload.remarques){
+    setFill('remarques', payload.remarques);
+    if(remarquesTitre) remarquesTitre.style.display = '';
+    if(remarquesClauseEl) remarquesClauseEl.style.display = '';
+  } else {
+    if(remarquesTitre) remarquesTitre.style.display = 'none';
+    if(remarquesClauseEl) remarquesClauseEl.style.display = 'none';
+  }
+}
+
+// Formate un champ carburant (0/10/20.../100) en "40 %" ; laisse tel quel
+// (déjà une chaîne libre, ex. état de propreté) sinon.
+function formatCarburant(niveau){
+  if(niveau === '' || niveau === null || niveau === undefined) return '—';
+  var connu = NIVEAUX_CARBURANT.filter(function(n){ return n.valeur === Number(niveau); })[0];
+  // Repli en pourcentage pour un état des lieux saisi avant l'ajout des
+  // niveaux de jauge (30 %, 60 %…) : jamais de valeur perdue à l'affichage.
+  return connu ? connu.libelle : (niveau + ' %');
+}
+
+// Contrôle de plausibilité avant génération : un contrat ne doit jamais
+// pouvoir être produit avec une valeur manifestement incorrecte (NaN,
+// undefined, Infinity) glissée silencieusement dans un champ formaté —
+// mieux vaut un message d'erreur explicite que ce genre de valeur imprimée
+// sur un document envoyé au client.
+function champsPdfSuspects(payload){
+  return ['total','caution','kmInclus','duree','montantRegle','soldeRestant'].filter(function(champ){
+    var v = payload[champ];
+    return typeof v === 'string' && /NaN|undefined|Infinity/.test(v);
+  });
+}
+
+// Corrige un bug d'affichage jsPDF constaté sur le contrat ("2 /000 km" au
+// lieu de "2 000 km") : les polices standards de jsPDF (helvetica,
+// encodage WinAnsi) ne connaissent pas l'espace fine insécable (U+202F,
+// séparateur de milliers utilisé par toLocaleString('fr-FR')) ni l'espace
+// insécable (U+00A0, utilisé avant "€" par Intl.NumberFormat) et les
+// affichent comme un caractère erroné. On les remplace par une espace
+// normale uniquement au moment d'écrire dans le PDF (voir plus bas) — sans
+// toucher à l'affichage HTML, où ces caractères s'affichent correctement.
+// U+2212 (signe moins typographique) : absent lui aussi de l'encodage
+// WinAnsi, il sortait comme un caract\u00E8re vide sur les montants n\u00E9gatifs du
+// PDF ("  50 \u20AC" au lieu de "-50 \u20AC"). Remplac\u00E9 par le tiret ASCII, seul
+// caract\u00E8re s\u00FBr ici \u2014 l'affichage HTML, lui, garde le vrai signe moins.
+function nettoyerTextePdf(t){
+  return String(t).replace(/[\u202F\u00A0]/g, " ").replace(/\u2212/g, "-");
+}
+
+// Livraison du PDF généré (signalé le 12/09/2026 : "ça ouvre une nouvelle
+// page sur le même onglet"). Sur iPhone/iPad, doc.save() ne télécharge pas
+// le fichier : le navigateur REMPLACE la page courante par le PDF —
+// l'agence perd alors le formulaire en cours de saisie, et le client la
+// page de confirmation de signature. Le PDF est donc ouvert dans un onglet
+// séparé sur ces appareils, en réservant l'onglet DÈS LE CLIC
+// (reserverOngletPdf()) : un window.open() déclenché plus tard, après un
+// appel réseau, serait bloqué par le navigateur. Ailleurs (ordinateur,
+// Android), le téléchargement classique est conservé — il n'a jamais fait
+// perdre la page et garde le nom de fichier du contrat.
+var ongletPdfReserve = null;
+
+function pdfDoitOuvrirDansUnOnglet(){
+  var estIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  // iPadOS 13+ se déclare "Macintosh" : seul le tactile le distingue d'un Mac.
+  var estIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  return estIOS || estIPadOS || !('download' in document.createElement('a'));
+}
+
+function reserverOngletPdf(){
+  if(!pdfDoitOuvrirDansUnOnglet()) return;
+  try { ongletPdfReserve = window.open('', '_blank'); } catch(e){ ongletPdfReserve = null; }
+}
+
+// À appeler quand le PDF attendu ne sera finalement pas généré (erreur de
+// validation, échec réseau...) : sinon l'onglet réservé resterait ouvert et
+// vide devant l'utilisateur.
+function libererOngletPdf(){
+  if(ongletPdfReserve){ try { ongletPdfReserve.close(); } catch(e){} }
+  ongletPdfReserve = null;
+}
+
+function livrerPDF(doc, nomFichier){
+  if(!pdfDoitOuvrirDansUnOnglet()){ doc.save(nomFichier); return; }
+  var onglet = ongletPdfReserve || window.open('', '_blank');
+  ongletPdfReserve = null;
+  // Onglet refusé par le bloqueur de fenêtres : repli sur le comportement
+  // d'origine (mieux vaut un PDF qui remplace la page qu'aucun PDF).
+  if(!onglet){ doc.save(nomFichier); return; }
+  // L'URL du blob n'est jamais révoquée par un minuteur : le navigateur la
+  // libère de lui-même en quittant cette page, alors qu'une révocation
+  // programmée casserait le bouton "Télécharger" de l'onglet si l'agence y
+  // revenait plus tard.
+  ecrireOngletPdf(onglet, URL.createObjectURL(doc.output('blob')), nomFichier);
+}
+
+// Page d'accueil du PDF dans l'onglet séparé : aperçu + bouton de
+// téléchargement PORTANT LE NOM DU CONTRAT. Safari, lui, affiche un PDF brut
+// sans son nom (son partage ne propose qu'un nom générique) — d'où cette
+// page intermédiaire plutôt qu'une navigation directe vers le blob.
+// Construite en DOM (jamais en HTML assemblé à la main) : le nom de fichier
+// vient des données du contrat, il ne doit jamais pouvoir être interprété.
+function ecrireOngletPdf(onglet, url, nomFichier){
+  var d = onglet.document;
+  d.title = nomFichier;
+
+  var style = d.createElement('style');
+  style.textContent = [
+    'html,body{margin:0;height:100%;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#f6f4fb;color:#2a2438;}',
+    'body{display:flex;flex-direction:column;}',
+    'header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 14px;background:#1a2f52;color:#fff;}',
+    '.nom{flex:1 1 180px;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.9;}',
+    'a.btn{display:inline-block;padding:11px 16px;border-radius:14px;font-size:15px;font-weight:700;text-decoration:none;white-space:nowrap;}',
+    'a.telecharger{background:#fd5301;color:#fff;}',
+    'a.plein-ecran{background:rgba(255,255,255,.14);color:#fff;}',
+    'iframe{flex:1;width:100%;border:0;background:#fff;}'
+  ].join('');
+  d.head.appendChild(style);
+
+  var viewport = d.createElement('meta');
+  viewport.name = 'viewport';
+  viewport.content = 'width=device-width, initial-scale=1';
+  d.head.appendChild(viewport);
+
+  var barre = d.createElement('header');
+  var nom = d.createElement('span');
+  nom.className = 'nom';
+  nom.textContent = nomFichier;
+  var telecharger = d.createElement('a');
+  telecharger.className = 'btn telecharger';
+  telecharger.href = url;
+  telecharger.setAttribute('download', nomFichier);
+  telecharger.textContent = '⬇️ Télécharger';
+  // Repli quand l'aperçu intégré ne suffit pas (Safari sur iPhone n'affiche
+  // souvent que la première page dans un cadre) : ouvre le PDF seul, dans la
+  // visionneuse du navigateur, sans quitter cet onglet-ci.
+  var pleinEcran = d.createElement('a');
+  pleinEcran.className = 'btn plein-ecran';
+  pleinEcran.href = url;
+  pleinEcran.textContent = 'Plein écran';
+  barre.appendChild(nom);
+  barre.appendChild(telecharger);
+  barre.appendChild(pleinEcran);
+
+  var apercu = d.createElement('iframe');
+  apercu.src = url;
+  apercu.title = nomFichier;
+
+  d.body.appendChild(barre);
+  d.body.appendChild(apercu);
+}
+
+// Génération du contrat PDF (refonte visuelle du 12/09/2026). Trois pages :
+//   1. SYNTHÈSE  — locataire, véhicule, location, tarification, garantie ;
+//   2. CONDITIONS — articles, déclaration du locataire, signatures ;
+//   3. ANNEXE    — état des lieux du véhicule (tableau, schéma, observations).
+// Les Conditions Générales de Location complètes restent un document séparé
+// (cgl.html) : le contrat n'en cite que la version applicable.
+//
+// Aucun calcul métier n'est fait ici : tous les montants viennent du payload
+// (construirePayload / construireDossierPayload), eux-mêmes alimentés par
+// js/data.js — seule source de vérité (voir CLAUDE.md, règle n°1).
+function genererPDF(payload, estApercu){
+  var jsPDF = window.jspdf && window.jspdf.jsPDF;
+  if(!jsPDF){ libererOngletPdf(); alert("Le générateur de PDF n'a pas pu se charger. Vérifiez votre connexion et réessayez."); return; }
+
+  var suspects = champsPdfSuspects(payload);
+  if(suspects.length){
+    libererOngletPdf();
+    alert('Le contrat ne peut pas être généré : valeur incorrecte détectée (' + suspects.join(', ') + '). Vérifiez le véhicule et les dates sélectionnées.');
+    return;
+  }
+
+  var doc = new jsPDF({ unit:'pt', format:'a4' });
+  var _docText = doc.text.bind(doc);
+  doc.text = function(txt, x, y, opts){
+    if(typeof txt === 'string') txt = nettoyerTextePdf(txt);
+    else if(Array.isArray(txt)) txt = txt.map(nettoyerTextePdf);
+    return _docText(txt, x, y, opts);
+  };
+  var _docSplit = doc.splitTextToSize.bind(doc);
+  doc.splitTextToSize = function(txt, maxW, opts){
+    return _docSplit(nettoyerTextePdf(String(txt)), maxW, opts);
+  };
+
+  var margin = 40;
+  var pageWidth = doc.internal.pageSize.getWidth();
+  var pageHeight = doc.internal.pageSize.getHeight();
+  var maxWidth = pageWidth - margin * 2;
+  var GOUTTIERE = 20;
+  var largeurColonne = (maxWidth - GOUTTIERE) / 2;
+  var xColonneDroite = margin + largeurColonne + GOUTTIERE;
+  var HAUTEUR_PIED = 46;                  // zone réservée au pied de page
+  var basDePage = pageHeight - HAUTEUR_PIED;
+  var y = margin;
+
+  // Charte GETLOCATION (orange #FF6B00, bleu #0066FF), employée avec
+  // parcimonie — titres, filets et montants clés — pour rester lisible en
+  // noir et blanc et économique à imprimer.
+  var C = {
+    titre:  [26, 47, 82],
+    texte:  [34, 32, 44],
+    label:  [122, 120, 134],
+    filet:  [214, 219, 226],
+    fond:   [247, 248, 251],
+    orange: [255, 107, 0],
+    bleu:   [0, 102, 255],
+    vert:   [47, 158, 91]
+  };
+
+  // Contrat etabli en anglais : chaque intitule imprime passe par T().
+  // Le texte francais reste la reference (voir js/contrat-en.js) ; T()
+  // renvoie le francais tel quel si le dictionnaire manque une entree.
+  var dicoContrat = dictionnaireContrat();
+  var contratEnAnglais = estContratAnglais(payload.langueClient) && !!dicoContrat;
+  function T(texte){ return contratEnAnglais ? dicoContrat.texte(texte) : texte; }
+
+  function police(style, taille, couleur){
+    doc.setFont('helvetica', style);
+    doc.setFontSize(taille);
+    doc.setTextColor(couleur[0], couleur[1], couleur[2]);
+  }
+  function filet(x1, x2, yFilet, couleur, epaisseur){
+    doc.setDrawColor(couleur[0], couleur[1], couleur[2]);
+    doc.setLineWidth(epaisseur || 0.5);
+    doc.line(x1, yFilet, x2, yFilet);
+    doc.setLineWidth(0.5);
+  }
+  function nouvellePage(){ doc.addPage(); y = margin; }
+  function placePour(hauteur){ if(y + hauteur > basDePage) nouvellePage(); }
+  function valeurOuTiret(v){
+    return (v === undefined || v === null || String(v).trim() === '') ? (estApercu ? T('À compléter') : '—') : String(v);
+  }
+  // Capitales espacées : utilisées pour tous les intitulés (titres de
+  // section, libellés de champ), ce qui distingue nettement un libellé
+  // d'une valeur sans avoir à multiplier les tailles de police.
+  function capitales(texte, x, yTexte, espacement, options){
+    doc.setCharSpace(espacement);
+    doc.text(String(texte).toUpperCase(), x, yTexte, options);
+    doc.setCharSpace(0);
+  }
+
+  // --- Titre de section : intitulé en capitales souligné d'un filet orange
+  // court prolongé d'un filet gris, pour séparer franchement les blocs.
+  // `hauteurBloc` : hauteur approximative de ce qui suit le titre, pour que
+  // le titre bascule avec son contenu plutôt que de rester seul en bas de page.
+  function titreSection(texte, hauteurBloc){
+    if(y > margin) y += 8;
+    placePour(24 + (hauteurBloc || 40));
+    police('bold', 11, C.titre);
+    capitales(texte, margin, y, 0.9);
+    y += 7;
+    filet(margin, margin + 44, y, C.orange, 1.4);
+    filet(margin + 44, pageWidth - margin, y, C.filet, 0.6);
+    y += 13;
+  }
+
+  // --- Champ « libellé discret au-dessus, valeur en évidence en dessous ».
+  function hauteurChamp(valeur, largeur, taille){
+    doc.setFont('helvetica','normal'); doc.setFontSize(taille);
+    var nbLignes = doc.splitTextToSize(valeurOuTiret(valeur), largeur).length;
+    return (taille + 2) + (nbLignes - 1) * (taille + 2.5) + 8;
+  }
+  function champ(x, yChamp, largeur, definition){
+    var taille = definition.taille || 9.5;
+    police('normal', 6.8, C.label);
+    capitales(definition.label, x, yChamp, 0.45);
+    police(definition.gras ? 'bold' : 'normal', taille, definition.couleur || C.texte);
+    var lignes = doc.splitTextToSize(valeurOuTiret(definition.valeur), largeur);
+    doc.text(lignes, x, yChamp + taille + 2);
+    return (taille + 2) + (lignes.length - 1) * (taille + 2.5) + 8;
+  }
+  // Grille à deux colonnes ; `pleineLargeur` force un champ sur toute la
+  // largeur (adresse longue, par exemple).
+  function grilleChamps(champs){
+    var i = 0;
+    while(i < champs.length){
+      var gauche = champs[i];
+      var droite = (!gauche.pleineLargeur && champs[i + 1] && !champs[i + 1].pleineLargeur) ? champs[i + 1] : null;
+      var largeurGauche = gauche.pleineLargeur ? maxWidth : largeurColonne;
+      var hauteur = Math.max(
+        hauteurChamp(gauche.valeur, largeurGauche, gauche.taille || 9.5),
+        droite ? hauteurChamp(droite.valeur, largeurColonne, droite.taille || 9.5) : 0
+      );
+      placePour(hauteur);
+      champ(margin, y, largeurGauche, gauche);
+      if(droite) champ(xColonneDroite, y, largeurColonne, droite);
+      y += hauteur;
+      i += droite ? 2 : 1;
+    }
+  }
+
+  // --- Ligne « libellé ............ montant » du bloc tarification.
+  function ligneMontant(libelle, montant, options){
+    options = options || {};
+    var taille = options.taille || 9.5;
+    placePour(taille + 12);
+    police(options.gras ? 'bold' : 'normal', taille, options.couleur || C.texte);
+    doc.text(libelle, margin, y);
+    doc.text(String(montant), pageWidth - margin, y, { align: 'right' });
+    y += taille + (options.espace === undefined ? 6 : options.espace);
+  }
+  // Montant négatif toujours écrit avec le tiret ASCII (voir nettoyerTextePdf).
+  function montantRetranche(texte){
+    return '-' + String(texte).replace(/^[-−]\s*/, '');
+  }
+  function majusculeInitiale(texte){
+    var t = String(texte || '').trim();
+    return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
+  }
+  // "11 septembre 2026 à 20:30" -> { date: "11 septembre 2026", heure: "20:30" }
+  function separerDateHeure(valeur){
+    var texte = String(valeur || '');
+    var separateur = texte.lastIndexOf(' à ');
+    if(separateur === -1) return { date: valeurOuTiret(texte), heure: '' };
+    return { date: texte.slice(0, separateur), heure: texte.slice(separateur + 3) };
+  }
+
+  // =====================================================================
+  // PAGE 1 — SYNTHÈSE
+  // =====================================================================
+
+  function enTete(){
+    police('bold', 17, C.titre);
+    doc.text('GETLOCATION', margin, y + 6);
+    police('normal', 7.5, C.label);
+    doc.text(T('TLST SAS — Location de véhicules — Grasse, Alpes-Maritimes'), margin, y + 19);
+
+    police('bold', 15, C.titre);
+    capitales(T('Contrat de location'), pageWidth - margin, y + 4, 0.4, { align: 'right' });
+    var yDroite = y + 20;
+    if(payload.numero){
+      police('bold', 11.5, C.orange);
+      doc.text('N° ' + payload.numero, pageWidth - margin, yDroite, { align: 'right' });
+      yDroite += 12;
+    }
+    if(payload.reference){
+      police('normal', 7.5, C.label);
+      doc.text(T('Réf. réservation ') + payload.reference, pageWidth - margin, yDroite, { align: 'right' });
+    }
+
+    y += 28;
+    filet(margin, pageWidth - margin, y, C.titre, 1.6);
+    y += 15;
+
+    // Statut : l'avertissement "aperçu" ne doit JAMAIS figurer sur un
+    // contrat définitif — il dépend donc de estApercu, et non plus de la
+    // seule absence de signature (un contrat officiel non encore signé est
+    // "en attente de signature", pas un aperçu).
+    var statut;
+    if(payload.signature_image){
+      statut = { texte: T('Contrat signé électroniquement'), couleur: C.vert };
+    } else if(estApercu){
+      statut = { texte: T('Aperçu — document non contractuel'), couleur: C.orange };
+    } else {
+      statut = { texte: T('En attente de signature du locataire'), couleur: C.orange };
+    }
+    police('bold', 8, statut.couleur);
+    var largeurStatut = doc.getTextWidth(statut.texte.toUpperCase()) + statut.texte.length * 0.6 + 20;
+    doc.setDrawColor(statut.couleur[0], statut.couleur[1], statut.couleur[2]);
+    doc.setFillColor(C.fond[0], C.fond[1], C.fond[2]);
+    doc.roundedRect(margin, y - 9, largeurStatut, 16, 8, 8, 'FD');
+    capitales(statut.texte, margin + 10, y + 1.5, 0.6);
+    y += 21;
+
+  }
+  enTete();
+
+  // --- 1. Locataire / conducteur principal ------------------------------
+  titreSection(T('Locataire / conducteur principal'));
+  grilleChamps([
+    { label: T('Nom / Prénom'), valeur: [payload.locataire_prenom, payload.locataire_nom].filter(Boolean).join(' '), gras: true, taille: 12 },
+    { label: T('Date de naissance'), valeur: payload.locataire_naissance, taille: 10 },
+    { label: T('Adresse'), valeur: payload.locataire_adresse },
+    { label: T('Téléphone'), valeur: payload.locataire_tel },
+    { label: T('E-mail'), valeur: payload.locataire_email },
+    { label: T('N° de permis'), valeur: payload.locataire_permis, gras: true }
+  ]);
+  // Délivrance et validité du permis regroupées sur une seule ligne : trois
+  // informations secondaires n'ont pas à occuper deux lignes de grille sur
+  // la page de synthèse.
+  var detailPermis = [
+    payload.locataire_permis_date ? (contratEnAnglais ? 'issued on ' : 'délivré le ') + payload.locataire_permis_date : null,
+    payload.locataire_permis_pays ? (contratEnAnglais ? 'by ' : 'par ') + payload.locataire_permis_pays : null,
+    payload.locataire_permis_validite ? (contratEnAnglais ? 'valid until ' : 'valable jusqu\'au ') + payload.locataire_permis_validite : null
+  ].filter(Boolean).join(' — ');
+  if(detailPermis){
+    placePour(22);
+    police('normal', 6.8, C.label);
+    capitales(T('Permis de conduire'), margin, y, 0.45);
+    y += 10;
+    police('normal', 8.5, C.texte);
+    doc.text(detailPermis, margin, y);
+    y += 9;
+  }
+
+  // Bloc affiché uniquement s'il existe vraiment un second conducteur, et
+  // tenu en une ligne : ses informations sont secondaires, elles ne doivent
+  // pas repousser la tarification et la garantie hors de cette page.
+  if(payload.second_conducteur === 'Oui'){
+    var permisSecond = [
+      payload.second_conducteur_permis ? (contratEnAnglais ? 'licence no. ' : 'permis n° ') + payload.second_conducteur_permis : null,
+      [payload.second_conducteur_permis_pays, payload.second_conducteur_permis_date].filter(Boolean).join(', ')
+    ].filter(Boolean);
+    var resumeSecond = [
+      [payload.second_conducteur_prenom, payload.second_conducteur_nom].filter(Boolean).join(' '),
+      payload.second_conducteur_naissance ? (contratEnAnglais ? 'born ' : 'né(e) le ') + payload.second_conducteur_naissance : null,
+      permisSecond.length > 1 ? permisSecond[0] + ' (' + permisSecond[1] + ')' : permisSecond[0]
+    ].filter(Boolean).join(' — ');
+    police('normal', 9, C.texte);
+    var lignesSecond = doc.splitTextToSize(valeurOuTiret(resumeSecond), maxWidth);
+    placePour(14 + lignesSecond.length * 11);
+    y += 4;
+    police('bold', 8, C.bleu);
+    capitales(T('Conducteur supplémentaire'), margin, y, 0.7);
+    y += 12;
+    police('normal', 9, C.texte);
+    doc.text(lignesSecond, margin, y);
+    y += lignesSecond.length * 11;
+  }
+  y += 3;
+
+  // --- 2. Véhicule -------------------------------------------------------
+  titreSection(T('Véhicule'), 62);
+  placePour(46);
+  police('bold', 13.5, C.titre);
+  doc.text(valeurOuTiret(payload.vehicule), margin, y);
+  y += 18;
+  var champsVehicule = [
+    { label: T('Immatriculation'), valeur: payload.immatriculation, gras: true, taille: 11 },
+    { label: T('Carburant'), valeur: payload.carburant, taille: 10 }
+  ];
+  if(payload.vin) champsVehicule.push({ label: T('N° de série (VIN)'), valeur: payload.vin, taille: 8.5 });
+  grilleChamps(champsVehicule);
+  y += 3;
+
+  // --- 3. Location -------------------------------------------------------
+  titreSection(T('Location'), 110);
+  var depart = separerDateHeure(payload.depart);
+  var retour = separerDateHeure(payload.retour);
+  var lieuDepart = valeurOuTiret(payload.lieu);
+  var lieuRetour = valeurOuTiret(payload.lieuRetour || payload.lieu);
+  police('normal', 9, C.texte);
+  var lignesLieuDepart = doc.splitTextToSize(lieuDepart, largeurColonne);
+  var lignesLieuRetour = doc.splitTextToSize(lieuRetour, largeurColonne);
+  placePour(72 + Math.max(lignesLieuDepart.length, lignesLieuRetour.length) * 11);
+
+  police('bold', 8, C.orange);
+  capitales(T('Départ'), margin, y, 0.8);
+  capitales(T('Retour'), xColonneDroite, y, 0.8);
+  y += 6;
+  filet(margin, margin + largeurColonne, y, C.filet, 0.6);
+  filet(xColonneDroite, xColonneDroite + largeurColonne, y, C.filet, 0.6);
+  y += 17;
+  police('bold', 12.5, C.titre);
+  doc.text(depart.date, margin, y);
+  doc.text(retour.date, xColonneDroite, y);
+  y += 15;
+  police('normal', 11, C.texte);
+  doc.text(depart.heure, margin, y);
+  doc.text(retour.heure, xColonneDroite, y);
+  y += 17;
+  police('normal', 6.8, C.label);
+  if(lieuRetour === lieuDepart){
+    // Même lieu au départ et au retour : une seule mention, sur toute la
+    // largeur — jamais la même adresse imprimée deux fois côte à côte.
+    capitales(T('Lieu de départ et de retour'), margin, y, 0.45);
+    y += 11;
+    police('normal', 9, C.texte);
+    var lignesLieuUnique = doc.splitTextToSize(lieuDepart, maxWidth);
+    doc.text(lignesLieuUnique, margin, y);
+    y += lignesLieuUnique.length * 11 + 9;
+  } else {
+    capitales(T('Lieu'), margin, y, 0.45);
+    capitales(T('Lieu'), xColonneDroite, y, 0.45);
+    y += 11;
+    police('normal', 9, C.texte);
+    doc.text(lignesLieuDepart, margin, y);
+    doc.text(lignesLieuRetour, xColonneDroite, y);
+    y += Math.max(lignesLieuDepart.length, lignesLieuRetour.length) * 11 + 9;
+  }
+
+  grilleChamps([
+    { label: T('Durée'), valeur: payload.duree, gras: true, taille: 10 },
+    { label: T('Kilométrage inclus'), valeur: nombreContrat(getKmInclusParJour(), payload.langueClient) + (contratEnAnglais ? ' km / day — ' : ' km / jour — ') + payload.kmInclus + (contratEnAnglais ? ' km in total' : ' km au total'), taille: 10 }
+  ]);
+  y += 3;
+
+  // --- 4. Tarification ---------------------------------------------------
+  titreSection(T('Tarification'), 120);
+  var synthese = payload.syntheseFinanciere;
+  if(synthese){
+    // PRIX LOCATION + OPTIONS RÉELLEMENT RETENUES = TOTAL LOCATION.
+    // Rien d'autre : ni « Remises », ni « Ajustement tarifaire ». Quand
+    // l'agence a convenu un tarif particulier, la ligne « Location »
+    // porte directement ce prix (voir syntheseFinancierePdf). Le détail
+    // interne reste dans les données, jamais sur le document client.
+    var libelleJoursContrat = contratEnAnglais
+      ? dicoContrat.duree(formatJoursFactures(synthese.jours))
+      : formatJoursFactures(synthese.jours);
+    ligneMontant(T('Location') + ' — ' + libelleJoursContrat, formatEUR(synthese.location));
+
+    // Une ligne par option retenue, avec sa durée quand elle est facturée
+    // au jour. Aucune ligne « Options » générique : sans option, ce bloc
+    // est simplement vide.
+    (synthese.options || []).forEach(function(option){
+      var libelle = T(option.nom) + (option.type === 'jour' ? ' — ' + libelleJoursContrat : '');
+      ligneMontant(libelle, formatEUR(option.montant));
+    });
+
+    y += 3;
+    filet(margin, pageWidth - margin, y, C.filet, 0.9);
+    y += 18;
+    ligneMontant(T('TOTAL LOCATION'), formatEUR(synthese.totalLocation), { gras: true, taille: 12.5, couleur: C.titre, espace: 12 });
+  } else {
+    // Repli : payload sans synthèse (véhicule ou dates incomplets).
+    (payload.detailFinancier || []).forEach(function(l){ ligneMontant(T(l[0]), l[1]); });
+    ligneMontant(T('TOTAL LOCATION'), payload.total, { gras: true, taille: 12.5, couleur: C.titre, espace: 12 });
+  }
+
+  // État du règlement : séparé du prix de la location, avec le reste à
+  // payer comme montant le plus visible du document.
+  placePour(96);
+  police('bold', 8.5, C.label);
+  capitales(T('État du règlement'), margin, y, 0.7);
+  y += 15;
+  ligneMontant(T('Acompte déjà réglé'), montantRetranche(payload.montantRegle || payload.total), { espace: 1 });
+  police('normal', 7.8, C.label);
+  doc.text(majusculeInitiale(payload.detailAcompte || ((contratEnAnglais ? 'paid by ' : 'réglé par ') + (payload.modePaiement || (contratEnAnglais ? 'bank card' : 'carte bancaire')).toLowerCase())), margin, y + 8);
+  y += 18;
+
+  var hauteurEncadre = 41;
+  placePour(hauteurEncadre + 8);
+  doc.setFillColor(C.fond[0], C.fond[1], C.fond[2]);
+  doc.setDrawColor(C.orange[0], C.orange[1], C.orange[2]);
+  doc.setLineWidth(1.2);
+  doc.roundedRect(margin, y, maxWidth, hauteurEncadre, 7, 7, 'FD');
+  doc.setLineWidth(0.5);
+  police('bold', 11, C.titre);
+  capitales(T('Reste à payer'), margin + 14, y + 20, 0.6);
+  police('normal', 7.8, C.label);
+  doc.text(majusculeInitiale(payload.detailSolde || ''), margin + 14, y + 34);
+  police('bold', 18, C.orange);
+  doc.text(String(payload.soldeRestant || formatEUR(0)), pageWidth - margin - 14, y + 29, { align: 'right' });
+  y += hauteurEncadre + 10;
+
+  // --- 5. Garantie -------------------------------------------------------
+  // Bloc volontairement séparé du récapitulatif de la location : le dépôt de
+  // garantie n'est pas un paiement, il ne doit jamais paraître s'ajouter au
+  // prix de la location.
+  // Le niveau de protection et le dépôt restent distincts du prix de la
+  // location. Le contrat ne promet jamais un rachat de franchise, une
+  // responsabilité maximale, ni un plafond absolu des sommes dues.
+  var protection = payload.protection || null;
+  var largeurInterieure = maxWidth - 28;
+  var xProtection = margin + 14;
+  var xDepot = xProtection + largeurInterieure * 0.48;
+  var xMode = xProtection + largeurInterieure * 0.79;
+  var texteProtection = T('Les protections complémentaires réduisent la participation financière dans les conditions prévues au contrat. Elles restent soumises aux exclusions et limitations applicables.');
+  var texteDepot = T('Le dépôt de garantie ne constitue ni un plafond de responsabilité ni une limitation des sommes pouvant être réclamées.');
+  police('normal', 8, C.texte);
+  var lignesProtection = doc.splitTextToSize(texteProtection, largeurInterieure);
+  var lignesDepot = doc.splitTextToSize(texteDepot, largeurInterieure);
+  var hauteurGarantie = 82 + (lignesProtection.length + lignesDepot.length) * 10;
+  titreSection(T('Protection et garantie'), hauteurGarantie + 18);
+  doc.setFillColor(252, 252, 253);
+  doc.setDrawColor(C.filet[0], C.filet[1], C.filet[2]);
+  doc.roundedRect(margin, y, maxWidth, hauteurGarantie, 7, 7, 'FD');
+  doc.setLineWidth(0.5);
+  doc.line(xDepot - 12, y + 10, xDepot - 12, y + 48);
+
+  police('normal', 6.8, C.label);
+  capitales(T('Protection complémentaire'), xProtection, y + 15, 0.45);
+  police('bold', 12.5, C.titre);
+  doc.text(valeurOuTiret(protection ? T(protection.nom) : ''), xProtection, y + 40);
+
+  police('normal', 6.8, C.label);
+  capitales(T('Dépôt de garantie'), xDepot, y + 15, 0.45);
+  police('bold', 12.5, C.titre);
+  doc.text(valeurOuTiret(payload.caution), xDepot, y + 40);
+
+  police('normal', 6.8, C.label);
+  capitales(T('Mode'), xMode, y + 15, 0.45);
+  police('normal', 9.5, C.texte);
+  doc.text(valeurOuTiret(payload.mode_reglement_caution), xMode, y + 39);
+
+  police('normal', 6.8, C.label);
+  capitales(T('Conditions et exclusions'), xProtection, y + 58, 0.45);
+  police('normal', 8, C.texte);
+  doc.text(lignesProtection, xProtection, y + 68);
+  doc.text(lignesDepot, xProtection, y + 68 + lignesProtection.length * 10);
+  y += hauteurGarantie + 11;
+  placePour(12);
+  police('italic', 7.8, C.label);
+  doc.text(T('Le dépôt de garantie ne constitue pas un paiement de la location : il est restitué selon les conditions de l\'article 4.'), margin, y);
+  y += 10;
+
+  // =====================================================================
+  // PAGE 2 — CONDITIONS, DÉCLARATION, SIGNATURES
+  // =====================================================================
+  // Les conditions ouvrent une nouvelle page seulement s'il ne reste pas la
+  // place d'en commencer la lecture (titre + version des CGL + premier
+  // article). Dans le cas courant la synthèse remplit la page 1 et les
+  // conditions démarrent bien page 2 ; quand la synthèse déborde (beaucoup
+  // d'options), elles enchaînent sous la garantie au lieu de la laisser
+  // seule sur une page entière.
+  placePour(150);
+  titreSection(T('Principales conditions de location'));
+  police('normal', 8, C.label);
+  // Version des CGL ASSOCIÉE AU CONTRAT (payload.cglVersion, figée à sa
+  // création) : rééditer un ancien contrat ne doit jamais lui attribuer
+  // après coup la version en vigueur aujourd'hui.
+  var versionCgl = payload.cglVersion || getCglVersion();
+  doc.text((contratEnAnglais ? 'Applicable General Rental Conditions: version ' : 'Conditions Générales de Location applicables : version ') + versionCgl + (contratEnAnglais ? ' — full text at getlocation.fr/cgl.html' : ' — texte complet sur getlocation.fr/cgl.html'), margin, y);
+  y += 18;
+
+  // Contrat etabli en anglais : avertissement de traduction, en tete des
+  // conditions. Il dit ce qui protege reellement l'agence — la version
+  // francaise prevaut, le droit francais s'applique, et aucune erreur de
+  // traduction ne cree d'obligation supplementaire. Voir js/contrat-en.js
+  // pour le texte et le raisonnement juridique.
+  if(contratEnAnglais){
+    var avertissement = dicoContrat.AVERTISSEMENT;
+    police('bold', 9, C.titre);
+    var lignesAvertissement = [];
+    avertissement.paragraphes.forEach(function(paragraphe){
+      lignesAvertissement.push(doc.splitTextToSize(paragraphe, maxWidth - 28));
+    });
+    var hauteurBloc = 26;
+    lignesAvertissement.forEach(function(lignes){ hauteurBloc += lignes.length * 10 + 8; });
+    placePour(hauteurBloc + 10);
+    doc.setFillColor(C.fond[0], C.fond[1], C.fond[2]);
+    doc.setDrawColor(C.orange[0], C.orange[1], C.orange[2]);
+    doc.setLineWidth(1);
+    doc.roundedRect(margin, y - 10, maxWidth, hauteurBloc, 5, 5, 'FD');
+    doc.setLineWidth(0.5);
+    police('bold', 8.5, C.orange);
+    capitales(avertissement.titre, margin + 14, y + 2, 0.6);
+    var yTexte = y + 16;
+    police('normal', 8, C.texte);
+    lignesAvertissement.forEach(function(lignes){
+      doc.text(lignes, margin + 14, yTexte);
+      yTexte += lignes.length * 10 + 8;
+    });
+    y += hauteurBloc + 6;
+  }
+
+  // Informations essentielles mises en gras à l'intérieur des articles
+  // (kilométrage, tarif au km, dépôt de garantie, numéro d'urgence) : le
+  // gras guide le regard sans réécrire une seule ligne du texte juridique.
+  var termesEnGras = [
+    getKmInclusParJour().toLocaleString('fr-FR') + ' km',
+    payload.kmInclus + ' km',
+    formatEURPrecis((payload.supplementKmCentimes || getSupplementKmCentimes()) / 100),
+    String(payload.caution || ''),
+    (getAgence().telephone || '')
+  ];
+  function echapperRegex(texte){ return texte.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  function decouperSelonTermes(texte, termes){
+    var valides = termes.map(function(t){ return nettoyerTextePdf(String(t || '')).trim(); })
+      .filter(function(t){ return t.length > 1; })
+      .sort(function(a, b){ return b.length - a.length; });
+    if(!valides.length) return [{ texte: texte, gras: false }];
+    var motif = new RegExp('(' + valides.map(echapperRegex).join('|') + ')', 'g');
+    var segments = [], dernier = 0, trouve;
+    while((trouve = motif.exec(texte)) !== null){
+      if(trouve.index > dernier) segments.push({ texte: texte.slice(dernier, trouve.index), gras: false });
+      segments.push({ texte: trouve[0], gras: true });
+      dernier = trouve.index + trouve[0].length;
+    }
+    if(dernier < texte.length) segments.push({ texte: texte.slice(dernier), gras: false });
+    return segments;
+  }
+  // Rendu d'un paragraphe mot à mot, pour pouvoir passer en gras au milieu
+  // d'une ligne (splitTextToSize ne connaît qu'une seule police à la fois).
+  function ecrireParagraphe(texte, taille, interligne){
+    // Les retours à la ligne saisis par l'agence (remarques particulières)
+    // sont conservés : chaque ligne source est rendue séparément.
+    String(texte).split('\n').forEach(function(ligneSource){
+      ecrireLigneSource(ligneSource, taille, interligne);
+    });
+  }
+  function ecrireLigneSource(texte, taille, interligne){
+    var normalise = nettoyerTextePdf(texte);
+    var mots = [];
+    decouperSelonTermes(normalise, termesEnGras).forEach(function(segment){
+      segment.texte.split(/(\s+)/).forEach(function(mot){
+        if(mot !== '') mots.push({ mot: mot, gras: segment.gras });
+      });
+    });
+    var ligneCourante = [], largeurLigne = 0;
+    function viderLigne(){
+      if(!ligneCourante.length) return;
+      placePour(interligne);
+
+      // Les mots de même graisse consécutifs sont écrits en UNE seule fois,
+      // pas un par un.
+      //
+      // Pourquoi : positionner chaque mot soi-même oblige à mesurer sa
+      // largeur avec la table de jsPDF, qui s'écarte légèrement des
+      // métriques réelles appliquées par le lecteur PDF. L'écart est
+      // proportionnel à la longueur du mot (1,2 pt sur « GETLOCATION » à
+      // 9 pt) et vient se soustraire à l'espace suivant, qui n'en fait que
+      // 2,5 : le mot suivant venait alors se coller au précédent
+      // (« GETLOCATION(TLST SAS) », « 600 €est », « Toutretard »).
+      // En écrivant chaque suite de mots d'un seul tenant, c'est le lecteur
+      // PDF qui place les glyphes et les espaces, avec ses propres
+      // métriques : plus aucun écart ne peut s'accumuler à l'intérieur
+      // d'une suite. Seules les frontières gras/normal restent positionnées
+      // à la main, et l'espace y est rattaché au segment précédent pour ne
+      // jamais pouvoir disparaître.
+      var x = margin;
+      var suite = null;
+      var espaceEnAttente = '';
+      function ecrireSuite(){
+        if(!suite) return;
+        police(suite.gras ? 'bold' : 'normal', taille, C.texte);
+        doc.text(suite.texte, x, y);
+        x += doc.getTextWidth(suite.texte);
+        suite = null;
+      }
+      // Espace situé à une frontière gras/normal : écrit comme un
+      // déplacement explicite, avec une marge de sécurité. L'écart de mesure
+      // résiduel de la suite précédente viendrait sinon s'y soustraire, et
+      // un espace un peu large se voit infiniment moins qu'un espace
+      // manquant sur un document contractuel.
+      function ecrireEspaceFrontiere(){
+        if(!espaceEnAttente) return;
+        x += doc.getTextWidth(espaceEnAttente) * 1.3;
+        espaceEnAttente = '';
+      }
+      ligneCourante.forEach(function(element){
+        var estEspace = /^\s+$/.test(element.mot);
+        if(estEspace){
+          // L'espace reste en attente : on ne saura qu'au mot suivant s'il
+          // est intérieur à une suite (il y est alors intégré) ou à une
+          // frontière (déplacement explicite).
+          espaceEnAttente += element.mot;
+          return;
+        }
+        if(suite && suite.gras === element.gras){
+          suite.texte += espaceEnAttente + element.mot;
+          espaceEnAttente = '';
+          return;
+        }
+        ecrireSuite();
+        ecrireEspaceFrontiere();
+        suite = { texte: element.mot, gras: element.gras };
+      });
+      ecrireSuite();
+
+      y += interligne;
+      ligneCourante = []; largeurLigne = 0;
+    }
+    mots.forEach(function(element){
+      doc.setFont('helvetica', element.gras ? 'bold' : 'normal');
+      doc.setFontSize(taille);
+      var largeurMot = doc.getTextWidth(element.mot);
+      var estEspace = /^\s+$/.test(element.mot);
+      if(largeurLigne + largeurMot > maxWidth && !estEspace && ligneCourante.length){
+        viderLigne();
+        if(estEspace) return;
+      }
+      if(estEspace && !ligneCourante.length) return;   // pas d'espace en début de ligne
+      ligneCourante.push(element);
+      largeurLigne += largeurMot;
+    });
+    viderLigne();
+  }
+
+  remplirTexteArticles(payload);
+  sectionsContrat(payload, contratEnAnglais ? dicoContrat : null).forEach(function(section){
+    // "Article 3 — Kilométrage et carburant" devient deux lignes :
+    // le numéro d'article, puis son intitulé, nettement plus lisibles.
+    var decoupe = /^Article\s+(\d+)\s*[—–-]\s*(.+)$/i.exec(section.titre);
+    var numero = decoupe ? decoupe[1] : null;
+    var intitule = decoupe ? decoupe[2] : section.titre;
+    placePour(46);
+    if(numero){
+      police('bold', 7.5, C.orange);
+      capitales(T('Article') + ' ' + numero, margin, y, 0.9);
+      y += 12;
+    }
+    police('bold', 11, C.titre);
+    doc.text(intitule, margin, y);
+    y += 14;
+    section.paragraphes.forEach(function(paragraphe){
+      ecrireParagraphe(paragraphe, 9, 12.5);
+      y += 6;
+    });
+    y += 10;
+  });
+
+  // --- Déclaration du locataire, en points séparés plutôt qu'en bloc -----
+  titreSection(T('Déclaration du locataire'));
+  var texteDeclaration = contratEnAnglais ? dicoContrat.DECLARATION : DECLARATION_LOCATAIRE_TEXTE;
+  var declaration = texteDeclaration.split(' : ');
+  var introDeclaration = declaration.length > 1 ? declaration[0] + (contratEnAnglais ? ':' : ' :') : '';
+  var pointsDeclaration = (declaration.length > 1 ? declaration.slice(1).join(' : ') : texteDeclaration)
+    .replace(/\.$/, '')
+    .split(' ; ')
+    .map(function(point){ return point.trim(); })
+    .filter(Boolean);
+  if(introDeclaration){
+    placePour(16);
+    police('normal', 9, C.texte);
+    doc.text(introDeclaration, margin, y);
+    y += 14;
+  }
+  pointsDeclaration.forEach(function(point){
+    police('normal', 9, C.texte);
+    var lignes = doc.splitTextToSize(majusculeInitiale(point), maxWidth - 16);
+    placePour(lignes.length * 12 + 4);
+    police('bold', 9, C.orange);
+    doc.text('•', margin + 2, y);
+    police('normal', 9, C.texte);
+    doc.text(lignes, margin + 16, y);
+    y += lignes.length * 12 + 4;
+  });
+  y += 10;
+
+  // --- Signatures --------------------------------------------------------
+  // Hauteur réduite tant qu'aucune signature n'est apposée : la mention
+  // "En attente de signature" ne doit pas ouvrir un grand cadre presque vide.
+  var contratSigne = !!payload.signature_image;
+  var hauteurSignature = contratSigne ? 118 : 86;
+  placePour(hauteurSignature + 40);
+  titreSection(T('Signatures'), hauteurSignature + 10);
+  doc.setDrawColor(C.filet[0], C.filet[1], C.filet[2]);
+  doc.roundedRect(margin, y, largeurColonne, hauteurSignature, 6, 6, 'S');
+  doc.roundedRect(xColonneDroite, y, largeurColonne, hauteurSignature, 6, 6, 'S');
+
+  police('bold', 8, C.titre);
+  capitales(T('Signature du locataire'), margin + 12, y + 18, 0.6);
+  capitales(T('Validation GETLOCATION'), xColonneDroite + 12, y + 18, 0.6);
+
+  police('normal', 6.8, C.label);
+  capitales(T('Nom'), margin + 12, y + 34, 0.45);
+  police('normal', 9.5, C.texte);
+  doc.text(valeurOuTiret([payload.locataire_prenom, payload.locataire_nom].filter(Boolean).join(' ')), margin + 12, y + 46);
+  police('normal', 6.8, C.label);
+  capitales(T('Date'), margin + 12, y + 60, 0.45);
+  police('normal', 9.5, C.texte);
+  doc.text(contratSigne ? valeurOuTiret(payload.horodatage_signature) : T('En attente de signature'), margin + 12, y + 72);
+
+  if(contratSigne){
+    // Proportions de la signature conservées (le pavé de signature est large
+    // et bas) : une image étirée ferait douter de son authenticité.
+    try{
+      var cadreSignature = { largeur: 132, hauteur: 34 };
+      var proprietes = doc.getImageProperties(payload.signature_image);
+      var echelle = Math.min(cadreSignature.largeur / proprietes.width, cadreSignature.hauteur / proprietes.height);
+      doc.addImage(payload.signature_image, 'PNG', margin + 12, y + 78, proprietes.width * echelle, proprietes.height * echelle);
+    } catch(e){
+      try{ doc.addImage(payload.signature_image, 'PNG', margin + 12, y + 78, 132, 34); } catch(e2){}
+    }
+  }
+
+  police('normal', 9.5, C.texte);
+  doc.text('GETLOCATION — TLST SAS', xColonneDroite + 12, y + 38);
+  police('normal', 8.5, C.label);
+  doc.text(payload.numero ? ((contratEnAnglais ? 'Agreement no. ' : 'Contrat n° ') + payload.numero) : T('Contrat établi par l\'agence'), xColonneDroite + 12, y + 54);
+  if(contratSigne && payload.signatureId){
+    doc.text(T('Identifiant de signature :'), xColonneDroite + 12, y + 72);
+    police('bold', 8.5, C.texte);
+    doc.text(String(payload.signatureId), xColonneDroite + 12, y + 84);
+  }
+  y += hauteurSignature + 12;
+
+  // =====================================================================
+  // PAGE 3 — ANNEXE : ÉTAT DES LIEUX DU VÉHICULE
+  // =====================================================================
+  nouvellePage();
+  titreSection(T('Annexe — état des lieux du véhicule'));
+  police('italic', 8.5, C.label);
+  doc.text(((contratEnAnglais ? 'This appendix forms an integral part of rental agreement ' : 'Cette annexe fait partie intégrante du contrat de location ') + (payload.numero ? ((contratEnAnglais ? 'no. ' : 'n° ') + payload.numero) : '')).replace(/\s+$/, '') + '.', margin, y);
+  y += 20;
+
+  var remise = payload.remise || {};
+  var restitution = payload.restitution || {};
+  var kmManuel = payload.kilometrageManuel || null;
+  var kmResultat = payload.kilometrageResultat || (kmManuel && kmManuel.resultat) || null;
+
+  // Tableau DÉPART / RETOUR : une colonne de libellés puis deux colonnes.
+  var largeurLibelle = 130;
+  var largeurValeur = (maxWidth - largeurLibelle) / 2;
+  var xDepart = margin + largeurLibelle;
+  var xRetour = xDepart + largeurValeur;
+
+  placePour(40);
+  police('bold', 8, C.orange);
+  capitales(T('Départ'), xDepart, y, 0.8);
+  capitales(T('Retour'), xRetour, y, 0.8);
+  y += 6;
+  filet(margin, pageWidth - margin, y, C.filet, 0.8);
+  y += 15;
+
+  function ligneEtat(libelle, valeurDepart, valeurRetour){
+    police('normal', 9, C.texte);
+    var lignesDepart = doc.splitTextToSize(valeurOuTiret(valeurDepart), largeurValeur - 8);
+    var lignesRetour = doc.splitTextToSize(valeurOuTiret(valeurRetour), largeurValeur - 8);
+    var hauteur = Math.max(lignesDepart.length, lignesRetour.length) * 11 + 9;
+    placePour(hauteur);
+    police('normal', 8, C.label);
+    doc.text(libelle, margin, y);
+    police('normal', 9, C.texte);
+    doc.text(lignesDepart, xDepart, y);
+    doc.text(lignesRetour, xRetour, y);
+    y += hauteur;
+    filet(margin, pageWidth - margin, y - 5, C.filet, 0.3);
+  }
+
+  function formatKm(valeur){
+    if(valeur === undefined || valeur === null || String(valeur).trim() === '') return '';
+    var nombre = Number(valeur);
+    return (isFinite(nombre) ? nombre.toLocaleString('fr-FR') : String(valeur)) + ' km';
+  }
+  ligneEtat(T('Date et heure'), remise.dateHeure, restitution.dateHeure);
+  ligneEtat(
+    T('Kilométrage'),
+    formatKm(remise.km !== undefined && remise.km !== null ? remise.km : (kmManuel ? kmManuel.kmDepart : '')),
+    formatKm(restitution.km !== undefined && restitution.km !== null ? restitution.km : (kmManuel ? kmManuel.kmRetour : ''))
+  );
+  ligneEtat(T('Carburant'), formatCarburant(remise.carburant), formatCarburant(restitution.carburant));
+  ligneEtat(T('État intérieur (propreté)'), remise.proprete, restitution.proprete);
+  ligneEtat(T('État extérieur (dommages)'), remise.dommages, restitution.dommages);
+  ligneEtat(
+    T('Nombre de clés'),
+    (remise.cles === null || remise.cles === undefined || remise.cles === '') ? '' : String(remise.cles),
+    (restitution.cles === null || restitution.cles === undefined || restitution.cles === '') ? '' : String(restitution.cles)
+  );
+  ligneEtat(T('Accessoires'), remise.clesAccessoires, restitution.clesAccessoires);
+  ligneEtat(T('Agent'), remise.agent, restitution.agent);
+  if(remise.clientSigne || restitution.clientSigne || remise.agenceSigne || restitution.agenceSigne){
+    ligneEtat(T('Signature client'), remise.clientSigne, restitution.clientSigne);
+    ligneEtat(T('Signature agence'), remise.agenceSigne, restitution.agenceSigne);
+  }
+  y += 10;
+
+  if(kmResultat && kmResultat.valid){
+    grilleChamps([
+      { label: T('Distance parcourue'), valeur: nombreContrat(kmResultat.kmParcourus, payload.langueClient) + ' km', gras: true },
+      { label: T('Kilométrage inclus'), valeur: nombreContrat(kmResultat.kmInclus, payload.langueClient) + ' km' },
+      {
+        label: T('Kilométrage supplémentaire'),
+        valeur: kmResultat.kmDepasses > 0
+          ? (nombreContrat(kmResultat.kmDepasses, payload.langueClient) + (contratEnAnglais ? ' km — extra charge ' : ' km — supplément ') + formatEURPrecis(kmResultat.supplement))
+          : T('Aucun dépassement'),
+        gras: true,
+        couleur: kmResultat.kmDepasses > 0 ? C.orange : C.vert,
+        pleineLargeur: true
+      }
+    ]);
+  } else {
+    placePour(16);
+    police('italic', 8.5, C.label);
+    doc.text(T('Kilométrage parcouru calculé une fois les relevés de départ et de retour renseignés.'), margin, y);
+    y += 16;
+  }
+  y += 6;
+
+  // --- Schéma du véhicule (5 vues) + marques relevées -------------------
+  var etatDepartPdf = payload.etatDepart || { marks: [], observations: '' };
+  var etatRetourPdf = payload.etatRetour || { marks: [], observations: '' };
+
+  function blocSchema(titre, etat){
+    var ecart = 10;
+    var largeurVue = (maxWidth - 4 * ecart) / 5;
+    var hauteurVue = largeurVue * 0.85;
+    placePour(hauteurVue + 40);
+    police('bold', 9, C.titre);
+    capitales(titre, margin, y, 0.6);
+    y += 12;
+    var xVue = margin;
+    DMG_VIEWS.forEach(function(vue){
+      police('normal', 6.5, C.label);
+      doc.text(T(vue.label), xVue, y);
+      var yCadre = y + 5;
+      doc.setDrawColor(C.filet[0], C.filet[1], C.filet[2]);
+      doc.rect(xVue, yCadre, largeurVue, hauteurVue, 'S');
+      dessinerSchemaPdf(doc, vue.shape, payload.vehicleFamily, !!vue.mirror, xVue + 2, yCadre + 2, largeurVue - 4, hauteurVue - 4);
+      (etat.marks || []).filter(function(m){ return m.view === vue.key; }).forEach(function(m){
+        dessinerMarquePdf(doc, m.type, xVue + 2 + (m.x / 100) * (largeurVue - 4), yCadre + 2 + (m.y / 100) * (hauteurVue - 4));
+      });
+      xVue += largeurVue + ecart;
+    });
+    y += hauteurVue + 18;
+  }
+
+  y += 6;
+  placePour(40);
+  police('normal', 7.5, C.label);
+  doc.text(T('Repères : X = rayure — cercle = bosse / impact — point plein = éclat / petit impact'), margin, y);
+  y += 18;
+  blocSchema(T('Véhicule au départ'), etatDepartPdf);
+  blocSchema(T('Véhicule au retour'), etatRetourPdf);
+
+  // --- Observations (distinctes des "Remarques particulières" du contrat)
+  function blocObservations(titre, texte){
+    placePour(34);
+    police('normal', 6.8, C.label);
+    capitales(titre, margin, y, 0.45);
+    y += 12;
+    police('normal', 9, C.texte);
+    var lignes = doc.splitTextToSize(texte && texte.trim() ? texte : (estApercu ? T('À compléter') : '—'), maxWidth);
+    lignes.forEach(function(l){
+      placePour(12);
+      doc.text(l, margin, y);
+      y += 11;
+    });
+    y += 8;
+  }
+  blocObservations(T('Observations au départ'), etatDepartPdf.observations || remise.dommages || '');
+  blocObservations(T('Observations au retour'), etatRetourPdf.observations || restitution.dommages || '');
+  if(payload.observationsComplementaires){
+    blocObservations(T('Observations complémentaires'), payload.observationsComplementaires);
+  }
+
+  // ---- Pages photos état des lieux (une page par photo, image
+  // pré-redimensionnée et convertie en dataURL côté agence — voir
+  // lireImagesEnDataUrl()/ajouterPhotosAuPayload() plus bas). Jamais
+  // envoyées à un serveur : uniquement embarquées dans ce PDF. ----
+  (payload.photosEtatDesLieux || []).forEach(function(photo){
+    nouvellePage();
+    police('bold', 11, C.titre);
+    doc.text(T('Annexe photo') + ' — ' + photo.label, margin, y);
+    y += 16;
+    try{
+      var largeurDispo = maxWidth;
+      var hauteurDispo = basDePage - y;
+      var ratio = Math.min(largeurDispo / photo.width, hauteurDispo / photo.height);
+      var largeurPhoto = photo.width * ratio, hauteurPhoto = photo.height * ratio;
+      doc.addImage(photo.dataUrl, 'JPEG', margin + (largeurDispo - largeurPhoto) / 2, y, largeurPhoto, hauteurPhoto, undefined, 'FAST');
+    } catch(e){}
+  });
+
+  // ---- Pied de page, appliqué une fois le nombre total de pages connu
+  // (impossible de le savoir avant la fin du document). Discret, mais
+  // présent sur chaque page : numéro de contrat, pagination, identité légale.
+  var totalPages = doc.internal.getNumberOfPages();
+  var agence = getAgence();
+  var identiteLegale = [agence.societe, 'SIRET ' + agence.siret, agence.telephone, agence.email, agence.siteWeb].filter(Boolean).join(' · ');
+  for(var p = 1; p <= totalPages; p++){
+    doc.setPage(p);
+    filet(margin, pageWidth - margin, pageHeight - 36, C.filet, 0.5);
+    police('normal', 7.5, C.label);
+    doc.text((payload.numero ? (contratEnAnglais ? 'Agreement ' : 'Contrat ') + payload.numero : T('Contrat de location')) + (payload.reference ? ' — ' + (contratEnAnglais ? 'Ref. ' : 'Réf. ') + payload.reference : ''), margin, pageHeight - 25);
+    doc.text('Page ' + p + ' / ' + totalPages, pageWidth - margin, pageHeight - 25, { align: 'right' });
+    doc.setFontSize(6.5);
+    doc.text(identiteLegale, margin, pageHeight - 15);
+  }
+
+  var suffixe = payload.numero ? ('-' + payload.numero) : (payload.signature_image ? '' : '-apercu');
+  var nomFichier = 'contrat-getlocation-' + (payload.locataire_nom || 'client').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-') + suffixe + '.pdf';
+  livrerPDF(doc, nomFichier);
+}
+
+// ---------------------------------------------------------------------
+// Dossier contrat SÉCURISÉ (#agencyToken=/#clientToken=, en fragment — voir
+// src/api/contract-dossier-agency.js / contract-dossier-client.js. Les
+// informations de remise/restitution du véhicule vivent uniquement ici —
+// jamais dans les anciens liens ?data=/?prefill= en base64 ci-dessous,
+// conservés inchangés pour la compatibilité des liens déjà envoyés par
+// e-mail avant l'ajout de ce dossier sécurisé.
+// ---------------------------------------------------------------------
+
+function recapRow(label, valeur){
+  var row = document.createElement('div'); row.className = 'recap-row';
+  var l = document.createElement('span'); l.textContent = label;
+  var v = document.createElement('span'); v.textContent = (valeur === undefined || valeur === null || valeur === '') ? '—' : valeur;
+  row.appendChild(l); row.appendChild(v);
+  return row;
+}
+
+// Niveaux de carburant tels qu'ils se lisent sur une jauge, plutôt qu'une
+// échelle de 0 à 100 % : un agent relève « 3/4 », pas « 75 % ». La valeur
+// ENREGISTRÉE reste le pourcentage — les états des lieux déjà saisis
+// (30 %, 60 %…) restent donc lisibles et s'affichent tels quels.
+var NIVEAUX_CARBURANT = [
+  { valeur: 0, libelle: 'Vide' },
+  { valeur: 10, libelle: 'Réserve' },
+  { valeur: 25, libelle: '1/4' },
+  { valeur: 50, libelle: '1/2' },
+  { valeur: 75, libelle: '3/4' },
+  { valeur: 100, libelle: 'Plein' }
+];
+
+function peuplerSelectCarburant(select){
+  select.innerHTML = '';
+  select.add(new Option('—', ''));
+  NIVEAUX_CARBURANT.forEach(function(niveau){
+    select.add(new Option(niveau.libelle, String(niveau.valeur)));
+  });
+}
+
+function initDossierAgencyView(token){
+  var loading = document.getElementById('dossierAgencyLoading');
+  var errorCard = document.getElementById('dossierAgencyError');
+  var errorText = document.getElementById('dossierAgencyErrorText');
+  var content = document.getElementById('dossierAgencyContent');
+
+  function showError(message){
+    loading.classList.add('hidden');
+    errorText.textContent = message;
+    errorCard.classList.remove('hidden');
+  }
+
+  if(!/^[A-Za-z0-9_-]{43}$/.test(token || '')){
+    showError("Ce lien est invalide ou a expiré. Ouvrez à nouveau le lien reçu par e-mail.");
+    return;
+  }
+
+  function apiGet(){
+    return fetch('/api/contract-dossier-agency', { headers: { Authorization: 'Bearer ' + token } })
+      .then(function(r){ return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || 'Lien invalide ou expiré'); return body; }); });
+  }
+  function apiPost(payload){
+    return fetch('/api/contract-dossier-agency', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function(r){
+      return r.json().then(function(body){
+        if(!r.ok){
+          var err = new Error(body.error || 'Erreur');
+          err.champsManquants = body.champsManquants;
+          throw err;
+        }
+        return body;
+      });
+    });
+  }
+
+  var view = null;
+  var NOMS_CHAMPS = {
+    immatriculation: 'Immatriculation', adresse: 'Adresse', codePostal: 'Code postal', ville: 'Ville',
+    permisNumero: 'Numéro de permis', livraisonRue: 'Adresse de livraison', livraisonCP: 'Code postal de livraison',
+    livraisonVille: 'Ville de livraison', secondConducteurNom: 'Nom du second conducteur',
+    secondConducteurPrenom: 'Prénom du second conducteur', secondConducteurPermisNumero: 'Permis du second conducteur'
+  };
+
+  // Mêmes règles que champsManquantsAvantEnvoi() côté serveur (source de
+  // vérité, toujours revalidées à l'envoi) — recopiées ici uniquement pour
+  // un retour visuel immédiat, jamais pour se substituer à la validation serveur.
+  function champsManquantsLabels(){
+    var f = view.dossier && view.dossier.fields;
+    if(!f) return [NOMS_CHAMPS.immatriculation, NOMS_CHAMPS.adresse, NOMS_CHAMPS.codePostal, NOMS_CHAMPS.ville, NOMS_CHAMPS.permisNumero];
+    var manquants = [];
+    if(!f.immatriculation) manquants.push(NOMS_CHAMPS.immatriculation);
+    if(!f.adresse) manquants.push(NOMS_CHAMPS.adresse);
+    if(!f.codePostal) manquants.push(NOMS_CHAMPS.codePostal);
+    if(!f.ville) manquants.push(NOMS_CHAMPS.ville);
+    if(!f.permisNumero) manquants.push(NOMS_CHAMPS.permisNumero);
+    if(f.livraison){
+      if(!f.livraisonRue) manquants.push(NOMS_CHAMPS.livraisonRue);
+      if(!f.livraisonCP) manquants.push(NOMS_CHAMPS.livraisonCP);
+      if(!f.livraisonVille) manquants.push(NOMS_CHAMPS.livraisonVille);
+    }
+    if(f.secondConducteur){
+      if(!f.secondConducteurNom) manquants.push(NOMS_CHAMPS.secondConducteurNom);
+      if(!f.secondConducteurPrenom) manquants.push(NOMS_CHAMPS.secondConducteurPrenom);
+      if(!f.secondConducteurPermisNumero) manquants.push(NOMS_CHAMPS.secondConducteurPermisNumero);
+    }
+    return manquants;
+  }
+
+  function construireDossierPayload(v){
+    var r = v.reservation;
+    var f = (v.dossier && v.dossier.fields) || {};
+    var jours = r.jours;
+    var departISO = r.dateDebut + 'T' + r.heureDebut;
+    var retourISO = r.dateFin + 'T' + r.heureFin;
+    var heures = dureeHeures(departISO, retourISO);
+    var lieuAffiche = f.livraison ? ('Livraison à ' + (f.livraisonRue||'') + ', ' + (f.livraisonCP||'') + ' ' + (f.livraisonVille||'')) : r.lieuPrise;
+    var adresseComplete = [f.adresse, [f.codePostal, f.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    return traduireValeursPayload({
+      'form-name': 'contrat-signature',
+      reference: r.id,
+      numero: r.contractNumero || '',
+      // Langue de la reservation : le contrat que le client ouvre depuis son
+      // lien securise est etabli dans la langue ou il a reserve.
+      langueClient: r.langue === 'en' ? 'en' : 'fr',
+      statutDossier: v.dossier.status,
+      vehicule: r.vehicule ? r.vehicule.nom : '',
+      carburant: r.vehicule ? (r.vehicule.carburant || '') : '',
+      vin: r.vehicule ? (r.vehicule.vin || '') : '',
+      immatriculation: f.immatriculation || (r.vehicule ? r.vehicule.immatriculation : ''),
+      lieu: lieuAffiche,
+      lieuRetour: r.lieuRetour || lieuAffiche,
+      livraison: f.livraison ? 'Oui (+20 €)' : 'Non',
+      depart: formatDateHeureFR(departISO),
+      retour: formatDateHeureFR(retourISO),
+      duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
+      detailFinancier: lignesDetailFinancier(detailFinancierDepuisReservation(r)),
+      // Réservation payée en ligne : la totalité est déjà réglée, le solde
+      // restant est donc nul (mêmes valeurs que montantRegle/soldeRestant
+      // ci-dessous, simplement sous forme de nombres pour la synthèse PDF).
+      syntheseFinanciere: syntheseFinancierePdf(detailFinancierDepuisReservation(r), r.total, r.total, 0),
+      total: formatEUR(r.total),
+      montantRegle: formatEUR(r.total),
+      soldeRestant: formatEUR(0),
+      modePaiement: 'Carte bancaire (paiement en ligne)',
+      caution: r.vehicule ? formatEUR(r.vehicule.caution) : '',
+      mode_reglement_caution: f.modeCaution === 'especes' ? 'Espèces' : 'Carte bancaire',
+      locataire_prenom: r.conducteur ? r.conducteur.prenom : '',
+      locataire_nom: r.conducteur ? r.conducteur.nom : '',
+      locataire_naissance: r.conducteur ? isoVersJourMoisAnnee(r.conducteur.naissance) : '',
+      locataire_adresse: adresseComplete,
+      locataire_tel: r.conducteur ? r.conducteur.telephone : '',
+      locataire_email: r.conducteur ? r.conducteur.email : '',
+      locataire_permis: f.permisNumero || '',
+      locataire_permis_pays: f.permisPays || '',
+      locataire_permis_date: f.permisDate || '',
+      locataire_permis_validite: f.permisValidite || '',
+      second_conducteur: f.secondConducteur ? 'Oui' : 'Non',
+      second_conducteur_prenom: f.secondConducteurPrenom || '',
+      second_conducteur_nom: f.secondConducteurNom || '',
+      second_conducteur_permis: f.secondConducteurPermisNumero || '',
+      second_conducteur_permis_pays: f.secondConducteurPermisPays || '',
+      second_conducteur_permis_date: f.secondConducteurPermisDate || '',
+      kmInclus: kmInclusPourJours(jours).toLocaleString('fr-FR'),
+      cglVersion: r.cglVersion || getCglVersion(),
+      horodatage_signature: v.dossier.signature ? formatDateHeureFR(v.dossier.signature.signedAt) : '',
+      signatureId: v.dossier.signature ? v.dossier.signature.signatureId : '',
+      signature_image: v.dossier.signature ? (v.dossier.signature.imageDataUrl || '') : '',
+      remise: v.dossier.depart,
+      restitution: v.dossier.retour,
+      kilometrageResultat: v.dossier.kilometrage,
+      observationsComplementaires: v.dossier.observations || ''
+    });
+  }
+
+  function updateSendHint(){
+    var manquants = champsManquantsLabels();
+    var hint = document.getElementById('dfSendHint');
+    var missingEl = document.getElementById('dfMissingFields');
+    var sendBtn = document.getElementById('dfSendBtn');
+    if(manquants.length){
+      hint.classList.remove('hidden');
+      missingEl.classList.remove('hidden');
+      missingEl.textContent = 'Champs manquants avant l\'envoi : ' + manquants.join(', ') + '.';
+      sendBtn.disabled = true;
+    } else {
+      hint.classList.add('hidden');
+      missingEl.classList.add('hidden');
+      sendBtn.disabled = false;
+    }
+  }
+
+  function render(){
+    var r = view.reservation;
+    var statutLabels = { draft: 'Brouillon', sent: 'Envoyé au client', signed: 'Signé' };
+    var badge = document.getElementById('dossierStatutBadge');
+    badge.textContent = statutLabels[view.dossier.status] || view.dossier.status;
+    badge.className = 'badge-statut ' + view.dossier.status;
+    document.getElementById('dossierReference').textContent = 'Réservation ' + r.id;
+
+    var recap = document.getElementById('dossierRecap');
+    recap.textContent = '';
+    recap.appendChild(recapRow('Véhicule', r.vehicule ? r.vehicule.nom : ''));
+    recap.appendChild(recapRow('Dates', formatDateHeureFR(r.dateDebut + 'T' + r.heureDebut) + ' → ' + formatDateHeureFR(r.dateFin + 'T' + r.heureFin)));
+    recap.appendChild(recapRow('Lieu de prise en charge', r.lieuPrise));
+    recap.appendChild(recapRow('Conducteur', r.conducteur ? (r.conducteur.prenom + ' ' + r.conducteur.nom) : ''));
+    recap.appendChild(recapRow('E-mail', r.conducteur ? r.conducteur.email : ''));
+    recap.appendChild(recapRow('Téléphone', r.conducteur ? r.conducteur.telephone : ''));
+    recap.appendChild(recapRow('Total réglé', formatEUR(r.total)));
+    recap.appendChild(recapRow('Dépôt de garantie', r.vehicule ? formatEUR(r.vehicule.caution) : ''));
+
+    var f = view.dossier.fields || {};
+    var prefill = view.documentsPrefill || {};
+    function val(champ){ return (f[champ] !== undefined && f[champ] !== '') ? f[champ] : (prefill[champ] || ''); }
+
+    document.getElementById('df-immatriculation').value = f.immatriculation || (r.vehicule ? r.vehicule.immatriculation : '');
+    document.getElementById('df-adresse').value = val('adresse');
+    document.getElementById('df-codePostal').value = val('codePostal');
+    document.getElementById('df-ville').value = val('ville');
+    document.getElementById('df-permisNumero').value = val('permisNumero');
+    document.getElementById('df-permisDate').value = val('permisDate');
+    document.getElementById('df-permisPays').value = val('permisPays');
+    document.getElementById('df-permisValidite').value = val('permisValidite');
+    document.querySelectorAll('#dfCautionTabs .tab-btn').forEach(function(b){
+      b.classList.toggle('active', b.dataset.mode === (f.modeCaution || 'carte'));
+    });
+    var livraisonReservation = r.lieuPrise === "Livraison à l'adresse de votre choix" || (r.options || []).some(function(o){ return o && o.id === 'livraison-adresse'; });
+    var livraisonActive = f.livraison !== undefined ? !!f.livraison : livraisonReservation;
+    document.getElementById('df-livraison-toggle').checked = livraisonActive;
+    document.getElementById('dfLivraisonBlock').classList.toggle('show', livraisonActive);
+    document.getElementById('df-livraisonRue').value = val('livraisonRue');
+    document.getElementById('df-livraisonCP').value = val('livraisonCP');
+    document.getElementById('df-livraisonVille').value = val('livraisonVille') || r.adressePrise || '';
+    document.getElementById('df-second-toggle').checked = !!f.secondConducteur;
+    document.getElementById('dfSecondBlock').classList.toggle('show', !!f.secondConducteur);
+    document.getElementById('df-secondNom').value = val('secondConducteurNom');
+    document.getElementById('df-secondPrenom').value = val('secondConducteurPrenom');
+    document.getElementById('df-secondPermis').value = val('secondConducteurPermisNumero');
+    document.getElementById('df-secondPermisDate').value = val('secondConducteurPermisDate');
+    document.getElementById('df-secondPermisPays').value = val('secondConducteurPermisPays');
+
+    ['depart','retour'].forEach(function(etape){
+      var data = view.dossier[etape];
+      var prefix = etape === 'depart' ? 'rr-depart-' : 'rr-retour-';
+      document.getElementById(prefix + 'dateHeure').value = data ? data.dateHeure : '';
+      document.getElementById(prefix + 'km').value = data ? data.km : '';
+      document.getElementById(prefix + 'carburant').value = data ? String(data.carburant) : '';
+      document.getElementById(prefix + 'proprete').value = data ? data.proprete : '';
+      document.getElementById(prefix + 'dommages').value = data ? data.dommages : '';
+      document.getElementById(prefix + 'photosRef').value = data ? data.photosRef : '';
+      document.getElementById(prefix + 'cles').value = (data && data.cles !== null && data.cles !== undefined) ? String(data.cles) : '';
+      document.getElementById(prefix + 'clesAccessoires').value = data ? data.clesAccessoires : '';
+      document.getElementById(prefix + 'agent').value = data ? data.agent : '';
+      document.getElementById(prefix + 'clientSigne').value = data ? data.clientSigne : '';
+      document.getElementById(prefix + 'agenceSigne').value = data ? data.agenceSigne : '';
+    });
+    document.getElementById('rrObservations').value = view.dossier.observations || '';
+
+    var resultatEl = document.getElementById('rrKilometrageResultat');
+    if(view.dossier.kilometrage && view.dossier.kilometrage.valid){
+      var km = view.dossier.kilometrage;
+      resultatEl.classList.remove('hidden');
+      resultatEl.textContent = '';
+      var span = document.createElement('span');
+      span.textContent = km.kmDepasses > 0
+        ? ('Dépassement : ' + km.kmDepasses + ' km — supplément ' + formatEURPrecis(km.supplement))
+        : ('Aucun dépassement (' + km.kmParcourus + ' km parcourus, ' + km.kmInclus + ' km inclus)');
+      resultatEl.appendChild(span);
+    } else {
+      resultatEl.classList.add('hidden');
+    }
+
+    updateSendHint();
+  }
+
+  peuplerSelectCarburant(document.getElementById('rr-depart-carburant'));
+  peuplerSelectCarburant(document.getElementById('rr-retour-carburant'));
+
+  document.getElementById('dfCautionTabs').addEventListener('click', function(e){
+    var btn = e.target.closest('.tab-btn');
+    if(!btn) return;
+    document.querySelectorAll('#dfCautionTabs .tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  });
+  document.getElementById('df-livraison-toggle').addEventListener('change', function(){
+    document.getElementById('dfLivraisonBlock').classList.toggle('show', this.checked);
+  });
+  document.getElementById('df-second-toggle').addEventListener('change', function(){
+    document.getElementById('dfSecondBlock').classList.toggle('show', this.checked);
+  });
+
+  document.getElementById('dfSaveBtn').addEventListener('click', function(){
+    var msg = document.getElementById('dfSaveMsg');
+    msg.textContent = 'Enregistrement…';
+    var modeCautionBtn = document.querySelector('#dfCautionTabs .tab-btn.active');
+    apiPost({
+      action: 'update-fields',
+      immatriculation: document.getElementById('df-immatriculation').value,
+      modeCaution: modeCautionBtn ? modeCautionBtn.dataset.mode : 'carte',
+      adresse: document.getElementById('df-adresse').value,
+      codePostal: document.getElementById('df-codePostal').value,
+      ville: document.getElementById('df-ville').value,
+      permisNumero: document.getElementById('df-permisNumero').value,
+      permisDate: document.getElementById('df-permisDate').value,
+      permisPays: document.getElementById('df-permisPays').value,
+      permisValidite: document.getElementById('df-permisValidite').value,
+      livraison: document.getElementById('df-livraison-toggle').checked,
+      livraisonRue: document.getElementById('df-livraisonRue').value,
+      livraisonCP: document.getElementById('df-livraisonCP').value,
+      livraisonVille: document.getElementById('df-livraisonVille').value,
+      secondConducteur: document.getElementById('df-second-toggle').checked,
+      secondConducteurNom: document.getElementById('df-secondNom').value,
+      secondConducteurPrenom: document.getElementById('df-secondPrenom').value,
+      secondConducteurPermisNumero: document.getElementById('df-secondPermis').value,
+      secondConducteurPermisDate: document.getElementById('df-secondPermisDate').value,
+      secondConducteurPermisPays: document.getElementById('df-secondPermisPays').value
+    }).then(function(body){
+      view = body; render();
+      msg.textContent = 'Enregistré ✓';
+    }).catch(function(err){
+      msg.textContent = err.message;
+    });
+  });
+
+  document.getElementById('dfSendBtn').addEventListener('click', function(){
+    apiPost({ action: 'send-to-client' }).then(function(body){
+      view = body; render();
+      var message = 'Bonjour ' + (view.reservation.conducteur ? view.reservation.conducteur.prenom : '') +
+        ', voici le lien pour vérifier et signer votre contrat de location GETLOCATION : ' + body.clientUrl;
+      var messageEnc = encodeURIComponent(message);
+      document.getElementById('dfLinkOutput').value = body.clientUrl;
+      document.getElementById('dfLinkBox').classList.remove('hidden');
+      document.getElementById('dfShareActions').classList.remove('hidden');
+      // WhatsApp/SMS : le lien SEUL, jamais noyé dans une phrase — ces deux
+      // canaux reconnaissent le lien comme cliquable beaucoup plus
+      // fiablement ainsi (constaté le 12/09/2026 : un lien précédé de texte
+      // n'était plus reconnu comme cliquable une fois envoyé). L'e-mail
+      // garde le message complet, ce canal n'ayant jamais posé ce problème.
+      document.getElementById('dfWhatsappBtn').href = 'https://wa.me/?text=' + encodeURIComponent(body.clientUrl);
+      document.getElementById('dfSmsBtn').href = smsHref(encodeURIComponent(body.clientUrl));
+      document.getElementById('dfEmailBtn').href = 'mailto:?subject=' + encodeURIComponent('Votre contrat de location GETLOCATION') + '&body=' + messageEnc;
+    }).catch(function(err){
+      var missingEl = document.getElementById('dfMissingFields');
+      missingEl.classList.remove('hidden');
+      missingEl.textContent = err.champsManquants ? ('Champs manquants avant l\'envoi : ' + err.champsManquants.join(', ') + '.') : err.message;
+    });
+  });
+  document.getElementById('dfCopyBtn').addEventListener('click', function(){
+    var linkOutput = document.getElementById('dfLinkOutput');
+    linkOutput.select();
+    linkOutput.setSelectionRange(0, linkOutput.value.length);
+    // navigator.clipboard peut être absent (hors contexte sécurisé, ou
+    // navigateur ancien) — l'appeler directement sur `undefined` lèverait
+    // une exception synchrone, jamais rattrapée par le .catch() suivant.
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(linkOutput.value).catch(function(){ try{ document.execCommand('copy'); }catch(e){} });
+    } else {
+      try{ document.execCommand('copy'); }catch(e){}
+    }
+  });
+
+  function lireEtatDesLieux(prefix){
+    return {
+      dateHeure: document.getElementById(prefix + 'dateHeure').value,
+      km: Number(document.getElementById(prefix + 'km').value),
+      carburant: Number(document.getElementById(prefix + 'carburant').value),
+      proprete: document.getElementById(prefix + 'proprete').value,
+      dommages: document.getElementById(prefix + 'dommages').value,
+      photosRef: document.getElementById(prefix + 'photosRef').value,
+      cles: document.getElementById(prefix + 'cles').value === '' ? null : Number(document.getElementById(prefix + 'cles').value),
+      clesAccessoires: document.getElementById(prefix + 'clesAccessoires').value,
+      agent: document.getElementById(prefix + 'agent').value,
+      clientSigne: document.getElementById(prefix + 'clientSigne').value,
+      agenceSigne: document.getElementById(prefix + 'agenceSigne').value
+    };
+  }
+  document.getElementById('rrDepartSaveBtn').addEventListener('click', function(){
+    var msg = document.getElementById('rrSaveMsg');
+    msg.textContent = 'Enregistrement…';
+    var data = lireEtatDesLieux('rr-depart-'); data.action = 'update-depart';
+    apiPost(data).then(function(body){ view = body; render(); msg.textContent = 'Remise enregistrée ✓'; })
+      .catch(function(err){ msg.textContent = err.message; });
+  });
+  document.getElementById('rrRetourSaveBtn').addEventListener('click', function(){
+    var msg = document.getElementById('rrSaveMsg');
+    msg.textContent = 'Enregistrement…';
+    var data = lireEtatDesLieux('rr-retour-'); data.action = 'update-retour';
+    apiPost(data).then(function(body){ view = body; render(); msg.textContent = 'Restitution enregistrée ✓'; })
+      .catch(function(err){ msg.textContent = err.message; });
+  });
+  document.getElementById('rrObservationsSaveBtn').addEventListener('click', function(){
+    apiPost({ action: 'update-observations', observations: document.getElementById('rrObservations').value })
+      .then(function(body){ view = body; render(); });
+  });
+
+  document.getElementById('dfDownloadPdfBtn').addEventListener('click', function(){
+    if(!view) return;
+    genererPDF(construireDossierPayload(view), view.dossier.status !== 'signed');
+  });
+
+  loading.classList.remove('hidden');
+  apiGet().then(function(body){
+    view = body;
+    loading.classList.add('hidden');
+    content.classList.remove('hidden');
+    render();
+  }).catch(function(err){
+    showError(err.message);
+  });
+}
+
+function initDossierClientView(token){
+  var loading = document.getElementById('dossierClientLoading');
+  var errorCard = document.getElementById('dossierClientError');
+  var errorText = document.getElementById('dossierClientErrorText');
+  var content = document.getElementById('dossierClientContent');
+
+  function showError(message){
+    loading.classList.add('hidden');
+    errorText.textContent = message;
+    errorCard.classList.remove('hidden');
+  }
+
+  if(!/^[A-Za-z0-9_-]{43}$/.test(token || '')){
+    showError("Ce lien est invalide ou a expiré. Ouvrez à nouveau le lien reçu.");
+    return;
+  }
+
+  function construireDossierClientPayload(v, sigData, stamp, signatureId){
+    var r = v.reservation, f = v.fields;
+    var jours = r.jours;
+    var departISO = r.dateDebut + 'T' + r.heureDebut;
+    var retourISO = r.dateFin + 'T' + r.heureFin;
+    var heures = dureeHeures(departISO, retourISO);
+    var lieuAffiche = f.livraison ? ('Livraison à ' + f.livraisonRue + ', ' + f.livraisonCP + ' ' + f.livraisonVille) : r.lieuPrise;
+    var adresseComplete = [f.adresse, [f.codePostal, f.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    return traduireValeursPayload({
+      'form-name': 'contrat-signature',
+      numero: r.numero || '',
+      statutDossier: v.status,
+      langueClient: r.langue === 'en' ? 'en' : 'fr',
+      vehicule: r.vehicule ? r.vehicule.nom : '',
+      carburant: r.vehicule ? (r.vehicule.carburant || '') : '',
+      vin: r.vehicule ? (r.vehicule.vin || '') : '',
+      immatriculation: r.immatriculation,
+      lieu: lieuAffiche,
+      lieuRetour: r.lieuRetour || lieuAffiche,
+      livraison: f.livraison ? 'Oui (+20 €)' : 'Non',
+      depart: formatDateHeureFR(departISO),
+      retour: formatDateHeureFR(retourISO),
+      duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
+      detailFinancier: lignesDetailFinancier(detailFinancierDepuisReservation(r)),
+      // Réservation payée en ligne : la totalité est déjà réglée, le solde
+      // restant est donc nul (mêmes valeurs que montantRegle/soldeRestant
+      // ci-dessous, simplement sous forme de nombres pour la synthèse PDF).
+      syntheseFinanciere: syntheseFinancierePdf(detailFinancierDepuisReservation(r), r.total, r.total, 0),
+      total: formatEUR(r.total),
+      montantRegle: formatEUR(r.total),
+      soldeRestant: formatEUR(0),
+      modePaiement: 'Carte bancaire (paiement en ligne)',
+      caution: r.vehicule ? formatEUR(r.vehicule.caution) : '',
+      mode_reglement_caution: f.modeCaution === 'especes' ? 'Espèces' : 'Carte bancaire',
+      locataire_prenom: r.conducteur ? r.conducteur.prenom : '',
+      locataire_nom: r.conducteur ? r.conducteur.nom : '',
+      locataire_naissance: r.conducteur ? isoVersJourMoisAnnee(r.conducteur.naissance) : '',
+      locataire_adresse: adresseComplete,
+      locataire_tel: r.conducteur ? r.conducteur.telephone : '',
+      locataire_email: r.conducteur ? r.conducteur.email : '',
+      locataire_permis: f.permisNumero,
+      locataire_permis_pays: f.permisPays || '',
+      locataire_permis_date: f.permisDate || '',
+      locataire_permis_validite: f.permisValidite || '',
+      second_conducteur: f.secondConducteur ? 'Oui' : 'Non',
+      second_conducteur_prenom: f.secondConducteurPrenom || '',
+      second_conducteur_nom: f.secondConducteurNom || '',
+      second_conducteur_permis: f.secondConducteurPermisNumero || '',
+      second_conducteur_permis_pays: f.secondConducteurPermisPays || '',
+      second_conducteur_permis_date: f.secondConducteurPermisDate || '',
+      kmInclus: kmInclusPourJours(jours).toLocaleString('fr-FR'),
+      cglVersion: r.cglVersion || getCglVersion(),
+      horodatage_signature: stamp || '',
+      signatureId: signatureId || '',
+      signature_image: sigData || ''
+    });
+  }
+
+  loading.classList.remove('hidden');
+  fetch('/api/contract-dossier-client', { headers: { Authorization: 'Bearer ' + token } })
+    .then(function(r){ return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || 'Lien invalide ou expiré'); return body; }); })
+    .then(function(v){
+      loading.classList.add('hidden');
+      content.classList.remove('hidden');
+
+      var r = v.reservation, f = v.fields;
+      var departISO = r.dateDebut + 'T' + r.heureDebut;
+      var retourISO = r.dateFin + 'T' + r.heureFin;
+      var lieuAffiche = f.livraison ? ('Livraison à ' + f.livraisonRue + ', ' + f.livraisonCP + ' ' + f.livraisonVille) : r.lieuPrise;
+
+      var recap = document.getElementById('dcRecap');
+      recap.textContent = '';
+      recap.appendChild(recapRow('Véhicule', r.vehicule ? r.vehicule.nom : ''));
+      recap.appendChild(recapRow('Immatriculation', r.immatriculation));
+      recap.appendChild(recapRow(f.livraison ? 'Livraison' : 'Lieu de prise en charge', lieuAffiche));
+      recap.appendChild(recapRow('Départ', formatDateHeureFR(departISO)));
+      recap.appendChild(recapRow('Retour', formatDateHeureFR(retourISO)));
+      recap.appendChild(recapRow('Total', formatEUR(r.total)));
+      recap.appendChild(recapRow('Dépôt de garantie', r.vehicule ? (formatEUR(r.vehicule.caution) + ' (' + (f.modeCaution === 'carte' ? 'carte bancaire' : 'espèces') + ')') : ''));
+      recap.appendChild(recapRow('Locataire', r.conducteur ? (r.conducteur.prenom + ' ' + r.conducteur.nom) : ''));
+      recap.appendChild(recapRow('N° de permis', f.permisNumero));
+      if(f.secondConducteur){
+        recap.appendChild(recapRow('Second conducteur', f.secondConducteurPrenom + ' ' + f.secondConducteurNom + ' (permis ' + f.secondConducteurPermisNumero + ')'));
+      }
+
+      remplirTexteArticles(construireDossierClientPayload(v, null, null, null));
+
+      document.getElementById('dcPreviewPdfBtn').addEventListener('click', function(){
+        genererPDF(construireDossierClientPayload(v, null, null, null), true);
+      });
+
+      if(v.status === 'signed'){
+        document.getElementById('dcSignCard').classList.add('hidden');
+        var already = document.getElementById('dcAlreadySigned');
+        already.classList.remove('hidden');
+        document.getElementById('dcAlreadySignedMeta').textContent = 'Signé le ' + formatDateHeureFR(v.signedAt) + ' — identifiant ' + v.signatureId;
+        document.getElementById('dcDownloadSignedPdfBtn').addEventListener('click', function(){
+          genererPDF(construireDossierClientPayload(v, null, formatDateHeureFR(v.signedAt), v.signatureId), false);
+        });
+        return;
+      }
+
+      var canvas = document.getElementById('dcPad');
+      var ctx = canvas.getContext('2d');
+      var submitBtn = document.getElementById('dcSubmitBtn');
+      var accept = document.getElementById('dc-accept');
+      var hasSignature = false;
+      var drawing = false;
+      var last = null;
+
+      function resizeCanvas(){
+        var ratio = window.devicePixelRatio || 1;
+        var rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * ratio;
+        canvas.height = rect.height * ratio;
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.strokeStyle = '#2a2438';
+      }
+      window.addEventListener('resize', function(){
+        var imgData = hasSignature ? canvas.toDataURL() : null;
+        resizeCanvas();
+        if(imgData){
+          var img = new Image();
+          img.onload = function(){ ctx.drawImage(img,0,0,canvas.getBoundingClientRect().width,canvas.getBoundingClientRect().height); };
+          img.src = imgData;
+        }
+      });
+      resizeCanvas();
+
+      function pos(e){
+        var rect = canvas.getBoundingClientRect();
+        var p = e.touches ? e.touches[0] : e;
+        return { x: p.clientX - rect.left, y: p.clientY - rect.top };
+      }
+      function start(e){ e.preventDefault(); drawing = true; last = pos(e); }
+      function move(e){
+        if(!drawing) return;
+        e.preventDefault();
+        var p = pos(e);
+        ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+        last = p; hasSignature = true; updateSubmitState();
+      }
+      function end(){ drawing = false; }
+      canvas.addEventListener('mousedown', start);
+      canvas.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', end);
+      canvas.addEventListener('touchstart', start, {passive:false});
+      canvas.addEventListener('touchmove', move, {passive:false});
+      canvas.addEventListener('touchend', end);
+
+      document.getElementById('dcClearBtn').addEventListener('click', function(){
+        var rect = canvas.getBoundingClientRect();
+        ctx.clearRect(0,0,rect.width,rect.height);
+        hasSignature = false;
+        updateSubmitState();
+      });
+
+      function updateSubmitState(){
+        submitBtn.disabled = !(hasSignature && accept.checked);
+        document.getElementById('dcPadHint').textContent = hasSignature ? 'Signature enregistrée.' : 'Le champ signature est requis avant validation.';
+      }
+      accept.addEventListener('change', updateSubmitState);
+      updateSubmitState();
+
+      document.getElementById('dcSignForm').addEventListener('submit', function(e){
+        e.preventDefault();
+        if(!hasSignature || !accept.checked){ updateSubmitState(); return; }
+        var sigData = canvas.toDataURL('image/png');
+        submitBtn.disabled = true;
+        // Même raison que la vue client du contrat manuel : le PDF signé
+        // arrive après l'appel réseau, l'onglet doit être réservé dès le
+        // clic pour ne pas remplacer l'écran de confirmation (voir livrerPDF()).
+        reserverOngletPdf();
+        fetch('/api/contract-dossier-client', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cglAccepted: true, cglVersion: r.cglVersion, signatureImage: sigData })
+        }).then(function(res){ return res.json().then(function(body){ if(!res.ok) throw new Error(body.error || 'La signature a échoué'); return body; }); })
+        .then(function(signed){
+          var now = new Date();
+          var stamp = now.toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' }) + ' à ' + now.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+          document.getElementById('dcStatusBox').classList.add('show');
+          document.getElementById('dcStatusText').textContent = 'Contrat signé électroniquement le ' + stamp + '.';
+          Array.prototype.forEach.call(document.getElementById('dcSignForm').querySelectorAll('button, input'), function(el){ el.disabled = true; });
+          document.getElementById('dcClearBtn').style.display = 'none';
+          genererPDF(construireDossierClientPayload(v, sigData, stamp, signed.signatureId), false);
+        })
+        .catch(function(err){
+          libererOngletPdf();
+          submitBtn.disabled = false;
+          alert(err.message);
+        });
+      });
+    })
+    .catch(function(err){ showError(err.message); });
+}
+
+var params = new URLSearchParams(window.location.search);
+var encoded = params.get('data');
+// `prefill` (distinct de `data`) : pré-remplit le formulaire AGENCE (toujours
+// modifiable), généré automatiquement après paiement d'une réservation (voir
+// netlify/functions/lib/send-contract-email.js) — contrairement à `data`,
+// qui affiche la vue CLIENT (lecture + signature). Un lien reçu par email
+// avec `?prefill=` ouvre donc bien le formulaire éditable, pas la signature.
+// Conservés tous les deux inchangés pour la compatibilité des liens déjà
+// envoyés avant l'ajout du dossier sécurisé ci-dessous (voir send-contract-email.js).
+var prefillEncoded = params.get('prefill');
+// #agencyToken=/#clientToken= (FRAGMENT, jamais ?agencyToken=/?clientToken=
+// en paramètre de requête) : comme pour documents.html
+// (document-access-token.js), un jeton porteur ne doit jamais transiter par
+// un paramètre de requête — le navigateur l'enverrait au serveur avec
+// chaque requête (URL complète dans les journaux d'accès, l'en-tête
+// Referer si la page ouvrait un lien externe...), contrairement à un
+// fragment, que le navigateur ne transmet jamais au serveur.
+var hashParams = new URLSearchParams(window.location.hash.slice(1));
+var agencyToken = hashParams.get('agencyToken');
+var clientToken = hashParams.get('clientToken');
+// #manualToken= : lien COURT (jeton) partagé par WhatsApp/SMS/copie pour un
+// contrat MANUEL — remplace le lien historique `?data=...` (voir
+// mettreAJourLienCourt() plus bas) pour les contrats déjà enregistrés
+// côté serveur. Même fragment (jamais un paramètre de requête) que
+// agencyToken/clientToken ci-dessus, pour la même raison.
+var manualToken = hashParams.get('manualToken');
+
+if(agencyToken){
+  history.replaceState(null, '', window.location.pathname);
+  document.getElementById('ownerView').classList.add('hidden');
+  document.getElementById('clientView').classList.add('hidden');
+  document.getElementById('dossierAgencyView').classList.remove('hidden');
+  initDossierAgencyView(agencyToken);
+} else if(clientToken){
+  history.replaceState(null, '', window.location.pathname);
+  document.getElementById('ownerView').classList.add('hidden');
+  document.getElementById('clientView').classList.add('hidden');
+  document.getElementById('dossierClientView').classList.remove('hidden');
+  initDossierClientView(clientToken);
+} else if(manualToken){
+  history.replaceState(null, '', window.location.pathname);
+  document.getElementById('ownerView').classList.add('hidden');
+  document.getElementById('clientView').classList.remove('hidden');
+  initManualClientView(manualToken);
+} else if(encoded){
+  document.getElementById('ownerView').classList.add('hidden');
+  document.getElementById('clientView').classList.remove('hidden');
+  initClientView(decodeData(encoded));
+} else {
+  initEcranAgence();
+}
+
+// Lit une liste de fichiers image et les convertit en dataURL JPEG
+// redimensionnées (côté navigateur, jamais envoyées à un serveur) pour
+// garder un PDF de taille raisonnable même avec plusieurs photos issues
+// directement de l'appareil photo (plusieurs Mo chacune à l'origine) — voir
+// genererPDF(), section "Pages photos état des lieux".
+var PHOTO_MAX_DIMENSION = 1600;
+var PHOTO_MAX_SIZE = 8 * 1024 * 1024;
+var PHOTO_MAX_COUNT = 20;
+
+function redimensionnerImage(file, label){
+  return new Promise(function(resolve, reject){
+    if(!file.type || file.type.indexOf('image/') !== 0){ reject(new Error(file.name + ' : format non supporté (photo attendue)')); return; }
+    if(file.size > PHOTO_MAX_SIZE){ reject(new Error(file.name + ' dépasse 8 Mo')); return; }
+    var reader = new FileReader();
+    reader.onerror = function(){ reject(new Error(file.name + ' : lecture impossible')); };
+    reader.onload = function(){
+      var img = new Image();
+      img.onerror = function(){ reject(new Error(file.name + ' : image invalide')); };
+      img.onload = function(){
+        var ratio = Math.min(1, PHOTO_MAX_DIMENSION / Math.max(img.width, img.height));
+        var w = Math.round(img.width * ratio), h = Math.round(img.height * ratio);
+        var canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.82), width: w, height: h, label: label });
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Lit les deux champs "Photos — départ/retour" de la vue AGENCE et renvoie
+// une promesse résolue avec le tableau attendu par genererPDF()
+// (payload.photosEtatDesLieux). Rejetée avec un message lisible si un
+// fichier est invalide ou si la limite de 20 photos est dépassée.
+function lireImagesEtatDesLieux(){
+  var inputDepart = document.getElementById('photosDepart');
+  var inputRetour = document.getElementById('photosRetour');
+  if(!inputDepart || !inputRetour) return Promise.resolve([]);
+  var fichiers = [];
+  Array.prototype.forEach.call(inputDepart.files || [], function(f){ fichiers.push({ file: f, label: 'Départ' }); });
+  Array.prototype.forEach.call(inputRetour.files || [], function(f){ fichiers.push({ file: f, label: 'Retour' }); });
+  if(fichiers.length === 0) return Promise.resolve([]);
+  if(fichiers.length > PHOTO_MAX_COUNT) return Promise.reject(new Error('20 photos maximum au total (départ + retour)'));
+  return Promise.all(fichiers.map(function(f){ return redimensionnerImage(f.file, f.label); }));
+}
+
+function initOwnerView(prefill){
+  var selectVehicule = document.getElementById('vehicule');
+  var inputImmat = document.getElementById('immat');
+  var selectLieu = document.getElementById('lieu');
+  var inputDepart = document.getElementById('depart');
+  var inputRetour = document.getElementById('retour');
+  var cautionTabs = document.getElementById('cautionTabs');
+  var modeCaution = 'carte';
+  var paiementTabs = document.getElementById('paiementTabs');
+  var modePaiement = 'carte';
+  var soldeTabs = document.getElementById('soldeTabs');
+  var modePaiementSolde = 'carte';
+  var acompteRegleToggle = document.getElementById('acompteRegle-toggle');
+  var soldeRegleToggle = document.getElementById('soldeRegle-toggle');
+  var secondToggle = document.getElementById('second-conducteur-toggle');
+  var secondBlock = document.getElementById('secondConducteurBlock');
+  var livraisonToggle = document.getElementById('livraison-toggle');
+  var livraisonBlock = document.getElementById('livraisonBlock');
+  var tarifManuelToggle = document.getElementById('tarifManuel-toggle');
+  var tarifManuelBlock = document.getElementById('tarifManuelBlock');
+  var siegeEnfantToggle = document.getElementById('siege-enfant-toggle');
+  var rehausseurToggle = document.getElementById('rehausseur-toggle');
+
+  VEHICULES.forEach(function(v){
+    selectVehicule.add(new Option(v.nom + ' — ' + v.prixJour + ' €/jour', v.id));
+  });
+  LIEUX_CONTRAT.forEach(function(l){ selectLieu.add(new Option(l, l)); });
+
+  var selectKmForfait = document.getElementById('kmForfait');
+  selectKmForfait.add(new Option('Aucun forfait', ''));
+  KM_PACKAGE_OPTION_IDS.map(getOptionParId).filter(Boolean).forEach(function(o){
+    selectKmForfait.add(new Option(o.nom + ' (' + formatEUR(o.prix) + ')', o.id));
+  });
+
+  function appliquerPlaque(){
+    var v = getVehiculeParId(selectVehicule.value);
+    if(v) inputImmat.value = v.immatriculation;
+  }
+  selectVehicule.addEventListener('change', function(){
+    appliquerPlaque();
+    updateSummary();
+    gestionEtatDepart.actualiserSchema();
+    gestionEtatRetour.actualiserSchema();
+  });
+  appliquerPlaque();
+
+  // Niveau de protection : la liste vient de PROTECTIONS (js/data.js), avec
+  // le prix journalier et la franchise en clair pour que l'agent choisisse
+  // sans avoir à ouvrir le site.
+  var selectProtection = document.getElementById('protection');
+  if(selectProtection){
+    getProtections().forEach(function(p){
+      var prix = p.prixParJour > 0 ? formatEUR(p.prixParJour) + '/jour' : 'incluse';
+      selectProtection.add(new Option(p.nom + ' — ' + prix, p.id));
+    });
+    selectProtection.value = getProtectionParDefaut();
+    selectProtection.addEventListener('change', updateSummary);
+  }
+
+  // Options enfant : aucun champ supplémentaire côté agence (l'âge et le
+  // poids sont demandés au client sur le site) — seule la facturation suit.
+  [siegeEnfantToggle, rehausseurToggle].forEach(function(toggle){
+    if(toggle) toggle.addEventListener('change', updateSummary);
+  });
+
+  // Le supplément jeune conducteur dépend de la date de délivrance du
+  // permis : le récapitulatif doit se remettre à jour à sa saisie.
+  var champPermisDate = document.getElementById('permisDate');
+  if(champPermisDate) champPermisDate.addEventListener('input', updateSummary);
+
+  livraisonToggle.addEventListener('change', function(){
+    var show = livraisonToggle.checked;
+    livraisonBlock.classList.toggle('show', show);
+    document.getElementById('livraisonRue').required = show;
+    document.getElementById('livraisonCP').required = show;
+    document.getElementById('livraisonVille').required = show;
+    updateSummary();
+  });
+
+  tarifManuelToggle.addEventListener('change', function(){
+    tarifManuelBlock.classList.toggle('show', tarifManuelToggle.checked);
+    updateSummary();
+  });
+
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function toDatetimeLocal(d){
+    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+  }
+  var maintenant = new Date();
+  var departDefaut = new Date(maintenant.getTime() + 2*24*60*60*1000);
+  departDefaut.setHours(10,0,0,0);
+  var retourDefaut = new Date(departDefaut.getTime() + 3*24*60*60*1000);
+  // Pas de borne .min sur les dates : l'agence doit pouvoir recréer un
+  // contrat pour une location déjà effectuée (date passée), en plus des
+  // locations en cours/à venir.
+  inputDepart.value = toDatetimeLocal(departDefaut);
+  inputRetour.value = toDatetimeLocal(retourDefaut);
+
+  inputDepart.addEventListener('change', function(){
+    var d = new Date(inputDepart.value);
+    if(!inputRetour.value || new Date(inputRetour.value) <= d){
+      inputRetour.value = toDatetimeLocal(new Date(d.getTime() + 3*24*60*60*1000));
+    }
+    updateSummary();
+  });
+
+  cautionTabs.addEventListener('click', function(e){
+    var btn = e.target.closest('.tab-btn');
+    if(!btn) return;
+    cautionTabs.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    modeCaution = btn.dataset.mode;
+    regenererLien();
+  });
+
+  paiementTabs.addEventListener('click', function(e){
+    var btn = e.target.closest('.tab-btn');
+    if(!btn) return;
+    paiementTabs.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    modePaiement = btn.dataset.mode;
+    regenererLien();
+  });
+
+  // Comme paiementTabs/cautionTabs ci-dessus : des <button>, pas des
+  // <input>, ne déclenchent jamais l'événement "input" délégué sur
+  // #ownerForm (ligne ~2818) — d'où cet écouteur "click" dédié, même
+  // principe. Les checkboxes acompteRegle-toggle/soldeRegle-toggle, elles,
+  // sont de vrais <input> et sont donc déjà couvertes par ce délégué (comme
+  // tarifManuel-toggle plus haut) : aucun écouteur supplémentaire requis.
+  soldeTabs.addEventListener('click', function(e){
+    var btn = e.target.closest('.tab-btn');
+    if(!btn) return;
+    soldeTabs.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    modePaiementSolde = btn.dataset.mode;
+    regenererLien();
+  });
+
+  secondToggle.addEventListener('change', function(){
+    var show = secondToggle.checked;
+    secondBlock.classList.toggle('show', show);
+    document.getElementById('prenom2').required = show;
+    document.getElementById('nom2').required = show;
+    document.getElementById('permis2').required = show;
+    document.getElementById('naissance2').required = show;
+  });
+
+  function currentVehicule(){ return getVehiculeParId(selectVehicule.value); }
+
+  // Schéma interactif d'état des lieux (dommages départ/retour) — voir
+  // creerGestionEtat(). `vehicleFamilyGetter` relit currentVehicule() à
+  // chaque redessin (jamais mémorisé) pour suivre le véhicule sélectionné.
+  function vehicleFamilyCourante(){
+    var v = currentVehicule();
+    return v ? v.vehicleFamily : 'car';
+  }
+  var gestionEtatDepart = creerGestionEtat(document.getElementById('etatDepartContainer'), vehicleFamilyCourante);
+  var gestionEtatRetour = creerGestionEtat(document.getElementById('etatRetourContainer'), vehicleFamilyCourante);
+
+  // Compteur discret sous le champ "Remarques particulières" — la limite
+  // réelle est déjà imposée par l'attribut maxlength du textarea, ceci
+  // n'est qu'un retour visuel.
+  var REMARQUES_MAX = 1500;
+  function mettreAJourCompteurRemarques(){
+    var longueur = document.getElementById('remarques').value.length;
+    document.getElementById('remarquesCompteur').textContent = longueur + ' / ' + REMARQUES_MAX;
+  }
+
+  function updateSummary(){
+    var v = currentVehicule();
+    if(!v || !inputDepart.value || !inputRetour.value) return;
+    var heures = dureeHeures(inputDepart.value, inputRetour.value);
+    var donneesTarif = {
+      vehiculeId: selectVehicule.value,
+      depart: inputDepart.value,
+      retour: inputRetour.value,
+      secondConducteur: secondToggle.checked,
+      livraison: livraisonToggle.checked,
+      tarifManuel: document.getElementById('tarifManuel-toggle').checked,
+      montantFinalConvenu: document.getElementById('montantFinalConvenu').value
+    };
+    var prix = calculerPrixContrat(donneesTarif);
+    document.getElementById('vehiculeRecap').innerHTML =
+      '<span><strong>' + v.nom + '</strong> — ' + v.prixJour + ' €/jour</span>' +
+      '<span>Dépôt de garantie : ' + formatEUR(v.caution) + '</span>';
+    if(!prix){
+      document.getElementById('dureeTxt').textContent = 'Dates invalides (retour avant départ)';
+      document.getElementById('kmTxt').textContent = '—';
+      document.getElementById('totalTxt').textContent = '—';
+      afficherRecapKilometrage(NaN);
+      return;
+    }
+    var tarif = appliquerTarifManuel(prix, donneesTarif);
+    document.getElementById('dureeTxt').textContent = formatDuree(heures) + ' — facturé ' + formatJoursFactures(prix.jours);
+    document.getElementById('kmTxt').textContent = kmInclusPourJours(prix.jours).toLocaleString('fr-FR') + ' km';
+    document.getElementById('totalTxt').textContent = tarif.tarifManuelActif
+      ? (formatEUR(tarif.total) + ' (tarif spécial, calculé : ' + formatEUR(tarif.tarifCalcule) + ')')
+      : formatEUR(tarif.total);
+    afficherRecapKilometrage(prix.jours);
+  }
+
+  // Calcul/validation kilométrique en direct — toujours via
+  // calculerKilometrage() de js/data.js, jamais de tarif recodé ici. Message
+  // non bloquant pendant la saisie (la validation qui bloque réellement la
+  // génération est kmSontValides(), appelée au clic sur le bouton).
+  function afficherRecapKilometrage(jours){
+    var kmDepartVal = document.getElementById('kmDepart').value;
+    var kmRetourVal = document.getElementById('kmRetour').value;
+    var msg = document.getElementById('kmValidationMsg');
+    var recap = document.getElementById('kmRecap');
+    if(kmDepartVal === '' || kmRetourVal === ''){
+      msg.textContent = '';
+      recap.classList.add('hidden');
+      return;
+    }
+    var km = calculerKilometrage({ kmDepart: Number(kmDepartVal), kmRetour: Number(kmRetourVal), jours: jours });
+    if(!km.valid){
+      msg.textContent = km.error;
+      recap.classList.add('hidden');
+      return;
+    }
+    msg.textContent = '';
+    recap.classList.remove('hidden');
+    recap.innerHTML = km.kmDepasses > 0
+      ? ('<span>Dépassement : ' + km.kmDepasses + ' km — supplément ' + formatEURPrecis(km.supplement) + '</span>')
+      : ('<span>Aucun dépassement (' + km.kmParcourus + ' km parcourus, ' + km.kmInclus + ' km inclus)</span>');
+  }
+
+  document.getElementById('ownerForm').addEventListener('input', function(e){
+    updateSummary();
+    regenererLien();
+    if(e.target.value) e.target.classList.remove('champ-manquant');
+    if(e.target.id === 'remarques') mettreAJourCompteurRemarques();
+  });
+  updateSummary();
+  mettreAJourCompteurRemarques();
+
+  // Pré-remplissage depuis une réservation payée (voir ?prefill= plus haut) :
+  // n'écrase que les champs connus au moment de la réservation (véhicule,
+  // dates, coordonnées et date de naissance du locataire, options). Les
+  // champs jamais collectés pendant la réservation (numéro de permis,
+  // adresse postale, second conducteur détaillé) restent vides — l'agence
+  // les complète avant d'envoyer le lien au client, exactement comme pour
+  // un contrat rempli à la main.
+  if(prefill){
+    if(prefill.vehiculeId){ selectVehicule.value = prefill.vehiculeId; appliquerPlaque(); }
+    if(prefill.lieu) selectLieu.value = prefill.lieu;
+    // Langue de la version du site où le client a réservé.
+    var champLangue = document.getElementById('langueClient');
+    if(champLangue && prefill.langue) champLangue.value = prefill.langue === 'en' ? 'en' : 'fr';
+    if(prefill.depart) inputDepart.value = prefill.depart;
+    if(prefill.retour) inputRetour.value = prefill.retour;
+    document.getElementById('prenom').value = prefill.prenom || '';
+    document.getElementById('nom').value = prefill.nom || '';
+    document.getElementById('naissance').value = isoVersJourMoisAnnee(prefill.naissance);
+    document.getElementById('tel').value = prefill.tel || '';
+    document.getElementById('email').value = prefill.email || '';
+    // adresse/permis (voir back-office.html#contratPrefillUrl) : jamais
+    // collectés pendant une réservation en ligne, seulement transmis par le
+    // back-office agence — absents (donc laissés vides) pour les anciens
+    // liens envoyés après paiement.
+    if(prefill.adresse) document.getElementById('adresse').value = prefill.adresse;
+    if(prefill.codePostal) document.getElementById('codePostal').value = prefill.codePostal;
+    if(prefill.ville) document.getElementById('ville').value = prefill.ville;
+    if(prefill.permis) document.getElementById('permis').value = prefill.permis;
+    // montantRegle (voir back-office.html#contratPrefillUrl) : 0 est une
+    // valeur transmise volontairement (location pas encore payée) — jamais
+    // ignorée comme le ferait un simple `if(prefill.montantRegle)`. Même
+    // remarque pour acompteRegle/soldeRegle (false est une valeur voulue).
+    if(prefill.montantRegle !== undefined) document.getElementById('montantRegle').value = prefill.montantRegle;
+    if(prefill.acompteRegle !== undefined) acompteRegleToggle.checked = !!prefill.acompteRegle;
+    if(prefill.soldeRegle !== undefined) soldeRegleToggle.checked = !!prefill.soldeRegle;
+    // Ce que le client a déjà choisi et payé en ligne : niveau de protection,
+    // équipement enfant, date de permis (dont dépend le supplément jeune
+    // conducteur). Sans eux le contrat établi au comptoir afficherait une
+    // franchise et un total différents de la réservation réglée.
+    if(selectProtection && estProtectionConnue(prefill.protection)){
+      selectProtection.value = prefill.protection;
+    }
+    if(prefill.siegeEnfant) siegeEnfantToggle.checked = true;
+    if(prefill.rehausseur) rehausseurToggle.checked = true;
+    if(prefill.permisDate) document.getElementById('permisDate').value = isoVersJourMoisAnnee(prefill.permisDate);
+    if(prefill.secondConducteur){
+      secondToggle.checked = true;
+      secondBlock.classList.add('show');
+      document.getElementById('prenom2').required = true;
+      document.getElementById('nom2').required = true;
+      document.getElementById('permis2').required = true;
+      document.getElementById('naissance2').required = true;
+    }
+    if(prefill.livraison){
+      livraisonToggle.checked = true;
+      livraisonBlock.classList.add('show');
+      document.getElementById('livraisonRue').value = prefill.livraisonRue || '';
+      document.getElementById('livraisonVille').value = prefill.livraisonVille || '';
+      document.getElementById('livraisonRue').required = true;
+      document.getElementById('livraisonCP').required = true;
+      document.getElementById('livraisonVille').required = true;
+    }
+    updateSummary();
+    regenererLien();
+  }
+
+  // Marque en rouge les champs obligatoires vides (et enlève la marque des
+  // champs désormais remplis, en cas de nouvel essai) — sans ça, l'agence
+  // ne pouvait pas savoir lequel des nombreux champs du formulaire posait
+  // problème.
+  function tousLesChampsRequisRemplis(){
+    var required = document.querySelectorAll('#ownerForm [required]');
+    var manquants = [];
+    for(var i=0;i<required.length;i++){
+      var champ = required[i];
+      var vide = !champ.value;
+      champ.classList.toggle('champ-manquant', vide);
+      if(vide) manquants.push(champ);
+    }
+    return manquants.length === 0;
+  }
+
+  // Le kilométrage retour est facultatif (peut être complété plus tard via
+  // "Ouvrir") : pas de [required] possible ici, donc pas couvert par
+  // tousLesChampsRequisRemplis() — contrôle dédié, uniquement quand les deux
+  // relevés sont présents.
+  function kmSontValides(){
+    var d = document.getElementById('kmDepart').value, r = document.getElementById('kmRetour').value;
+    if(d === '' || r === '') return true;
+    return Number(r) >= Number(d);
+  }
+
+  // Lit l'état courant du formulaire AGENCE — utilisé à la fois pour le
+  // lien client (regenererLien, seulement une fois tous les champs requis
+  // remplis) et pour le téléchargement PDF à tout moment (données
+  // partielles acceptées : voir #downloadPdfBtn plus bas).
+  function lireDonneesFormulaire(){
+    return {
+      vehiculeId: selectVehicule.value,
+      immat: document.getElementById('immat').value,
+      lieu: selectLieu.value,
+      langueClient: (document.getElementById('langueClient') || {}).value || 'fr',
+      protection: selectProtection ? selectProtection.value : getProtectionParDefaut(),
+      siegeEnfant: siegeEnfantToggle.checked,
+      rehausseur: rehausseurToggle.checked,
+      depart: inputDepart.value,
+      retour: inputRetour.value,
+      modeCaution: modeCaution,
+      modePaiement: modePaiement,
+      montantRegle: document.getElementById('montantRegle').value,
+      acompteRegle: acompteRegleToggle.checked,
+      modePaiementSolde: modePaiementSolde,
+      soldeRegle: soldeRegleToggle.checked,
+      prenom: document.getElementById('prenom').value,
+      nom: document.getElementById('nom').value,
+      naissance: document.getElementById('naissance').value,
+      adresse: document.getElementById('adresse').value,
+      codePostal: document.getElementById('codePostal').value,
+      ville: document.getElementById('ville').value,
+      tel: document.getElementById('tel').value,
+      email: document.getElementById('email').value,
+      permis: document.getElementById('permis').value,
+      permisDate: document.getElementById('permisDate').value,
+      permisPays: document.getElementById('permisPays').value,
+      permisValidite: document.getElementById('permisValidite').value,
+      secondConducteur: secondToggle.checked,
+      prenom2: document.getElementById('prenom2').value,
+      nom2: document.getElementById('nom2').value,
+      naissance2: document.getElementById('naissance2').value,
+      permis2: document.getElementById('permis2').value,
+      permis2Date: document.getElementById('permis2Date').value,
+      permis2Pays: document.getElementById('permis2Pays').value,
+      livraison: livraisonToggle.checked,
+      livraisonRue: document.getElementById('livraisonRue').value,
+      livraisonCP: document.getElementById('livraisonCP').value,
+      livraisonVille: document.getElementById('livraisonVille').value,
+      notes: document.getElementById('notes').value,
+      remarques: document.getElementById('remarques').value,
+      tarifManuel: tarifManuelToggle.checked,
+      montantFinalConvenu: document.getElementById('montantFinalConvenu').value,
+      tarifMotif: document.getElementById('tarifMotif').value,
+      kmDepart: document.getElementById('kmDepart').value,
+      kmRetour: document.getElementById('kmRetour').value,
+      kmForfait: selectKmForfait.value,
+      etatDepart: gestionEtatDepart.obtenirDonnees(),
+      etatRetour: gestionEtatRetour.obtenirDonnees()
+    };
+  }
+
+  // Partagé par "Télécharger le PDF" et "Générer le contrat officiel" : lit
+  // les photos état des lieux sélectionnées (asynchrone — FileReader) avant
+  // de générer le PDF, avec un message d'erreur clair en cas de fichier
+  // invalide plutôt qu'un échec silencieux.
+  function avecPhotosEtatDesLieux(callback){
+    var erreurEl = document.getElementById('photosEtatDesLieuxErreur');
+    erreurEl.style.display = 'none';
+    return lireImagesEtatDesLieux().then(function(photos){
+      callback(photos);
+    }).catch(function(err){
+      // Photos invalides : aucun PDF ne sera produit, l'onglet éventuellement
+      // réservé au clic ne doit pas rester ouvert et vide (voir livrerPDF()).
+      libererOngletPdf();
+      erreurEl.textContent = err.message;
+      erreurEl.style.display = '';
+    });
+  }
+
+  // "Ouvrir ce lien" (signature en face-à-face, voir openLinkBtn plus haut)
+  // ouvre le lien client dans un NOUVEL ONGLET : les fichiers sélectionnés
+  // dans les champs photos de cet onglet-ci ne le traversent pas tout
+  // seuls (deux documents distincts, deux DOM distincts). On les fait donc
+  // transiter par sessionStorage (même origine, partagé entre onglets du
+  // même navigateur) juste avant l'ouverture — initClientView() les
+  // récupère et les consomme une seule fois. Ne s'applique qu'à cet
+  // onglet/appareil : un lien envoyé par WhatsApp/SMS/e-mail à un autre
+  // appareil ne peut évidemment pas embarquer les photos de celui-ci.
+  var PHOTOS_SESSION_KEY = 'gl_contrat_photos_etat_des_lieux';
+
+  document.getElementById('openLinkBtn').addEventListener('click', function(e){
+    e.preventDefault();
+    var url = document.getElementById('linkOutput').value;
+    if(!url) return;
+    var erreurEl = document.getElementById('photosEtatDesLieuxErreur');
+    erreurEl.style.display = 'none';
+    // Pas de "noopener" ici : ce lien pointe vers cette même application
+    // (jamais un site externe), et "noopener" isolerait aussi
+    // sessionStorage entre les deux onglets — ce qui empêcherait
+    // précisément le transfert des photos qu'on cherche à faire ici.
+    function ouvrir(){ window.open(url, '_blank'); }
+    lireImagesEtatDesLieux().then(function(photos){
+      try{
+        if(photos.length) sessionStorage.setItem(PHOTOS_SESSION_KEY, JSON.stringify(photos));
+        else sessionStorage.removeItem(PHOTOS_SESSION_KEY);
+      } catch(err){
+        erreurEl.textContent = 'Les photos sont trop volumineuses pour être transmises à l\'onglet de signature (utilisez plutôt "Télécharger le PDF" depuis cet écran). Le lien s\'ouvre sans elles.';
+        erreurEl.style.display = '';
+        sessionStorage.removeItem(PHOTOS_SESSION_KEY);
+      }
+      ouvrir();
+    }).catch(function(err){
+      erreurEl.textContent = err.message + ' — le lien s\'ouvre sans les photos.';
+      erreurEl.style.display = '';
+      sessionStorage.removeItem(PHOTOS_SESSION_KEY);
+      ouvrir();
+    });
+  });
+
+  document.getElementById('downloadPdfBtn').addEventListener('click', function(){
+    var btn = this;
+    btn.disabled = true;
+    // Réservé ici, dans le clic lui-même : le PDF n'est produit qu'après la
+    // lecture (asynchrone) des photos — voir livrerPDF().
+    reserverOngletPdf();
+    avecPhotosEtatDesLieux(function(photos){
+      var data = lireDonneesFormulaire();
+      data.photosEtatDesLieux = photos;
+      genererPDF(construirePayload(data, null, null), true);
+    }).finally(function(){ btn.disabled = false; });
+  });
+
+  function majCompteurPhotos(){
+    var depart = (document.getElementById('photosDepart').files || []).length;
+    var retour = (document.getElementById('photosRetour').files || []).length;
+    var total = depart + retour;
+    document.getElementById('photosEtatDesLieuxCompte').textContent = total
+      ? total + ' photo' + (total > 1 ? 's' : '') + ' sélectionnée' + (total > 1 ? 's' : '') + ' (' + depart + ' départ, ' + retour + ' retour)'
+      : '';
+  }
+  document.getElementById('photosDepart').addEventListener('change', majCompteurPhotos);
+  document.getElementById('photosRetour').addEventListener('change', majCompteurPhotos);
+
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  // Réinjecte les données d'un contrat manuel existant dans le formulaire
+  // (bouton "Dupliquer"/"Ouvrir" de l'historique) — inverse de
+  // lireDonneesFormulaire(). inclureDonneesInstance=false (utilisé par
+  // "Dupliquer") : n'importe pas le tarif manuel ni le kilométrage, propres
+  // à la location d'origine — une nouvelle location repart du tarif calculé
+  // et sans relevé, contrairement au client/véhicule/tarif de base qui, eux,
+  // sont légitimement réutilisables tels quels.
+  function remplirFormulaire(rawData, inclureDonneesInstance){
+    if(rawData.vehiculeId){ selectVehicule.value = rawData.vehiculeId; appliquerPlaque(); }
+    if(rawData.immat) inputImmat.value = rawData.immat;
+    if(rawData.lieu) selectLieu.value = rawData.lieu;
+    if(rawData.depart) inputDepart.value = rawData.depart;
+    if(rawData.retour) inputRetour.value = rawData.retour;
+
+    modeCaution = (rawData.modeCaution === 'especes' || rawData.modeCaution === 'virement') ? rawData.modeCaution : 'carte';
+    cautionTabs.querySelectorAll('.tab-btn').forEach(function(b){
+      b.classList.toggle('active', b.dataset.mode === modeCaution);
+    });
+    modePaiement = (rawData.modePaiement === 'especes' || rawData.modePaiement === 'virement') ? rawData.modePaiement : 'carte';
+    paiementTabs.querySelectorAll('.tab-btn').forEach(function(b){
+      b.classList.toggle('active', b.dataset.mode === modePaiement);
+    });
+    document.getElementById('montantRegle').value = rawData.montantRegle || '';
+    // Valeur historique par défaut (contrats créés avant l'ajout de ce
+    // statut) : `undefined` -> réglé, comme le comportement d'avant (voir
+    // construirePayload, même logique de repli).
+    acompteRegleToggle.checked = rawData.acompteRegle === undefined ? true : !!rawData.acompteRegle;
+    modePaiementSolde = (rawData.modePaiementSolde === 'especes' || rawData.modePaiementSolde === 'virement') ? rawData.modePaiementSolde : 'carte';
+    soldeTabs.querySelectorAll('.tab-btn').forEach(function(b){
       b.classList.toggle('active', b.dataset.mode === modePaiementSolde);
     });
     soldeRegleToggle.checked = rawData.soldeRegle === undefined ? true : !!rawData.soldeRegle;

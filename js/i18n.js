@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 28763)
-Total output lines: 1611
-
 /* =====================================================================
    js/i18n.js — version anglaise du site GETLOCATION (/en/)
 
@@ -534,7 +531,461 @@ Total output lines: 1611
     "Découvrir le programme": "Explore the programme",
     "Pensé pour le tourisme": "Designed for tourism",
     "Un service complémentaire pour vos clients": "An added service for your guests",
-    "Pour les propriétaires Airbnb, conciergeries, agences de gestion locative, hôtels et résidences touristiques, GetLocation apporte une solution de mobilité claire et personnalisable.": "For Airbnb hosts, concierges, property managers, hotels and tourist residences, GetLocation provides a clear, adaptable mobility soluti…8763 tokens truncated… and give us the address you want in Cannes, including near the Croisette or the Palais des Festivals.",
+    "Pour les propriétaires Airbnb, conciergeries, agences de gestion locative, hôtels et résidences touristiques, GetLocation apporte une solution de mobilité claire et personnalisable.": "For Airbnb hosts, concierges, property managers, hotels and tourist residences, GetLocation provides a clear, adaptable mobility solution.",
+    "Un séjour plus fluide": "A smoother stay",
+    "Offrez à vos voyageurs une réponse simple à leur besoin de mobilité dès leur arrivée sur la Côte d'Azur.": "Give your guests a simple mobility answer from the moment they arrive on the French Riviera.",
+    "Un partenaire de proximité": "A local partner",
+    "Une équipe locale pour accompagner vos demandes et organiser la livraison selon les besoins de vos clients.": "A local team to handle your requests and arrange delivery around your guests’ needs.",
+    "Une offre qui s'adapte": "An offer that adapts",
+    "Construisons un programme cohérent avec votre activité, vos volumes et le profil de votre clientèle.": "Let us build a programme suited to your business, volumes and guest profile.",
+    "Le partenariat": "The partnership",
+    "Comment fonctionne le partenariat ?": "How does the partnership work?",
+    "1. Échangeons": "1. Let’s talk",
+    "Présentez-nous votre activité, vos clients et vos attentes.": "Tell us about your business, guests and expectations.",
+    "2. Orienter vos clients": "2. Guide your guests",
+    "Partagez le programme GetLocation au moment le plus utile de leur séjour.": "Share the GetLocation programme at the most useful point in their stay.",
+    "3. Construire la suite": "3. Build what’s next",
+    "Nous faisons évoluer le partenariat au fil de votre expérience.": "We develop the partnership as your experience grows.",
+    "Vos avantages partenaires": "Your partner benefits",
+    "Une reconnaissance qui vous ressemble": "Recognition that suits you",
+    "Le programme ne se limite pas à une commission. Nous définissons les avantages les plus pertinents pour votre activité.": "The programme is more than a commission. We define the benefits most relevant to your business.",
+    "Rémunération partenaire": "Partner remuneration",
+    "Une rémunération pensée selon le cadre de notre collaboration.": "Remuneration designed around the framework of our collaboration.",
+    "Crédits GetLocation": "GetLocation credits",
+    "Des crédits à utiliser pour vos besoins de mobilité ou ceux de votre équipe.": "Credits to use for your own mobility needs or those of your team.",
+    "Journées de location offertes": "Complimentary rental days",
+    "Des journées à offrir ou à utiliser au rythme de votre activité.": "Days to offer or use in line with your business rhythm.",
+    "Avantages exclusifs": "Exclusive benefits",
+    "Des attentions et opportunités réservées à nos partenaires.": "Thoughtful extras and opportunities reserved for our partners.",
+    "Les avantages pourront évoluer selon le profil, les besoins et le développement de chaque partenaire.": "Benefits may evolve according to each partner’s profile, needs and development.",
+    "Rejoindre le programme": "Join the programme",
+    "Parlez-nous de votre activité. Nous vous recontacterons pour imaginer un partenariat adapté.": "Tell us about your business. We will contact you to imagine a partnership that fits.",
+    "Nom et prénom": "Full name",
+    "Entreprise ou établissement": "Company or establishment",
+    "E-mail professionnel": "Business email",
+    "Quels avantages vous intéressent ?": "Which benefits interest you?",
+    "Journées offertes": "Complimentary days",
+    "Je souhaite en discuter": "I would like to discuss it",
+    "Votre message": "Your message",
+    "Décrivez-nous votre activité et vos besoins.": "Tell us about your business and needs.",
+    "Envoyer ma demande": "Send my enquiry",
+    "Merci, votre demande a bien été envoyée. Notre équipe vous recontactera prochainement.": "Thank you, your enquiry has been sent. Our team will contact you shortly.",
+    "L'envoi est momentanément indisponible. Veuillez nous contacter par téléphone ou par e-mail.": "Sending is temporarily unavailable. Please contact us by phone or email.",
+    "Bientôt disponible": "Coming soon",
+    "Une continuité de mobilité pour vos clients": "Uninterrupted mobility for your clients",
+    "Nous préparons une solution pensée pour les garages qui souhaitent proposer un véhicule de remplacement simple à réserver et à organiser.": "We are preparing a solution for garages that want to offer replacement vehicles that are easy to book and arrange.",
+    "La mobilité qui accompagne vos équipes": "Mobility that supports your teams",
+    "Cette offre est en préparation. Elle réunira des solutions souples pour les déplacements professionnels de vos collaborateurs.": "This offer is in preparation. It will bring together flexible solutions for your employees’ business travel.",
+    "Un service qui prolonge l'expérience de séjour": "A service that extends the guest experience",
+    "Nous préparons une offre pour permettre aux établissements hôteliers de proposer une mobilité fluide à leurs clients.": "We are preparing an offer to help hotels provide seamless mobility to their guests.",
+    "Une mobilité à l'échelle de vos événements": "Mobility tailored to your events",
+    "Cette offre est en préparation pour accompagner les organisateurs, les équipes et les invités de vos événements.": "This offer is in preparation to support the organisers, teams and guests at your events.",
+    "Des partenariats conçus pour durer": "Partnerships designed to last",
+    "Le programme GetLocation Partners se construit pour créer des collaborations utiles, transparentes et adaptées à chaque secteur.": "The GetLocation Partners programme is being built to create useful, transparent collaborations tailored to every sector.",
+    "Ouvrir le menu": "Open menu",
+    "Fermer le menu": "Close menu",
+    "Liens": "Links",
+    "Mentions légales": "Legal Notice",
+    "Conditions de location": "Rental Terms",
+    "Confidentialité": "Privacy",
+    "Agence de location en ligne. Livraison de véhicules à l'adresse de votre choix sur la Côte d'Azur.":
+      "Online car rental agency. We deliver your vehicle wherever you need it on the French Riviera.",
+    "Location voiture Nice": "Car rental Nice",
+    "Location voiture Cannes": "Car rental Cannes",
+    "Location voiture Antibes": "Car rental Antibes",
+    "Location voiture Grasse": "Car rental Grasse",
+    "Location voiture Monaco": "Car rental Monaco",
+    "Aéroport de Nice": "Nice Airport",
+    "Horaires : 7j/7, 08:00–20:00": "Open 7 days a week, 08:00–20:00",
+    "📍 Grasse (06130)": "📍 Grasse (06130), France",
+
+    // --- Accueil : hero
+    "La location simplifiée": "Car rental made simple",
+    "La location de voiture simplifiée": "Car rental made simple",
+    "Le véhicule qu'il vous faut, livré où vous voulez.": "Book. We deliver. You drive.",
+    "Commandez. On vous l'apporte. Vous roulez.": "Book it. We deliver it. You drive.",
+    "Commandez votre véhicule, on vous l'apporte.": "Book your vehicle, and we deliver it.",
+    "Choisissez vos dates et votre véhicule, GETLOCATION s'occupe du reste.":
+      "Choose your dates and vehicle; GETLOCATION takes care of the rest.",
+    "Choisissez vos dates en quelques secondes. Nous organisons ensuite la livraison.":
+      "Choose your dates in seconds. We then arrange delivery.",
+    "Renseignez votre besoin en quelques secondes. Choisissez votre véhicule, puis GETLOCATION s'occupe de la préparation et de la livraison à l'adresse qui vous convient.":
+      "Tell us what you need in a few seconds. Choose your vehicle, then GETLOCATION handles preparation and delivery to the address that suits you.",
+    "Entreprise locale": "Local company",
+    "Véhicules 2026": "2026 vehicles",
+    "Paiement sécurisé": "Secure payment",
+    "Assurance incluse": "Insurance included",
+    "Trouver mon véhicule": "Find my vehicle",
+    "Commander mon véhicule": "Book my vehicle",
+    "Voir les véhicules": "View vehicles",
+
+    // --- Accueil : moteur de recherche
+    "Trouvez votre véhicule": "Find your vehicle",
+    "Commandez votre véhicule": "Book your vehicle",
+    "Choisissez vos dates et votre lieu de livraison pour consulter les disponibilités.":
+      "Choose your dates and delivery location to see what is available.",
+    "Choisissez vos dates et votre véhicule. Le lieu de livraison sera précisé juste avant le paiement.":
+      "Choose your dates and vehicle. Your delivery location will be confirmed just before payment.",
+    "Choisissez vos dates et votre véhicule.": "Choose your dates and vehicle.",
+    "On vous l'apporte là où vous en avez besoin.": "We deliver it where you need it.",
+    "Vous roulez.": "You drive.",
+    "Quel véhicule recherchez-vous ?": "What are you looking for?",
+    "Voitures": "Cars",
+    "Utilitaires": "Vans",
+    "Sans permis": "Licence-free",
+    "Cabriolet": "Convertible",
+    "Catégorie de voiture": "Car category",
+    "Toutes": "All",
+    "Faire une demande": "Make an enquiry",
+    "Nous vérifions la disponibilité avant tout paiement.": "We check availability before any payment.",
+    "Votre nom": "Your name",
+    "Votre adresse e-mail": "Your email address",
+    "Votre téléphone": "Your phone number",
+    "Envoyer ma demande": "Send my enquiry",
+    "Demande envoyée. GET LOCATION vous recontactera après vérification de la disponibilité.": "Enquiry sent. GET LOCATION will contact you after checking availability.",
+    "Envoi impossible. Réessayez ou contactez-nous par téléphone.": "Unable to send. Please try again or call us.",
+    "Date et heure de départ": "Pick-up date and time",
+    "Date et heure de retour": "Return date and time",
+    "Lieu de prise en charge": "Pick-up location",
+    "Lieu de livraison": "Delivery location",
+    "Distance aller depuis Saint-Laurent-du-Var (km)": "One-way distance from Saint-Laurent-du-Var (km)",
+    "20 € de prise en charge + 1 € / km aller (minimum 25 €). La récupération à une autre adresse est confirmée séparément.":
+      "€20 handling fee + €1 per one-way km (minimum €25). Collection from another address is confirmed separately.",
+    "Restituer à un endroit différent": "Return to a different location",
+    "Lieu de restitution": "Return location",
+    "Où souhaitez-vous recevoir le véhicule ?": "Where would you like to receive the vehicle?",
+    "Indiquez l'adresse de livraison avant de finaliser votre commande.": "Enter your delivery address before finalising your booking.",
+    "Choisissez simplement une zone ou un lieu précis. L'adresse complète pourra être communiquée plus tard.": "Simply choose an area or a specific location. The full address can be provided later.",
+    "Lieux fréquents": "Popular locations",
+    "Villes principales": "Main cities",
+    "Autre ville": "Another city",
+    "Saisir une adresse": "Enter an address",
+    "Choisissez une autre ville": "Choose another city",
+    "Pas besoin de connaître l’adresse exacte maintenant. Vous pourrez nous communiquer le lieu précis de livraison jusqu’à 24 h avant la remise du véhicule.": "You do not need to know the exact address yet. You can tell us the precise delivery location up to 24 hours before the vehicle is handed over.",
+    "Pas besoin de connaître l’adresse exacte maintenant. Vous pourrez nous communiquer le lieu précis de restitution jusqu’à 24 h avant la remise du véhicule.": "You do not need to know the exact return location yet. You can tell us the precise location up to 24 hours before the vehicle is handed over.",
+    "adresse exacte à confirmer": "exact address to be confirmed",
+    "Adresse exacte à confirmer avant la remise du véhicule": "Exact address to be confirmed before the vehicle is handed over",
+    "Adresse exacte de restitution à confirmer avant la remise du véhicule": "Exact return address to be confirmed before the vehicle is handed over",
+    "Choisissez un lieu de livraison": "Choose a delivery location",
+    "Saisir une adresse personnalisée": "Enter a custom address",
+    "Adresse": "Address",
+    "Numéro et rue": "Number and street",
+    "Code postal": "Postcode",
+    "Ville": "Town or city",
+    "Nice": "Nice",
+    "Aéroport Nice Côte d’Azur": "Nice Côte d'Azur Airport",
+    "Gare SNCF Nice Saint-Augustin": "Nice Saint-Augustin SNCF station",
+    "Gare SNCF Nice-Ville": "Nice-Ville SNCF station",
+    "Gare SNCF Cagnes-sur-Mer": "Cagnes-sur-Mer SNCF station",
+    "Gare SNCF de Grasse": "Grasse SNCF station",
+    "Gare SNCF de Cannes": "Cannes SNCF station",
+    "Gare SNCF de Cannes-la-Bocca": "Cannes-la-Bocca SNCF station",
+    "Gare SNCF d'Antibes": "Antibes SNCF station",
+    "Gare SNCF de Saint-Laurent-du-Var": "Saint-Laurent-du-Var SNCF station",
+    "Restituer le véhicule à une autre adresse": "Return the vehicle to a different address",
+    "Voir les véhicules disponibles": "See available vehicles",
+    "Voici les véhicules disponibles pour vos dates": "Vehicles available for your dates",
+    "Rechercher": "Search",
+
+    // --- Accueil : pourquoi nous choisir
+    "Pourquoi nous choisir": "Why us",
+    "Pourquoi choisir GETLOCATION ?": "Why choose GETLOCATION?",
+    "Une agence locale, des véhicules récents et une réservation pensée pour aller vite.":
+      "A local agency, recent vehicles and a booking process built to be quick.",
+    "Livraison partout sur la Côte d'Azur": "Delivery across the French Riviera",
+    "Livraison sur la Côte d'Azur": "Delivery across the French Riviera",
+    "Récupérez votre véhicule à l'adresse de votre choix : domicile, hôtel ou aéroport.":
+      "Get your vehicle wherever you need it: home, hotel or airport.",
+    "Assurance comprise": "Insurance included",
+    "Chaque location inclut une assurance, sans mauvaise surprise à la restitution.":
+      "Every rental includes insurance, with no surprises when you return the vehicle.",
+    "Paiement sécurisé Mollie": "Secure payment with Mollie",
+    "Réglez en ligne en toute confiance : aucune donnée bancaire stockée par nos soins.":
+      "Pay online with confidence: we never store your card details.",
+    "Assistance 7j/7": "Support 7 days a week",
+    "Une équipe locale joignable directement, sept jours sur sept.":
+      "A local team you can reach directly, seven days a week.",
+    "Véhicules neufs 2026": "Brand new 2026 vehicles",
+    "Des véhicules récents, entretenus et régulièrement renouvelés.":
+      "Recent vehicles, well maintained and regularly renewed.",
+    "Tarifs transparents": "Transparent pricing",
+    "Le prix affiché avant le paiement est le prix payé, sans frais cachés.":
+      "The price you see before paying is the price you pay. No hidden fees.",
+
+    // --- Accueil : véhicules mis en avant
+    "Nos offres": "Our fleet",
+    "La flotte": "The fleet",
+    "Les véhicules disponibles": "Available vehicles",
+    "Une flotte pour chaque trajet": "A vehicle for every journey",
+    "Citadine, SUV et utilitaire — assurance et assistance incluses.":
+      "City cars, SUVs and vans — insurance and roadside assistance included.",
+    "Citadine": "City car",
+    "SUV Hybride": "Hybrid SUV",
+    "Utilitaire": "Van",
+    "2 places": "2 seats",
+    "4 places": "4 seats",
+    "5 places": "5 seats",
+    "7 places": "7 seats",
+    "9 places": "9 seats",
+    "Manuelle": "Manual",
+    "Automatique": "Automatic",
+    "Climatisation": "Air conditioning",
+    "Dépôt de garantie : 500 €": "Security deposit: €500",
+    "Dépôt de garantie : 600 €": "Security deposit: €600",
+    "Dépôt de garantie : 800 €": "Security deposit: €800",
+    "Dépôt de garantie : 650 €": "Security deposit: €650",
+    "Dépôt de garantie : 750 €": "Security deposit: €750",
+    "Dépôt de garantie : 900 €": "Security deposit: €900",
+    "Dépôt de garantie : 1 000 €": "Security deposit: €1,000",
+    "Tarif pour {jours}": "Price for {jours}",
+    "Tarif journalier": "Daily rate",
+    "/ jour": " / day",
+    "Voir le véhicule": "View this vehicle",
+    "Voir tous les véhicules": "View all vehicles",
+
+    // --- Accueil : comment ça marche
+    "Le parcours": "How it works",
+    "Comment ça marche ?": "How does it work?",
+    "La location de voiture simplifiée": "Car rental made simple",
+    "Commandez, on vous l'apporte, vous roulez": "Book it, we deliver it, you drive",
+    "Un parcours simple, pensé pour aller directement à l'essentiel.":
+      "A simple journey designed to get straight to what matters.",
+    "Commandez votre véhicule": "Book your vehicle",
+    "Sur": "On",
+    "ou par téléphone.": "or by phone.",
+    "Faites-vous livrer": "We deliver it to you",
+    "On vous l'apporte là où vous en avez besoin": "We bring it wherever you need it",
+    "Choisissez vos dates et votre véhicule.": "Choose your dates and vehicle.",
+    "On vous l'apporte là où vous en avez besoin.": "We bring it wherever you need it.",
+    "Vous roulez.": "You drive.",
+    "Les engagements GETLOCATION": "GETLOCATION commitments",
+    "La livraison, en toute simplicité": "Delivery made simple",
+    "On vous livre là où vous en avez besoin.": "We deliver wherever you need us.",
+    "À l’aéroport, à l’hôtel, à domicile ou sur votre lieu de séjour, GetLocation vous remet votre véhicule directement sur place.":
+      "At the airport, your hotel, home or holiday accommodation, GetLocation hands over your vehicle directly on site.",
+    "Réservez votre véhicule en ligne": "Book your vehicle online",
+    "Choisissez votre lieu de livraison": "Choose your delivery location",
+    "Récupérez les clés et prenez la route": "Collect the keys and hit the road",
+    "Livreur GetLocation remettant les clés d’un véhicule à des voyageurs à l’aéroport":
+      "GetLocation delivery driver handing vehicle keys to travellers at the airport",
+    "À l'adresse de votre choix ou au point de retrait.": "At the address of your choice or at a meeting point.",
+    "Domicile, hôtel, Airbnb, aéroport ou autre adresse disponible.": "Home, hotel, Airbnb, airport or another available address.",
+    "Roulez": "You drive",
+    "Vous roulez, on s'occupe du reste": "You drive, we take care of the rest",
+    "Prenez la route, on s'occupe du reste.": "Hit the road, we take care of the rest.",
+    "GETLOCATION gère la préparation et la logistique du véhicule.": "GETLOCATION handles vehicle preparation and logistics.",
+
+    // --- Accueil : appel à l'action et contact
+    "Prêt à réserver votre véhicule ?": "Ready to book your vehicle?",
+    "Choisissez vos dates, votre véhicule, et prenez la route sur la Côte d'Azur.":
+      "Choose your dates, choose your vehicle, and hit the road on the French Riviera.",
+    "Demander un devis": "Request a quote",
+    "Voir les disponibilités": "Check availability",
+
+    // --- Accueil : texte de présentation et zones desservies
+    "Location de voiture sur la Côte d'Azur": "Car rental on the French Riviera",
+    "GETLOCATION est une agence de location de véhicules basée à Grasse, dans les Alpes-Maritimes. Réservez en ligne puis choisissez votre lieu de livraison sur la Côte d'Azur.":
+      "GETLOCATION is a vehicle rental agency based in Grasse, in the Alpes-Maritimes. Book online, then choose your delivery location on the French Riviera.",
+    "GETLOCATION est une agence de location de véhicules basée à Grasse, dans les Alpes-Maritimes (06). Réservez en ligne avec paiement sécurisé puis choisissez votre lieu de livraison sur la Côte d'Azur.":
+      "GETLOCATION is a vehicle rental agency based in Grasse, in the Alpes-Maritimes (06). Book online with secure payment, then choose your delivery location on the French Riviera.",
+    "GETLOCATION est une agence de location de véhicules basée à Grasse, dans les Alpes-Maritimes (06). Nous proposons des véhicules récents (modèles 2026) et une réservation entièrement en ligne, avec paiement sécurisé.":
+      "GETLOCATION is a vehicle rental agency based in Grasse, on the French Riviera. We offer recent vehicles (2026 models) and a fully online booking process with secure payment.",
+    "Zones desservies": "Where we deliver",
+    "Notre agence se trouve à": "Our agency is based in",
+    ". Nous proposons également la": ". We also offer",
+    "livraison à l'adresse de votre choix": "delivery to the address of your choice",
+    "sur": "in",
+    "et": "and",
+    ", ainsi que sur l'ensemble du bassin cannois et azuréen, sur demande. Voir aussi la":
+      ", as well as across the wider Cannes and Riviera area on request. See also",
+    "location à l'aéroport de Nice": "car rental at Nice airport",
+
+    // --- Accueil : questions fréquentes
+    "Questions fréquentes": "Frequently asked questions",
+    "Quel âge minimum pour louer un véhicule ?": "What is the minimum age to rent a vehicle?",
+    "Le conducteur doit être âgé d'au moins 21 ans et titulaire d'un permis de conduire valide depuis au moins 2 ans. Voir nos":
+      "Drivers must be at least 21 years old and have held a valid driving licence for at least 2 years. See our",
+    "conditions générales de location": "rental terms and conditions",
+    "Dans quelles villes puis-je recevoir mon véhicule ?": "Which towns and cities can you deliver to?",
+    "À": "In",
+    ", Monaco et dans les autres villes proposées pendant la commande. La livraison est aussi disponible à l'": ", Monaco and the other locations offered during booking. Delivery is also available at ",
+    "aéroport de Nice": "Nice Airport",
+    "et dans plusieurs gares.": "and at several railway stations.",
+    "GETLOCATION livre votre voiture à l'adresse, à l'hôtel, à la gare ou au point de rendez-vous choisi sur la Côte d'Azur. Réservez en ligne, nous organisons la livraison.":
+      "GETLOCATION delivers your car to your chosen address, hotel, railway station or meeting point on the French Riviera. Book online and we arrange delivery.",
+    "À Nice, Cannes, Antibes, Grasse, Monaco et dans les autres villes proposées pendant la commande. La livraison est aussi disponible à l'aéroport de Nice et dans plusieurs gares.":
+      "In Nice, Cannes, Antibes, Grasse, Monaco and the other locations offered during booking. Delivery is also available at Nice Airport and several railway stations.",
+    "Nous sommes une agence en ligne : le véhicule est livré à l'adresse, à la gare ou au point de rendez-vous choisi sur la Côte d'Azur.":
+      "We are an online agency: your vehicle is delivered to the address, railway station or meeting point you choose on the French Riviera.",
+    "Un dépôt de garantie est-il demandé ?": "Is a security deposit required?",
+    "Oui, un dépôt de garantie de 500 à 800 € est demandé selon le véhicule loué. Son montant exact est affiché sur chaque fiche véhicule.":
+      "Yes, a security deposit of €500 to €800 is required depending on the vehicle. The exact amount is shown on each vehicle page.",
+    "Le paiement en ligne est-il sécurisé ?": "Is online payment secure?",
+    "Puis-je être livré à domicile, à l'hôtel ou à l'aéroport ?": "Can the vehicle be delivered to my home, hotel or the airport?",
+    "Oui. Vous pouvez choisir une adresse, un hôtel, l'Aéroport Nice Côte d'Azur ou l'une des gares SNCF proposées pendant la commande.":
+      "Yes. You can choose an address, a hotel, Nice Côte d’Azur Airport or one of the SNCF railway stations offered during booking.",
+    "Dois-je connaître l'adresse exacte au moment de commander ?": "Do I need to know the exact address when I book?",
+    "Non. Vous pouvez sélectionner une ville ou une zone puis communiquer le lieu précis de livraison jusqu'à 24 h avant la remise du véhicule.":
+      "No. You can select a city or area, then provide the precise delivery location up to 24 hours before the vehicle is handed over.",
+    "Quels documents dois-je fournir ?": "Which documents do I need to provide?",
+    "Le permis de conduire et une pièce d'identité vous seront demandés par e-mail après la réservation.":
+      "Your driving licence and proof of identity will be requested by email after booking.",
+    "Une protection est-elle incluse ?": "Is protection included?",
+    "Oui. La Protection Essentielle est incluse. Des niveaux de protection complémentaires peuvent être sélectionnés pendant la commande ; leurs prix, garanties et franchises sont affichés avant le paiement.":
+      "Yes. Essential Protection is included. Additional protection levels can be selected during booking; their prices, cover and excesses are shown before payment.",
+    "Oui. Son montant dépend du véhicule et reste affiché séparément du prix de la location sur la fiche du véhicule et dans le récapitulatif.":
+      "Yes. The amount depends on the vehicle and is always shown separately from the rental price on the vehicle page and in the summary.",
+    "Oui, le paiement est traité par Mollie, un prestataire de paiement certifié. GETLOCATION ne stocke aucune donnée bancaire.":
+      "Yes, payments are handled by Mollie, a certified payment provider. GETLOCATION never stores your card details.",
+
+    // --- Pages véhicules / réservation
+    "Chargement de vos dates…": "Loading your dates…",
+    "Modifier les dates": "Change dates",
+    "Départ": "Pick-up",
+    "Retour": "Return",
+    "Mettre à jour le prix": "Update price",
+    "← Modifier ma recherche": "← Change my search",
+    "Choisissez votre véhicule": "Choose your vehicle",
+    "Chargement de votre recherche…": "Loading your search…",
+    "Finalisez votre réservation": "Complete your booking",
+    "Choisissez votre niveau de protection, puis ajoutez uniquement les options dont vous avez besoin.":
+      "Choose your level of cover, then add only the extras you need.",
+    "Véhicule": "Vehicle",
+    "Protection": "Cover",
+    "Options": "Extras",
+    "Paiement": "Payment",
+    "← Revenir aux véhicules": "← Back to vehicles",
+    "Étape 2 sur 4": "Step 2 of 4",
+    "Étape 3 sur 4": "Step 3 of 4",
+    "Quelle protection souhaitez-vous ?": "Which cover would you like?",
+    "L’assurance prévue au contrat est incluse. Vous pouvez ajouter la protection passagers proposée par GETLOCATION.":
+      "The insurance included in your rental agreement is already covered. You can add passenger cover offered by GETLOCATION.",
+    "Continuer vers les options": "Continue to extras",
+    "← Revenir à la protection": "← Back to cover",
+    "Ajoutez les options utiles": "Add the extras you need",
+    "Toutes ces options sont facultatives. Ouvrez « Voir le détail » pour en savoir plus avant de choisir.":
+      "All of these extras are optional. Open “See details” to learn more before choosing.",
+    "Vous avez un code promo ?": "Have a promo code?",
+    "Appliquer": "Apply",
+    "Votre code": "Your code",
+    "Retour à la protection": "Back to cover",
+    "Continuer vers le paiement": "Continue to payment",
+    "Votre réservation": "Your booking",
+    "Prix actualisé à chaque choix": "Price updated with every choice",
+    "Aucun paiement à cette étape": "No payment at this step",
+    "Paiement 100% sécurisé — vos données bancaires ne transitent jamais par nos serveurs.":
+      "100% secure payment — your card details never pass through our servers.",
+    "Revenir au moteur de recherche": "Back to search",
+    "Revenir au choix du véhicule": "Back to vehicle selection",
+    "Revenir au choix de la protection": "Back to cover selection",
+    "Revenir aux options": "Back to extras",
+
+    // --- Paiement
+    "← Revenir aux options": "← Back to extras",
+    "Paiement sécurisé de votre location": "Secure payment for your rental",
+    "Vos coordonnées": "Your details",
+    "Nom": "Last name",
+    "Prénom": "First name",
+    "E-mail": "Email",
+    "Téléphone": "Phone number",
+    "Date de naissance": "Date of birth",
+    "Le permis de conduire et une pièce d'identité vous seront demandés par e-mail après la réservation.":
+      "We will ask for your driving licence and ID by email after the booking.",
+    "ⓘ Le permis de conduire et une pièce d'identité vous seront demandés par e-mail après la réservation. Un supplément peut s'appliquer aux permis de moins de 3 ans.":
+      "ⓘ We will ask for your driving licence and ID by email after the booking. A surcharge may apply to licences held for less than 3 years.",
+    "Vous allez être redirigé(e) vers notre prestataire de paiement sécurisé":
+      "You will be redirected to our secure payment provider",
+    "(carte bancaire, Apple Pay, etc.) pour finaliser le règlement, puis renvoyé(e) automatiquement ici.":
+      "(card, Apple Pay, etc.) to complete the payment, then brought back here automatically.",
+    "J'ai lu et j'accepte les": "I have read and accept the",
+    "et la": "and the",
+    "politique de confidentialité": "privacy policy",
+    "Payer maintenant": "Pay now",
+    "🔒 Paiement chiffré de bout en bout par Mollie — GETLOCATION ne stocke aucune donnée bancaire.":
+      "🔒 End-to-end encrypted payment by Mollie — GETLOCATION never stores your card details.",
+    "Le dépôt de garantie est prélevé avant la remise des clés, selon le véhicule choisi.":
+      "The security deposit is taken before the keys are handed over, depending on the vehicle.",
+    "Résumé de la commande": "Order summary",
+
+    // --- Confirmation
+    "Réservation confirmée !": "Booking confirmed!",
+    "Merci, votre paiement a été accepté. Un e-mail de confirmation vous a été envoyé.":
+      "Thank you, your payment was accepted. A confirmation email is on its way.",
+    "Réf.": "Ref.",
+    "Détails de votre réservation": "Your booking details",
+    "Retour à l'accueil": "Back to home",
+
+    // --- Dossier client (documents.html)
+    "Compléter mon dossier": "Complete your file",
+    "Transmettez les éléments nécessaires à la préparation de votre location.":
+      "Send us what we need to prepare your rental.",
+    "Vérification de votre lien sécurisé…": "Checking your secure link…",
+    "Lien indisponible": "Link unavailable",
+    "Contacter l'agence": "Contact the agency",
+    "Vérification": "Verification",
+    "Date de naissance du conducteur principal": "Main driver's date of birth",
+    "Informations du conducteur": "Driver details",
+    "Adresse postale complète": "Full postal address",
+    "Numéro de permis": "Driving licence number",
+    "Date d'obtention du permis": "Licence issue date",
+    "Documents du conducteur": "Driver documents",
+    "Formats acceptés : JPG, PNG ou PDF — 8 Mo maximum par fichier.":
+      "Accepted formats: JPG, PNG or PDF — 8 MB maximum per file.",
+    "Permis — recto": "Driving licence — front",
+    "Permis — verso": "Driving licence — back",
+    "Pièce d'identité": "ID document",
+    "Adresse de livraison": "Delivery address",
+    "Adresse exacte ou point de rendez-vous": "Exact address or meeting point",
+    "Indiquez le numéro, la rue ou le point précis où nous devons vous retrouver.":
+      "Tell us the street number, street name or exact spot where we should meet you.",
+    "Second conducteur": "Additional driver",
+    "Date d'obtention": "Issue date",
+    "Vos documents seront stockés dans un espace privé et examinés uniquement pour préparer votre location.":
+      "Your documents are stored privately and reviewed only to prepare your rental.",
+    "Envoyer mon dossier": "Submit my file",
+    "Dossier reçu": "File received",
+    "Vos documents ont bien été reçus. L'agence les examinera avant la prise en charge.":
+      "We have received your documents. The agency will review them before your vehicle is handed over.",
+    "JJ/MM/AAAA": "DD/MM/YYYY",
+    "Ex. 12 rue…, hôtel…, terminal ou sortie de gare":
+      "E.g. 12 Main Street, hotel name, airport terminal or station exit",
+
+    // --- Fiches véhicules (attributs)
+    "Découvrir l'Opel Corsa Business 1.2T": "Discover the Opel Corsa Business 1.2T",
+    "Découvrir le Peugeot 2008 Hybrid": "Discover the Peugeot 2008 Hybrid",
+    "Découvrir le Peugeot 3008": "Discover the Peugeot 3008",
+    "Découvrir le Toyota Proace Medium": "Discover the Toyota Proace Medium",
+
+    // --- Pages villes : Nice
+    "Location de voiture à Nice": "Car rental in Nice",
+    "Besoin d'une voiture à Nice, capitale de la Côte d'Azur ? GETLOCATION livre votre véhicule directement à l'adresse de votre choix à Nice — centre-ville, Promenade des Anglais, gare SNCF, aéroport ou hôtel. Réservez en ligne, choisissez votre créneau, puis précisez l'adresse exacte après le paiement.":
+      "Need a car in Nice? GETLOCATION delivers your vehicle straight to the address of your choice in Nice — the city centre, Promenade des Anglais, the railway station, the airport or your hotel. Book online, pick your time slot, then give us the exact address after payment.",
+    "Réserver maintenant": "Book now",
+    "Véhicules disponibles": "Available vehicles",
+    "Citadine, SUV et utilitaire — assurance et assistance incluses, livrés à l'adresse ou au point de rendez-vous choisi à Nice.":
+      "City cars, SUVs and vans — insurance and roadside assistance included, delivered to your address or meeting point in Nice.",
+    "Réserver": "Book",
+    "Commander": "Order",
+    "Questions fréquentes — Nice": "Frequently asked questions — Nice",
+    "Livrez-vous vraiment jusqu'à Nice ?": "Do you really deliver to Nice?",
+    "Oui. Choisissez d'abord Nice, une gare ou l'aéroport lors de la réservation, puis indiquez l'adresse ou le point de rencontre exact après le paiement.":
+      "Yes. Select Nice, a railway station or the airport when booking, then give us the exact address or meeting point after payment.",
+    "Proposez-vous la prise en charge à l'aéroport de Nice ?": "Do you offer pick-up at Nice airport?",
+    "Oui, voir notre page dédiée à la": "Yes — see our dedicated page on",
+    "location de voiture à l'aéroport de Nice": "car rental at Nice airport",
+    "Autres villes desservies": "Other cities we serve",
+    "GETLOCATION livre également sur :": "GETLOCATION also delivers in:",
+
+    // --- Pages villes : Cannes
+    "Location de voiture à Cannes": "Car rental in Cannes",
+    "Que ce soit pour un rendez-vous professionnel près du Palais des Festivals, un séjour sur la Croisette ou un déplacement pendant un événement, GETLOCATION livre votre véhicule directement à l'adresse, à la gare ou au point de rendez-vous choisi à Cannes.":
+      "Whether you are here for a business meeting near the Palais des Festivals, a stay on the Croisette or an event, GETLOCATION delivers your vehicle straight to the address, railway station or meeting point you choose in Cannes.",
+    "Citadine, SUV et utilitaire — assurance et assistance incluses, livrés à Cannes ou Cannes-la-Bocca.":
+      "City cars, SUVs and vans — insurance and roadside assistance included, delivered in Cannes or Cannes-la-Bocca.",
+    "Questions fréquentes — Cannes": "Frequently asked questions — Cannes",
+    "Peut-on récupérer le véhicule directement sur la Croisette ?": "Can I collect the vehicle on the Croisette?",
+    "Oui, choisissez « Livraison » lors de la réservation et indiquez l'adresse souhaitée à Cannes, y compris à proximité de la Croisette ou du Palais des Festivals.":
+      "Yes — choose “Delivery” when booking and give us the address you want in Cannes, including near the Croisette or the Palais des Festivals.",
     "Quels véhicules recommandez-vous pour Cannes ?": "Which vehicles do you recommend for Cannes?",
     "La Peugeot 3008 ou 2008 Hybrid pour le confort en ville, ou l'Opel Corsa pour se garer facilement dans les rues étroites du centre.":
       "The Peugeot 3008 or 2008 Hybrid for comfort in town, or the Opel Corsa to park easily in the narrow streets of the centre.",
@@ -641,12 +1092,6 @@ Total output lines: 1611
     "Protection Standard": "Standard Protection",
     "Protection Confort": "Comfort Protection",
     "Protection Premium": "Premium Protection",
-    "Protection minimale incluse": "Minimum protection included",
-    "Protection du véhicule": "Vehicle protection",
-    "Protection élargie": "Extended protection",
-    "Protection la plus complète proposée": "The most comprehensive protection offered",
-    "Dépôt de garantie": "Security deposit",
-    "préautorisation bancaire, non débitée sauf frais, dommages ou sommes restant dues": "bank pre-authorisation, not charged unless costs, damage or outstanding amounts are due",
     "Responsabilité civile obligatoire": "Mandatory third-party liability",
     "Collision": "Collision",
     "Rayures": "Scratches",
@@ -659,32 +1104,40 @@ Total output lines: 1611
     "Protection conducteur": "Driver protection",
     "Protection passagers": "Passenger protection",
     "Choisissez votre niveau de protection": "Choose your protection level",
-    "La formule Essentiel est incluse dans votre location. Les formules supérieures réduisent votre participation financière en cas de dommage couvert — elles s'appliquent pendant toute la durée de la location, avec un prix plafonné.":
+    "La formule Essentiel est incluse dans votre location. Les formules supérieures réduisent votre franchise en cas de dommage — elles s'appliquent pendant toute la durée de la location, avec un prix plafonné.":
       "The Essential cover is included in the rental. Higher levels add extra guarantees, with a capped price depending on the level.",
     "La Protection Essentielle est incluse dans votre location. Les formules supérieures ajoutent des garanties complémentaires, avec un prix plafonné selon la formule.":
       "Essential Protection is included in your rental. Higher levels add extra guarantees, with a capped price depending on the level.",
-    "Protection minimale incluse. La responsabilité civile obligatoire s'applique selon les conditions du contrat.": "Minimum protection included. Mandatory third-party liability applies under the rental agreement.",
-    "Protection du véhicule. Réduit votre participation financière en cas de dommage couvert, selon les conditions du contrat.": "Vehicle protection. Reduces your financial contribution for covered damage, subject to the rental agreement.",
-    "Protection élargie. Réduit votre participation financière en cas de dommage couvert, selon les conditions du contrat.": "Extended protection. Reduces your financial contribution for covered damage, subject to the rental agreement.",
-    "Protection la plus complète proposée. Réduit votre participation financière en cas de dommage couvert, selon les conditions du contrat.": "The most comprehensive protection offered. Reduces your financial contribution for covered damage, subject to the rental agreement.",
-    "Protection minimale incluse": "Minimum protection included",
-    "Protection du véhicule": "Vehicle protection",
-    "Protection élargie": "Extended protection",
-    "Protection la plus complète proposée": "The most comprehensive protection offered",
+    "La Protection Essentielle est incluse dans votre location. Les formules supérieures ajoutent des garanties complémentaires et réduisent votre participation financière en cas de dommage couvert, selon les conditions du contrat. Le prix de chaque formule est plafonné à 7 jours.":
+      "Essential Protection is included in your rental. Higher levels add extra cover and reduce your financial contribution in the event of covered damage, subject to the terms of the rental agreement. The price of each level is capped at 7 days.",
+    "La responsabilité civile obligatoire uniquement. Aucune protection complémentaire.": "Mandatory third-party liability only. No additional protection.",
+    "Une protection complémentaire pour les collisions, les rayures et les chocs.": "Additional protection for collisions, scratches and impacts.",
+    "La protection Standard complétée par le vol, les pneus, le pare-brise, les vitres et l'assistance dépannage.": "Standard Protection plus theft, tyres, windscreen, windows and breakdown assistance.",
+    "La protection Confort avec la protection du conducteur et des passagers.": "Comfort Protection with driver and passenger protection.",
+    "Protection minimale incluse. La responsabilité civile obligatoire s'applique selon les conditions du contrat.":
+      "Minimum protection included. Mandatory third-party liability applies subject to the terms of the rental agreement.",
+    "Protection du véhicule. Réduit votre participation financière en cas de dommage couvert, selon les conditions du contrat.":
+      "Vehicle protection. Reduces your financial contribution in the event of covered damage, subject to the terms of the rental agreement.",
+    "Protection élargie. Réduit votre participation financière en cas de dommage couvert, selon les conditions du contrat.":
+      "Extended protection. Reduces your financial contribution in the event of covered damage, subject to the terms of the rental agreement.",
+    "Protection la plus complète proposée. Réduit votre participation financière en cas de dommage couvert, selon les conditions du contrat.":
+      "The most comprehensive protection option available. Reduces your financial contribution in the event of covered damage, subject to the terms of the rental agreement.",
     "Recommandé": "Recommended",
     "Couvert : ": "Covered: ",
     "Non couvert : ": "Not covered: ",
     "✓ Sélectionnée": "✓ Selected",
-    "Les protections complémentaires permettent de réduire la participation financière du locataire dans les conditions prévues au contrat de location. Elles restent soumises aux exclusions, limitations et conditions générales applicables.":
-      "Additional protection can reduce the renter's financial contribution under the terms of the rental agreement. It remains subject to the applicable exclusions, limitations and general conditions.",
     "Les protections complémentaires permettent de réduire la participation financière du locataire dans les conditions prévues au contrat de location. Elles restent soumises aux exclusions, limitations et conditions générales applicables.\n\nLe dépôt de garantie ne constitue pas un plafond de responsabilité. En cas de dommages, frais ou réparations supérieurs au dépôt de garantie, un complément pourra être réclamé conformément au contrat.":
-      "Additional protection can reduce the renter's financial contribution under the terms of the rental agreement. It remains subject to the applicable exclusions, limitations and general conditions.\n\nThe security deposit does not constitute a liability cap. If damage, costs or repairs exceed the security deposit, an additional amount may be claimed in accordance with the rental agreement.",
+      "Additional protection options can reduce the renter's financial contribution under the terms of the rental agreement. They remain subject to the applicable exclusions, limitations and general terms and conditions.\n\nThe security deposit does not constitute a liability cap. If damage, costs or repairs exceed the security deposit, an additional amount may be claimed in accordance with the rental agreement.",
     "Les garanties sont détaillées dans les Conditions Générales de Location et restent soumises aux exclusions et limitations applicables.": "The guarantees are detailed in the General Rental Conditions and remain subject to the applicable exclusions and limitations.",
     "Informations sur {protection}": "Information about {protection}",
     "Fermer": "Close",
     "Maximum : {montant}": "Maximum: {montant}",
 
     "Voir le détail": "See details",
+    "5 à 6 jours": "5 to 6 days",
+    "7 à 13 jours": "7 to 13 days",
+    "14 à 29 jours": "14 to 29 days",
+    "30 jours et plus": "30 days and over",
     "Inclus": "Included",
     "Incluse": "Included",
     "Total": "Total",
@@ -873,6 +1326,8 @@ Total output lines: 1611
     "Location ({jours})": "Rental ({jours})",
     "Supplément jeune conducteur — {jours}": "Young driver surcharge — {jours}",
     "Remise durée ({palier}, -{montant}/jour)": "Long-stay discount ({palier}, -{montant}/day)",
+    "Remise durée ({palier}, -{taux}%)": "Long-stay discount ({palier}, -{taux}%)",
+    "Kilométrage inclus": "Included mileage",
     "Code promo {code} ({remise})": "Promo code {code} ({remise})",
     "Livraison — {adresse}": "Delivery — {adresse}",
     "{pourcentage} % de réduction": "{pourcentage}% off",
