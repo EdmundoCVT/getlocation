@@ -35,6 +35,7 @@ const { handleAgencyGoogleSheets } = require("./api/agency-google-sheets.js");
 const { handleAgencyDashboard } = require("./api/agency-dashboard.js");
 const { handleInspectionMedia } = require("./api/inspection-media.js");
 const { handleLegacyInspectionAgency, handleLegacyInspectionMedia, handleLegacyInspectionDiagnostic } = require("./api/legacy-inspection-agency.js");
+const { handleZvezdanReturnMedia } = require("./api/zvezdan-return-media.js");
 const { runScheduledTasks } = require("./lib/scheduled-tasks.js");
 const { estCheminAnglais, servirPageAnglaise } = require("./lib/pages-en.js");
 
@@ -71,7 +72,8 @@ const ROUTES = {
   "/api/inspection-media": handleInspectionMedia,
   "/api/legacy-inspection-agency": handleLegacyInspectionAgency,
   "/api/legacy-inspection-media": handleLegacyInspectionMedia,
-  "/api/legacy-inspection-diagnostic": handleLegacyInspectionDiagnostic
+  "/api/legacy-inspection-diagnostic": handleLegacyInspectionDiagnostic,
+  "/api/zvezdan-return-media": handleZvezdanReturnMedia
 };
 
 function isVehicleResultsPath(pathname) {

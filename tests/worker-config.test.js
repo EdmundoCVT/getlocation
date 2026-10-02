@@ -61,6 +61,11 @@ test("le Worker route le diagnostic historique Zvezdan, limité à une lecture a
   assert.match(worker, /"\/api\/legacy-inspection-diagnostic"\s*:\s*handleLegacyInspectionDiagnostic/);
 });
 
+test("le Worker route la récupération R2 Zvezdan en lecture agence", () => {
+  const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
+  assert.match(worker, /"\/api\/zvezdan-return-media"\s*:\s*handleZvezdanReturnMedia/);
+});
+
 test("le Worker route la numérotation/historique des contrats manuels", () => {
   const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
   assert.match(worker, /"\/api\/contracts-manual-create"\s*:\s*handleContractsManualCreate/);
