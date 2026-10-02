@@ -735,7 +735,9 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
     reductionDuree: quote.discountRate ? { taux: quote.discountRate, montant: reductionDureeMontant, libelle: quote.discountLabel } : null,
     sousTotal,
     tarifsJournaliers: quote.dailyRates,
-    tarifMoyenJour: Math.round((quote.rentalSubtotal / jours) * 100) / 100,
+    // Si les jours traversent plusieurs niveaux, le seul tarif/jour affiché
+    // est la moyenne réellement facturée après remise de durée.
+    tarifMoyenJour: Math.round((quote.rentalAfterDiscount / jours) * 100) / 100,
     kmInclus: quote.includedKm + (quote.extraMileagePackage ? quote.extraMileagePackage.km : 0),
     forfaitKilometrage: quote.extraMileagePackage,
     livraison: quote.delivery,
@@ -749,7 +751,22 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
     reductionPromoMontant,
     total,
     totalCentimes: Math.round(total * 100),
-    pricingSnapshot: { tarifsJournaliers: quote.dailyRates, nombreJours: jours, sousTotalAvantRemise: sousTotalBrut, tauxRemiseDuree: quote.discountRate, montantRemiseDuree: reductionDureeMontant, montantLocationApresRemise: sousTotal, kilometresInclus: quote.includedKm + (quote.extraMileagePackage ? quote.extraMileagePackage.km : 0), forfaitKilometrique: quote.extraMileagePackage, livraison: quote.delivery, totalFinal: total }
+    pricingSnapshot: {
+      vehicule: { id: vehicule.id, nom: vehicule.nom },
+      dates: { debut: dateDebut, fin: dateFin },
+      tarifsJournaliers: quote.dailyRates,
+      nombreJours: jours,
+      sousTotalAvantRemise: sousTotalBrut,
+      tauxRemiseDuree: quote.discountRate,
+      montantRemiseDuree: reductionDureeMontant,
+      montantLocationApresRemise: sousTotal,
+      kilometresInclusLocation: quote.includedKm,
+      kilometresInclus: quote.includedKm + (quote.extraMileagePackage ? quote.extraMileagePackage.km : 0),
+      forfaitKilometrique: quote.extraMileagePackage,
+      livraison: quote.delivery,
+      recuperation: null,
+      totalFinal: total
+    }
   };
 }
 
