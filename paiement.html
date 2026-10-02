@@ -236,6 +236,9 @@
             </div>
             <select id="payment-adresse-prise-other" class="delivery-other-select" hidden></select>
             <div class="error-text" id="err-payment-adresse-prise" aria-live="polite"></div>
+            <label for="payment-delivery-distance">Distance aller depuis Saint-Laurent-du-Var (km)</label>
+            <input type="number" id="payment-delivery-distance" min="0" max="500" step="1" inputmode="numeric" placeholder="Ex. 15" required aria-describedby="payment-delivery-distance-help">
+            <p class="hint-text" id="payment-delivery-distance-help">20 € de prise en charge + 1 € / km aller (minimum 25 €). La récupération à une autre adresse est confirmée séparément.</p>
             <p class="hint-text delivery-later-hint" id="payment-adresse-prise-hint">Pas besoin de connaître l’adresse exacte maintenant. Vous pourrez nous communiquer le lieu précis de livraison jusqu’à 24 h avant la remise du véhicule.</p>
           </div>
           <div class="field field-full" id="payment-adresse-prise-custom" style="display:none;"></div>
@@ -324,7 +327,8 @@
   <div class="footer-bottom">© <span id="footer-year"></span> GETLOCATION — TLST SAS · SIRET 932 098 908 00019 · <a href="mentions-legales.html">Mentions légales</a></div>
 </footer>
 
-<script src="js/data.js?v=28"></script>
+<script src="js/pricing.js?v=1"></script>
+<script src="js/data.js?v=29"></script>
 <script src="js/i18n.js?v=12"></script>
 <script src="js/app.js?v=39"></script>
 </body>
