@@ -9,6 +9,10 @@ const { getClientById } = require("../lib/clients.js");
 const { getVehiculeParId } = require("../../js/data.js");
 
 const LEGACY_ID = /^(?:res_[a-f0-9]{32}|rnt_[A-Za-z0-9_-]{1,100})$/;
+// Investigation forensique temporaire, volontairement limitée au seul
+// dossier demandé : cette route ne doit pas devenir une exportation générale
+// de contrats manuels.
+const ZVEZDAN_LEGACY_ID = "res_f0e1a8457204d89acdc4542491ffcb53";
 
 function headers(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -195,4 +199,66 @@ async function handleLegacyInspectionMedia(request, env) {
   return new Response(object.body, { status: 200, headers: objectHeaders });
 }
 
-module.exports = { handleLegacyInspectionAgency, handleLegacyInspectionMedia, manualView };
+function diagnosticStage(value) {
+  const stage = value && typeof value === "object" ? value : null;
+  const field = (key) => stage && Object.prototype.hasOwnProperty.call(stage, key) ? stage[key] : null;
+  return {
+    present: Boolean(stage),
+    keys: stage ? Object.keys(stage).sort() : [],
+    values: {
+      dateHeure: field("dateHeure"), km: field("km"), carburant: field("carburant"), proprete: field("proprete"),
+      dommages: field("dommages"), observations: field("observations"), photosRef: field("photosRef"), cles: field("cles"),
+      clesAccessoires: field("clesAccessoires"), agent: field("agent"), clientSigne: field("clientSigne"), agenceSigne: field("agenceSigne"),
+      marks: Array.isArray(field("marks")) ? field("marks") : null
+    }
+  };
+}
+
+async function listR2Diagnostics(bucket, prefix) {
+  if (!bucket) return { available: false, count: 0, objects: [] };
+  const objects = [];
+  let cursor;
+  do {
+    const page = await bucket.list({ prefix, cursor });
+    (page.objects || []).forEach((object) => objects.push({
+      key: object.key,
+      size: Number.isFinite(object.size) ? object.size : null,
+      uploaded: object.uploaded && typeof object.uploaded.toISOString === "function" ? object.uploaded.toISOString() : object.uploaded || null
+    }));
+    cursor = page.truncated ? page.cursor : null;
+  } while (cursor);
+  return { available: true, count: objects.length, objects };
+}
+
+async function handleLegacyInspectionDiagnostic(request, env) {
+  const responseHeaders = headers(request, env);
+  if (request.method !== "GET") return new Response(JSON.stringify({ error: "Méthode non autorisée" }), { status: 405, headers: responseHeaders });
+  const auth = await requireAgencySession(request, env);
+  if (auth.error) return auth.error;
+  const record = await getReservation(env, ZVEZDAN_LEGACY_ID);
+  if (!record || record.status !== "manual_contract") return new Response(JSON.stringify({ error: "Dossier historique introuvable" }), { status: 404, headers: responseHeaders });
+  const dossier = record.contractDossier && typeof record.contractDossier === "object" ? record.contractDossier : null;
+  const media = dossier && dossier.media && typeof dossier.media === "object" ? dossier.media : null;
+  const photoList = Array.isArray(record.photosEtatDesLieux) ? record.photosEtatDesLieux : [];
+  const retourPhotos = photoList.filter((photo) => text(photo && photo.label).toLowerCase().includes("retour"));
+  const prefix = `inspection/${ZVEZDAN_LEGACY_ID}/retour/`;
+  const r2 = await listR2Diagnostics(env.DOCUMENTS_BUCKET, prefix);
+  const field = (key) => Object.prototype.hasOwnProperty.call(record, key) ? record[key] : null;
+  const body = {
+    id: ZVEZDAN_LEGACY_ID,
+    etatDepart: { present: Boolean(record.etatDepart) },
+    etatRetour: diagnosticStage(record.etatRetour),
+    kmRetour: field("kmRetour"),
+    photosEtatDesLieux: { present: Array.isArray(record.photosEtatDesLieux), retourCount: retourPhotos.length },
+    contractDossier: {
+      present: Boolean(dossier),
+      retour: diagnosticStage(dossier && dossier.retour),
+      mediaRetour: { present: Array.isArray(media && media.retour), count: Array.isArray(media && media.retour) ? media.retour.length : 0 },
+      signaturePresent: Boolean(dossier && dossier.signature)
+    },
+    r2Retour: r2
+  };
+  return new Response(JSON.stringify(body), { status: 200, headers: responseHeaders });
+}
+
+module.exports = { handleLegacyInspectionAgency, handleLegacyInspectionMedia, handleLegacyInspectionDiagnostic, manualView, ZVEZDAN_LEGACY_ID };

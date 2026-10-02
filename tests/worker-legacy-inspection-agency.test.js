@@ -6,7 +6,7 @@ const { createFakeKv } = require("./helpers/fake-kv.js");
 const { createManualContract } = require("../src/lib/reservation-store.js");
 const { createClient } = require("../src/lib/clients.js");
 const { createRental } = require("../src/lib/rentals.js");
-const { handleLegacyInspectionAgency, handleLegacyInspectionMedia } = require("../src/api/legacy-inspection-agency.js");
+const { handleLegacyInspectionAgency, handleLegacyInspectionMedia, handleLegacyInspectionDiagnostic, ZVEZDAN_LEGACY_ID } = require("../src/api/legacy-inspection-agency.js");
 
 function fakeBucket() {
   const objects = new Map();
@@ -16,6 +16,9 @@ function fakeBucket() {
       const object = objects.get(key);
       if (!object) return null;
       return { body: new Blob([object.body]).stream(), writeHttpMetadata(headers) { headers.set("content-type", object.options.contentType || "image/jpeg"); } };
+    },
+    async list({ prefix = "" } = {}) {
+      return { objects: [...objects.entries()].filter(([key]) => key.startsWith(prefix)).map(([key, value]) => ({ key, size: String(value.body).length, uploaded: new Date("2026-09-25T19:30:00.000Z") })), truncated: false };
     }
   };
 }
@@ -78,6 +81,38 @@ test("média R2 historique : lecture réservée à la session, clé listée et p
   assert.equal(allowed.headers.get("cache-control"), "private, no-store");
   const refused = await handleLegacyInspectionMedia(agencyRequest(`https://getlocation.fr/api/legacy-inspection-media?id=${record.id}&key=${encodeURIComponent(otherKey)}`, { session }), env);
   assert.equal(refused.status, 403);
+});
+
+test("diagnostic Zvezdan : lecture KV/R2 limitée, sans image binaire ni écriture", async () => {
+  const bucket = fakeBucket();
+  const env = makeAgencyEnv({ RESERVATIONS_KV: createFakeKv(), DOCUMENTS_BUCKET: bucket });
+  const session = await loginAgency(env);
+  const returnKey = `inspection/${ZVEZDAN_LEGACY_ID}/retour/dommage.jpg`;
+  const record = {
+    id: ZVEZDAN_LEGACY_ID, status: "manual_contract", kmRetour: 4210,
+    etatDepart: { km: 4083 },
+    etatRetour: { dateHeure: "2026-09-25T19:00", km: 4210, carburant: 40, proprete: "3/5", dommages: "Impact pare-chocs", cles: 2, clesAccessoires: "Carte grise", agent: "Edmundo", clientSigne: "Zvezdan", agenceSigne: "Edmundo", marks: [{ view: "rear", x: 50, y: 60, type: "bosse" }] },
+    photosEtatDesLieux: [{ label: "Retour dommage", dataUrl: "data:image/jpeg;base64,NOT_EXPOSED" }],
+    contractDossier: { retour: { observations: "Vu avec le client" }, media: { depart: [], retour: [{ key: returnKey, slot: "dommage" }] }, signature: { imageDataUrl: "data:image/png;base64,NOT_EXPOSED" } }
+  };
+  await env.RESERVATIONS_KV.put(ZVEZDAN_LEGACY_ID, JSON.stringify(record));
+  await bucket.put(returnKey, "binary-photo", { contentType: "image/jpeg" });
+  const before = await env.RESERVATIONS_KV.get(ZVEZDAN_LEGACY_ID);
+
+  const noSession = await handleLegacyInspectionDiagnostic(agencyRequest("https://getlocation.fr/api/legacy-inspection-diagnostic"), env);
+  assert.equal(noSession.status, 401);
+  const response = await handleLegacyInspectionDiagnostic(agencyRequest("https://getlocation.fr/api/legacy-inspection-diagnostic", { session }), env);
+  assert.equal(response.status, 200);
+  const diagnostic = await response.json();
+  assert.deepEqual(diagnostic.etatRetour.keys.sort(), ["agent", "agenceSigne", "carburant", "clientSigne", "cles", "clesAccessoires", "dateHeure", "dommages", "km", "marks", "proprete"].sort());
+  assert.equal(diagnostic.etatRetour.values.clientSigne, "Zvezdan");
+  assert.equal(diagnostic.photosEtatDesLieux.retourCount, 1);
+  assert.equal(diagnostic.contractDossier.mediaRetour.count, 1);
+  assert.equal(diagnostic.contractDossier.signaturePresent, true);
+  assert.equal(diagnostic.r2Retour.count, 1);
+  assert.equal(diagnostic.r2Retour.objects[0].key, returnKey);
+  assert.ok(!JSON.stringify(diagnostic).includes("NOT_EXPOSED"), "le diagnostic ne renvoie jamais les images binaires");
+  assert.equal(await env.RESERVATIONS_KV.get(ZVEZDAN_LEGACY_ID), before, "diagnostic strictement en lecture seule");
 });
 
 test("location D1 : consulte les relevés existants seulement", async () => {
