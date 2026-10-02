@@ -70,7 +70,13 @@ function rowToRental(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     createdBy: row.created_by,
-    updatedBy: row.updated_by
+    updatedBy: row.updated_by,
+    // Présent uniquement pour les requêtes jointes de consultation interne
+    // (planning / état des lieux). Les endpoints publics ne renvoient jamais
+    // la fiche client complète depuis cette propriété.
+    client: row.first_name || row.last_name
+      ? { prenom: row.first_name || "", nom: row.last_name || "" }
+      : null
   };
 }
 
