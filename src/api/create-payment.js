@@ -148,7 +148,7 @@ async function handleCreatePayment(request, env) {
     return new Response(JSON.stringify({ error: "Requête invalide" }), { status: 400, headers });
   }
 
-  const { valid, errors, vehicule, options, codePromo, enfantAge, enfantPoids, protection, lieuPriseType, lieuRetourType, adresseExactePriseAConfirmer, adresseExacteRetourAConfirmer } = validateReservationInput(payload);
+  const { valid, errors, vehicule, options, codePromo, enfantAge, enfantPoids, protection, lieuPriseType, lieuRetourType, adresseExactePriseAConfirmer, adresseExacteRetourAConfirmer, deliveryDistanceKm } = validateReservationInput(payload);
   if (!valid) {
     return new Response(JSON.stringify({ error: "Requête invalide", details: errors }), { status: 400, headers });
   }
@@ -177,6 +177,7 @@ async function handleCreatePayment(request, env) {
     options,
     codePromo,
     protection,
+    deliveryDistanceKm,
     permisDate: payload.conducteur ? payload.conducteur.permisDate : undefined
   });
   if (!prix || !isFinite(prix.totalCentimes) || prix.totalCentimes < 50) {
@@ -222,6 +223,7 @@ async function handleCreatePayment(request, env) {
     lieuRetourType,
     adresseExactePriseAConfirmer,
     adresseExacteRetourAConfirmer,
+    deliveryDistanceKm,
     jours: prix.jours,
     sousTotalBrut: prix.sousTotalBrut,
     reductionDuree: prix.reductionDuree,
@@ -242,6 +244,9 @@ async function handleCreatePayment(request, env) {
     enfantPoids,
     codePromo: prix.codePromo,
     reductionPromoMontant: prix.reductionPromoMontant,
+    // Instantané complet du moteur tarifaire : une modification future de
+    // la grille ne peut pas modifier le prix d'une réservation créée.
+    pricingSnapshot: prix.pricingSnapshot,
     total: totalFacture,
     cglVersion: payload.cglVersion,
     cglAcceptedAt: new Date().toISOString(),

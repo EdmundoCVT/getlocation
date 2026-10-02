@@ -2,7 +2,7 @@
 // Location de véhicules dans les Alpes-Maritimes (06) / Côte d'Azur.
 // À remplacer par de vraies données (base de données / CMS) en production.
 //
-// IMPORTANT : ce fichier est la SEULE source de vérité pour les tarifs, les
+// IMPORTANT : le moteur js/pricing.js est la source de vérité des tarifs.
 // horaires et les règles de calcul de durée. Il est chargé tel quel par le
 // navigateur (balise <script>, variables globales) ET requis tel quel par les
 // fonctions Netlify côté serveur (voir l'export gardé en bas de fichier) afin
@@ -10,6 +10,16 @@
 // puissent jamais diverger. Ne dupliquez pas ces valeurs ailleurs : modifiez
 // uniquement ce fichier.
 
+// `GETLOCATION_PRICING` est chargé juste avant ce fichier dans le site.
+// Le repli ne sert qu'aux aperçus/tests qui évaluent historiquement data.js
+// seul : il évite une erreur de chargement, sans être utilisé en production.
+const PRICING = typeof module !== "undefined" && module.exports ? require("./pricing.js") : globalThis.GETLOCATION_PRICING || {
+  VEHICLE_RATES: { "opel-corsa": { normal: 49 }, "peugeot-2008-hybrid": { normal: 59 }, "peugeot-3008": { normal: 79 }, "toyota-proace-city": { normal: 89 } },
+  DURATION_DISCOUNTS: [],
+  discountForDays: () => ({ rate: 0, label: null }),
+  includedMileage: (_id, days) => days * 200,
+  calculateQuote: ({ vehicleId, dateDebut, dateFin }) => { const days = Math.round((Date.parse(`${dateFin}T00:00:00Z`) - Date.parse(`${dateDebut}T00:00:00Z`)) / 86400000); const rate = (globalThis.GETLOCATION_PRICING || {}).VEHICLE_RATES?.[vehicleId]?.normal || 0; return days > 0 && rate ? { days, dailyRates: [], rentalSubtotal: days * rate, discountRate: 0, discountLabel: null, discountAmount: 0, rentalAfterDiscount: days * rate, includedKm: days * 200, extraMileagePackage: null, delivery: null } : null; }
+};
 const LIEU_LIVRAISON = "Livraison à l'adresse de votre choix";
 const ADRESSE_PERSONNALISEE = "Saisir une adresse personnalisée";
 const LIEUX_FREQUENTS_LIVRAISON = [
@@ -139,25 +149,18 @@ const CGL_VERSION = "2026-09-16";
 // recalcul serveur s'appuient tous sur ce tableau. Triées du seuil le plus
 // élevé au plus bas pour que reductionDureeApplicable() retienne le
 // meilleur palier atteint.
-const REDUCTIONS_DUREE = [
-  { seuilJours: 5, montantParJour: 5, libelle: "5 jours ou plus" }
-];
+const REDUCTIONS_DUREE = PRICING.DURATION_DISCOUNTS.map(([min, max, taux]) => ({ seuilJours: min, taux, libelle: `${min}${max === Infinity ? " jours et plus" : ` à ${max} jours`}` }));
 
 // Retourne le palier de réduction durée applicable (ou null si la location
 // est trop courte pour en bénéficier).
-function reductionDureeApplicable(jours) {
-  return REDUCTIONS_DUREE.find(r => jours >= r.seuilJours) || null;
-}
+function reductionDureeApplicable(jours) { const reduction = PRICING.discountForDays(jours); return reduction.rate ? { taux: reduction.rate, libelle: reduction.label } : null; }
 
 // Prix/jour le plus bas atteignable pour un véhicule, en supposant la
 // meilleure remise durée possible (voir REDUCTIONS_DUREE). Utilisé pour
 // l'affichage « à partir de X €/jour » sur les cartes véhicules : le
 // client voit d'emblée le tarif le plus avantageux, pas seulement le tarif
 // plein.
-function prixJourMinimum(vehicule) {
-  const meilleureRemiseParJour = REDUCTIONS_DUREE.reduce((max, r) => Math.max(max, r.montantParJour), 0);
-  return vehicule.prixJour - meilleureRemiseParJour;
-}
+function prixJourMinimum(vehicule) { const rates = PRICING.VEHICLE_RATES[vehicule.id]; return rates ? Math.min(...Object.values(rates)) : vehicule.prixJour; }
 
 // Codes promo — liste simple codée en dur (pas d'interface d'administration
 // pour l'instant). Codes insensibles à la casse/espaces (voir
@@ -455,7 +458,7 @@ const VEHICULES = [
     // du nom du modèle plutôt que d'une carte grise, contrairement aux
     // autres véhicules ci-dessous (voir LEGAL-TODO.md).
     carburant: "Essence",
-    prixJour: 59,
+    prixJour: PRICING.VEHICLE_RATES["opel-corsa"].normal,
     caution: 650,
     description: "Compacte et économique, parfaite pour vos déplacements pro entre Cannes, Antibes et Grasse."
   },
@@ -486,7 +489,7 @@ const VEHICULES = [
     clim: true,
     hybride: true,
     carburant: "Hybride essence",
-    prixJour: 69,
+    prixJour: PRICING.VEHICLE_RATES["peugeot-2008-hybrid"].normal,
     caution: 750,
     description: "SUV compact hybride, confortable et sobre pour rayonner sur toute la Côte d'Azur."
   },
@@ -520,7 +523,7 @@ const VEHICULES = [
     clim: true,
     hybride: true,
     carburant: "Hybride essence",
-    prixJour: 79,
+    prixJour: PRICING.VEHICLE_RATES["peugeot-3008"].normal,
     caution: 900,
     description: "SUV familial haut de gamme, idéal pour vos trajets entre Nice, Cannes et l'arrière-pays."
   },
@@ -562,7 +565,7 @@ const VEHICULES = [
     // à confirmer sur la carte grise avant de l'afficher sur un contrat
     // (voir LEGAL-TODO.md). `null` plutôt qu'une valeur inventée.
     carburant: null,
-    prixJour: 99,
+    prixJour: PRICING.VEHICLE_RATES["toyota-proace-city"].normal,
     caution: 1000,
     description: "Ludospace polyvalent au grand volume de chargement, idéal bagages, matériel ou déménagement."
   }
@@ -672,19 +675,20 @@ function joursFacturablesDepuisHeures(dureeHeures) {
 // `protection` : identifiant du niveau retenu (voir PROTECTIONS). Absent ou
 // inconnu, la formule incluse « Essentiel » s'applique — 0 € — pour que les
 // réservations d'avant ce système gardent exactement leur montant.
-function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFin, options, codePromo, permisDate, protection }) {
+function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFin, options, codePromo, permisDate, protection, deliveryDistanceKm }) {
   const vehicule = getVehiculeParId(vehiculeId);
   if (!vehicule) return null;
-  const dureeHeures = dureeEnHeures(dateDebut, heureDebut, dateFin, heureFin);
-  if (!isFinite(dureeHeures) || dureeHeures <= 0) return null;
-  const jours = joursFacturablesDepuisHeures(dureeHeures);
-
-  const sousTotalBrut = vehicule.prixJour * jours;
-  const palierReduction = reductionDureeApplicable(jours);
-  const reductionDureeMontant = palierReduction ? palierReduction.montantParJour * jours : 0;
-  const sousTotal = sousTotalBrut - reductionDureeMontant;
-
   const idsOptions = Array.isArray(options) ? [...new Set(options)] : [];
+  const kmPackageId = idsOptions.find((id) => KM_PACKAGE_OPTION_IDS.includes(id));
+  const quoteInput = { vehicleId: vehiculeId, dateDebut, dateFin };
+  if (kmPackageId) quoteInput.extraMileagePackageId = kmPackageId;
+  if (idsOptions.includes("livraison-adresse")) quoteInput.deliveryDistanceKm = deliveryDistanceKm;
+  const quote = PRICING.calculateQuote(quoteInput);
+  if (!quote) return null;
+  const jours = quote.days;
+  const sousTotalBrut = quote.rentalSubtotal;
+  const reductionDureeMontant = quote.discountAmount;
+  const sousTotal = quote.rentalAfterDiscount;
   const optionsSelectionnees = idsOptions
     .map(id => getOptionParId(id))
     .filter(Boolean)
@@ -692,7 +696,7 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
       id: opt.id,
       nom: opt.nom,
       type: opt.type,
-      montant: opt.type === "jour" ? opt.prix * jours : opt.prix
+      montant: KM_PACKAGE_OPTION_IDS.includes(opt.id) ? (quote.extraMileagePackage ? quote.extraMileagePackage.amount : 0) : opt.id === "livraison-adresse" ? (quote.delivery ? quote.delivery.amount : 0) : opt.type === "jour" ? opt.prix * jours : opt.prix
     }));
   const optionsMontant = optionsSelectionnees.reduce((somme, o) => somme + o.montant, 0);
 
@@ -728,8 +732,13 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
     vehicule,
     jours,
     sousTotalBrut,
-    reductionDuree: palierReduction ? { montantParJour: palierReduction.montantParJour, montant: reductionDureeMontant, libelle: palierReduction.libelle } : null,
+    reductionDuree: quote.discountRate ? { taux: quote.discountRate, montant: reductionDureeMontant, libelle: quote.discountLabel } : null,
     sousTotal,
+    tarifsJournaliers: quote.dailyRates,
+    tarifMoyenJour: Math.round((quote.rentalSubtotal / jours) * 100) / 100,
+    kmInclus: quote.includedKm + (quote.extraMileagePackage ? quote.extraMileagePackage.km : 0),
+    forfaitKilometrage: quote.extraMileagePackage,
+    livraison: quote.delivery,
     optionsSelectionnees,
     optionsMontant,
     protection: protectionChoisie,
@@ -739,7 +748,8 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
     codePromo: promo,
     reductionPromoMontant,
     total,
-    totalCentimes: Math.round(total * 100)
+    totalCentimes: Math.round(total * 100),
+    pricingSnapshot: { tarifsJournaliers: quote.dailyRates, nombreJours: jours, sousTotalAvantRemise: sousTotalBrut, tauxRemiseDuree: quote.discountRate, montantRemiseDuree: reductionDureeMontant, montantLocationApresRemise: sousTotal, kilometresInclus: quote.includedKm + (quote.extraMileagePackage ? quote.extraMileagePackage.km : 0), forfaitKilometrique: quote.extraMileagePackage, livraison: quote.delivery, totalFinal: total }
   };
 }
 
@@ -764,9 +774,7 @@ const KM_PACKAGE_OPTION_IDS = ["km-200", "km-supplementaire", "km-400"];
 // jours — voir joursFacturablesDepuisHeures). Utilisé à la fois par
 // l'affichage (tunnel de réservation, contrat.html) et par le recalcul
 // serveur faisant foi du dépassement kilométrique.
-function kmInclusPourJours(jours) {
-  return jours * KM_INCLUS_PAR_JOUR;
-}
+function kmInclusPourJours(jours, vehiculeId = "opel-corsa") { return PRICING.includedMileage(vehiculeId, jours); }
 
 // Accesseurs (plutôt que d'exposer KM_INCLUS_PAR_JOUR/SUPPLEMENT_KM_CENTIMES
 // comme des `const` directement référencées ailleurs) : mêmes conventions
@@ -796,7 +804,7 @@ function getAgence() {
 // incohérents (retour inférieur au départ) ; sinon { valid: true, kmInclus,
 // kmParcourus, kmDepasses, supplementKmCentimes, supplementCentimes,
 // supplement }.
-function calculerKilometrage({ kmDepart, kmRetour, jours }) {
+function calculerKilometrage({ kmDepart, kmRetour, jours, vehiculeId = "opel-corsa", forfaitKm = 0 }) {
   if (!Number.isFinite(kmDepart) || kmDepart < 0) {
     return { valid: false, error: "Kilométrage de départ manquant ou invalide" };
   }
@@ -809,7 +817,7 @@ function calculerKilometrage({ kmDepart, kmRetour, jours }) {
   if (!Number.isFinite(jours) || jours <= 0) {
     return { valid: false, error: "Durée de location invalide" };
   }
-  const kmInclus = kmInclusPourJours(jours);
+  const kmInclus = kmInclusPourJours(jours, vehiculeId) + (Number.isFinite(forfaitKm) ? forfaitKm : 0);
   const kmParcourus = kmRetour - kmDepart;
   const kmDepasses = Math.max(kmParcourus - kmInclus, 0);
   const supplementKmCentimes = SUPPLEMENT_KM_CENTIMES;
@@ -840,6 +848,7 @@ if (typeof module !== "undefined" && module.exports) {
     VILLES_LIVRAISON,
     LIEUX,
     CATEGORIES,
+    PRICING,
     FAMILLES_VEHICULE,
     TYPES_VOITURE,
     CARBURANTS,

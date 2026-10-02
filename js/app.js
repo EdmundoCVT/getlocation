@@ -2109,6 +2109,8 @@ function initPaiementPage() {
   const initialTypePrise = data.lieuPriseType || (parseAdressePersonnalisee(data.adressePrise) ? "custom" : (LIEUX_FREQUENTS_LIVRAISON.includes(data.adressePrise) ? "frequent" : "zone"));
   const initialTypeRetour = data.lieuRetourType || (parseAdressePersonnalisee(data.adresseRetour) ? "custom" : (LIEUX_FREQUENTS_LIVRAISON.includes(data.adresseRetour) ? "frequent" : "zone"));
   const deliveryPicker = createDeliveryPicker({ frequent: deliveryFrequent, principal: deliveryPrincipal, other: deliveryOther, otherToggle: deliveryOtherToggle, customToggle: deliveryCustomToggle, custom: deliveryCustom, inputs: deliveryInputs, initialValue: data.adressePrise, initialType: initialTypePrise });
+  const deliveryDistanceInput = document.getElementById("payment-delivery-distance");
+  if (deliveryDistanceInput && Number.isInteger(data.deliveryDistanceKm)) deliveryDistanceInput.value = String(data.deliveryDistanceKm);
   const returnPicker = createDeliveryPicker({ frequent: returnFrequent, principal: returnPrincipal, other: returnOther, otherToggle: returnOtherToggle, custom: returnCustom, inputs: returnInputs, initialValue: data.adresseRetour, initialType: initialTypeRetour, isReturn: true });
   if (data.adresseRetour && data.adresseRetour !== data.adressePrise) {
     if (returnToggle) returnToggle.checked = true;
@@ -2122,9 +2124,11 @@ function initPaiementPage() {
   function validateDelivery() {
     const prise = deliveryPicker.getValue();
     const retour = returnToggle && returnToggle.checked ? returnPicker.getValue() : prise;
-    const ok = Boolean(prise.value && retour.value);
+    const distance = deliveryDistanceInput ? Number(deliveryDistanceInput.value) : NaN;
+    const distanceValide = Number.isInteger(distance) && distance >= 0 && distance <= 500;
+    const ok = Boolean(prise.value && retour.value && distanceValide);
     const error = document.getElementById("err-payment-adresse-prise");
-    if (error) error.textContent = prise ? "" : "Merci d'indiquer le lieu de livraison.";
+    if (error) error.textContent = !prise.value ? "Merci d'indiquer le lieu de livraison." : (!distanceValide ? "Merci d'indiquer une distance de livraison valide." : "");
     if (!prise && deliverySelect) deliverySelect.focus();
     if (ok) {
       data.lieuPrise = LIEU_LIVRAISON;
@@ -2135,6 +2139,7 @@ function initPaiementPage() {
       data.lieuRetourType = retour.type;
       data.adresseExactePriseAConfirmer = prise.type === "zone";
       data.adresseExacteRetourAConfirmer = retour.type === "zone";
+      data.deliveryDistanceKm = distance;
       writeReservationLocal(data);
     }
     return ok;
@@ -2154,6 +2159,7 @@ function initPaiementPage() {
       options: data.options,
       codePromo: data.codePromo,
       protection: data.protection,
+      deliveryDistanceKm: data.deliveryDistanceKm,
       // Compatibilité avec un ancien panier déjà renseigné. Les nouvelles
       // réservations collectent cette information après paiement.
       permisDate: data.conducteur && data.conducteur.permisDate
@@ -2163,6 +2169,7 @@ function initPaiementPage() {
     const totalCompact = document.getElementById("payment-summary-total");
     if (totalCompact) totalCompact.textContent = formatEUR(prix.total);
   }
+  if (deliveryDistanceInput) deliveryDistanceInput.addEventListener("input", () => { data.deliveryDistanceKm = Number(deliveryDistanceInput.value); renderSummary(); });
   renderSummary();
 
   // Barre de dates persistante : le client peut encore ajuster ses dates ici,
@@ -2266,6 +2273,7 @@ function initPaiementPage() {
           options: data.options,
           codePromo: data.codePromo,
           protection: data.protection,
+          deliveryDistanceKm: data.deliveryDistanceKm,
           // Le champ "naissance" est saisi et persisté localement au format
           // JJ/MM/AAAA (affichage) ; le serveur (et la clé du même nom
           // stockée dans la réservation) attend systématiquement le format
@@ -2382,7 +2390,7 @@ function appendBreakdownRows(container, prix) {
 
   if (prix.reductionDuree) {
     const row = summaryRow(
-      t("Remise durée ({palier}, -{montant}/jour)", { palier: t(prix.reductionDuree.libelle), montant: formatEUR(prix.reductionDuree.montantParJour) }),
+      t("Remise durée ({palier}, -{taux}%)", { palier: t(prix.reductionDuree.libelle), taux: Math.round(prix.reductionDuree.taux * 100) }),
       `− ${formatEUR(prix.reductionDuree.montant)}`
     );
     row.classList.add("discount");
@@ -2394,6 +2402,10 @@ function appendBreakdownRows(container, prix) {
     // traduction est indexée sur ce texte dans js/i18n.js.
     container.appendChild(summaryRow(t(opt.nom), formatEUR(opt.montant)));
   });
+
+  if (Number.isFinite(prix.kmInclus)) {
+    container.appendChild(summaryRow(t("Kilométrage inclus"), `${prix.kmInclus.toLocaleString("fr-FR")} km`));
+  }
 
   // Protection : toujours affichée, y compris la formule incluse — le client
   // doit voir laquelle s'applique, pas seulement ce qu'elle coûte.

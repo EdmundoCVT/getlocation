@@ -111,7 +111,8 @@ function validateReservationInput(payload) {
     langue,
     enfantAge,
     enfantPoids,
-    protection
+    protection,
+    deliveryDistanceKm
   } = payload;
 
   const vehicule = typeof vehiculeId === "string" ? getVehiculeParId(vehiculeId) : null;
@@ -189,6 +190,12 @@ function validateReservationInput(payload) {
   if ((lieuPrise === LIEU_LIVRAISON || lieuRetour === LIEU_LIVRAISON) && !optionsNormalisees.includes("livraison-adresse")) {
     optionsNormalisees.push("livraison-adresse");
   }
+  // La distance est un paramètre métier, jamais un montant : le Worker
+  // applique ensuite lui-même la formule livraison (prise en charge + km,
+  // minimum). La récupération à une autre adresse reste sans tarif auto.
+  const livraisonPrise = lieuPrise === LIEU_LIVRAISON;
+  const deliveryDistanceNormalisee = normaliserEntier(deliveryDistanceKm, 0, 500);
+  if (livraisonPrise && deliveryDistanceNormalisee === null) errors.push("Distance de livraison invalide");
 
   // Code promo : facultatif, simple chaîne bornée (la validité du code lui-
   // même — existe-t-il, quel taux — est vérifiée par getCodePromo() lors du
@@ -291,7 +298,8 @@ function validateReservationInput(payload) {
     adresseExactePriseAConfirmer: lieuPriseTypeNormalise === "zone",
     adresseExacteRetourAConfirmer: lieuRetourTypeNormalise === "zone",
     enfantAge: avecSiegeEnfant ? enfantAgeNormalise : null,
-    enfantPoids: avecSiegeEnfant ? enfantPoidsNormalise : null
+    enfantPoids: avecSiegeEnfant ? enfantPoidsNormalise : null,
+    deliveryDistanceKm: livraisonPrise ? deliveryDistanceNormalisee : null
   };
 }
 
