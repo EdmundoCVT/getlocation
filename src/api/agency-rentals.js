@@ -7,10 +7,12 @@
 // corps de la requête.
 
 const { requireAgencySession } = require("../lib/agency-auth.js");
-const { createRental, updateRental, getRentalById, generateRentalContract, listRentalsByClient, listRentalsForInspection } = require("../lib/rentals.js");
+const { createRental, updateRental, getRentalById, generateRentalContract, listRentalsByClient } = require("../lib/rentals.js");
 const { getClientById } = require("../lib/clients.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
 const { attemptSync, getSyncStatusForRental } = require("../lib/sheet-sync-outbox.js");
+const { listReservations } = require("../lib/reservation-store.js");
+const { getVehiculeParId } = require("../../js/data.js");
 
 function corsHeaders(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -31,11 +33,38 @@ async function handleGet(request, env, headers) {
 
   const url = new URL(request.url);
   if (url.searchParams.get("view") === "inspection") {
-    const rentals = await listRentalsForInspection(env);
-    const items = await Promise.all(rentals.map(async (r) => {
-      const client = await getClientById(env, r.clientId);
-      return { id: r.id, contractNumero: r.contractNumero, client: client ? { prenom: client.firstName, nom: client.lastName } : null, vehiculeId: r.vehiculeId, immatriculation: r.immatriculation, dateDebut: r.dateDebut, heureDebut: r.heureDebut, dateFin: r.dateFin, heureFin: r.heureFin, inspection: { depart: !!r.kmDepart, retour: !!r.kmRetour } };
-    }));
+    // Les états des lieux indépendants réutilisent le dossier contrat des
+    // réservations payées en ligne. Ces réservations vivent dans KV, pas dans
+    // les locations manuelles D1 : lire uniquement D1 laissait la vue vide
+    // alors que les contrats/réservations existaient déjà dans le back-office.
+    // On conserve cette source unique afin que le lien agence sécurisé émis
+    // par /api/contract-agency-link ouvre toujours le bon dossier.
+    const reservations = await listReservations(env);
+    const items = reservations
+      .filter((reservation) => reservation && reservation.status === "paid")
+      .map((reservation) => {
+        const vehicule = getVehiculeParId(reservation.vehiculeId);
+        const dossier = reservation.contractDossier || {};
+        const depart = !!dossier.depart;
+        const retour = !!dossier.retour;
+        return {
+          id: reservation.id,
+          contractNumero: reservation.contractNumero || null,
+          client: reservation.conducteur
+            ? { prenom: reservation.conducteur.prenom || "", nom: reservation.conducteur.nom || "" }
+            : null,
+          vehiculeId: reservation.vehiculeId,
+          vehicule: vehicule ? vehicule.nom : reservation.vehiculeId,
+          immatriculation: reservation.immatriculation || (vehicule && vehicule.immatriculation) || "",
+          dateDebut: reservation.dateDebut,
+          heureDebut: reservation.heureDebut,
+          dateFin: reservation.dateFin,
+          heureFin: reservation.heureFin,
+          inspection: { depart, retour, retourAvailable: depart }
+        };
+      })
+      .sort((a, b) => `${b.dateDebut || ""} ${b.heureDebut || ""}`.localeCompare(`${a.dateDebut || ""} ${a.heureDebut || ""}`))
+      .slice(0, 200);
     return new Response(JSON.stringify({ rentals: items }), { status: 200, headers });
   }
   const id = url.searchParams.get("id");

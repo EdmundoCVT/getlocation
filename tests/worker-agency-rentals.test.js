@@ -7,8 +7,10 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { makeAgencyEnv, loginAgency, agencyRequest } = require("./helpers/agency-session.js");
+const { createFakeKv } = require("./helpers/fake-kv.js");
 const { handleAgencyClients } = require("../src/api/agency-clients.js");
 const { handleAgencyRentals } = require("../src/api/agency-rentals.js");
+const { createReservation, updateReservationStatus } = require("../src/lib/reservation-store.js");
 
 const dataValide = {
   vehiculeId: "opel-corsa",
@@ -32,17 +34,31 @@ test("GET : 401 sans session agence", async () => {
 });
 
 test("GET view=inspection : liste minimale protégée, sans données sensibles", async () => {
-  const env = makeAgencyEnv();
+  const env = makeAgencyEnv({ RESERVATIONS_KV: createFakeKv() });
   const session = await loginAgency(env);
-  const client = await creerClient(env, session);
-  for (let i = 0; i < 2; i++) await handleAgencyRentals(agencyRequest("https://getlocation.fr/api/agency-rentals", { method: "POST", session, body: { action: "create", clientId: client.id, data: { ...dataValide, dateDebut: `2026-09-1${i}`, dateFin: `2026-09-1${i + 1}` } } }), env);
+  const reservations = await Promise.all([0, 1].map(async (i) => {
+    const reservation = await createReservation(env, {
+      vehiculeId: "opel-corsa",
+      dateDebut: `2027-09-1${i}`,
+      heureDebut: "10:00",
+      dateFin: `2027-09-1${i + 1}`,
+      heureFin: "10:00",
+      conducteur: { prenom: "Jean", nom: i ? "Départ" : "Dupont", email: "prive@example.com", telephone: "0600000000" }
+    });
+    return updateReservationStatus(env, reservation.id, "paid", i ? { contractDossier: { depart: { km: 12000 } } } : {});
+  }));
   const unauthenticated = await handleAgencyRentals(agencyRequest("https://getlocation.fr/api/agency-rentals?view=inspection"), env);
   assert.equal(unauthenticated.status, 401);
   const body = await (await handleAgencyRentals(agencyRequest("https://getlocation.fr/api/agency-rentals?view=inspection", { session }), env)).json();
   assert.equal(body.rentals.length, 2);
-  assert.deepEqual(Object.keys(body.rentals[0]).sort(), ["client", "contractNumero", "dateDebut", "dateFin", "heureDebut", "heureFin", "id", "immatriculation", "inspection", "vehiculeId"].sort());
+  assert.deepEqual(Object.keys(body.rentals[0]).sort(), ["client", "contractNumero", "dateDebut", "dateFin", "heureDebut", "heureFin", "id", "immatriculation", "inspection", "vehicule", "vehiculeId"].sort());
+  const sansEtatDesLieux = body.rentals.find((rental) => rental.id === reservations[0].id);
+  assert.deepEqual(sansEtatDesLieux.inspection, { depart: false, retour: false, retourAvailable: false });
+  const departTermine = body.rentals.find((rental) => rental.id === reservations[1].id);
+  assert.deepEqual(departTermine.inspection, { depart: true, retour: false, retourAvailable: true });
   assert.equal(JSON.stringify(body).includes("permit"), false);
   assert.equal(JSON.stringify(body).includes("token"), false);
+  assert.equal(JSON.stringify(body).includes("prive@example.com"), false);
 });
 
 test("POST create : 403 sans origine autorisée", async () => {
