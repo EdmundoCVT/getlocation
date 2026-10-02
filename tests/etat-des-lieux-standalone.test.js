@@ -29,6 +29,17 @@ test("état des lieux autonome : les états historiques restent sur la voie lect
   assert.match(script, /legacy-inspection-agency/);
 });
 
+test("impression : la feuille A4 conserve les blocs, compacte les photos et retire le fragment sécurisé", () => {
+  assert.match(page, /@page\{size:A4;margin:9mm\}/);
+  assert.match(page, /inspection-sketch-grid\{grid-template-columns:repeat\(5/);
+  assert.match(page, /break-inside:avoid/);
+  assert.match(page, /photo-grid\{grid-template-columns:repeat\(3/);
+  assert.match(page, /field\.print-empty/);
+  assert.match(script, /history\.replaceState\(null,"",location\.pathname\+location\.search\)/);
+  assert.match(script, /location\.search\+originalHash/);
+  assert.doesNotMatch(page, /agencyToken=/);
+});
+
 test("état des lieux autonome : rend le croquis, les propretés et les signatures pour un dossier retour", async () => {
   const dom = new JSDOM(page, {
     url: "https://getlocation.fr/etat-des-lieux.html?mode=retour#agencyToken=" + "a".repeat(43),
