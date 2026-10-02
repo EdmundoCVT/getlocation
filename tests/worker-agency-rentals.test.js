@@ -47,7 +47,7 @@ test("GET view=inspection : agrège KV/D1, reconnaît l'historique et ne renvoie
   const duplicateContractNumero = await generateContractNumero(env);
   const webAvecDepart = await createReservation(env, {
     vehiculeId: "opel-corsa", dateDebut: "2027-09-12", heureDebut: "10:00", dateFin: "2027-09-13", heureFin: "10:00",
-    conducteur: { prenom: "Jean", nom: "Départ", email: "prive@example.com" }
+    conducteur: { prenom: "Jean", nom: "Dupont", email: "prive@example.com" }
   });
   await updateReservationStatus(env, webAvecDepart.id, "paid", {
     contractNumero: duplicateContractNumero,
@@ -69,12 +69,12 @@ test("GET view=inspection : agrège KV/D1, reconnaît l'historique et ne renvoie
   const d1Historique = await createRental(env, client.id, {
     vehiculeId: "peugeot-3008", immatriculation: "CD-456-EF", dateDebut: "2026-06-01", heureDebut: "09:00", dateFin: "2026-06-04", heureFin: "09:00", kmDepart: 32000, kmRetour: 32520
   }, "Edmundo");
-  // Même location présente dans les deux sources : le numéro de contrat est
-  // l'identifiant métier commun et ne doit produire qu'une carte.
+  // Même location présente dans les deux sources mais sans identifiant
+  // croisé : le rapprochement historique strict (client/véhicule/dates)
+  // doit empêcher la double carte GL/rnt_.
   const d1Duplicate = await createRental(env, client.id, {
     vehiculeId: "opel-corsa", dateDebut: "2027-09-12", heureDebut: "10:00", dateFin: "2027-09-13", heureFin: "10:00", kmDepart: 12000, kmRetour: 12100
   }, "Edmundo");
-  env.AGENCY_DB._raw.rentals.get(d1Duplicate.id).contract_numero = duplicateContractNumero;
 
   const unauthenticated = await handleAgencyRentals(agencyRequest("https://getlocation.fr/api/agency-rentals?view=inspection"), env);
   assert.equal(unauthenticated.status, 401);
@@ -89,6 +89,8 @@ test("GET view=inspection : agrège KV/D1, reconnaît l'historique et ne renvoie
   const deduplicated = body.rentals.find((rental) => rental.id === webAvecDepart.id);
   assert.deepEqual(deduplicated.inspection, { depart: true, retour: true, retourAvailable: true }, "les données existantes de chaque source sont conservées lors de la déduplication");
   assert.equal(deduplicated.openable, true, "la source KV ouvrable reste prioritaire");
+  assert.equal(deduplicated.historyMode, "rental-record", "la carte fusionnée conserve l'accès à l'historique D1");
+  assert.equal(deduplicated.historyId, d1Duplicate.id);
   const manualHistorique = body.rentals.find((rental) => rental.id === manual.id);
   assert.deepEqual(manualHistorique.inspection, { depart: true, retour: true, retourAvailable: true });
   assert.equal(manualHistorique.openable, false);

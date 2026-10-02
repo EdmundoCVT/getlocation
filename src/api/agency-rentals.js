@@ -163,6 +163,31 @@ function candidateKeys(item) {
   return keys;
 }
 
+function normalized(value) {
+  return String(value || "").trim().toLocaleLowerCase("fr-FR").replace(/\s+/g, " ");
+}
+
+function sameHistoricalFallback(a, b) {
+  // Ce rapprochement est volontairement réservé aux anciennes sources : un
+  // identifiant métier (id/numéro de contrat/référence croisée) reste la
+  // seule règle de déduplication des réservations récentes.
+  if (!(a.historyMode || b.historyMode)) return false;
+  if (![a.dateDebut, a.heureDebut, a.dateFin, a.heureFin, b.dateDebut, b.heureDebut, b.dateFin, b.heureFin].every(Boolean)) return false;
+  if (a.dateDebut !== b.dateDebut || a.heureDebut !== b.heureDebut || a.dateFin !== b.dateFin || a.heureFin !== b.heureFin) return false;
+
+  const plateA = normalized(a.immatriculation), plateB = normalized(b.immatriculation);
+  // Deux plaques explicitement différentes ne désignent jamais la même
+  // location, même si les deux enregistrements utilisent le même véhicule.
+  if (plateA && plateB && plateA !== plateB) return false;
+  const sameVehicle = plateA && plateB ? true : normalized(a.vehiculeId || a.vehicule) === normalized(b.vehiculeId || b.vehicule);
+  if (!sameVehicle) return false;
+
+  const clientA = normalized(`${a.client && a.client.prenom || ""} ${a.client && a.client.nom || ""}`);
+  const clientB = normalized(`${b.client && b.client.prenom || ""} ${b.client && b.client.nom || ""}`);
+  // Si les deux sources connaissent le client, l'égalité est obligatoire.
+  return !(clientA && clientB) || clientA === clientB;
+}
+
 function mergeInspectionItems(previous, next) {
   // Préférence pour l'entrée réellement ouvrable, tout en conservant les
   // preuves historiques d'inspection trouvées dans l'autre source.
@@ -196,7 +221,8 @@ function deduplicateInspectionItems(items) {
   const byKey = new Map();
   const unique = [];
   items.forEach((item) => {
-    const matching = candidateKeys(item).map((key) => byKey.get(key)).find(Boolean);
+    const matching = candidateKeys(item).map((key) => byKey.get(key)).find(Boolean)
+      || unique.find((existing) => sameHistoricalFallback(existing, item));
     if (matching) {
       const merged = mergeInspectionItems(matching, item);
       const position = unique.indexOf(matching);
