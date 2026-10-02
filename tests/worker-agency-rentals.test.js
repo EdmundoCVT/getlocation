@@ -31,6 +31,20 @@ test("GET : 401 sans session agence", async () => {
   assert.equal(res.status, 401);
 });
 
+test("GET view=inspection : liste minimale protégée, sans données sensibles", async () => {
+  const env = makeAgencyEnv();
+  const session = await loginAgency(env);
+  const client = await creerClient(env, session);
+  for (let i = 0; i < 2; i++) await handleAgencyRentals(agencyRequest("https://getlocation.fr/api/agency-rentals", { method: "POST", session, body: { action: "create", clientId: client.id, data: { ...dataValide, dateDebut: `2026-09-1${i}`, dateFin: `2026-09-1${i + 1}` } } }), env);
+  const unauthenticated = await handleAgencyRentals(agencyRequest("https://getlocation.fr/api/agency-rentals?view=inspection"), env);
+  assert.equal(unauthenticated.status, 401);
+  const body = await (await handleAgencyRentals(agencyRequest("https://getlocation.fr/api/agency-rentals?view=inspection", { session }), env)).json();
+  assert.equal(body.rentals.length, 2);
+  assert.deepEqual(Object.keys(body.rentals[0]).sort(), ["client", "contractNumero", "dateDebut", "dateFin", "heureDebut", "heureFin", "id", "immatriculation", "inspection", "vehiculeId"].sort());
+  assert.equal(JSON.stringify(body).includes("permit"), false);
+  assert.equal(JSON.stringify(body).includes("token"), false);
+});
+
 test("POST create : 403 sans origine autorisée", async () => {
   const env = makeAgencyEnv();
   const session = await loginAgency(env);

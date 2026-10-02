@@ -7,7 +7,7 @@
 // corps de la requête.
 
 const { requireAgencySession } = require("../lib/agency-auth.js");
-const { createRental, updateRental, getRentalById, generateRentalContract, listRentalsByClient } = require("../lib/rentals.js");
+const { createRental, updateRental, getRentalById, generateRentalContract, listRentalsByClient, listRentalsForInspection } = require("../lib/rentals.js");
 const { getClientById } = require("../lib/clients.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
 const { attemptSync, getSyncStatusForRental } = require("../lib/sheet-sync-outbox.js");
@@ -30,6 +30,14 @@ async function handleGet(request, env, headers) {
   if (auth.error) return auth.error;
 
   const url = new URL(request.url);
+  if (url.searchParams.get("view") === "inspection") {
+    const rentals = await listRentalsForInspection(env);
+    const items = await Promise.all(rentals.map(async (r) => {
+      const client = await getClientById(env, r.clientId);
+      return { id: r.id, contractNumero: r.contractNumero, client: client ? { prenom: client.firstName, nom: client.lastName } : null, vehiculeId: r.vehiculeId, immatriculation: r.immatriculation, dateDebut: r.dateDebut, heureDebut: r.heureDebut, dateFin: r.dateFin, heureFin: r.heureFin, inspection: { depart: !!r.kmDepart, retour: !!r.kmRetour } };
+    }));
+    return new Response(JSON.stringify({ rentals: items }), { status: 200, headers });
+  }
   const id = url.searchParams.get("id");
   if (id) {
     const rental = await getRentalById(env, id.slice(0, 100));

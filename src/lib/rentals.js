@@ -185,4 +185,9 @@ async function listRentalsByClient(env, clientId) {
   return (res.results || []).map(rowToRental);
 }
 
-module.exports = { STATUTS_VALIDES, createRental, getRentalById, updateRental, generateRentalContract, listRentalsByClient };
+async function listRentalsForInspection(env) {
+  const res = await env.AGENCY_DB.prepare("SELECT r.*, c.first_name, c.last_name FROM rentals r JOIN clients c ON c.id = r.client_id WHERE r.status != 'annulee' AND r.date_debut >= ?").bind("0000-01-01").all();
+  return (res.results || []).map(rowToRental).filter((r) => r.status !== "annulee").sort((a, b) => String(b.dateDebut).localeCompare(String(a.dateDebut))).slice(0, 200);
+}
+
+module.exports = { STATUTS_VALIDES, createRental, getRentalById, updateRental, generateRentalContract, listRentalsByClient, listRentalsForInspection };
