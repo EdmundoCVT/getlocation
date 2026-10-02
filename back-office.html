@@ -321,6 +321,8 @@
         <button type="button" class="btn btn-secondary" id="editRentalBtn">Modifier</button>
         <button type="button" class="btn btn-primary" id="generateContractBtn">Générer le numéro de contrat</button>
         <a class="btn btn-secondary" id="openContratBtn" target="_blank" rel="noopener">Ouvrir dans l'outil de contrat</a>
+        <button type="button" class="btn btn-secondary" id="openInspectionDepartBtn">État des lieux départ</button>
+        <button type="button" class="btn btn-secondary" id="openInspectionRetourBtn">État des lieux retour</button>
         <select id="rentalStatusSelect"></select>
       </div>
 
@@ -1029,6 +1031,25 @@ function renderRentalDetail(){
   renderSyncStatus();
   showSection('rentalDetailSection');
 }
+
+// Le jeton agence n'est jamais conservé dans le back-office ni mis dans le
+// HTML : il est réémis à la demande par l'API protégée par la session + CSRF,
+// puis placé uniquement dans le fragment de la nouvelle fenêtre.
+function openInspection(mode){
+  if(!currentRental || !currentRental.id){ return; }
+  var popup = window.open('', '_blank');
+  if(!popup){ alert('Autorisez l’ouverture de la nouvelle fenêtre pour démarrer l’état des lieux.'); return; }
+  try { popup.opener = null; } catch(e) {}
+  popup.document.title = 'Ouverture de l’état des lieux…';
+  apiPost('/api/contract-agency-link', { id: currentRental.id }).then(function(res){
+    if(!res.ok || !res.json.agencyUrl){ throw new Error(res.json.error || 'Lien sécurisé indisponible'); }
+    var source = new URL(res.json.agencyUrl);
+    popup.location.href = '/etat-des-lieux.html?mode=' + encodeURIComponent(mode) + source.hash;
+  }).catch(function(err){ popup.close(); alert(err.message || 'Impossible d’ouvrir l’état des lieux.'); });
+}
+
+document.getElementById('openInspectionDepartBtn').addEventListener('click', function(){ openInspection('depart'); });
+document.getElementById('openInspectionRetourBtn').addEventListener('click', function(){ openInspection('retour'); });
 
 function renderSyncStatus(){
   var s = currentRental.syncStatus;
