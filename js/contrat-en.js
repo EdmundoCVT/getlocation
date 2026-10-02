@@ -100,11 +100,11 @@
     "Protection et garantie": "Protection and security deposit",
     "Garantie": "Security deposit",
     "Niveau de protection": "Protection level",
-    "Franchise /": "Excess /",
-    "Responsabilité maximale": "Maximum liability",
+    "Conditions et exclusions": "Terms and exclusions",
+    "Selon le contrat et les CGL": "Subject to the rental agreement and General Rental Conditions",
     "Dépôt de garantie": "Security deposit",
     "Mode": "Method",
-    "Franchises assurance": "Insurance excess",
+    "Franchises assurance": "Insurance terms",
     // Noms des formules : identiques à ceux affichés sur le site en anglais
     // (js/i18n.js), pour qu'un client retrouve sur son contrat le nom qu'il
     // a vu au moment de réserver.

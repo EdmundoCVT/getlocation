@@ -248,7 +248,9 @@ const OPTIONS = [
 // elle continue de s'appliquer pendant toute la location — seul son PRIX
 // cesse d'augmenter. Ne jamais laisser entendre au client qu'elle s'arrête.
 //
-// Tout se règle ici : prix, franchise, plafond, garanties couvertes. Ne
+// Tout se règle ici : prix, paramètres historiques internes, plafond tarifaire,
+// garanties couvertes. Les paramètres historiques ne sont pas affichés comme
+// une promesse commerciale de responsabilité maximale.
 // recopier aucune de ces valeurs ailleurs (règle n°1).
 
 // Garanties comparées d'un niveau à l'autre, dans l'ordre d'affichage.
@@ -272,7 +274,7 @@ const PROTECTIONS = [
   {
     id: "essentiel",
     nom: "Protection Essentielle",
-    description: "La responsabilité civile obligatoire uniquement. Aucune protection complémentaire.",
+    description: "Protection minimale incluse. La responsabilité civile obligatoire s'applique selon les conditions du contrat.",
     prixParJour: 0,
     joursFacturesMax: 0,
     prixMax: 0,
@@ -283,7 +285,7 @@ const PROTECTIONS = [
   {
     id: "confort",
     nom: "Protection Standard",
-    description: "Une protection complémentaire pour les collisions, les rayures et les chocs.",
+    description: "Protection du véhicule. Réduit votre participation financière en cas de dommage couvert, selon les conditions du contrat.",
     prixParJour: 6,
     joursFacturesMax: 7,
     prixMax: 42,
@@ -294,7 +296,7 @@ const PROTECTIONS = [
   {
     id: "serenite",
     nom: "Protection Confort",
-    description: "La protection Standard complétée par le vol, les pneus, le pare-brise, les vitres et l'assistance dépannage.",
+    description: "Protection élargie. Réduit votre participation financière en cas de dommage couvert, selon les conditions du contrat.",
     prixParJour: 12,
     joursFacturesMax: 7,
     prixMax: 84,
@@ -305,7 +307,7 @@ const PROTECTIONS = [
   {
     id: "serenite-plus",
     nom: "Protection Premium",
-    description: "La protection Confort avec la protection du conducteur et des passagers.",
+    description: "Protection la plus complète proposée. Réduit votre participation financière en cas de dommage couvert, selon les conditions du contrat.",
     prixParJour: 20,
     joursFacturesMax: 7,
     prixMax: 140,
@@ -320,7 +322,7 @@ const PROTECTION_PAR_DEFAUT = "essentiel";
 // Mention affichée sous les protections. Volontairement prudente : elle
 // renvoie aux CGL plutôt que de promettre une couverture que le texte
 // contractuel ne décrit pas encore.
-const PROTECTION_MENTION = "Les protections complémentaires permettent de réduire la participation financière du locataire dans les conditions prévues au contrat de location. Elles restent soumises aux exclusions, limitations et conditions générales applicables.";
+const PROTECTION_MENTION = "Les protections complémentaires permettent de réduire la participation financière du locataire dans les conditions prévues au contrat de location. Elles restent soumises aux exclusions, limitations et conditions générales applicables.\n\nLe dépôt de garantie ne constitue pas un plafond de responsabilité. En cas de dommages, frais ou réparations supérieurs au dépôt de garantie, un complément pourra être réclamé conformément au contrat.";
 
 // Accesseurs : contrat.html et js/app.js passent par eux plutôt que par les
 // constantes ci-dessus, pour rester lisibles dans les environnements où
@@ -730,6 +732,7 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFi
 
   return {
     vehicule,
+    caution: vehicule.caution,
     jours,
     sousTotalBrut,
     reductionDuree: quote.discountRate ? { taux: quote.discountRate, montant: reductionDureeMontant, libelle: quote.discountLabel } : null,
