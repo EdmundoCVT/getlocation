@@ -34,7 +34,7 @@ const { handleAgencyAnalytics } = require("./api/agency-analytics.js");
 const { handleAgencyGoogleSheets } = require("./api/agency-google-sheets.js");
 const { handleAgencyDashboard } = require("./api/agency-dashboard.js");
 const { handleInspectionMedia } = require("./api/inspection-media.js");
-const { handleLegacyInspectionAgency } = require("./api/legacy-inspection-agency.js");
+const { handleLegacyInspectionAgency, handleLegacyInspectionMedia } = require("./api/legacy-inspection-agency.js");
 const { runScheduledTasks } = require("./lib/scheduled-tasks.js");
 const { estCheminAnglais, servirPageAnglaise } = require("./lib/pages-en.js");
 
@@ -69,7 +69,8 @@ const ROUTES = {
   "/api/agency-google-sheets": handleAgencyGoogleSheets,
   "/api/agency-dashboard": handleAgencyDashboard,
   "/api/inspection-media": handleInspectionMedia,
-  "/api/legacy-inspection-agency": handleLegacyInspectionAgency
+  "/api/legacy-inspection-agency": handleLegacyInspectionAgency,
+  "/api/legacy-inspection-media": handleLegacyInspectionMedia
 };
 
 function isVehicleResultsPath(pathname) {

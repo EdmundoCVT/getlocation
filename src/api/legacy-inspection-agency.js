@@ -23,6 +23,19 @@ function text(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function firstValue(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== "");
+}
+
+function firstText(...values) {
+  const value = firstValue(...values);
+  return value === undefined ? "" : text(value);
+}
+
+function firstArray(...values) {
+  return values.find((value) => Array.isArray(value) && value.length) || [];
+}
+
 function splitDateTime(value) {
   const match = /^(\d{4}-\d{2}-\d{2})(?:T|\s)(\d{2}:\d{2})/.exec(text(value));
   return match ? { date: match[1], heure: match[2] } : { date: "", heure: "" };
@@ -34,19 +47,48 @@ function stagePhotos(photos, mode) {
   return photos.filter((photo) => text(photo && photo.label).toLowerCase().includes(modeLabel));
 }
 
+function legacyMedia(media, mode) {
+  const list = media && Array.isArray(media[mode]) ? media[mode] : [];
+  return list.filter((photo) => photo && typeof photo.key === "string").map((photo) => ({
+    key: photo.key,
+    slot: text(photo.slot),
+    contentType: text(photo.contentType),
+    size: Number.isFinite(photo.size) ? photo.size : null,
+    createdAt: text(photo.createdAt),
+    capturedAt: text(photo.capturedAt)
+  }));
+}
+
+function combinePhotos(manualPhotos, mediaPhotos) {
+  const seen = new Set();
+  return [...manualPhotos, ...mediaPhotos].filter((photo) => {
+    const identity = photo && (photo.key || photo.dataUrl || `${photo.label || ""}:${photo.createdAt || photo.capturedAt || ""}`);
+    if (!identity || seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  });
+}
+
 function manualStage(record, mode) {
   const state = mode === "depart" ? record.etatDepart || {} : record.etatRetour || {};
+  const dossier = record.contractDossier && typeof record.contractDossier === "object" ? record.contractDossier : {};
+  const dossierState = dossier[mode] && typeof dossier[mode] === "object" ? dossier[mode] : {};
   const km = mode === "depart" ? record.kmDepart : record.kmRetour;
   return {
     mode,
-    dateHeure: text(state.dateHeure),
-    km: km === undefined || km === null ? "" : String(km),
-    carburant: state.carburant === undefined || state.carburant === null ? "" : String(state.carburant),
-    proprete: text(state.proprete),
-    accessoires: text(state.clesAccessoires || state.accessoires),
-    remarques: text(state.observations || state.dommages),
-    marques: Array.isArray(state.marks) ? state.marks : [],
-    photos: stagePhotos(record.photosEtatDesLieux, mode)
+    dateHeure: firstText(state.dateHeure, dossierState.dateHeure),
+    km: String(firstValue(state.km, dossierState.km, km) ?? ""),
+    carburant: String(firstValue(state.carburant, dossierState.carburant) ?? ""),
+    proprete: firstText(state.proprete, dossierState.proprete),
+    cles: String(firstValue(state.cles, dossierState.cles) ?? ""),
+    accessoires: firstText(state.clesAccessoires, state.accessoires, dossierState.clesAccessoires, dossierState.accessoires),
+    remarques: firstText(state.observations, state.dommages, dossierState.observations, dossierState.dommages),
+    agent: firstText(state.agent, dossierState.agent),
+    clientSigne: firstText(state.clientSigne, dossierState.clientSigne),
+    agenceSigne: firstText(state.agenceSigne, dossierState.agenceSigne),
+    photosRef: firstText(state.photosRef, dossierState.photosRef),
+    marques: firstArray(state.marks, dossierState.marks),
+    photos: combinePhotos(stagePhotos(record.photosEtatDesLieux, mode), legacyMedia(dossier.media, mode))
   };
 }
 
@@ -66,7 +108,14 @@ function manualView(record) {
     dateFin: end.date,
     heureFin: end.heure,
     depart: manualStage(record, "depart"),
-    retour: manualStage(record, "retour")
+    retour: manualStage(record, "retour"),
+    contractSignature: record.contractDossier && record.contractDossier.signature
+      ? {
+          signedAt: text(record.contractDossier.signature.signedAt),
+          signatureId: text(record.contractDossier.signature.signatureId),
+          imageDataUrl: text(record.contractDossier.signature.imageDataUrl)
+        }
+      : null
   };
 }
 
@@ -121,4 +170,29 @@ async function handleLegacyInspectionAgency(request, env) {
   return new Response(JSON.stringify({ inspection: await d1View(env, rental) }), { status: 200, headers: responseHeaders });
 }
 
-module.exports = { handleLegacyInspectionAgency, manualView };
+async function handleLegacyInspectionMedia(request, env) {
+  const responseHeaders = headers(request, env);
+  if (request.method !== "GET") return new Response(null, { status: 405, headers: responseHeaders });
+  const auth = await requireAgencySession(request, env);
+  if (auth.error) return auth.error;
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id") || "";
+  const key = url.searchParams.get("key") || "";
+  if (!LEGACY_ID.test(id) || !id.startsWith("res_")) return new Response(null, { status: 400, headers: responseHeaders });
+  const record = await getReservation(env, id);
+  if (!record || record.status !== "manual_contract" || !env.DOCUMENTS_BUCKET) return new Response(null, { status: 404, headers: responseHeaders });
+  const prefix = `inspection/${id}/`;
+  if (!(key.startsWith(`${prefix}depart/`) || key.startsWith(`${prefix}retour/`))) return new Response(null, { status: 403, headers: responseHeaders });
+  const media = record.contractDossier && record.contractDossier.media;
+  const listed = ["depart", "retour"].some((stage) => Array.isArray(media && media[stage]) && media[stage].some((item) => item && item.key === key));
+  if (!listed) return new Response(null, { status: 403, headers: responseHeaders });
+  const object = await env.DOCUMENTS_BUCKET.get(key);
+  if (!object) return new Response(null, { status: 404, headers: responseHeaders });
+  const objectHeaders = new Headers(responseHeaders);
+  object.writeHttpMetadata(objectHeaders);
+  objectHeaders.set("Cache-Control", "private, no-store");
+  objectHeaders.set("X-Content-Type-Options", "nosniff");
+  return new Response(object.body, { status: 200, headers: objectHeaders });
+}
+
+module.exports = { handleLegacyInspectionAgency, handleLegacyInspectionMedia, manualView };
