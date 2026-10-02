@@ -156,15 +156,10 @@ test("états des lieux historiques terminés : les boutons restent cliquables, s
   assert.ok(retourFutur && retourFutur.disabled);
 });
 
-test("état des lieux manuel terminé : le clic réémet le lien historique sécurisé", async () => {
+test("état des lieux manuel terminé : le clic ouvre la vue historique agence, jamais la signature client", () => {
   const window = buildWindow();
   const popup = { opener: window, document: {}, location: { href: "" } };
   window.open = () => popup;
-  let request;
-  window.fetch = async (url, options) => {
-    request = { url, options };
-    return { ok: true, json: async () => ({ clientUrl: "https://getlocation.fr/contrat.html#manualToken=" + "A".repeat(43) }) };
-  };
   window.__backOffice.renderInspectionListForTest([{
     id: "res_" + "a".repeat(32), client: { prenom: "Israa", nom: "Benzaama" }, vehicule: "Opel Corsa", vehiculeId: "opel-corsa", immatriculation: "AB-123-CD",
     dateDebut: "2026-08-13", heureDebut: "10:00", dateFin: "2026-08-15", heureFin: "10:00", contractNumero: "GL-20260813-0001",
@@ -172,10 +167,8 @@ test("état des lieux manuel terminé : le clic réémet le lien historique séc
   }]);
   const depart = [...window.document.querySelectorAll("#inspectionList button")].find((b) => b.textContent === "Départ — ✓ Terminé");
   depart.click();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.equal(request.url, "/api/contract-manual-link");
-  assert.match(request.options.body, /res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/);
-  assert.match(popup.location.href, /contrat\.html#manualToken=A{43}$/);
+  assert.match(popup.location.href, /etat-des-lieux\.html\?source=legacy&mode=depart&legacyId=res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa$/);
+  assert.ok(!popup.location.href.includes("manualToken"));
 });
 
 // Régression Lot 5 : renderSyncStatus utilisait row(), qui échappe

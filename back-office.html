@@ -1058,23 +1058,15 @@ function renderRentalDetail(){
 // puis placé uniquement dans le fragment de la nouvelle fenêtre.
 function openInspection(mode){
   if(!currentRental || !currentRental.id){ return; }
-  // Les contrats manuels conservent leur format historique (croquis,
-  // photos, observations) dans leur contrat : on le relit via le lien court
-  // sécurisé existant, sans conversion ni écriture sur les données.
-  if(currentRental.historyMode === 'manual-contract'){
+  // Les formats historiques sont lus par une vue dédiée, protégée par la
+  // session agence. Surtout, ne jamais détourner manualToken : il reste le
+  // lien client de vérification/signature du contrat manuel.
+  if(currentRental.historyMode){
     var legacyPopup = window.open('', '_blank');
     if(!legacyPopup){ alert('Autorisez l’ouverture de la nouvelle fenêtre pour consulter l’état des lieux.'); return; }
     try { legacyPopup.opener = null; } catch(e) {}
-    apiPost('/api/contract-manual-link', { id: currentRental.historyId || currentRental.id }).then(function(res){
-      if(!res.ok || !res.json.clientUrl){ throw new Error(res.json.error || 'Historique indisponible'); }
-      legacyPopup.location.href = res.json.clientUrl;
-    }).catch(function(err){ legacyPopup.close(); alert(err.message || 'Impossible d’ouvrir l’historique.'); });
-    return;
-  }
-  // Les locations D1 ne possèdent pas de dossier/photo R2 à convertir. Leur
-  // fiche agence authentifiée expose les relevés réellement conservés.
-  if(currentRental.historyMode === 'rental-record'){
-    openRentalDetail(currentRental.historyId || currentRental.id);
+    var legacyId = currentRental.historyId || currentRental.id;
+    legacyPopup.location.href = '/etat-des-lieux.html?source=legacy&mode=' + encodeURIComponent(mode) + '&legacyId=' + encodeURIComponent(legacyId);
     return;
   }
   var popup = window.open('', '_blank');
