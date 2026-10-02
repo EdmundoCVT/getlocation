@@ -132,3 +132,31 @@ test("validateConditionReport : exige le nom de l'agent mais pas les champs libr
   assert.equal(data.photosRef, "");
   assert.equal(data.clesAccessoires, "");
 });
+
+test("validateConditionReport : conserve les nouveaux relevés, croquis et signatures EDL séparées", () => {
+  const signature = "data:image/png;base64,aGVsbG8=";
+  const data = validateConditionReport(etatValide({
+    cles: 2,
+    proprete: "Ancienne valeur 4/5",
+    propreteExterieure: 5,
+    propreteInterieure: 4,
+    propreteChargement: 3,
+    marks: [{ id: "m1", view: "left", type: "rayure", x: 12.34, y: 55.55 }],
+    signatures: { client: { name: "Client", imageDataUrl: signature }, agence: { name: "Agent", imageDataUrl: signature } }
+  }));
+  assert.equal(data.proprete, "Ancienne valeur 4/5");
+  assert.equal(data.propreteExterieure, 5);
+  assert.equal(data.propreteInterieure, 4);
+  assert.equal(data.propreteChargement, 3);
+  assert.equal(data.cles, 2);
+  assert.deepEqual(data.marks, [{ id: "m1", view: "left", type: "rayure", x: 12.3, y: 55.6 }]);
+  assert.equal(data.signatures.client.name, "Client");
+  assert.equal(data.signatures.agence.imageDataUrl, signature);
+  assert.ok(data.signatures.client.signedAt);
+});
+
+test("validateConditionReport : rejette les croquis, propretés et signatures mal formés", () => {
+  assert.throws(() => validateConditionReport(etatValide({ propreteInterieure: 6 })), /Niveau de propreté invalide/);
+  assert.throws(() => validateConditionReport(etatValide({ marks: [{ view: "unknown", type: "rayure", x: 0, y: 0 }] })), /Croquis de dommages invalide/);
+  assert.throws(() => validateConditionReport(etatValide({ signatures: { client: { name: "X", imageDataUrl: "javascript:bad" } } })), /Image de signature invalide/);
+});

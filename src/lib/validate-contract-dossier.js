@@ -97,6 +97,42 @@ function champsManquantsAvantEnvoi(fields) {
 }
 
 const NIVEAUX_CARBURANT_VALIDES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+const TYPES_DOMMAGE_VALIDES = new Set(["rayure", "bosse", "eclat"]);
+const VUES_DOMMAGE_VALIDES = new Set(["left", "front", "right", "rear", "top"]);
+
+function scoreProprete(value, label) {
+  if (value === undefined || value === null || value === "") return null;
+  const score = Number(value);
+  if (!Number.isInteger(score) || score < 1 || score > 5) throw new Error(`Niveau de propreté invalide : ${label}`);
+  return score;
+}
+
+function validateMarks(value) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > 200) throw new Error("Croquis de dommages invalide");
+  return value.map((mark, index) => {
+    if (!mark || typeof mark !== "object") throw new Error("Croquis de dommages invalide");
+    const x = Number(mark.x), y = Number(mark.y);
+    if (!VUES_DOMMAGE_VALIDES.has(mark.view) || !TYPES_DOMMAGE_VALIDES.has(mark.type) || !Number.isFinite(x) || !Number.isFinite(y)) throw new Error("Croquis de dommages invalide");
+    return {
+      id: typeof mark.id === "string" && mark.id.length <= 80 ? mark.id : `m${index + 1}`,
+      view: mark.view,
+      type: mark.type,
+      x: Math.max(0, Math.min(100, Math.round(x * 10) / 10)),
+      y: Math.max(0, Math.min(100, Math.round(y * 10) / 10))
+    };
+  });
+}
+
+function signature(value, label) {
+  if (value === undefined || value === null || value === "") return null;
+  if (!value || typeof value !== "object") throw new Error(`Signature invalide : ${label}`);
+  const name = text(value.name, `nom de signature ${label}`, { required: false, max: 100 });
+  const imageDataUrl = text(value.imageDataUrl, `image de signature ${label}`, { required: false, max: 70000 });
+  if (imageDataUrl && !/^data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(imageDataUrl)) throw new Error(`Image de signature invalide : ${label}`);
+  if (!name && !imageDataUrl) return null;
+  return { name, imageDataUrl, signedAt: new Date().toISOString() };
+}
 
 // État des lieux départ/retour — mêmes champs pour les deux (voir mission).
 function validateConditionReport(body) {
@@ -109,12 +145,27 @@ function validateConditionReport(body) {
     km,
     carburant,
     proprete: text(body.proprete, "état de propreté", { required: false, max: 200 }),
+    // Nouveaux relevés distincts : l'ancien champ `proprete` est conservé
+    // tel quel pour les dossiers antérieurs et la compatibilité PDF.
+    propreteExterieure: scoreProprete(body.propreteExterieure, "extérieur"),
+    propreteInterieure: scoreProprete(body.propreteInterieure, "intérieur"),
+    propreteChargement: scoreProprete(body.propreteChargement, "espace de chargement"),
     dommages: text(body.dommages, "dommages / observations", { required: false, max: 2000 }),
+    marks: validateMarks(body.marks),
     photosRef: text(body.photosRef, "référence des photos", { required: false, max: 200 }),
+    cles: body.cles === undefined || body.cles === null || body.cles === "" ? null : (() => {
+      const count = Number(body.cles);
+      if (!Number.isInteger(count) || count < 0 || count > 20) throw new Error("Nombre de clés invalide");
+      return count;
+    })(),
     clesAccessoires: text(body.clesAccessoires, "clés et accessoires", { required: false, max: 300 }),
     agent: text(body.agent, "nom de l'agent", { max: 100 }),
     clientSigne: text(body.clientSigne, "signature client", { required: false, max: 100 }),
     agenceSigne: text(body.agenceSigne, "signature agence", { required: false, max: 100 }),
+    signatures: {
+      client: signature(body.signatures && body.signatures.client, "client"),
+      agence: signature(body.signatures && body.signatures.agence, "agence")
+    },
     completedAt: new Date().toISOString()
   };
 }
@@ -124,5 +175,7 @@ module.exports = {
   champsManquantsAvantEnvoi,
   validateConditionReport,
   NIVEAUX_CARBURANT_VALIDES,
+  TYPES_DOMMAGE_VALIDES,
+  VUES_DOMMAGE_VALIDES,
   isDate
 };

@@ -104,7 +104,7 @@ function buildDossierView(reservation) {
       // confirmation.html. Peut être absent sur une réservation payée avant
       // l'introduction de ce champ.
       contractNumero: reservation.contractNumero || null,
-      vehicule: vehicule ? { id: vehicule.id, nom: vehicule.nom, immatriculation: vehicule.immatriculation, caution: vehicule.caution, prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, vin: vehicule.vin || null } : null,
+      vehicule: vehicule ? { id: vehicule.id, nom: vehicule.nom, immatriculation: vehicule.immatriculation, caution: vehicule.caution, prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, vin: vehicule.vin || null, vehicleFamily: vehicule.vehicleFamily || "car" } : null,
       dateDebut: reservation.dateDebut,
       heureDebut: reservation.heureDebut,
       dateFin: reservation.dateFin,
@@ -182,7 +182,10 @@ async function handlePost(request, env, headers) {
   let payload;
   try {
     const rawBody = await request.text();
-    if (!rawBody || rawBody.length > 20000) throw new Error("corps de requête vide ou trop volumineux");
+    // Deux signatures EDL dessinées sont encodées en PNG dans le dossier.
+    // Cette limite reste bornée, mais couvre ces données sans tronquer les
+    // champs métier historiques ni les photos (toujours stockées dans R2).
+    if (!rawBody || rawBody.length > 160000) throw new Error("corps de requête vide ou trop volumineux");
     payload = JSON.parse(rawBody);
   } catch (e) {
     return new Response(JSON.stringify({ error: "Requête invalide" }), { status: 400, headers });
