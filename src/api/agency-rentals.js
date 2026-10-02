@@ -96,6 +96,8 @@ function reservationInspectionItem(reservation) {
     }),
     source: "reservation",
     openable: true,
+    historyMode: null,
+    historyId: null,
     relatedIds: [reservation.rentalId, reservation.rental_id]
   };
 }
@@ -122,6 +124,10 @@ function manualContractInspectionItem(contract) {
     }),
     source: "manual_contract",
     openable: false,
+    // Ce format historique est relu sans conversion par contrat.html via
+    // son lien court, protégé par session agence puis jeton en fragment.
+    historyMode: "manual-contract",
+    historyId: contract.id,
     relatedIds: [contract.rentalId, contract.rental_id]
   };
 }
@@ -142,6 +148,10 @@ function d1RentalInspectionItem(rental) {
     inspection: inspectionFlags({ depart: rental.kmDepart !== null && rental.kmDepart !== undefined, retour: rental.kmRetour !== null && rental.kmRetour !== undefined }),
     source: "rental",
     openable: false,
+    // D1 ne contient pas de dossier d'inspection ni de média : la fiche
+    // agence existante est la consultation fidèle de ses relevés.
+    historyMode: "rental-record",
+    historyId: rental.id,
     relatedIds: [rental.reservationId, rental.reservation_id]
   };
 }
@@ -158,6 +168,11 @@ function mergeInspectionItems(previous, next) {
   // preuves historiques d'inspection trouvées dans l'autre source.
   const primary = next.openable && !previous.openable ? next : previous;
   const secondary = primary === previous ? next : previous;
+  // Si une des sources est un véritable historique, conserver son pointeur
+  // de consultation même lorsque l'autre source est une réservation KV plus
+  // récente. Sinon une carte dédupliquée pourrait afficher « Terminé » tout
+  // en ouvrant un dossier qui ne contient pas le croquis/photo historique.
+  const legacy = [previous, next].find((item) => item.historyMode && (item.inspection.depart || item.inspection.retour));
   return {
     ...primary,
     contractNumero: primary.contractNumero || secondary.contractNumero || null,
@@ -168,6 +183,8 @@ function mergeInspectionItems(previous, next) {
       depart: primary.inspection.depart || secondary.inspection.depart,
       retour: primary.inspection.retour || secondary.inspection.retour
     }),
+    historyMode: legacy ? legacy.historyMode : primary.historyMode,
+    historyId: legacy ? legacy.historyId : primary.historyId,
     // Garder aussi les deux identifiants sources dans l'index de
     // déduplication : un troisième enregistrement relié à l'un d'eux doit
     // rejoindre la même carte, même s'il n'a pas de numéro de contrat.
@@ -207,7 +224,9 @@ function publicInspectionItem(item) {
     heureFin: item.heureFin,
     inspection: item.inspection,
     source: item.source,
-    openable: item.openable
+    openable: item.openable,
+    historyMode: item.historyMode,
+    historyId: item.historyId
   };
 }
 

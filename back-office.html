@@ -481,7 +481,8 @@ window.__backOffice = {
   statusBadge: statusBadge,
   syncBadge: syncBadge,
   contratPrefillUrl: contratPrefillUrl,
-  renderSyncStatusForTest: function(rental){ currentRental = rental; renderSyncStatus(); }
+  renderSyncStatusForTest: function(rental){ currentRental = rental; renderSyncStatus(); },
+  renderInspectionListForTest: function(rentals){ inspectionRentals = rentals; inspectionFilter = 'all'; document.getElementById('inspectionSearch').value = ''; renderInspectionList(); }
 };
 
 // ================= Appels API agence ================= //
@@ -993,9 +994,23 @@ document.getElementById('rentalForm').addEventListener('submit', function(e){
 
 // ================= Détail location ================= //
 function openRentalDetail(rentalId){
+  var loadedRental = null;
   apiGet('/api/agency-rentals?id=' + encodeURIComponent(rentalId)).then(function(res){
     if(!res.ok){ alert(res.json.error || 'Location introuvable'); return null; }
-    currentRental = res.json.rental;
+    loadedRental = res.json.rental;
+    // L'ouverture depuis l'onglet État des lieux ne passe pas forcément par
+    // une fiche client. Charger alors le client lié avant le rendu afin que
+    // la fiche D1 historique reste consultable dans son contexte réel.
+    if(currentClient && currentClient.id === loadedRental.clientId) return null;
+    return apiGet('/api/agency-clients?id=' + encodeURIComponent(loadedRental.clientId));
+  }).then(function(clientRes){
+    if(!loadedRental) return null;
+    if(clientRes){
+      if(!clientRes.ok){ alert(clientRes.json.error || 'Client introuvable'); return null; }
+      currentClient = clientRes.json.client;
+    }
+    if(!currentClient) return null;
+    currentRental = loadedRental;
     renderRentalDetail();
     return Promise.all([
       apiGet('/api/agency-payments?rentalId=' + encodeURIComponent(rentalId)),
@@ -1043,6 +1058,25 @@ function renderRentalDetail(){
 // puis placé uniquement dans le fragment de la nouvelle fenêtre.
 function openInspection(mode){
   if(!currentRental || !currentRental.id){ return; }
+  // Les contrats manuels conservent leur format historique (croquis,
+  // photos, observations) dans leur contrat : on le relit via le lien court
+  // sécurisé existant, sans conversion ni écriture sur les données.
+  if(currentRental.historyMode === 'manual-contract'){
+    var legacyPopup = window.open('', '_blank');
+    if(!legacyPopup){ alert('Autorisez l’ouverture de la nouvelle fenêtre pour consulter l’état des lieux.'); return; }
+    try { legacyPopup.opener = null; } catch(e) {}
+    apiPost('/api/contract-manual-link', { id: currentRental.historyId || currentRental.id }).then(function(res){
+      if(!res.ok || !res.json.clientUrl){ throw new Error(res.json.error || 'Historique indisponible'); }
+      legacyPopup.location.href = res.json.clientUrl;
+    }).catch(function(err){ legacyPopup.close(); alert(err.message || 'Impossible d’ouvrir l’historique.'); });
+    return;
+  }
+  // Les locations D1 ne possèdent pas de dossier/photo R2 à convertir. Leur
+  // fiche agence authentifiée expose les relevés réellement conservés.
+  if(currentRental.historyMode === 'rental-record'){
+    openRentalDetail(currentRental.historyId || currentRental.id);
+    return;
+  }
   var popup = window.open('', '_blank');
   if(!popup){ alert('Autorisez l’ouverture de la nouvelle fenêtre pour démarrer l’état des lieux.'); return; }
   try { popup.opener = null; } catch(e) {}
@@ -1069,7 +1103,7 @@ function renderInspectionList(){
   });
   var target = document.getElementById('inspectionList'); target.textContent = '';
   if(!list.length){ target.innerHTML = '<p class="hint-text">Aucun état des lieux correspondant.</p>'; return; }
-  list.forEach(function(r){ var card=document.createElement('article'); card.className='card dashboard-card'; var title=document.createElement('h2'); title.textContent=(r.vehicule||r.vehiculeId||'Véhicule')+(r.immatriculation?' — '+r.immatriculation:''); var p=document.createElement('p'); p.textContent=[r.client ? (r.client.prenom+' '+r.client.nom) : 'Client', r.contractNumero||r.id, formatDateFR(r.dateDebut)+' '+r.heureDebut+' → '+formatDateFR(r.dateFin)+' '+r.heureFin].join(' · '); var actions=document.createElement('div'); actions.className='section-actions'; ['depart','retour'].forEach(function(mode){var b=document.createElement('button'); var unavailable=(mode==='retour'&&!r.inspection.retourAvailable&&!r.inspection.retour)||r.openable===false; b.type='button'; b.className='btn btn-sm '+(r.inspection[mode]?'btn-secondary':'btn-primary'); b.textContent=(mode==='depart'?'Départ — ':'Retour — ')+inspectionStatus(mode,r.inspection); b.disabled=unavailable; if(r.openable===false)b.title='Historique conservé : consultation dans le contrat existant.'; if(!unavailable)b.onclick=function(){ currentRental={id:r.id}; openInspection(mode); }; actions.appendChild(b);}); card.append(title,p,actions);target.appendChild(card);});
+  list.forEach(function(r){ var card=document.createElement('article'); card.className='card dashboard-card'; var title=document.createElement('h2'); title.textContent=(r.vehicule||r.vehiculeId||'Véhicule')+(r.immatriculation?' — '+r.immatriculation:''); var p=document.createElement('p'); p.textContent=[r.client ? (r.client.prenom+' '+r.client.nom) : 'Client', r.contractNumero||r.id, formatDateFR(r.dateDebut)+' '+r.heureDebut+' → '+formatDateFR(r.dateFin)+' '+r.heureFin].join(' · '); var actions=document.createElement('div'); actions.className='section-actions'; ['depart','retour'].forEach(function(mode){var b=document.createElement('button'); var historiqueTermine=!!r.historyMode&&!!r.inspection[mode]; var unavailable=(mode==='retour'&&!r.inspection.retourAvailable&&!r.inspection.retour)||(!r.openable&&!historiqueTermine); b.type='button'; b.className='btn btn-sm '+(r.inspection[mode]?'btn-secondary':'btn-primary'); b.textContent=(mode==='depart'?'Départ — ':'Retour — ')+inspectionStatus(mode,r.inspection); b.disabled=unavailable; if(historiqueTermine)b.title='Consulter l’état des lieux historique.'; if(!unavailable)b.onclick=function(){ currentRental={id:r.id,historyMode:r.historyMode,historyId:r.historyId}; openInspection(mode); }; actions.appendChild(b);}); card.append(title,p,actions);target.appendChild(card);});
 }
 function loadInspections(){ document.getElementById('inspectionList').innerHTML='<p class="hint-text">Chargement…</p>'; apiGet('/api/agency-rentals?view=inspection').then(function(res){ inspectionRentals=res.ok?(res.json.rentals||[]):[]; renderInspectionList(); }); }
 document.querySelectorAll('[data-inspection-filter]').forEach(function(b){ b.addEventListener('click',function(){ inspectionFilter=b.dataset.inspectionFilter; document.querySelectorAll('[data-inspection-filter]').forEach(function(x){x.classList.toggle('is-active',x===b)}); renderInspectionList(); }); });
