@@ -1,22 +1,207 @@
-// Page autonome : réutilise les APIs de dossier, de médias R2 et le format
-// historique des croquis. Les états historiques passent par le lecteur
-// séparé et restent strictement en lecture seule.
-(function(){"use strict";
-var p=new URLSearchParams(location.search),legacy=p.get("source")==="legacy",legacyId=p.get("legacyId")||"",token=new URLSearchParams(location.hash.slice(1)).get("agencyToken"),mode=p.get("mode")==="retour"?"retour":"depart",slots=["avant","arriere","gauche","droite","avant-gauche","avant-droit","arriere-gauche","arriere-droit","interieur","jante","dommage","autre"],labels={avant:"Avant",arriere:"Arrière",gauche:"Côté gauche",droite:"Côté droit","avant-gauche":"3/4 avant gauche","avant-droit":"3/4 avant droit","arriere-gauche":"3/4 arrière gauche","arriere-droit":"3/4 arrière droit",interieur:"Intérieur",jante:"Jante / roue",dommage:"Détail dommage",autre:"Autre"};
-function $(x){return document.getElementById(x)}function api(u,o){o=o||{};o.headers=Object.assign({Authorization:"Bearer "+token},o.headers||{});return fetch(u,o)}function local(v){if(!v)return"";var d=new Date(v);if(Number.isNaN(d.getTime()))return String(v).slice(0,16);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")+"T"+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")}function date(v){var d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString("fr-FR")}function json(r){return r.json().then(function(b){if(!r.ok)throw new Error(b.error||"Erreur");return b})}
-$("mode").textContent=mode.toUpperCase();
-function legacyField(label,value){var d=document.createElement("div"),s=document.createElement("strong");s.textContent=label;d.append(s,document.createTextNode(String(value==null?"—":value)));return d}
-function legacyView(view){var stage=view[mode]||{},box=$("legacyContent");$("form").hidden=true;box.hidden=false;$("summary").textContent=[view.vehicule,view.immatriculation,view.contractNumero||view.id,view.client&&(view.client.prenom+" "+view.client.nom),view.dateDebut+" "+view.heureDebut+" → "+view.dateFin+" "+view.heureFin].filter(Boolean).join(" · ");var sec=document.createElement("section");sec.className="card";sec.innerHTML="<h2>État des lieux "+mode+"</h2><p class='readonly-note'>Historique en consultation seule — les données existantes ne sont pas modifiées.</p>";if(legacyId==="res_f0e1a8457204d89acdc4542491ffcb53"&&mode==="retour"){var recovery=document.createElement("a");recovery.className="primary";recovery.href="/recuperation-zvezdan.html";recovery.textContent="Consulter les photos originales du retour";sec.append(recovery)}var grid=document.createElement("div");grid.className="legacy-grid";[["Date et heure",stage.dateHeure],["Kilométrage",stage.km],["Carburant",stage.carburant],["Propreté",stage.proprete],["Nombre de clés",stage.cles],["Accessoires",stage.accessoires],["Agent",stage.agent],["Signature client EDL",stage.clientSigne],["Signature agence EDL",stage.agenceSigne],["Remarques",stage.remarques]].forEach(function(x){grid.append(legacyField(x[0],x[1]))});sec.append(grid);var marks=stage.marques||[];if(marks.length){var h=document.createElement("h3"),draw=document.createElement("div");h.textContent="Croquis et dommages";sec.append(h);window.renderLegacyInspectionSketch(draw,marks);sec.append(draw)}(stage.photos||[]).forEach(function(photo){var card=document.createElement("div"),im=new Image();card.className="photo-item";im.alt=photo.label||photo.slot||"Photo historique";if(typeof photo.dataUrl==="string"&&photo.dataUrl.indexOf("data:image/")===0)im.src=photo.dataUrl;else if(photo.key)im.src="/api/legacy-inspection-media?id="+encodeURIComponent(legacyId)+"&key="+encodeURIComponent(photo.key);else return;card.append(im);sec.append(card)});box.append(sec)}
-if(legacy){if(!legacyId){document.body.innerHTML="<p>État des lieux historique introuvable.</p>";return}fetch("/api/legacy-inspection-agency?id="+encodeURIComponent(legacyId),{credentials:"same-origin"}).then(json).then(function(x){legacyView(x.inspection)}).catch(function(e){$("summary").textContent=e.message});return}if(!token){document.body.innerHTML="<p>Accès agence requis.</p>";return}
-var dossier,media={depart:[],retour:[]},sketch,pads={},family="car";for(var fuel=0;fuel<=100;fuel+=10)$("carburant").add(new Option(fuel+" %",fuel));$("save").textContent="Valider l’état des lieux de "+mode;
-function clean(key,label){var wrap=document.createElement("div"),strong=document.createElement("strong"),buttons=document.createElement("div");wrap.className="cleanliness";strong.textContent=label;buttons.className="cleanliness-buttons";for(var i=1;i<=5;i+=1){(function(v){var b=document.createElement("button");b.type="button";b.dataset.score=v;b.textContent=v;b.onclick=function(){Array.prototype.forEach.call(buttons.querySelectorAll("button"),function(x){x.classList.toggle("active",x===b)});$("cleanliness").dataset[key]=v};buttons.append(b)}(i))}wrap.append(strong,buttons);return wrap}function setClean(key,val){if(val==null)return;var b=$("cleanliness").querySelector("[data-score='"+val+"']");if(b)b.click()}
-function mediaUrl(item){return api("/api/inspection-media?key="+encodeURIComponent(item.key)).then(function(r){if(!r.ok)throw new Error("Photo inaccessible");return r.blob()}).then(function(blob){return URL.createObjectURL(blob)})}function show(url){$("modal").querySelector("img").src=url;$("modal").hidden=false}$("modal").querySelector("button").onclick=function(){$("modal").hidden=true};
-function updateCaptured(item,input){api("/api/inspection-media",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:item.key,capturedAt:input.value})}).then(json).then(function(out){media[mode]=media[mode].map(function(x){return x.key===item.key?out.item:x});$("message").textContent="Date/heure de la photo enregistrée."}).catch(function(e){$("message").textContent=e.message;input.value=local(item.capturedAt)})}
-function removePhoto(item){if(!confirm("Supprimer cette photo ?"))return;api("/api/inspection-media",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:item.key})}).then(function(r){if(!r.ok)throw new Error("Suppression impossible");media[mode]=media[mode].filter(function(x){return x.key!==item.key});renderPhotos();compare()}).catch(function(e){$("message").textContent=e.message})}
-function renderPhotos(){var root=$("photos");root.textContent="";slots.forEach(function(slot){var box=document.createElement("section"),title=document.createElement("h3"),add=document.createElement("label"),file=document.createElement("input");box.className="photo-slot";title.textContent=labels[slot];add.className="photo-add";add.textContent="+ Ajouter une photo";file.type="file";file.accept="image/*";file.capture="environment";file.onchange=function(){var image=file.files&&file.files[0];if(!image)return;var form=new FormData();form.append("stage",mode);form.append("slot",slot);form.append("capturedAt",local(new Date()));form.append("file",image);api("/api/inspection-media",{method:"POST",body:form}).then(json).then(function(out){media[mode].push(out.item);renderPhotos();compare()}).catch(function(e){$("message").textContent=e.message})};add.append(file);box.append(title,add);media[mode].filter(function(item){return item&&item.slot===slot}).forEach(function(item){var card=document.createElement("div"),image=new Image(),label=document.createElement("label"),input=document.createElement("input"),small=document.createElement("small"),actions=document.createElement("div"),open=document.createElement("button"),del=document.createElement("button");card.className="photo-item";image.alt="Photo "+labels[slot];mediaUrl(item).then(function(url){image.src=url;image.onclick=function(){show(url)}}).catch(function(){});label.textContent="Date/heure de la photo";input.type="datetime-local";input.value=local(item.capturedAt);input.onchange=function(){if(input.value)updateCaptured(item,input)};label.append(input);small.className="imported";small.textContent=item.createdAt?"Importée le : "+date(item.createdAt):"Date d’import inconnue";actions.className="photo-actions";open.type="button";open.textContent="Agrandir";open.onclick=function(){if(image.src)show(image.src)};del.type="button";del.className="danger";del.textContent="Supprimer";del.onclick=function(){removePhoto(item)};actions.append(open,del);card.append(image,label,small,actions);box.append(card)});root.append(box)})}
-function compare(){var root=$("comparison");root.textContent="";if(mode!=="retour")return;slots.forEach(function(slot){var a=media.depart.filter(function(x){return x.slot===slot}),b=media.retour.filter(function(x){return x.slot===slot});if(!a.length&&!b.length)return;var cell=document.createElement("div"),title=document.createElement("strong");title.textContent=labels[slot];cell.append(title);[a[a.length-1],b[b.length-1]].forEach(function(item,index){if(!item)return;var im=new Image();im.alt=(index?"Retour ":"Départ ")+labels[slot];mediaUrl(item).then(function(url){im.src=url;im.onclick=function(){show(url)}});cell.append(im)});root.append(cell)})}
-function sign(role,title){var box=document.createElement("div"),head=document.createElement("h3"),name=document.createElement("input"),canvas=document.createElement("canvas"),clear=document.createElement("button"),ctx,down=false,last,dirty=false;box.className="signature-box";head.textContent=title;name.placeholder="Nom du signataire";canvas.className="signature-pad";canvas.width=640;canvas.height=300;ctx=canvas.getContext("2d");ctx.lineWidth=3;ctx.lineCap="round";function point(e){var r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height}}canvas.onpointerdown=function(e){e.preventDefault();down=true;last=point(e)};canvas.onpointermove=function(e){if(!down)return;e.preventDefault();var n=point(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(n.x,n.y);ctx.stroke();last=n;dirty=true};canvas.onpointerup=canvas.onpointerleave=function(){down=false};clear.type="button";clear.className="danger";clear.textContent="Effacer";clear.onclick=function(){ctx.clearRect(0,0,canvas.width,canvas.height);dirty=false};box.append(head,name,canvas,clear);pads[role]={set:function(value){name.value=value&&value.name||"";if(value&&value.imageDataUrl){var im=new Image();im.onload=function(){ctx.drawImage(im,0,0,canvas.width,canvas.height)};im.src=value.imageDataUrl}},get:function(old){var out=old||null;if(dirty)out={name:name.value.trim(),imageDataUrl:canvas.toDataURL("image/png"),signedAt:new Date().toISOString()};else if(out&&name.value.trim()!==out.name)out=Object.assign({},out,{name:name.value.trim()});else if(!out&&name.value.trim())out={name:name.value.trim(),imageDataUrl:"",signedAt:new Date().toISOString()};return out}};return box}
-function fill(){var stage=dossier[mode]||{},cleanRoot=$("cleanliness");$("dateHeure").value=local(stage.dateHeure)||local(new Date());$("km").value=stage.km==null?"":stage.km;$("carburant").value=stage.carburant==null?100:stage.carburant;$("cles").value=stage.cles==null?"":stage.cles;$("clesAccessoires").value=stage.clesAccessoires||"";$("agent").value=stage.agent||"";$("dommages").value=stage.dommages||"";cleanRoot.textContent="";cleanRoot.append(clean("exterieure","Extérieur"),clean("interieure","Intérieur"));if(family==="utility")cleanRoot.append(clean("chargement","Espace de chargement"));setClean("exterieure",stage.propreteExterieure);setClean("interieure",stage.propreteInterieure);setClean("chargement",stage.propreteChargement);$("legacyCleanliness").hidden=!stage.proprete;$("legacyCleanliness").textContent=stage.proprete?"Valeur historique de propreté : "+stage.proprete:"";sketch=window.createInspectionSketch($("sketch"),{family:family,marks:stage.marks||[]});var sig=$("signatures");sig.textContent="";pads={};sig.append(sign("client","Signature client"),sign("agence","Signature agence"));pads.client.set(stage.signatures&&stage.signatures.client);pads.agence.set(stage.signatures&&stage.signatures.agence);if(mode==="retour"&&dossier.depart){$("departCompare").hidden=false;$("departDamage").textContent="Dommages déjà présents au départ : "+(dossier.depart.dommages||"aucun dommage renseigné.");compare()}renderPhotos()}
-api("/api/contract-dossier-agency").then(json).then(function(view){dossier=view.dossier;media=dossier.media||media;family=view.reservation.vehicule&&view.reservation.vehicule.vehicleFamily||"car";$("summary").textContent=[view.reservation.vehicule&&view.reservation.vehicule.nom,view.reservation.vehicule&&view.reservation.vehicule.immatriculation,view.reservation.contractNumero||view.reservation.id,view.reservation.conducteur&&view.reservation.conducteur.prenom+" "+view.reservation.conducteur.nom,view.reservation.dateDebut+" "+view.reservation.heureDebut+" → "+view.reservation.dateFin+" "+view.reservation.heureFin].filter(Boolean).join(" · ");fill()}).catch(function(e){$("summary").textContent=e.message});function preparePrint(){Array.prototype.forEach.call(document.querySelectorAll(".field"),function(field){var control=field.querySelector("input,select,textarea");field.classList.toggle("print-empty",!!control&&!String(control.value||"").trim())});var originalHash=location.hash;history.replaceState(null,"",location.pathname+location.search);var restore=function(){history.replaceState(null,"",location.pathname+location.search+originalHash);window.removeEventListener("afterprint",restore)};window.addEventListener("afterprint",restore);window.print();setTimeout(restore,1000)}$("pdf").onclick=preparePrint;
-$("form").onsubmit=function(e){e.preventDefault();if(!dossier)return;var stage=dossier[mode]||{},c=$("cleanliness"),client=pads.client.get(stage.signatures&&stage.signatures.client),agency=pads.agence.get(stage.signatures&&stage.signatures.agence),body={action:"update-"+mode,dateHeure:$("dateHeure").value,km:Number($("km").value),carburant:Number($("carburant").value),cles:$("cles").value===""?null:Number($("cles").value),clesAccessoires:$("clesAccessoires").value,agent:$("agent").value,dommages:$("dommages").value,proprete:stage.proprete||"",propreteExterieure:c.dataset.exterieure||null,propreteInterieure:c.dataset.interieure||null,propreteChargement:c.dataset.chargement||null,marks:sketch.getMarks(),clientSigne:client&&client.name||"",agenceSigne:agency&&agency.name||"",signatures:{client:client,agence:agency}};api("/api/contract-dossier-agency",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(json).then(function(view){dossier=view.dossier;media=dossier.media||media;$("message").textContent="État des lieux enregistré.";fill()}).catch(function(err){$("message").textContent=err.message})};
+// Front-end V3 only. The existing agency dossier/media APIs remain authoritative.
+(function () {
+  "use strict";
+  const params = new URLSearchParams(location.search), mode = params.get("mode") === "retour" ? "retour" : "depart";
+  const legacy = params.get("source") === "legacy", legacyId = params.get("legacyId") || "";
+  const token = new URLSearchParams(location.hash.slice(1)).get("agencyToken");
+  const $ = id => document.getElementById(id), M = window.InspectionMedia;
+  let dossier, reservation, family = "car", sketch, pads = {}, dirty = false, revision = 0, saving = false, pendingCount = 0;
+  let media = { depart: [], retour: [] }, editableMedia = new Set(), queue = Promise.resolve();
+  const scores = {};
+  const api = (url, options = {}) => fetch(url, { ...options, credentials: "same-origin", headers: { ...(token ? { Authorization: "Bearer " + token } : {}), ...options.headers } });
+  const json = async response => { const body = await response.json(); if (!response.ok) throw new Error(body.error || "Une erreur est survenue."); return body; };
+  const cache = M.createCache(item => api(legacy ? "/api/legacy-inspection-media?id=" + encodeURIComponent(legacyId) + "&key=" + encodeURIComponent(item.key) : "/api/inspection-media?key=" + encodeURIComponent(item.key)));
+  const message = value => { $("message").textContent = value; };
+  function status() {
+    $("saveStatus").textContent = pendingCount ? "Enregistrement des photos…" : saving ? "Enregistrement…" : dirty ? "Modifications non enregistrées" : "Modifications enregistrées";
+    $("saveStatus").classList.toggle("unsaved", dirty);
+    $("save").disabled = saving; $("finalize").disabled = saving;
+    $("photos").querySelectorAll("input,button").forEach(control => { control.disabled = saving || pendingCount > 0; });
+  }
+  function changed() { dirty = true; revision++; $("reviewStatus").textContent = "Modifications à enregistrer avant finalisation."; status(); }
+  function metadataKey() { return "inspection-v3-new-media:" + reservation.id; }
+  function rememberMedia() { try { sessionStorage.setItem(metadataKey(), JSON.stringify([...editableMedia])); } catch (_) { /* Storage may be unavailable; old media stay protected. */ } }
+  function mutation(task) {
+    pendingCount++; status();
+    // Serialize media writes: the KV dossier update is read/modify/write.
+    const operation = queue.catch(() => {}).then(task);
+    queue = operation;
+    operation.then(() => {}, error => message(error.message)).finally(() => { pendingCount--; status(); });
+    return operation;
+  }
+  function fieldGrid(root, entries) {
+    root.replaceChildren(); entries.forEach(([label, value]) => { const row = document.createElement("div"), dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = label; dd.textContent = value == null || value === "" ? "—" : String(value); row.append(dt, dd); root.append(row); });
+  }
+  function summaryEntries(r) {
+    return [["Client", r.conducteur ? [r.conducteur.prenom, r.conducteur.nom].filter(Boolean).join(" ") : ""], ["Véhicule", r.vehicule && r.vehicule.nom], ["Immatriculation", r.vehicule && r.vehicule.immatriculation], ["Contrat / réservation", r.contractNumero || r.id], ["Départ prévu", [r.dateDebut, r.heureDebut].filter(Boolean).join(" ")], ["Retour prévu", [r.dateFin, r.heureFin].filter(Boolean).join(" ")]];
+  }
+  function openPhoto(url, caption) {
+    $("lightboxImage").src = url; $("lightboxImage").alt = caption; $("lightboxCaption").textContent = caption;
+    if (!$("lightbox").open) $("lightbox").showModal();
+  }
+  $("closeLightbox").onclick = () => $("lightbox").close();
+  $("mode").textContent = mode === "depart" ? "DÉPART" : "RETOUR";
+  $("signatureMode").textContent = mode;
+  document.querySelectorAll(".step-nav a").forEach(link => link.onclick = event => {
+    event.preventDefault(); document.querySelector(link.getAttribute("href")).scrollIntoView({ behavior: "smooth", block: "start" });
+    // Do not replace the authorization fragment with a section anchor.
+  });
+  window.addEventListener("beforeunload", event => { if (dirty || pendingCount || saving) { event.preventDefault(); event.returnValue = ""; } });
+  // Direct browser print must never include the authorization fragment in its footer.
+  let printHash;
+  window.addEventListener("beforeprint", () => { printHash = location.hash; history.replaceState(null, "", location.pathname + location.search); });
+  window.addEventListener("afterprint", () => { if (printHash != null) history.replaceState(null, "", location.pathname + location.search + printHash); printHash = null; });
+
+  async function legacyView() {
+    if (!legacyId) throw new Error("État des lieux historique introuvable.");
+    const response = await json(await api("/api/legacy-inspection-agency?id=" + encodeURIComponent(legacyId))), view = response.inspection, stage = view[mode] || {};
+    $("summary").textContent = "Historique en consultation seule — aucune donnée n’est modifiée."; $("saveStatus").textContent = "Consultation historique";
+    fieldGrid($("reservationSummary"), [["Client", view.client && [view.client.prenom, view.client.nom].filter(Boolean).join(" ")], ["Véhicule", view.vehicule], ["Immatriculation", view.immatriculation], ["Contrat", view.contractNumero || view.id], ["Départ", view.dateDebut + " " + (view.heureDebut || "")], ["Retour", view.dateFin + " " + (view.heureFin || "")]]);
+    const root = $("legacyContent"); root.hidden = false;
+    const section = document.createElement("section"); section.className = "card";
+    const heading = document.createElement("h2"); heading.textContent = "État des lieux historique — " + mode; section.append(heading);
+    if (legacyId === "res_f0e1a8457204d89acdc4542491ffcb53" && mode === "retour") {
+      const recovery = document.createElement("a"); recovery.className = "primary"; recovery.href = "/recuperation-zvezdan.html"; recovery.textContent = "Consulter les photos originales du retour"; section.append(recovery);
+    }
+    const grid = document.createElement("dl"); grid.className = "legacy-grid";
+    fieldGrid(grid, [["Date et heure", stage.dateHeure], ["Kilométrage", stage.km], ["Carburant", stage.carburant], ["Propreté", stage.proprete], ["Nombre de clés", stage.cles], ["Accessoires", stage.accessoires], ["Agent", stage.agent], ["Client signé (EDL)", stage.clientSigne], ["Agence signée (EDL)", stage.agenceSigne], ["Remarques", stage.remarques]]); section.append(grid);
+    if ((stage.marques || []).length) { const draw = document.createElement("div"); window.renderLegacyInspectionSketch(draw, stage.marques); section.append(draw); }
+    const photos = document.createElement("div"); photos.className = "readonly-photos"; M.renderReadOnly(photos, stage.photos || [], cache, openPhoto); section.append(photos);
+    // Contract signatures are deliberately separate from inspection signatures.
+    if (view.contractSignature) {
+      const title = document.createElement("h3"), label = document.createElement("p"); title.textContent = "Signature du contrat"; label.textContent = M.date(view.contractSignature.signedAt); section.append(title, label);
+      if (/^data:image\//.test(view.contractSignature.imageDataUrl || "")) { const image = new Image(); image.alt = "Signature du contrat"; image.src = view.contractSignature.imageDataUrl; image.style.maxWidth = "100%"; section.append(image); }
+    }
+    root.append(section);
+  }
+
+  function cleanliness(stage) {
+    const root = $("cleanliness"); root.replaceChildren();
+    [["propreteExterieure", "Extérieur"], ["propreteInterieure", "Intérieur"], ...(family === "utility" ? [["propreteChargement", "Chargement"]] : [])].forEach(([key, title]) => {
+      scores[key] = stage[key] == null ? null : Number(stage[key]);
+      const fieldset = document.createElement("fieldset"), legend = document.createElement("legend"), buttons = document.createElement("div"), value = document.createElement("p");
+      fieldset.className = "cleanliness"; fieldset.dataset.field = key; legend.textContent = title; buttons.className = "cleanliness-buttons"; value.className = "cleanliness-value";
+      const update = () => { buttons.querySelectorAll("button").forEach(button => button.setAttribute("aria-pressed", Number(button.dataset.score) === scores[key])); value.textContent = scores[key] ? ["Très sale", "Sale", "Correct", "Propre", "Très propre"][scores[key] - 1] + " — " + scores[key] + " / 5" : "Non renseignée"; };
+      for (let n = 1; n <= 5; n++) { const button = M.button(String(n), () => { scores[key] = n; update(); changed(); }); button.dataset.score = n; button.setAttribute("aria-label", title + " : " + n + " sur 5"); buttons.append(button); }
+      fieldset.append(legend, buttons, value); root.append(fieldset); update();
+    });
+  }
+  function renderComparison() {
+    if (mode !== "retour") return;
+    $("comparisonDetails").hidden = false;
+    const root = $("comparison"); root.replaceChildren();
+    M.slots.forEach(slot => {
+      const a = media.depart.filter(item => item.slot === slot), b = media.retour.filter(item => item.slot === slot); if (!a.length && !b.length) return;
+      const card = document.createElement("section"), title = document.createElement("h3"), pair = document.createElement("div"); card.className = "comparison-card"; title.textContent = M.labels[slot]; pair.className = "comparison-pair"; card.append(title, pair);
+      [a, b].forEach((items, index) => { const column = document.createElement("div"), caption = document.createElement("strong"), photos = document.createElement("div"); caption.textContent = index ? "Retour" : "Départ"; column.append(caption, photos); M.renderReadOnly(photos, items, cache, openPhoto); pair.append(column); }); root.append(card);
+    });
+  }
+  function renderPhotos() {
+    const root = $("photos"); root.replaceChildren();
+    M.slots.forEach(slot => {
+      const card = document.createElement("section"), title = document.createElement("h3"), sources = document.createElement("div"); card.className = "photo-slot"; card.dataset.slot = slot; title.textContent = M.labels[slot]; sources.className = "photo-sources";
+      [["Prendre une photo", true], ["Choisir dans la photothèque", false]].forEach(([text, camera]) => {
+        const label = document.createElement("label"), input = document.createElement("input"); label.className = "photo-add"; label.textContent = text; input.type = "file"; input.accept = "image/*"; input.multiple = !camera; input.className = "file-input"; input.setAttribute("aria-label", text + " — " + M.labels[slot]); if (camera) input.setAttribute("capture", "environment"); label.append(input); sources.append(label);
+        input.onchange = () => {
+          const files = [...(input.files || [])]; input.value = "";
+          if (!files.length) return;
+          mutation(async () => {
+            if (media[mode].length + files.length > 30) throw new Error("Maximum 30 photos par état des lieux. Aucun ancien média ne sera supprimé.");
+            for (const file of files) {
+              message("Import de " + file.name + "…");
+              const form = new FormData(); form.append("stage", mode); form.append("slot", slot); form.append("capturedAt", M.local(new Date())); form.append("file", file);
+              const out = await json(await api("/api/inspection-media", { method: "POST", body: form }));
+              media[mode].push(out.item); editableMedia.add(out.item.key); rememberMedia(); renderPhotos(); renderComparison();
+            }
+            message("Photo(s) importée(s) et enregistrée(s).");
+          });
+        };
+      }); card.append(title, sources);
+      media[mode].filter(item => item.slot === slot).forEach(item => {
+        const photo = document.createElement("div"), field = document.createElement("label"), input = document.createElement("input"), small = document.createElement("p"), actions = document.createElement("div"); photo.className = "photo-item"; photo.dataset.key = item.key;
+        field.className = "field"; field.textContent = "Date et heure de la photo"; input.type = "datetime-local"; input.value = M.local(item.capturedAt); field.append(input);
+        input.onchange = () => {
+          const previous = item.capturedAt, value = input.value; if (!value) { input.value = M.local(previous); message("Indiquez une date et une heure valides."); return; }
+          input.disabled = true;
+          mutation(async () => {
+            try { const out = await json(await api("/api/inspection-media", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key, capturedAt: value }) })); Object.assign(item, out.item); message("Date/heure de la photo enregistrée."); }
+            catch (error) { input.value = M.local(previous); throw error; }
+            finally { input.disabled = false; }
+          });
+        };
+        small.className = "imported"; small.textContent = item.createdAt ? "Importée le : " + M.date(item.createdAt) : "Date d’import non renseignée";
+        actions.className = "photo-actions";
+        actions.append(M.button("Agrandir", async () => { try { openPhoto(await cache.get(item), M.labels[slot]); } catch (error) { message(error.message); } }));
+        if (editableMedia.has(item.key)) actions.append(M.button("Supprimer", () => {
+          if (!confirm("Supprimer cette nouvelle photo ? Les médias historiques restent conservés.")) return;
+          mutation(async () => { await json(await api("/api/inspection-media", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key }) })); media[mode] = media[mode].filter(photo => photo.key !== item.key); editableMedia.delete(item.key); rememberMedia(); cache.forget(item.key); renderPhotos(); renderComparison(); message("Nouvelle photo supprimée."); });
+        }, "danger"));
+        else { const note = document.createElement("small"); note.textContent = "Photo historique conservée"; actions.append(note); }
+        photo.append(M.preview(item, cache, openPhoto), field, small, actions); card.append(photo);
+      }); root.append(card);
+    });
+  }
+  function readStage() {
+    const old = dossier[mode] || {};
+    return { dateHeure: $("dateHeure").value, km: Number($("km").value), carburant: Number($("carburant").value), cles: $("cles").value === "" ? null : Number($("cles").value), clesAccessoires: $("clesAccessoires").value, agent: $("agent").value, dommages: $("dommages").value,
+      proprete: old.proprete || "", propreteExterieure: scores.propreteExterieure, propreteInterieure: scores.propreteInterieure, propreteChargement: family === "utility" ? scores.propreteChargement : old.propreteChargement || null,
+      photosRef: old.photosRef || "", marks: sketch.getMarks(), clientSigne: pads.client.get() && pads.client.get().name || old.clientSigne || "", agenceSigne: pads.agence.get() && pads.agence.get().name || old.agenceSigne || "", signatures: { client: pads.client.get(), agence: pads.agence.get() } };
+  }
+  async function save(finalize) {
+    if (saving || !$("form").reportValidity()) return false;
+    if (mode === "retour" && (!dossier.depart || Number($("km").value) < dossier.depart.km)) { message(!dossier.depart ? "Enregistrez d’abord l’état des lieux de départ." : "Le kilométrage retour ne peut pas être inférieur au départ."); return false; }
+    saving = true; status();
+    try {
+      await queue; await Promise.all(Object.values(pads).map(pad => pad.ready()));
+      const version = revision, body = readStage();
+      const response = await json(await api("/api/contract-dossier-agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, action: "update-" + mode }) }));
+      dossier = response.dossier;
+      if (revision === version) { dirty = false; for (const role of ["client", "agence"]) pads[role].acknowledge(dossier[mode].signatures && dossier[mode].signatures[role]); }
+      $("reviewStatus").textContent = finalize && !dirty ? "État des lieux finalisé et enregistré. Une correction reste possible." : "État des lieux enregistré.";
+      message(dirty ? "Enregistrement effectué. Vos dernières modifications restent à enregistrer." : "État des lieux enregistré."); return true;
+    } catch (error) { message(error.message); return false; }
+    finally { saving = false; status(); }
+  }
+  $("form").onsubmit = event => { event.preventDefault(); save(false); };
+  $("finalize").onclick = () => save(true);
+  $("pdf").onclick = async () => {
+    if (!dossier) return;
+    const popup = window.InspectionDocument.open();
+    $("pdf").disabled = true; message("Préparation du document et chargement de toutes les photos…");
+    try {
+      await queue; await Promise.all(Object.values(pads).map(pad => pad.ready()));
+      await window.InspectionDocument.prepare(popup, { mode, family, reference: reservation.contractNumero || reservation.id, summary: summaryEntries(reservation), stage: readStage(), depart: dossier.depart, photos: [...media[mode]], departPhotos: [...media.depart], dirty }, cache);
+      message("Document prêt : photos et signatures chargées avant impression.");
+    } catch (error) { message("PDF non imprimé : " + error.message); if (popup && !popup.closed) popup.document.body.textContent = "Document non imprimé : " + error.message + " Fermez cette fenêtre et réessayez."; }
+    finally { $("pdf").disabled = false; }
+  };
+  function fill() {
+    const stage = dossier[mode] || {};
+    for (let n = 0; n <= 100; n += 10) $("carburant").add(new Option(n + " %", n));
+    $("dateHeure").value = M.local(stage.dateHeure) || M.local(new Date()); $("agent").value = stage.agent || ""; $("km").value = stage.km == null ? "" : stage.km;
+    $("carburant").value = stage.carburant == null ? 100 : stage.carburant; $("cles").value = stage.cles == null ? "" : stage.cles; $("clesAccessoires").value = stage.clesAccessoires || ""; $("dommages").value = stage.dommages || "";
+    $("km").closest("label").firstChild.textContent = "Kilométrage " + mode;
+    $("legacyCleanliness").hidden = !stage.proprete; $("legacyCleanliness").textContent = "Propreté historique conservée : " + (stage.proprete || ""); cleanliness(stage);
+    sketch = window.createInspectionSketch($("sketch"), { family, marks: stage.marks || [], onChange: changed });
+    for (const role of ["client", "agence"]) pads[role] = window.createInspectionSignature($("signatures"), { role, title: role === "client" ? "Signature client" : "Signature agence", value: stage.signatures && stage.signatures[role], onChange: changed });
+    $("form").querySelectorAll("#information input,#vehicle input,#vehicle select,#dommages").forEach(input => input.addEventListener("input", changed));
+    if (mode === "retour" && dossier.depart) {
+      const depart = dossier.depart; $("departCompare").hidden = false;
+      const values = [["Kilométrage départ", depart.km + " km"], ["Carburant départ", depart.carburant + " %"], ["Propreté extérieure", depart.propreteExterieure == null ? depart.proprete : depart.propreteExterieure + " / 5"], ["Propreté intérieure", depart.propreteInterieure == null ? depart.proprete : depart.propreteInterieure + " / 5"], ["Kilomètres parcourus", stage.km == null ? "—" : stage.km - depart.km + " km"]];
+      fieldGrid($("departureValues"), values); $("departDamage").textContent = "Dommages déjà présents au départ : " + (depart.dommages || "Non renseignés");
+      window.createInspectionSketch($("departureSketch"), { family, marks: depart.marks || [], readOnly: true }); M.renderReadOnly($("departurePhotos"), media.depart, cache, openPhoto);
+      $("km").addEventListener("input", () => { values[4][1] = $("km").value === "" ? "—" : Number($("km").value) - depart.km + " km"; fieldGrid($("departureValues"), values); });
+    }
+    renderPhotos(); renderComparison(); status();
+  }
+  async function start() {
+    if (legacy) { await legacyView(); return; }
+    if (!token) throw new Error("Accès agence requis. Ouvrez l’état des lieux depuis le back-office.");
+    const view = await json(await api("/api/contract-dossier-agency")); dossier = view.dossier; reservation = view.reservation;
+    media = { depart: dossier.media && dossier.media.depart || [], retour: dossier.media && dossier.media.retour || [] }; family = reservation.vehicule && reservation.vehicule.vehicleFamily === "utility" ? "utility" : "car";
+    dirty = !dossier[mode];
+    try { editableMedia = new Set(JSON.parse(sessionStorage.getItem(metadataKey()) || "[]")); } catch (_) { editableMedia = new Set(); }
+    $("summary").textContent = "État des lieux de " + mode; fieldGrid($("reservationSummary"), summaryEntries(reservation)); $("form").hidden = false; fill();
+  }
+  start().catch(error => { $("summary").textContent = error.message; $("saveStatus").textContent = "Chargement impossible"; });
 }());

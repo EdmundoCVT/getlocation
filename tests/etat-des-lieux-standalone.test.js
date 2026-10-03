@@ -1,63 +1,65 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 const { JSDOM } = require("jsdom");
-
 const root = path.join(__dirname, "..");
 const page = fs.readFileSync(path.join(root, "etat-des-lieux.html"), "utf8");
-const script = fs.readFileSync(path.join(root, "js", "inspection-page.js"), "utf8");
-const sketch = fs.readFileSync(path.join(root, "js", "inspection-sketch.js"), "utf8");
 
-test("état des lieux autonome : charge le croquis historique, la galerie R2 et les signatures distinctes", () => {
-  assert.match(page, /js\/inspection-sketch\.js/);
-  assert.match(page, /js\/inspection-page\.js/);
-  assert.match(script, /Signature client/);
-  assert.match(page, /Imprimer \/ enregistrer en PDF/);
-  assert.match(script, /\/api\/inspection-media/);
-  assert.match(script, /capturedAt/);
-  assert.match(script, /createdAt/);
-  assert.match(script, /signatures:\{client:client,agence:agency\}/);
-  assert.match(sketch, /Profil conducteur/);
-  assert.match(sketch, /Profil passager/);
-  assert.match(sketch, /Bosse \/ impact/);
-});
-
-test("état des lieux autonome : les états historiques restent sur la voie lecture seule", () => {
-  assert.match(script, /p\.get\(\"source\"\)===\"legacy\"/);
-  assert.match(script, /Historique en consultation seule/);
-  assert.match(script, /legacy-inspection-agency/);
-});
-
-test("impression : la feuille A4 conserve les blocs, compacte les photos et retire le fragment sécurisé", () => {
-  assert.match(page, /@page\{size:A4;margin:9mm\}/);
-  assert.match(page, /inspection-sketch-grid\{grid-template-columns:repeat\(5/);
-  assert.match(page, /break-inside:avoid/);
-  assert.match(page, /photo-grid\{grid-template-columns:repeat\(3/);
-  assert.match(page, /field\.print-empty/);
-  assert.match(script, /history\.replaceState\(null,"",location\.pathname\+location\.search\)/);
-  assert.match(script, /location\.search\+originalHash/);
-  assert.doesNotMatch(page, /agencyToken=/);
-});
-
-test("état des lieux autonome : rend le croquis, les propretés et les signatures pour un dossier retour", async () => {
+async function view({ mode = "retour", legacy = false, family = "utility" } = {}) {
+  const requests = [];
   const dom = new JSDOM(page, {
-    url: "https://getlocation.fr/etat-des-lieux.html?mode=retour#agencyToken=" + "a".repeat(43),
+    url: "https://getlocation.fr/etat-des-lieux.html?mode=" + mode + (legacy ? "&source=legacy&legacyId=res_fixture" : "#agencyToken=" + "a".repeat(43)),
     runScripts: "outside-only",
     beforeParse(window) {
-      window.HTMLCanvasElement.prototype.getContext = () => ({ lineWidth: 0, lineCap: "", beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, clearRect() {}, drawImage() {} });
-      window.HTMLCanvasElement.prototype.toDataURL = () => "data:image/png;base64,aGVsbG8=";
-      window.fetch = async () => ({ ok: true, json: async () => ({
-        reservation: { id: "res_test", contractNumero: "GL-TEST", vehicule: { nom: "Toyota Proace", immatriculation: "AA-000-AA", vehicleFamily: "utility" }, conducteur: { prenom: "Jean", nom: "Dupont" }, dateDebut: "2026-10-01", heureDebut: "10:00", dateFin: "2026-10-02", heureFin: "10:00" },
-        dossier: { depart: { km: 100, carburant: 100, dommages: "Rayure existante", marks: [{ id: "m1", view: "left", type: "rayure", x: 20, y: 30 }], media: [] }, retour: { km: 120, carburant: 80, agent: "Agent", marks: [], signatures: {} }, media: { depart: [], retour: [] } }
-      }) });
+      window.HTMLCanvasElement.prototype.getContext = () => ({ beginPath() {}, arc() {}, fill() {}, moveTo() {}, lineTo() {}, stroke() {}, clearRect() {}, drawImage() {} });
+      window.fetch = async (url, options) => {
+        requests.push({ url, options });
+        return { ok: true, json: async () => legacy ? { inspection: { id: "res_fixture", client: { nom: "Historique", prenom: "Client" }, vehicule: "Corsa", depart: { km: 4083, cles: 2, marques: [] } } } : {
+          reservation: { id: "res_fixture", contractNumero: "GL-TEST", vehicule: { nom: "Véhicule test", immatriculation: "AA-000-AA", vehicleFamily: family }, conducteur: { prenom: "Jean", nom: "Dupont" }, dateDebut: "2026-10-01", heureDebut: "10:00", dateFin: "2026-10-02", heureFin: "10:00" },
+          dossier: { depart: { km: 100, carburant: 100, dommages: "Rayure existante", marks: [{ id: "m1", view: "left", type: "rayure", x: 20, y: 30 }], propreteExterieure: 1, propreteInterieure: 5 }, retour: { km: 120, carburant: 80, agent: "Agent", marks: [], signatures: {}, propreteExterieure: 2, propreteInterieure: 4, propreteChargement: 3 }, media: { depart: [], retour: [] } }
+        } };
+      };
     }
   });
-  dom.window.eval(sketch);
-  dom.window.eval(script);
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.equal(dom.window.document.querySelectorAll(".inspection-sketch-view").length, 5);
-  assert.equal(dom.window.document.querySelectorAll(".cleanliness-buttons").length, 3, "utilitaire : extérieur, intérieur et chargement");
-  assert.equal(dom.window.document.querySelectorAll(".signature-pad").length, 2);
-  assert.equal(dom.window.document.getElementById("departCompare").hidden, false);
+  for (const script of ["inspection-sketch", "legacy-inspection-sketch", "inspection-media-view", "inspection-signature", "inspection-document", "inspection-page"]) dom.window.eval(fs.readFileSync(path.join(root, "js", script + ".js"), "utf8"));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  return { dom, doc: dom.window.document, requests };
+}
+
+test("V3 : retour affiche cinq vues modifiables et cinq vues de référence, coordonnées conservées", async () => {
+  const { dom, doc } = await view();
+  assert.equal(doc.querySelectorAll("#sketch .inspection-sketch-view").length, 5);
+  assert.equal(doc.querySelectorAll("#departureSketch .inspection-sketch-view").length, 5);
+  const mark = doc.querySelector("#departureSketch [data-mark-id=m1]");
+  assert.equal(mark.dataset.x, "20"); assert.equal(mark.dataset.y, "30");
+  assert.equal(mark.getAttribute("transform"), "translate(44,30)");
+  assert.equal(doc.querySelectorAll("#departureSketch [role=button]").length, 0);
+  dom.window.close();
+});
+test("V3 : propretés indépendantes avec sélection visible et chargement seulement pour utilitaire", async () => {
+  const { dom, doc } = await view();
+  assert.equal(doc.querySelector("[data-field=propreteExterieure] [aria-pressed=true]").textContent, "2");
+  assert.equal(doc.querySelector("[data-field=propreteInterieure] [aria-pressed=true]").textContent, "4");
+  doc.querySelector("[data-field=propreteExterieure] [data-score='5']").click();
+  assert.equal(doc.querySelector("[data-field=propreteExterieure] [aria-pressed=true]").textContent, "5");
+  assert.equal(doc.querySelector("[data-field=propreteInterieure] [aria-pressed=true]").textContent, "4");
+  assert.equal(doc.getElementById("saveStatus").textContent, "Modifications non enregistrées"); dom.window.close();
+  const car = await view({ family: "car" }); assert.equal(car.doc.querySelectorAll(".cleanliness-buttons").length, 2); car.dom.window.close();
+});
+test("V3 : chaque emplacement propose caméra et photothèque multiple sans capture", async () => {
+  const { dom, doc } = await view(); const cards = doc.querySelectorAll(".photo-slot"); assert.equal(cards.length, 12);
+  cards.forEach(card => { assert.equal(card.querySelectorAll("input[type=file]").length, 2); assert.equal(card.querySelector("[capture]").getAttribute("capture"), "environment"); assert.equal(card.querySelector("input:not([capture])").multiple, true); });
+  assert.equal(doc.querySelectorAll(".signature-pad").length, 2); dom.window.close();
+});
+test("V3 : historique reste en lecture seule et conserve le lecteur existant", async () => {
+  const { dom, doc, requests } = await view({ legacy: true, mode: "depart" });
+  assert.equal(doc.getElementById("form").hidden, true); assert.equal(doc.getElementById("legacyContent").hidden, false);
+  assert.match(doc.getElementById("legacyContent").textContent, /4083/);
+  assert.equal(requests.length, 1); assert.match(requests[0].url, /legacy-inspection-agency/); assert.equal(requests[0].options.method, undefined); dom.window.close();
+});
+test("V3 : impression directe retire le fragment sécurisé jusqu'à afterprint", async () => {
+  const { dom } = await view(); const hash = dom.window.location.hash;
+  dom.window.dispatchEvent(new dom.window.Event("beforeprint")); assert.equal(dom.window.location.hash, "");
+  dom.window.dispatchEvent(new dom.window.Event("afterprint")); assert.equal(dom.window.location.hash, hash); dom.window.close();
 });

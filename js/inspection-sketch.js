@@ -27,13 +27,45 @@
   }
   function normalize(marks) { return (Array.isArray(marks) ? marks : []).slice(0, 200).map(function (mark, index) { return { id: String(mark && mark.id || "m" + (index + 1)), view: VIEWS.some(function (view) { return view.key === (mark && mark.view); }) ? mark.view : "top", type: TYPES.some(function (type) { return type.id === (mark && mark.type); }) ? mark.type : "rayure", x: Math.max(0, Math.min(100, Number(mark && mark.x) || 0)), y: Math.max(0, Math.min(100, Number(mark && mark.y) || 0)) }; }); }
   global.createInspectionSketch = function (container, options) {
-    options = options || {}; var marks = normalize(options.marks), family = options.family === "utility" ? "utility" : "car", current = "rayure", next = marks.length + 1, canvases = {};
+    options = options || {}; var marks = normalize(options.marks), family = options.family === "utility" ? "utility" : "car", current = "rayure", canvases = {};
     container.textContent = ""; container.classList.add("inspection-sketch");
     var tools = document.createElement("div"); tools.className = "inspection-sketch-tools";
-    TYPES.forEach(function (type) { var button = document.createElement("button"); button.type = "button"; button.textContent = type.symbole + " " + type.label; button.className = type.id === current ? "active" : ""; button.onclick = function () { current = type.id; Array.prototype.forEach.call(tools.querySelectorAll("button"), function (item) { item.classList.toggle("active", item === button); }); }; tools.append(button); }); container.append(tools);
+    if (!options.readOnly) { TYPES.forEach(function (type) { var button = document.createElement("button"); button.type = "button"; button.textContent = type.symbole + " " + type.label; button.className = type.id === current ? "active" : ""; button.setAttribute("aria-pressed", type.id === current); button.onclick = function () { current = type.id; Array.prototype.forEach.call(tools.querySelectorAll("button"), function (item) { item.classList.toggle("active", item === button); item.setAttribute("aria-pressed", item === button); }); }; tools.append(button); }); container.append(tools); }
     var grid = document.createElement("div"); grid.className = "inspection-sketch-grid"; container.append(grid);
-    function redraw() { VIEWS.forEach(function (view) { var canvas = canvases[view.key]; canvas.textContent = ""; canvas.append(outline(view.shape, family, view.mirror)); marks.filter(function (mark) { return mark.view === view.key; }).forEach(function (mark) { var info = TYPES.filter(function (type) { return type.id === mark.type; })[0], button = document.createElement("button"); button.type = "button"; button.className = "inspection-sketch-mark " + mark.type; button.style.left = mark.x + "%"; button.style.top = mark.y + "%"; button.textContent = info.symbole; button.title = info.label + " — cliquer pour supprimer"; button.onclick = function (event) { event.stopPropagation(); marks = marks.filter(function (item) { return item.id !== mark.id; }); redraw(); }; canvas.append(button); }); }); }
-    VIEWS.forEach(function (view) { var wrap = document.createElement("div"), label = document.createElement("strong"), canvas = document.createElement("div"), dimensions = SHAPES[family][view.shape]; wrap.className = "inspection-sketch-view"; label.textContent = view.label; canvas.className = "inspection-sketch-canvas"; canvas.style.aspectRatio = dimensions.w + " / " + dimensions.h; canvas.onclick = function (event) { var rect = canvas.getBoundingClientRect(); if (!rect.width || !rect.height) return; marks.push({ id: "m" + next++, view: view.key, type: current, x: Math.round(((event.clientX - rect.left) / rect.width) * 1000) / 10, y: Math.round(((event.clientY - rect.top) / rect.height) * 1000) / 10 }); redraw(); }; wrap.append(label, canvas); grid.append(wrap); canvases[view.key] = canvas; });
-    redraw(); return { getMarks: function () { return normalize(marks); }, setMarks: function (value) { marks = normalize(value); next = marks.length + 1; redraw(); } };
+    function changed() { if (options.onChange) options.onChange(); }
+    function redraw() {
+      VIEWS.forEach(function (view) {
+        var canvas = canvases[view.key], spec = SHAPES[family][view.shape], root = outline(view.shape, family, view.mirror);
+        root.classList.add("inspection-sketch-outline"); root.dataset.view = view.key;
+        root.setAttribute("aria-label", view.label); canvas.replaceChildren(root);
+        marks.filter(function (mark) { return mark.view === view.key; }).forEach(function (mark) {
+          var info = TYPES.find(function (type) { return type.id === mark.type; });
+          var group = svg("g", { transform: "translate(" + mark.x * spec.w / 100 + "," + mark.y * spec.h / 100 + ")", "data-mark-id": mark.id, "data-x": mark.x, "data-y": mark.y });
+          var symbol = svg("text", { x: 0, y: 0, "text-anchor": "middle", "dominant-baseline": "central", class: "inspection-sketch-symbol" }); symbol.textContent = info.symbole;
+          group.append(symbol);
+          if (!options.readOnly) {
+            // Target is at least 44 screen pixels, while symbol/position share the silhouette's viewBox.
+            var hit = Math.max(22, 44 * spec.w / Math.max(1, canvas.clientWidth || 180));
+            group.append(svg("rect", { x: -hit / 2, y: -hit / 2, width: hit, height: hit, class: "inspection-sketch-hit" }));
+            group.setAttribute("role", "button"); group.setAttribute("tabindex", "0"); group.setAttribute("aria-label", "Supprimer " + info.label + " — " + view.label);
+            var remove = function (event) { event.stopPropagation(); marks = marks.filter(function (item) { return item.id !== mark.id; }); redraw(); changed(); };
+            group.onclick = remove; group.onkeydown = function (event) { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); remove(event); } };
+          }
+          root.append(group);
+        });
+        if (!options.readOnly) root.onclick = function (event) {
+          if (marks.length >= 200) return;
+          // Map through the actual SVG coordinate system (including preserveAspectRatio).
+          var point = root.createSVGPoint(); point.x = event.clientX; point.y = event.clientY;
+          point = point.matrixTransform(root.getScreenCTM().inverse());
+          marks.push({ id: "m" + Date.now() + "-" + Math.random().toString(36).slice(2, 8), view: view.key, type: current, x: Math.max(0, Math.min(100, Math.round(point.x / spec.w * 1000) / 10)), y: Math.max(0, Math.min(100, Math.round(point.y / spec.h * 1000) / 10)) });
+          redraw(); changed();
+        };
+      });
+    }
+    VIEWS.forEach(function (view) { var wrap = document.createElement("div"), label = document.createElement("strong"), canvas = document.createElement("div"); wrap.className = "inspection-sketch-view"; wrap.dataset.view = view.key; label.textContent = view.label; canvas.className = "inspection-sketch-canvas"; wrap.append(label, canvas); grid.append(wrap); canvases[view.key] = canvas; });
+    redraw();
+    if (!options.readOnly && global.ResizeObserver) { new ResizeObserver(function () { redraw(); }).observe(container); }
+    return { getMarks: function () { return normalize(marks); }, setMarks: function (value) { marks = normalize(value); redraw(); } };
   };
 }(window));

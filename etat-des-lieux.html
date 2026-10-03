@@ -1,6 +1,93 @@
 <!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>État des lieux | GET LOCATION</title><link rel="stylesheet" href="css/style.css"><style>
-:root{font-family:Inter,system-ui,sans-serif;color:#162033;background:#f5f7fa}*{box-sizing:border-box}body{margin:0}.inspection{max-width:880px;margin:auto;padding:14px}.inspection header,.card{background:#fff;border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 2px 12px #0000000d}.mode{color:#ff6b00;font-weight:800;letter-spacing:.08em}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field{display:grid;gap:6px;font-weight:650}.field input,.field select,.field textarea{min-height:46px;padding:10px;border:1px solid #cbd2dc;border-radius:9px;font:inherit}.full{grid-column:1/-1}.primary,.secondary,.danger{min-height:48px;padding:10px 14px;border:0;border-radius:10px;font-weight:750;cursor:pointer;text-decoration:none;display:inline-grid;place-items:center}.primary{background:#ff6b00;color:#fff}.secondary{background:#0066ff;color:#fff}.danger{background:#fff;color:#a5202b;border:1px solid #dfb8bc}.actions{display:flex;gap:9px;flex-wrap:wrap}.hint,.imported{font-size:.84rem;color:#596577}.cleanliness{display:grid;gap:8px}.cleanliness-buttons{display:flex;gap:7px}.cleanliness-buttons button{width:43px;height:43px;border-radius:50%;border:1px solid #b9c3d0;background:#fff;font-weight:800}.cleanliness-buttons button.active{color:#fff;background:#0066ff;border-color:#0066ff}.photo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.photo-slot{border:1px solid #d9dfe7;border-radius:12px;padding:9px;min-height:110px}.photo-slot h3{font-size:.9rem;margin:0 0 8px;text-transform:capitalize}.photo-add{display:grid;place-items:center;min-height:44px;border:1px dashed #9ba8b8;border-radius:9px;color:#0066ff;font-weight:700;cursor:pointer}.photo-add input{display:none}.photo-item{margin-top:9px;border-top:1px solid #edf0f4;padding-top:9px}.photo-item img{width:100%;height:130px;object-fit:cover;border-radius:8px;cursor:zoom-in;background:#f3f5f7}.photo-item label{display:grid;gap:3px;margin-top:7px;font-size:.78rem;font-weight:700}.photo-item input{min-height:40px;padding:7px;border:1px solid #cbd2dc;border-radius:7px}.photo-actions{display:flex;gap:7px;margin-top:7px}.photo-actions button{min-height:38px;border:0;border-radius:7px;padding:6px 9px}.modal{position:fixed;inset:0;background:#000b;z-index:9;display:grid;place-items:center;padding:15px}.modal[hidden]{display:none}.modal img{max-width:100%;max-height:86vh;object-fit:contain}.modal button{position:fixed;top:14px;right:14px}.inspection-sketch-tools{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}.inspection-sketch-tools button{min-height:43px;padding:8px 11px;border:1px solid #bfc8d3;border-radius:8px;background:#fff;font-weight:700}.inspection-sketch-tools button.active{background:#0066ff;color:#fff;border-color:#0066ff}.inspection-sketch-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.inspection-sketch-view{display:grid;gap:5px;font-size:.82rem}.inspection-sketch-canvas{position:relative;border:1px solid #d7dee7;border-radius:10px;overflow:hidden;background:#fff;touch-action:manipulation}.inspection-sketch-canvas svg{display:block;width:100%;height:100%;pointer-events:none}.inspection-sketch-canvas svg *{fill:none;stroke:#68778a;stroke-width:2.5}.inspection-sketch-mark{position:absolute;transform:translate(-50%,-50%);z-index:2;width:25px;height:25px;border:2px solid #fff;border-radius:50%;background:#bd2630;color:#fff;font-weight:900;box-shadow:0 1px 4px #0006}.inspection-sketch-mark.bosse{background:#ff6b00}.inspection-sketch-mark.eclat{background:#0066ff}.signature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.signature-box{border:1px solid #d9dfe7;border-radius:10px;padding:10px}.signature-pad{width:100%;height:150px;border:1px dashed #9da8b5;border-radius:8px;touch-action:none;background:#fff}.comparison{display:grid;grid-template-columns:1fr 1fr;gap:9px}.comparison img{width:100%;height:130px;object-fit:cover;border-radius:8px}.legacy-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.legacy-grid div{padding:10px;background:#f6f7fa;border-radius:10px}.legacy-grid strong{display:block;font-size:.78rem;color:#565d68}.readonly-note{color:#565d68;font-size:.9rem}@media(max-width:520px){.grid,.signature-grid,.legacy-grid{grid-template-columns:1fr}.inspection-sketch-grid{grid-template-columns:1fr}.photo-grid{grid-template-columns:1fr}.inspection{padding:10px}}@media print{body{background:#fff}.actions,.photo-add,.photo-actions,.primary,.secondary,.danger{display:none!important}.inspection{max-width:none}.card,.inspection header{box-shadow:none;border:1px solid #ddd;break-inside:avoid}.photo-item img{height:auto;max-height:280px}.modal{display:none!important}}
-</style><style media="print">
-@page{size:A4;margin:9mm}html,body{width:auto;background:#fff!important;font-size:9pt}.inspection{max-width:none!important;padding:0!important}.inspection header,.card{margin:0 0 5mm!important;padding:4mm!important;border:1px solid #cfd5dc!important;border-radius:0!important;box-shadow:none!important;break-inside:avoid!important;page-break-inside:avoid!important}.inspection h1{font-size:18pt;margin:0 0 2mm}.inspection h2{font-size:13pt;margin:0 0 2mm;break-after:avoid;page-break-after:avoid}.inspection h3{font-size:9pt;margin:0 0 1.5mm;break-after:avoid;page-break-after:avoid}.actions,.photo-add,.photo-actions,.primary,.secondary,.danger,.modal,.inspection-sketch-tools,.hint,#message{display:none!important}.field.print-empty,.field:has(input:placeholder-shown),.field:has(textarea:placeholder-shown){display:none!important}.field input,.field select,.field textarea{appearance:none!important;min-height:0!important;padding:1mm 0!important;border:0!important;background:transparent!important;color:#111!important;font-size:9pt!important}.field textarea{resize:none!important}.grid{gap:2mm 5mm!important}.cleanliness-buttons{gap:1mm}.cleanliness-buttons button{display:none!important}.cleanliness-buttons button.active{display:block!important;width:7mm!important;height:7mm!important;border:0!important;background:#222!important;color:#fff!important;font-size:8pt!important}.inspection-sketch{break-inside:avoid!important;page-break-inside:avoid!important}.inspection-sketch-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:2mm!important}.inspection-sketch-view{break-inside:avoid!important;page-break-inside:avoid!important;font-size:7pt!important}.inspection-sketch-canvas{min-height:52mm!important;max-height:52mm!important}.inspection-sketch-mark{width:5mm!important;height:5mm!important;font-size:7pt!important}.photo-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:3mm!important}.photo-slot,.photo-item,.signature-box,.comparison>div{break-inside:avoid!important;page-break-inside:avoid!important;border-color:#d7dce3!important;min-height:0!important;padding:2mm!important}.photo-item{margin-top:2mm!important;padding-top:2mm!important}.photo-item img,.comparison img{height:auto!important;max-height:62mm!important;object-fit:contain!important}.photo-item label,.imported{font-size:7pt!important}.signature-pad{height:34mm!important;border-color:#9aa5b3!important}.comparison{gap:3mm!important}.legacy-grid{gap:2mm!important}.legacy-grid div{padding:2mm!important}.readonly-note{font-size:8pt!important}
-</style></head><body><main class="inspection"><header><strong>GET LOCATION</strong><h1>État des lieux</h1><div id="mode" class="mode"></div><p id="summary">Chargement…</p></header><div id="legacyContent" hidden></div><form id="form"><section class="card"><h2>Informations véhicule</h2><div class="grid"><label class="field">Date et heure de l’état des lieux<input required id="dateHeure" type="datetime-local"></label><label class="field">Kilométrage<input required id="km" type="number" min="0"></label><label class="field">Carburant<select id="carburant"></select></label><label class="field">Nombre de clés<input id="cles" type="number" min="0"></label><label class="field full">Clés et accessoires<input id="clesAccessoires"></label><label class="field full">Agent<input required id="agent" autocomplete="name"></label></div></section><section class="card"><h2>Propreté</h2><p id="legacyCleanliness" class="hint" hidden></p><div id="cleanliness" class="grid"></div></section><section class="card"><h2>Croquis des dommages</h2><p class="hint">Choisissez un type, touchez le véhicule pour ajouter une marque. Touchez une marque pour la supprimer.</p><div id="sketch"></div><label class="field full">Dommages et remarques<textarea id="dommages" rows="4" maxlength="2000"></textarea></label></section><section id="departCompare" class="card" hidden><h2>Comparaison avec le départ</h2><p id="departDamage"></p><div id="comparison" class="comparison"></div></section><section class="card"><h2>Photos du véhicule</h2><p class="hint">Plusieurs photos sont possibles pour chaque emplacement. Appareil photo ou photothèque.</p><div id="photos" class="photo-grid"></div></section><section class="card"><h2>Signatures — état des lieux</h2><p class="hint">Ces signatures sont indépendantes de la signature du contrat.</p><div id="signatures" class="signature-grid"></div></section><section class="card"><div class="actions"><button class="primary" id="save" type="submit"></button><button class="secondary" id="pdf" type="button">Imprimer / enregistrer en PDF</button></div><p id="message" role="status"></p></section></form></main><div id="modal" class="modal" hidden><button class="secondary" type="button">Fermer</button><img alt="Photo en taille réelle"></div><script src="js/inspection-sketch.js?v=1"></script><script src="js/legacy-inspection-sketch.js?v=1"></script><script src="js/inspection-page.js?v=1"></script></body></html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>État des lieux | GET LOCATION</title>
+  <link rel="stylesheet" href="css/inspection.css?v=3">
+</head>
+<body>
+  <main class="inspection" id="inspectionApp">
+    <header class="inspection-header">
+      <a class="brand" href="/back-office">GET LOCATION</a>
+      <span id="mode" class="mode"></span>
+      <h1>État des lieux</h1>
+      <p id="summary" role="status">Chargement de la location…</p>
+      <dl id="reservationSummary" class="summary-grid"></dl>
+      <p id="saveStatus" class="save-status" role="status">Chargement…</p>
+    </header>
+    <div id="legacyContent" hidden></div>
+    <form id="form" hidden>
+      <nav class="step-nav" aria-label="Étapes de l’état des lieux">
+        <a href="#information">1. Informations</a><a href="#vehicle">2. Propreté & véhicule</a>
+        <a href="#damage">3. Croquis</a><a href="#photoSection">4. Photos</a>
+        <a href="#signatureSection">5. Signatures</a><a href="#validation">6. Validation / PDF</a>
+      </nav>
+      <section id="departCompare" class="card departure" hidden>
+        <h2>État au départ</h2><p>Référence pour la comparaison au retour.</p>
+        <dl id="departureValues" class="summary-grid"></dl>
+        <p id="departDamage"></p><div id="departureSketch"></div>
+        <details><summary>Voir les photos du départ</summary><div id="departurePhotos" class="readonly-photos"></div></details>
+      </section>
+      <section id="information" class="card">
+        <h2><span class="step-number">1</span> Informations</h2>
+        <div class="grid">
+          <label class="field">Date et heure de l’état des lieux<input required id="dateHeure" type="datetime-local"></label>
+          <label class="field">Nom de l’agent<input required id="agent" autocomplete="name" maxlength="100"></label>
+        </div>
+      </section>
+      <section id="vehicle" class="card">
+        <h2><span class="step-number">2</span> Propreté & véhicule</h2>
+        <div class="grid">
+          <label class="field">Kilométrage<input required id="km" type="number" min="0" step="1" inputmode="numeric"></label>
+          <label class="field">Carburant<select id="carburant"></select></label>
+          <label class="field">Nombre de clés<input id="cles" type="number" min="0" max="20" step="1" inputmode="numeric"></label>
+          <label class="field">Clés et accessoires<input id="clesAccessoires" maxlength="300"></label>
+        </div>
+        <h3>Propreté</h3><p id="legacyCleanliness" class="hint" hidden></p>
+        <div id="cleanliness" class="cleanliness-grid"></div>
+        <p class="cleanliness-legend">1 = Très sale · 2 = Sale · 3 = Correct · 4 = Propre · 5 = Très propre</p>
+      </section>
+      <section id="damage" class="card">
+        <h2><span class="step-number">3</span> Croquis des dommages</h2>
+        <p class="hint">Choisissez un type, puis touchez la silhouette. Touchez une marque pour la supprimer.</p>
+        <div id="sketch"></div>
+        <label class="field">Dommages et remarques<textarea id="dommages" rows="4" maxlength="2000"></textarea></label>
+      </section>
+      <section id="photoSection" class="card">
+        <h2><span class="step-number">4</span> Photos</h2>
+        <p class="hint">Ajoutez plusieurs vues ou gros plans. La date de prise de vue reste modifiable.</p>
+        <div id="photos" class="photo-grid"></div>
+        <details id="comparisonDetails" hidden><summary>Comparer les photos : Départ | Retour</summary><div id="comparison" class="comparison-grid"></div></details>
+      </section>
+      <section id="signatureSection" class="card">
+        <h2><span class="step-number">5</span> Signatures</h2>
+        <p class="hint">Signatures de cet état des lieux de <span id="signatureMode"></span>.</p>
+        <div id="signatures" class="signature-grid"></div>
+      </section>
+      <section id="validation" class="card">
+        <h2><span class="step-number">6</span> Validation / PDF</h2>
+        <p id="reviewStatus">Enregistrez les informations, puis vérifiez le document.</p>
+        <div class="actions">
+          <button class="primary" id="save" type="submit">Enregistrer l’état des lieux</button>
+          <button class="secondary" id="finalize" type="button">Finaliser l’état des lieux</button>
+          <button class="outline" id="pdf" type="button">Préparer le PDF</button>
+        </div>
+        <p class="hint">La finalisation reste modifiable. Toute correction peut être enregistrée à nouveau.</p>
+        <p id="message" role="status" aria-live="polite"></p>
+      </section>
+    </form>
+  </main>
+  <dialog id="lightbox" class="lightbox" aria-label="Photo agrandie">
+    <button id="closeLightbox" type="button" class="outline">Fermer</button>
+    <p id="lightboxCaption"></p><img id="lightboxImage" alt="">
+  </dialog>
+  <script src="js/inspection-sketch.js?v=3"></script>
+  <script src="js/legacy-inspection-sketch.js?v=1"></script>
+  <script src="js/inspection-media-view.js?v=3"></script>
+  <script src="js/inspection-signature.js?v=3"></script>
+  <script src="js/inspection-document.js?v=3"></script>
+  <script src="js/inspection-page.js?v=3"></script>
+</body>
+</html>
