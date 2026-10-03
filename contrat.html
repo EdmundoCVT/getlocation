@@ -182,8 +182,9 @@
   .dmg-canvas{background:#fff;border:0;border-radius:0;min-height:150px;overflow:visible;}
   .dmg-canvas svg{width:100%;height:100%;display:block;}
   .dmg-shape{stroke:#8b8b8b;stroke-width:1.35;vector-effect:non-scaling-stroke;fill:none;stroke-linecap:round;stroke-linejoin:round;}
+  .dmg-reference-image{display:block;width:100%;height:auto;object-fit:contain;user-select:none;}
   .dmg-view:nth-child(5){grid-column:1 / -1;max-width:260px;justify-self:center;width:100%;}
-  @media(max-width:640px){.dmg-grid{grid-template-columns:1fr 1fr;gap:16px 14px}.dmg-canvas{min-height:125px}.dmg-view-label{font-size:11px}.dmg-view:nth-child(5){max-width:210px}}
+  @media(max-width:640px){.dmg-grid{grid-template-columns:1fr;gap:18px}.dmg-canvas{min-height:0}.dmg-view-label{font-size:11px}.dmg-view:nth-child(5){max-width:none}}
 </style>
 </head>
 <body>
@@ -1175,12 +1176,19 @@ var DMG_TYPES = [
 ];
 
 var DMG_VIEWS = [
-  { key: 'left', label: 'Profil conducteur', shape: 'side' },
-  { key: 'front', label: 'Avant', shape: 'front' },
-  { key: 'right', label: 'Profil passager', shape: 'side', mirror: true },
-  { key: 'rear', label: 'Arrière', shape: 'rear' },
-  { key: 'top', label: 'Dessus', shape: 'top' }
+  { key: 'left', label: 'Profil conducteur', asset: '/images/inspection/vehicle-left.png' },
+  { key: 'front', label: 'Avant', asset: '/images/inspection/vehicle-front.png' },
+  { key: 'right', label: 'Profil passager', asset: '/images/inspection/vehicle-right.png' },
+  { key: 'rear', label: 'Arrière', asset: '/images/inspection/vehicle-rear.png' },
+  { key: 'top', label: 'Dessus', asset: '/images/inspection/vehicle-top.png' }
 ];
+
+var DMG_REFERENCE_IMAGES = {};
+DMG_VIEWS.forEach(function(vue){
+  var image = new Image();
+  image.src = vue.asset;
+  DMG_REFERENCE_IMAGES[vue.key] = image;
+});
 
 // Primitives : ['rect',x,y,w,h,rx] | ['ellipse',cx,cy,rx,ry] | ['line',x1,y1,x2,y2] | ['poly',[[x,y],...]]
 // (rayon rx omis = 0). w/h identiques entre "car" et "utility" pour une même
@@ -1298,69 +1306,6 @@ function normaliserEtatVehicule(etat){
   };
 }
 
-function svgEl(tag, attrs){
-  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
-  Object.keys(attrs).forEach(function(k){ el.setAttribute(k, attrs[k]); });
-  return el;
-}
-
-// Construit le <svg> de fond (silhouette seule, sans marque) pour une vue
-// donnée. `mirror` retourne horizontalement le contenu (utilisé pour "Côté
-// droit", qui réutilise la géométrie "side" de "Côté gauche").
-function construireSvgSchema(shapeKey, vehicleFamily, mirror){
-  var groupe = DMG_SHAPES[vehicleFamily === 'utility' ? 'utility' : 'car'];
-  var spec = groupe[shapeKey];
-  var svg = svgEl('svg', { viewBox: '0 0 ' + spec.w + ' ' + spec.h, preserveAspectRatio: 'xMidYMid meet' });
-  var g = svgEl('g', mirror ? { transform: 'translate(' + spec.w + ',0) scale(-1,1)' } : {});
-  spec.shapes.forEach(function(prim){
-    if(prim[0] === 'rect'){
-      g.appendChild(svgEl('rect', { class: 'dmg-shape', x: prim[1], y: prim[2], width: prim[3], height: prim[4], rx: prim[5] || 0 }));
-    } else if(prim[0] === 'ellipse'){
-      g.appendChild(svgEl('ellipse', { class: 'dmg-shape', cx: prim[1], cy: prim[2], rx: prim[3], ry: prim[4] }));
-    } else if(prim[0] === 'line'){
-      g.appendChild(svgEl('line', { class: 'dmg-shape', x1: prim[1], y1: prim[2], x2: prim[3], y2: prim[4] }));
-    } else if(prim[0] === 'poly'){
-      var points = prim[1].map(function(p){ return p[0] + ',' + p[1]; }).join(' ');
-      g.appendChild(svgEl('polyline', { class: 'dmg-shape', points: points, fill: 'none' }));
-    }
-  });
-  svg.appendChild(g);
-  return svg;
-}
-
-// Redessine la même silhouette dans le PDF (jsPDF), à l'intérieur du
-// rectangle [boxX,boxY,boxW,boxH] — mêmes primitives que construireSvgSchema,
-// jamais une capture d'écran ni une image : le PDF reste net à toute échelle
-// et très léger. Pour un rect mirroré, le bord gauche affiché correspond au
-// bord droit d'origine (W - (x+w)) — un simple point mirroré (tx) ne suffit
-// pas pour un rectangle, contrairement à line/ellipse/poly.
-function dessinerSchemaPdf(doc, shapeKey, vehicleFamily, mirror, boxX, boxY, boxW, boxH){
-  var groupe = DMG_SHAPES[vehicleFamily === 'utility' ? 'utility' : 'car'];
-  var spec = groupe[shapeKey];
-  var scaleX = boxW / spec.w, scaleY = boxH / spec.h;
-  function tx(px){ return boxX + (mirror ? (spec.w - px) : px) * scaleX; }
-  function ty(py){ return boxY + py * scaleY; }
-  doc.setDrawColor(150, 150, 150);
-  doc.setLineWidth(0.7);
-  spec.shapes.forEach(function(prim){
-    if(prim[0] === 'rect'){
-      var rx = prim[1], ry = prim[2], rw = prim[3], rh = prim[4], rr = prim[5] || 0;
-      var leftRaw = mirror ? (spec.w - (rx + rw)) : rx;
-      var rrPt = rr * Math.min(scaleX, scaleY);
-      doc.roundedRect(boxX + leftRaw * scaleX, ty(ry), rw * scaleX, rh * scaleY, rrPt, rrPt, 'S');
-    } else if(prim[0] === 'ellipse'){
-      doc.ellipse(tx(prim[1]), ty(prim[2]), prim[3] * scaleX, prim[4] * scaleY, 'S');
-    } else if(prim[0] === 'line'){
-      doc.line(tx(prim[1]), ty(prim[2]), tx(prim[3]), ty(prim[4]));
-    } else if(prim[0] === 'poly'){
-      var pts = prim[1];
-      for(var i = 0; i < pts.length - 1; i++){
-        doc.line(tx(pts[i][0]), ty(pts[i][1]), tx(pts[i + 1][0]), ty(pts[i + 1][1]));
-      }
-    }
-  });
-}
-
 // Dessine une marque de dommage dans le PDF, toujours en noir/gris foncé et
 // distinguée par la FORME (croix/cercle vide/point plein), jamais par la
 // seule couleur — lisible même imprimé en noir et blanc (voir mission §8).
@@ -1417,8 +1362,6 @@ function creerGestionEtat(container, vehicleFamilyGetter){
     label.textContent = vue.label;
     var canvas = document.createElement('div');
     canvas.className = 'dmg-canvas';
-    var dims = DMG_SHAPES.car[vue.shape];
-    canvas.style.aspectRatio = dims.w + ' / ' + dims.h;
     // Clic sur le fond = ajoute une marque ; un clic sur une marque
     // existante est intercepté par son propre gestionnaire (stopPropagation)
     // et n'atteint donc jamais ce niveau.
@@ -1449,12 +1392,16 @@ function creerGestionEtat(container, vehicleFamilyGetter){
   container.appendChild(obsWrap);
 
   function redessinerSchemas(){
-    var famille = vehicleFamilyGetter() === 'utility' ? 'utility' : 'car';
     DMG_VIEWS.forEach(function(vue){
       var canvas = canvases[vue.key];
-      var ancien = canvas.querySelector('svg');
+      var ancien = canvas.querySelector('.dmg-reference-image');
       if(ancien) ancien.remove();
-      canvas.insertBefore(construireSvgSchema(vue.shape, famille, !!vue.mirror), canvas.firstChild);
+      var image = document.createElement('img');
+      image.className = 'dmg-reference-image';
+      image.src = vue.asset;
+      image.alt = vue.label + ' — schéma véhicule détaillé';
+      image.draggable = false;
+      canvas.insertBefore(image, canvas.firstChild);
     });
   }
 
@@ -2883,9 +2830,19 @@ function genererPDF(payload, estApercu){
       var yCadre = y + 5;
       doc.setDrawColor(C.filet[0], C.filet[1], C.filet[2]);
       doc.rect(xVue, yCadre, largeurVue, hauteurVue, 'S');
-      dessinerSchemaPdf(doc, vue.shape, payload.vehicleFamily, !!vue.mirror, xVue + 2, yCadre + 2, largeurVue - 4, hauteurVue - 4);
+      var image = DMG_REFERENCE_IMAGES[vue.key];
+      var imageX = xVue + 2, imageY = yCadre + 2, imageW = largeurVue - 4, imageH = hauteurVue - 4;
+      if(image && image.naturalWidth && image.naturalHeight){
+        var ratio = Math.min(imageW / image.naturalWidth, imageH / image.naturalHeight);
+        imageW = image.naturalWidth * ratio; imageH = image.naturalHeight * ratio;
+        imageX += (largeurVue - 4 - imageW) / 2; imageY += (hauteurVue - 4 - imageH) / 2;
+        doc.addImage(image, 'PNG', imageX, imageY, imageW, imageH, undefined, 'FAST');
+      } else {
+        police('italic', 5.5, C.label);
+        doc.text(T('Schéma détaillé indisponible'), xVue + largeurVue / 2, yCadre + hauteurVue / 2, { align: 'center' });
+      }
       (etat.marks || []).filter(function(m){ return m.view === vue.key; }).forEach(function(m){
-        dessinerMarquePdf(doc, m.type, xVue + 2 + (m.x / 100) * (largeurVue - 4), yCadre + 2 + (m.y / 100) * (hauteurVue - 4));
+        dessinerMarquePdf(doc, m.type, imageX + (m.x / 100) * imageW, imageY + (m.y / 100) * imageH);
       });
       xVue += largeurVue + ecart;
     });

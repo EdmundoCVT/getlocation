@@ -13,7 +13,7 @@
 // genererPDF() (dépend de jsPDF, chargé depuis un CDN indisponible ici) :
 // vérifie directement normaliserEtatVehicule()/construirePayload() (le
 // garde-fou anti-abus/anti-donnée-corrompue) et l'intégrité des schémas
-// géométriques (DMG_SHAPES/DMG_VIEWS) que dessinerSchemaPdf() consomme.
+// des cinq images détaillées réellement rendues dans le contrat.
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -61,18 +61,32 @@ const donneesBase = {
   permis: "061234567890"
 };
 
-test("DMG_SHAPES : chaque vue de DMG_VIEWS a une géométrie définie pour 'car' ET 'utility', mêmes dimensions", () => {
+test("DMG_VIEWS : les cinq vues utilisent exclusivement les images détaillées de référence", () => {
   const win = buildWindow();
-  win.DMG_VIEWS.forEach((vue) => {
-    const carSpec = win.DMG_SHAPES.car[vue.shape];
-    const utilitySpec = win.DMG_SHAPES.utility[vue.shape];
-    assert.ok(carSpec, `DMG_SHAPES.car.${vue.shape} manquant`);
-    assert.ok(utilitySpec, `DMG_SHAPES.utility.${vue.shape} manquant`);
-    assert.equal(carSpec.w, utilitySpec.w, `largeur différente entre car/utility pour ${vue.shape} (les marques en % ne correspondraient plus au bon endroit selon le véhicule)`);
-    assert.equal(carSpec.h, utilitySpec.h, `hauteur différente entre car/utility pour ${vue.shape}`);
-    assert.ok(carSpec.shapes.length > 0);
-  });
+  assert.deepEqual(Array.from(win.DMG_VIEWS).map((vue) => vue.asset), [
+    "/images/inspection/vehicle-left.png",
+    "/images/inspection/vehicle-front.png",
+    "/images/inspection/vehicle-right.png",
+    "/images/inspection/vehicle-rear.png",
+    "/images/inspection/vehicle-top.png"
+  ]);
   assert.equal(win.DMG_VIEWS.length, 5, "5 vues attendues (dessus, côté gauche, côté droit, avant, arrière)");
+});
+
+test("creerGestionEtat() rend les cinq images détaillées, sans SVG, et conserve les coordonnées au clic", () => {
+  const win = buildWindow(), host = win.document.createElement("div");
+  const report = win.creerGestionEtat(host, () => "car");
+  const canvases = Array.from(host.querySelectorAll(".dmg-canvas"));
+  assert.equal(host.querySelectorAll(".dmg-reference-image").length, 5);
+  assert.equal(host.querySelectorAll("svg").length, 0);
+  canvases.forEach((canvas, index) => {
+    canvas.getBoundingClientRect = () => ({ left: 10, top: 20, width: 200, height: 100 });
+    canvas.dispatchEvent(new win.MouseEvent("click", { bubbles: true, clientX: 10 + 20 * (index + 1), clientY: 20 + 10 * (index + 1) }));
+  });
+  const marks = Array.from(report.obtenirDonnees().marks);
+  assert.equal(marks.length, 5);
+  assert.deepEqual(marks.map((mark) => mark.view), ["left", "front", "right", "rear", "top"]);
+  assert.deepEqual(marks.map((mark) => [mark.x, mark.y]), [[10, 10], [20, 20], [30, 30], [40, 40], [50, 50]]);
 });
 
 // Array.from() : les tableaux produits par le code exécuté en jsdom
