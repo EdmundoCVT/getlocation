@@ -185,7 +185,11 @@ test("V3 navigateur : départ complet, retour, rechargement, mobiles et PDF avec
   await page.waitForFunction(() => document.querySelector("#message").textContent.startsWith("PDF non imprimé")); assert.equal(await failed.evaluate(() => window.__printCalls), 0); await failed.close(); failReads = false;
   const writes = calls.filter(call => call.method !== "GET").length;
   await page.goto(base + "?source=legacy&legacyId=res_legacy_fixture&mode=depart"); await page.waitForSelector("#legacyContent:not([hidden]) img");
-  assert.match(await page.locator("#legacyContent").textContent(), /4083/); assert.equal(calls.filter(call => call.method !== "GET").length, writes);
+  assert.match(await page.locator("#legacyContent").textContent(), /4083/);
+  assert.equal(await page.locator("#legacyContent .legacy-reference-image").count(), 5);
+  assert.equal(await page.locator("#legacyContent svg").count(), 0);
+  assert.equal(await page.locator("#legacyContent [data-view=left] .legacy-sketch-mark").evaluate(node => node.style.left + ":" + node.style.top), "20%:30%");
+  assert.equal(calls.filter(call => call.method !== "GET").length, writes);
   assert.ok(objects.has(historicalKey)); assert.equal(deletes.includes(historicalKey), false); assert.equal(deletes.length, 1);
   assert.deepEqual(errors, []);
   console.log("Artifacts:", artifacts, "| API calls:", calls.length, "| private historical objects unchanged");

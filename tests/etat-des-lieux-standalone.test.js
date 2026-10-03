@@ -68,6 +68,24 @@ test("V3 : historique reste en lecture seule et conserve le lecteur existant", a
   assert.match(doc.getElementById("legacyContent").textContent, /4083/);
   assert.equal(requests.length, 1); assert.match(requests[0].url, /legacy-inspection-agency/); assert.equal(requests[0].options.method, undefined); dom.window.close();
 });
+test("V3 : ni le lecteur actif ni le lecteur historique ne génèrent de silhouette SVG simplifiée", () => {
+  const active = fs.readFileSync(path.join(root, "js", "inspection-sketch.js"), "utf8");
+  const legacy = fs.readFileSync(path.join(root, "js", "legacy-inspection-sketch.js"), "utf8");
+  [active, legacy].forEach(source => {
+    assert.doesNotMatch(source, /createElementNS|<svg|vehicleShape|legacy-sketch-outline/);
+    for (const view of ["left", "front", "top", "rear", "right"]) assert.match(source, new RegExp("vehicle-" + view + "\\.png"));
+  });
+});
+test("V3 : le lecteur historique affiche les cinq images détaillées et ses repères sans SVG", async () => {
+  const { dom, doc } = await view({ legacy: true, mode: "depart" });
+  const host = doc.createElement("div"); doc.body.append(host);
+  dom.window.renderLegacyInspectionSketch(host, [{ view: "left", type: "rayure", x: 23, y: 42 }]);
+  assert.equal(host.querySelectorAll(".legacy-reference-image").length, 5);
+  assert.equal(host.querySelectorAll("svg").length, 0);
+  const mark = host.querySelector("[data-view=left] .legacy-sketch-mark");
+  assert.equal(mark.style.left, "23%"); assert.equal(mark.style.top, "42%");
+  dom.window.close();
+});
 test("V3 : impression directe retire le fragment sécurisé jusqu'à afterprint", async () => {
   const { dom } = await view(); const hash = dom.window.location.hash;
   dom.window.dispatchEvent(new dom.window.Event("beforeprint")); assert.equal(dom.window.location.hash, "");
