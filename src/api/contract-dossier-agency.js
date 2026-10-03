@@ -62,7 +62,7 @@ async function resolveContractAgencyAccess(request, env) {
   const reservation = await findReservationByContractAgencyTokenHash(env, tokenHash);
   const access = reservation && reservation.contractAgencyAccess;
   const expired = !access || !access.expiresAt || new Date(access.expiresAt).getTime() <= Date.now();
-  const invalid = !reservation || reservation.status !== "paid" ||
+  const invalid = !reservation || !["paid", "manual_contract"].includes(reservation.status) ||
     !access || access.tokenHash !== tokenHash || access.revokedAt || expired;
   return invalid ? null : { reservation };
 }
@@ -70,7 +70,9 @@ async function resolveContractAgencyAccess(request, env) {
 function joursReservation(reservation) {
   const heures = reservation.periodeDebut && reservation.periodeFin
     ? (new Date(reservation.periodeFin) - new Date(reservation.periodeDebut)) / (1000 * 60 * 60)
-    : dureeEnHeures(reservation.dateDebut, reservation.heureDebut, reservation.dateFin, reservation.heureFin);
+    : reservation.status === "manual_contract"
+      ? (new Date(reservation.retour) - new Date(reservation.depart)) / (1000 * 60 * 60)
+      : dureeEnHeures(reservation.dateDebut, reservation.heureDebut, reservation.dateFin, reservation.heureFin);
   return joursFacturablesDepuisHeures(heures);
 }
 
@@ -79,6 +81,9 @@ function joursReservation(reservation) {
 // sensibles hors de propos ici (cf. reservation-status.js, même principe de
 // minimisation pour une vue "publique" côté client).
 function buildDossierView(reservation) {
+  const manual = reservation.status === "manual_contract";
+  const manualStart = manual && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(reservation.depart || "") ? reservation.depart : "";
+  const manualEnd = manual && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(reservation.retour || "") ? reservation.retour : "";
   const vehicule = getVehiculeParId(reservation.vehiculeId);
   const jours = joursReservation(reservation);
   const dossier = reservation.contractDossier || null;
@@ -104,11 +109,11 @@ function buildDossierView(reservation) {
       // confirmation.html. Peut être absent sur une réservation payée avant
       // l'introduction de ce champ.
       contractNumero: reservation.contractNumero || null,
-      vehicule: vehicule ? { id: vehicule.id, nom: vehicule.nom, immatriculation: vehicule.immatriculation, caution: vehicule.caution, prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, fuel: vehicule.fuel || null, vin: vehicule.vin || null, vehicleFamily: vehicule.vehicleFamily || "car" } : null,
-      dateDebut: reservation.dateDebut,
-      heureDebut: reservation.heureDebut,
-      dateFin: reservation.dateFin,
-      heureFin: reservation.heureFin,
+      vehicule: vehicule ? { id: vehicule.id, nom: vehicule.nom, immatriculation: manual ? reservation.immat || reservation.immatriculation || vehicule.immatriculation : vehicule.immatriculation, caution: vehicule.caution, prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, fuel: vehicule.fuel || null, vin: vehicule.vin || null, vehicleFamily: vehicule.vehicleFamily || "car" } : null,
+      dateDebut: reservation.dateDebut || manualStart.slice(0, 10),
+      heureDebut: reservation.heureDebut || manualStart.slice(11, 16),
+      dateFin: reservation.dateFin || manualEnd.slice(0, 10),
+      heureFin: reservation.heureFin || manualEnd.slice(11, 16),
       lieuPrise: reservation.lieuPrise,
       lieuRetour: reservation.lieuRetour,
       adressePrise: reservation.adressePrise,
@@ -129,7 +134,7 @@ function buildDossierView(reservation) {
       reductionPromoMontant: reservation.reductionPromoMontant,
       total: reservation.total,
       options: Array.isArray(reservation.options) ? reservation.options : [],
-      conducteur: reservation.conducteur
+      conducteur: manual ? { nom: reservation.nom || "", prenom: reservation.prenom || "", telephone: reservation.tel || "", email: reservation.email || "" } : reservation.conducteur
         ? { nom: reservation.conducteur.nom, prenom: reservation.conducteur.prenom, naissance: reservation.conducteur.naissance, telephone: reservation.conducteur.telephone, email: reservation.conducteur.email }
         : null,
       cglVersion: CGL_VERSION
@@ -193,6 +198,12 @@ async function handlePost(request, env, headers) {
 
   const existing = reservation.contractDossier || { status: "draft", fields: null, depart: null, retour: null, observations: "" };
 
+  // Le jeton agence d'un contrat manuel sert ici uniquement à l'inspection.
+  // Le contrat manuel et son lien client gardent leur parcours séparé.
+  if (reservation.status === "manual_contract" && !["update-depart", "update-retour"].includes(payload.action)) {
+    return new Response(JSON.stringify({ error: "Action indisponible pour un contrat manuel" }), { status: 400, headers });
+  }
+
   try {
     switch (payload.action) {
       case "update-fields": {
@@ -234,7 +245,7 @@ async function handlePost(request, env, headers) {
         );
       }
       case "update-depart": {
-        const depart = validateConditionReport(payload);
+        const depart = { ...validateConditionReport(payload), completedAt: existing.depart && existing.depart.completedAt || new Date().toISOString() };
         const updated = await updateContractDossier(env, reservation.id, {
           contractDossier: { ...existing, depart, updatedAt: new Date().toISOString() }
         });
@@ -242,10 +253,10 @@ async function handlePost(request, env, headers) {
         return new Response(JSON.stringify(buildDossierView(updated)), { status: 200, headers });
       }
       case "update-retour": {
-        if (!existing.depart) {
+        if (!existing.depart || (reservation.status === "manual_contract" && !existing.depart.completedAt)) {
           return new Response(JSON.stringify({ error: "La remise du véhicule doit être complétée avant la restitution" }), { status: 400, headers });
         }
-        const retour = validateConditionReport(payload);
+        const retour = { ...validateConditionReport(payload), completedAt: existing.retour && existing.retour.completedAt || new Date().toISOString() };
         const jours = joursReservation(reservation);
         const kilometrage = calculerKilometrage({ kmDepart: existing.depart.km, kmRetour: retour.km, jours });
         if (!kilometrage.valid) {

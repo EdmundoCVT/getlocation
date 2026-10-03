@@ -50,6 +50,7 @@ test("GET view=inspection : agrège KV/D1, reconnaît l'historique et ne renvoie
     conducteur: { prenom: "Jean", nom: "Dupont", email: "prive@example.com" }
   });
   await updateReservationStatus(env, webAvecDepart.id, "paid", {
+    inspectionSchema: null, // ancien dossier d'avant l'indicateur explicite
     contractNumero: duplicateContractNumero,
     contractDossier: { depart: { km: 12000 }, media: { retour: [{ key: "inspection/x/retour.jpg" }] } }
   });
@@ -62,6 +63,9 @@ test("GET view=inspection : agrège KV/D1, reconnaît l'historique et ne renvoie
     etatRetour: { marks: [], observations: "Retour conforme" },
     photosEtatDesLieux: [{ label: "Départ avant" }, { label: "Retour arrière" }]
   }, "Edmundo");
+  const oldManual = JSON.parse(await env.RESERVATIONS_KV.get(manual.id));
+  delete oldManual.inspectionSchema;
+  await env.RESERVATIONS_KV.put(manual.id, JSON.stringify(oldManual));
 
   const client = await creerClient(env, session);
   // Ancienne location D1 déjà terminée : D1 ne contient pas les binaires
@@ -105,6 +109,29 @@ test("GET view=inspection : agrège KV/D1, reconnaît l'historique et ne renvoie
   assert.equal(JSON.stringify(body).includes("token"), false);
   assert.equal(JSON.stringify(body).includes("prive@example.com"), false);
   assert.equal(JSON.stringify(body).includes("0600000000"), false);
+});
+
+test("contrat manuel moderne fusionné avec D1 : le km historique ne valide pas l'EDL", async () => {
+  const env = makeAgencyEnv({ RESERVATIONS_KV: createFakeKv() });
+  const session = await loginAgency(env);
+  const manual = await createManualContract(env, {
+    vehiculeId: "opel-corsa", depart: "2026-10-10T10:00", retour: "2026-10-12T10:00",
+    prenom: "Jean", nom: "Dupont", kmDepart: 12345,
+    // Une valeur forgée par le formulaire contrat ne crée pas un EDL validé.
+    contractDossier: { depart: { completedAt: "2026-10-10T10:00:00.000Z" } }
+  }, "Edmundo");
+  const client = await creerClient(env, session);
+  await createRental(env, client.id, {
+    vehiculeId: "opel-corsa", dateDebut: "2026-10-10", heureDebut: "10:00",
+    dateFin: "2026-10-12", heureFin: "10:00", kmDepart: 12345
+  }, "Edmundo");
+  const response = await handleAgencyRentals(agencyRequest("https://getlocation.fr/api/agency-rentals?view=inspection", { session }), env);
+  const items = (await response.json()).rentals;
+  assert.equal(items.length, 1);
+  assert.equal(items[0].id, manual.id);
+  assert.deepEqual(items[0].inspection, { depart: false, retour: false, retourAvailable: false });
+  assert.equal(items[0].historyMode, null);
+  assert.equal(items[0].openable, true);
 });
 
 test("POST create : 403 sans origine autorisée", async () => {

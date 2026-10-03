@@ -39,7 +39,12 @@ function hasInspectionValue(value) {
 
 function hasLegacyInspectionValue(value) {
   if (!value || typeof value !== "object") return false;
-  return (Array.isArray(value.marks) && value.marks.length > 0) || Boolean(asText(value.observations));
+  return (Array.isArray(value.marks) && value.marks.length > 0) ||
+    ["observations", "dateHeure", "dommages", "agent", "clientSigne", "agenceSigne", "photosRef", "carburant", "proprete", "cles", "clesAccessoires", "accessoires"].some((key) => {
+      const field = value[key];
+      return typeof field === "number" ? Number.isFinite(field) : typeof field === "boolean" ? field : typeof field === "string" ? field.trim() !== "" : hasInspectionValue(field);
+    }) ||
+    (value.signatures && Object.values(value.signatures).some(Boolean));
 }
 
 function hasMediaForMode(media, mode) {
@@ -85,16 +90,13 @@ function reservationInspectionItem(reservation) {
     heureDebut: reservation.heureDebut || start.heure,
     dateFin: reservation.dateFin || end.date,
     heureFin: reservation.heureFin || end.heure,
-    // Seuls les dossiers de réservations payées utilisent déjà le jeton
-    // agence de l'état des lieux indépendant. Les contrats manuels et les
-    // locations D1 restent listés (historique intact), mais ne reçoivent
-    // jamais un faux lien vers un dossier incompatible.
     inspection: inspectionFlags({
-      depart: hasInspectionValue(dossier.depart),
-      retour: hasInspectionValue(dossier.retour),
-      media: dossier.media
+      depart: reservation.inspectionSchema === "modern" ? Boolean(dossier.depart && dossier.depart.completedAt) : hasInspectionValue(dossier.depart),
+      retour: reservation.inspectionSchema === "modern" ? Boolean(dossier.retour && dossier.retour.completedAt) : hasInspectionValue(dossier.retour),
+      media: reservation.inspectionSchema === "modern" ? null : dossier.media
     }),
     source: "reservation",
+    modernInspection: reservation.inspectionSchema === "modern",
     openable: true,
     historyMode: null,
     historyId: null,
@@ -106,6 +108,12 @@ function manualContractInspectionItem(contract) {
   const vehicule = getVehiculeParId(contract.vehiculeId);
   const start = splitDateTime(contract.depart);
   const end = splitDateTime(contract.retour);
+  const dossier = contract.contractDossier || {};
+  const legacyDepart = hasLegacyInspectionValue(contract.etatDepart) || hasLegacyInspectionValue(dossier.depart) || hasMediaForMode(contract.photosEtatDesLieux, "depart") || hasMediaForMode(dossier.media, "depart");
+  const legacyRetour = hasLegacyInspectionValue(contract.etatRetour) || hasLegacyInspectionValue(dossier.retour) || hasMediaForMode(contract.photosEtatDesLieux, "retour") || hasMediaForMode(dossier.media, "retour");
+  // Les contrats créés avant le marqueur de version restent historiques si
+  // un véritable relevé existe. Un simple km du contrat n'en est pas un.
+  const historical = contract.inspectionSchema !== "modern" && (legacyDepart || legacyRetour);
   return {
     id: contract.id,
     contractNumero: contract.contractNumero || null,
@@ -118,16 +126,14 @@ function manualContractInspectionItem(contract) {
     dateFin: end.date,
     heureFin: end.heure,
     inspection: inspectionFlags({
-      depart: hasLegacyInspectionValue(contract.etatDepart) || contract.kmDepart !== undefined && contract.kmDepart !== "",
-      retour: hasLegacyInspectionValue(contract.etatRetour) || contract.kmRetour !== undefined && contract.kmRetour !== "",
-      media: contract.photosEtatDesLieux
+      depart: historical ? legacyDepart : Boolean(dossier.depart && dossier.depart.completedAt),
+      retour: historical ? legacyRetour : Boolean(dossier.retour && dossier.retour.completedAt)
     }),
     source: "manual_contract",
-    openable: false,
-    // Ce format historique est relu sans conversion par contrat.html via
-    // son lien court, protégé par session agence puis jeton en fragment.
-    historyMode: "manual-contract",
-    historyId: contract.id,
+    modernInspection: !historical,
+    openable: !historical,
+    historyMode: historical ? "manual-contract" : null,
+    historyId: historical ? contract.id : null,
     relatedIds: [contract.rentalId, contract.rental_id]
   };
 }
@@ -197,17 +203,22 @@ function mergeInspectionItems(previous, next) {
   // de consultation même lorsque l'autre source est une réservation KV plus
   // récente. Sinon une carte dédupliquée pourrait afficher « Terminé » tout
   // en ouvrant un dossier qui ne contient pas le croquis/photo historique.
-  const legacy = [previous, next].find((item) => item.historyMode && (item.inspection.depart || item.inspection.retour));
+  // Un relevé kilométrique D1 ne valide pas l'inspection moderne d'un
+  // contrat : le statut reste celui des validations explicites du dossier.
+  const modern = [previous, next].find((item) => item.modernInspection);
+  const legacy = modern ? null : [previous, next].find((item) => item.historyMode && (item.inspection.depart || item.inspection.retour));
+  const status = modern ? modern.inspection : inspectionFlags({
+    depart: primary.inspection.depart || secondary.inspection.depart,
+    retour: primary.inspection.retour || secondary.inspection.retour
+  });
   return {
     ...primary,
+    modernInspection: Boolean(modern),
     contractNumero: primary.contractNumero || secondary.contractNumero || null,
     client: primary.client && (primary.client.prenom || primary.client.nom) ? primary.client : secondary.client,
     vehicule: primary.vehicule || secondary.vehicule,
     immatriculation: primary.immatriculation || secondary.immatriculation || "",
-    inspection: inspectionFlags({
-      depart: primary.inspection.depart || secondary.inspection.depart,
-      retour: primary.inspection.retour || secondary.inspection.retour
-    }),
+    inspection: status,
     historyMode: legacy ? legacy.historyMode : primary.historyMode,
     historyId: legacy ? legacy.historyId : primary.historyId,
     // Garder aussi les deux identifiants sources dans l'index de
@@ -366,4 +377,4 @@ async function handleAgencyRentals(request, env) {
   return request.method === "GET" ? handleGet(request, env, headers) : handlePost(request, env, headers);
 }
 
-module.exports = { handleAgencyRentals };
+module.exports = { handleAgencyRentals, manualContractInspectionItem };

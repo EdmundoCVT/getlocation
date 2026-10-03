@@ -31,9 +31,14 @@ test("historique manuel : lecture agence seule, départ/retour et métadonnées 
     kmDepart: "42150", kmRetour: "42736",
     etatDepart: { km: 42151, marks: [{ id: "m1", view: "left", x: 25, y: 40, type: "rayure" }], observations: "Rayure porte conducteur", carburant: 75, proprete: "4/5", cles: 2, clesAccessoires: "Carte grise", agent: "Edmundo", clientSigne: "Client départ", agenceSigne: "Agence départ", photosRef: "2 photos départ" },
     etatRetour: { marks: [{ id: "m2", view: "front", x: 50, y: 25, type: "impact" }], observations: "Impact constaté au retour", carburant: 50 },
-    contractDossier: { depart: { km: 41000, dateHeure: "2026-08-13T10:00", proprete: "fallback non retenu" }, retour: { km: 42737, dateHeure: "2026-08-15T10:00", proprete: "3/5", clesAccessoires: "Chargeur", agent: "Antonio", clientSigne: "Client retour", agenceSigne: "Agence retour" }, signature: { signedAt: "2026-08-13T09:55:00.000Z", signatureId: "SIG-1", imageDataUrl: "data:image/png;base64,AA==" }, media: { depart: [], retour: [] } },
     photosEtatDesLieux: [{ label: "Départ avant", dateHeure: "2026-08-13T10:05", dataUrl: "data:image/jpeg;base64,AA==" }, { label: "Retour arrière", capturedAt: "2026-08-15T10:10", dataUrl: "data:image/jpeg;base64,BB==" }]
   }, "Edmundo");
+  // Simule le document KV historique tel qu'il était stocké avant que la
+  // création de contrats ne sépare explicitement contrat et inspection.
+  const historic = JSON.parse(await env.RESERVATIONS_KV.get(record.id));
+  delete historic.inspectionSchema;
+  historic.contractDossier = { depart: { km: 41000, dateHeure: "2026-08-13T10:00", proprete: "fallback non retenu" }, retour: { km: 42737, dateHeure: "2026-08-15T10:00", proprete: "3/5", clesAccessoires: "Chargeur", agent: "Antonio", clientSigne: "Client retour", agenceSigne: "Agence retour" }, signature: { signedAt: "2026-08-13T09:55:00.000Z", signatureId: "SIG-1", imageDataUrl: "data:image/png;base64,AA==" }, media: { depart: [], retour: [] } };
+  await env.RESERVATIONS_KV.put(record.id, JSON.stringify(historic));
   const before = await env.RESERVATIONS_KV.get(record.id);
 
   const noSession = await handleLegacyInspectionAgency(agencyRequest(`https://getlocation.fr/api/legacy-inspection-agency?id=${record.id}`), env);
@@ -64,12 +69,13 @@ test("média R2 historique : lecture réservée à la session, clé listée et p
   const env = makeAgencyEnv({ RESERVATIONS_KV: createFakeKv(), DOCUMENTS_BUCKET: bucket });
   const session = await loginAgency(env);
   const record = await createManualContract(env, {
-    vehiculeId: "peugeot-2008", depart: "2026-09-16T19:00", retour: "2026-09-25T19:00", nom: "VRBICA", prenom: "ZVEZDAN",
-    contractDossier: { media: { depart: [], retour: [] } }
+    vehiculeId: "peugeot-2008", depart: "2026-09-16T19:00", retour: "2026-09-25T19:00", nom: "VRBICA", prenom: "ZVEZDAN"
   }, "Edmundo");
   const key = `inspection/${record.id}/depart/photo.jpg`;
   const otherKey = `inspection/res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/depart/other.jpg`;
   const stored = JSON.parse(await env.RESERVATIONS_KV.get(record.id));
+  delete stored.inspectionSchema;
+  stored.contractDossier = { media: { depart: [], retour: [] } };
   stored.contractDossier.media.depart.push({ key, slot: "avant", createdAt: "2026-09-16T19:05:00.000Z" });
   await env.RESERVATIONS_KV.put(record.id, JSON.stringify(stored));
   await bucket.put(key, "photo", { contentType: "image/jpeg" });

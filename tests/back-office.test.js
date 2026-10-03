@@ -187,6 +187,31 @@ test("réservation KV moderne : conserve le workflow état des lieux sécurisé"
   assert.match(popup.location.href,/^\/etat-des-lieux\.html\?mode=depart#agencyToken=A{43}$/);
 });
 
+test("contrat manuel moderne : Départ À faire ouvre l'EDL autonome avec lien agence", async () => {
+  const window = buildWindow();
+  const popup = { opener: window, document: {}, location: { href: "" } };
+  window.open = () => popup;
+  let requestedId = null;
+  window.fetch = async (_url, options) => {
+    requestedId = JSON.parse(options.body).id;
+    return { ok: true, json: async () => ({ agencyUrl: "https://getlocation.fr/etat-des-lieux.html#agencyToken=" + "B".repeat(43) }) };
+  };
+  window.__backOffice.renderInspectionListForTest([{
+    id: "res_manual_modern", client: { prenom: "Anne", nom: "Martin" }, vehicule: "Opel Corsa",
+    vehiculeId: "opel-corsa", immatriculation: "AA-123-BB", dateDebut: "2026-10-10",
+    heureDebut: "10:00", dateFin: "2026-10-12", heureFin: "10:00", contractNumero: "GL-20261010-0001",
+    openable: true, historyMode: null, historyId: null,
+    inspection: { depart: false, retour: false, retourAvailable: false }
+  }]);
+  const depart = window.document.querySelector("#inspectionList button");
+  assert.equal(depart.textContent, "Départ — À faire");
+  assert.equal(depart.disabled, false);
+  depart.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(requestedId, "res_manual_modern");
+  assert.match(popup.location.href, /^\/etat-des-lieux\.html\?mode=depart#agencyToken=B{43}$/);
+});
+
 // Régression Lot 5 : renderSyncStatus utilisait row(), qui échappe
 // systématiquement sa valeur (correct pour du texte utilisateur) — appliqué
 // au HTML de confiance renvoyé par syncBadge(), il affichait le balisage
