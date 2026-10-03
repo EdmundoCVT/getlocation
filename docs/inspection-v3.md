@@ -10,20 +10,25 @@ d’autorisation. Aucun secret supplémentaire, migration ou stockage métier cr
 - `etat-des-lieux.html` et `css/inspection.css` : interface opérationnelle responsive.
 - `js/inspection-page.js` : contrôleur, propretés, suivi des modifications,
   sauvegarde, comparaison et consultation historique en lecture seule.
-- `js/inspection-sketch.js` : silhouettes historiques et marques dans le même
-  repère SVG ; format `{id, view, x, y, type}` inchangé, coordonnées en pourcentage.
+- `js/inspection-sketch.js` : les cinq vues sont des recadrages directs du
+  schéma véhicule de référence fourni pour GET LOCATION (profil conducteur,
+  avant, profil passager, arrière, dessus). Les marques restent dans le même
+  format compatible `{id, view, x, y, type, description?}`, avec coordonnées
+  normalisées en pourcentage. Les champs `description` sont optionnels et ne
+  demandent aucune migration des anciens dossiers.
 - `js/inspection-media-view.js` : chargement authentifié, décodage et cache local
   des images, aperçus, galerie et lightbox.
 - `js/inspection-signature.js` : deux signatures EDL indépendantes du contrat.
-- `js/inspection-document.js` : document A4 séparé, données lisibles, cinq vues
-  cohérentes, deux photos par page et signatures. Chargement/décodage de toutes
+- `js/inspection-document.js` : document A4 séparé, calé sur la structure de
+  référence (informations, propreté, dommages, remarques, schéma, galerie
+  trois colonnes et signatures). Chargement/décodage de toutes
   les images avant impression. En cas de photo inaccessible, impression refusée
   avec un message explicite, pas de PDF silencieusement incomplet.
 
 ## Stockage et limites conservées
 
 Les API `/api/contract-dossier-agency`, `/api/inspection-media` et les lecteurs
-historiques restent inchangés. `contractDossier.depart/retour` et
+historiques restent compatibles. `contractDossier.depart/retour` et
 `contractDossier.media.depart/retour` restent les seules données opérationnelles.
 R2 reste privé. `createdAt` est fourni par le serveur et n’est jamais envoyé
 par le front ; seul `capturedAt` passe par le PATCH existant.
@@ -78,8 +83,9 @@ ne sont pas ajoutés comme dépendances du site. Il lance un serveur local,
 réutilise les véritables handlers Worker avec KV/R2 simulés et applique la
 restriction CSP sur les images. Aucun appel de production.
 
-Il couvre : saisie, propretés indépendantes, marques stables, import multiple
-via photothèque, modification de `capturedAt` sans changement de `createdAt`,
+Il couvre : saisie, propretés indépendantes, marques stables sur les cinq vues,
+suppression volontaire d'une marque, import multiple via photothèque et caméra,
+modification de `capturedAt` sans changement de `createdAt`,
 sauvegarde/rechargement, suppression d’une nouvelle photo, conservation d’un
 ancien média, signatures/rechargement, départ et retour, comparaison,
 refus d’un kilométrage incohérent, échec de sauvegarde sans perte de saisie,

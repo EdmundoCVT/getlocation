@@ -84,3 +84,13 @@ test("photo inspection : une ancienne photo sans capturedAt reste compatible", a
   assert.equal(updated.createdAt, "2026-09-01T08:00:00.000Z");
   assert.equal(updated.capturedAt, "2026-09-01T07:55");
 });
+
+test("photo inspection : le tableau de bord est un emplacement compatible avec les médias existants", async () => {
+  const e = env();
+  const { token } = await setup(e);
+  const form = new FormData();
+  form.append("stage", "depart"); form.append("slot", "tableau-de-bord"); form.append("capturedAt", "2026-10-01T09:45"); form.append("file", new Blob(["image"], { type: "image/jpeg" }), "dashboard.jpg");
+  const response = await handleInspectionMedia(request("https://getlocation.fr/api/inspection-media", token, { method: "POST", body: form }), e);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).item.slot, "tableau-de-bord");
+});

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>État des lieux | GET LOCATION</title>
-  <link rel="stylesheet" href="css/inspection.css?v=3">
+  <link rel="stylesheet" href="css/inspection.css?v=4">
 </head>
 <body>
   <main class="inspection" id="inspectionApp">
@@ -53,6 +53,11 @@
         <h2><span class="step-number">3</span> Croquis des dommages</h2>
         <p class="hint">Choisissez un type, puis touchez la silhouette. Touchez une marque pour la supprimer.</p>
         <div id="sketch"></div>
+        <div class="damage-table-wrap">
+          <h3>Tableau des dommages</h3>
+          <p class="hint">Chaque repère correspond au schéma. Ajoutez une précision lorsque nécessaire.</p>
+          <div id="damageTable" class="damage-table" role="region" aria-label="Tableau des dommages"></div>
+        </div>
         <label class="field">Dommages et remarques<textarea id="dommages" rows="4" maxlength="2000"></textarea></label>
       </section>
       <section id="photoSection" class="card">
@@ -83,11 +88,11 @@
     <button id="closeLightbox" type="button" class="outline">Fermer</button>
     <p id="lightboxCaption"></p><img id="lightboxImage" alt="">
   </dialog>
-  <script src="js/inspection-sketch.js?v=3"></script>
+  <script src="js/inspection-sketch.js?v=4"></script>
   <script src="js/legacy-inspection-sketch.js?v=1"></script>
-  <script src="js/inspection-media-view.js?v=3"></script>
+  <script src="js/inspection-media-view.js?v=4"></script>
   <script src="js/inspection-signature.js?v=3"></script>
-  <script src="js/inspection-document.js?v=3"></script>
-  <script src="js/inspection-page.js?v=3"></script>
+  <script src="js/inspection-document.js?v=4"></script>
+  <script src="js/inspection-page.js?v=4"></script>
 </body>
 </html>

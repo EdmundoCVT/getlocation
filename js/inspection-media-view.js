@@ -3,7 +3,7 @@
 // and comply with the site's img-src 'self' data: policy.
 (function (global) {
   "use strict";
-  const labels = { avant: "Avant", arriere: "Arrière", gauche: "Côté gauche", droite: "Côté droit", "avant-gauche": "3/4 avant gauche", "avant-droit": "3/4 avant droit", "arriere-gauche": "3/4 arrière gauche", "arriere-droit": "3/4 arrière droit", interieur: "Intérieur", jante: "Jante / roue", dommage: "Détail dommage", autre: "Autre" };
+  const labels = { avant: "Avant", arriere: "Arrière", gauche: "Côté gauche", droite: "Côté droit", "avant-gauche": "3/4 avant gauche", "avant-droit": "3/4 avant droit", "arriere-gauche": "3/4 arrière gauche", "arriere-droit": "3/4 arrière droit", interieur: "Intérieur", "tableau-de-bord": "Tableau de bord", jante: "Jante / roue", dommage: "Détail dommage", autre: "Autre" };
   function local(value) {
     if (!value) return "";
     // Preserve business datetime-local values, without inventing a timezone.

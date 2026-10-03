@@ -141,7 +141,7 @@ test("validateConditionReport : conserve les nouveaux relevés, croquis et signa
     propreteExterieure: 5,
     propreteInterieure: 4,
     propreteChargement: 3,
-    marks: [{ id: "m1", view: "left", type: "rayure", x: 12.34, y: 55.55 }],
+    marks: [{ id: "m1", view: "left", type: "rayure", x: 12.34, y: 55.55, description: "Porte avant gauche" }],
     signatures: { client: { name: "Client", imageDataUrl: signature }, agence: { name: "Agent", imageDataUrl: signature } }
   }));
   assert.equal(data.proprete, "Ancienne valeur 4/5");
@@ -149,7 +149,7 @@ test("validateConditionReport : conserve les nouveaux relevés, croquis et signa
   assert.equal(data.propreteInterieure, 4);
   assert.equal(data.propreteChargement, 3);
   assert.equal(data.cles, 2);
-  assert.deepEqual(data.marks, [{ id: "m1", view: "left", type: "rayure", x: 12.3, y: 55.6 }]);
+  assert.deepEqual(data.marks, [{ id: "m1", view: "left", type: "rayure", x: 12.3, y: 55.6, description: "Porte avant gauche" }]);
   assert.equal(data.signatures.client.name, "Client");
   assert.equal(data.signatures.agence.imageDataUrl, signature);
   assert.ok(data.signatures.client.signedAt);

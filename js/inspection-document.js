@@ -1,91 +1,70 @@
-// A standalone, token-free document. No storage, no contract signature reuse.
+// Document A4 distinct de l'interface : lecture seule, sans URL/tokens ni
+// contrôles de saisie. Les mêmes sources privées déjà décodées sont utilisées.
 (function (global) {
   "use strict";
   const CSS = `
-    /* Zero page margin prevents browser-added URL/token footers. Document
-       padding supplies a consistent safe A4 margin instead. */
     @page { size:A4; margin:0; }
-    * { box-sizing:border-box; } body { margin:0; color:#172b43; font:11pt Arial,sans-serif; }
-    .page { padding:16mm; break-after:page; page-break-after:always; } .page:last-of-type { break-after:auto; page-break-after:auto; }
-    h1 { font-size:24pt; margin:6mm 0; } h2 { font-size:17pt; margin:0 0 5mm; } h3 { font-size:12pt; margin:3mm 0; }
-    p { line-height:1.4; white-space:pre-wrap; overflow-wrap:anywhere; } .brand { font-weight:bold; color:#ff6b00; font-size:20pt; }
-    .grid { display:grid; grid-template-columns:1fr 1fr; gap:5mm; } dl { margin:0; } dl>div { padding:3mm 0; border-bottom:1px solid #ddd; }
-    dt { color:#52627a; font-size:10pt; } dd { margin:1mm 0 0; font-weight:bold; overflow-wrap:anywhere; }
-    .inspection-sketch-grid { display:grid; grid-template-columns:1fr 1fr; gap:4mm; }
-    .inspection-sketch-view { text-align:center; break-inside:avoid; page-break-inside:avoid; }
-    .inspection-sketch-view:last-child { grid-column:1/-1; width:41mm; justify-self:center; }
-    .inspection-sketch-canvas { margin:2mm auto; width:100%; } svg { display:block; width:100%; height:auto; }
-    .inspection-sketch-outline>g:first-child { fill:none; stroke:#172b43; stroke-width:2; }
-    .inspection-sketch-symbol { fill:#b82119; font:bold 13px Arial; stroke:none; } .inspection-sketch-tools { display:none; }
-    .photo { margin:0 0 6mm; break-inside:avoid; page-break-inside:avoid; }
-    .photo img { width:100%; max-height:100mm; object-fit:contain; display:block; background:#f4f6f8; }
-    figcaption { padding:2mm 0; font-size:10pt; overflow-wrap:anywhere; } .import { font-size:9pt; color:#52627a; }
-    .signature { break-inside:avoid; border:1px solid #ddd; padding:5mm; margin-bottom:8mm; }
-    .signature img { width:100%; height:45mm; object-fit:contain; } .document-tools { margin:12px; padding:12px; background:#f4f6f8; }
-    .document-tools button { min-height:44px; padding:10px 20px; } .footer { color:#52627a; font-size:9pt; margin-top:6mm; }
-    @media screen { body { background:#e8edf3; } .page { background:white; width:210mm; min-height:277mm; margin:16px auto; padding:16mm; } }
-    @media print { .document-tools { display:none; } h1,h2,h3 { break-after:avoid; } }
+    * { box-sizing:border-box; } body { margin:0; color:#172b43; font:10pt Arial,sans-serif; }
+    .page { padding:14mm 16mm; break-after:page; page-break-after:always; } .page:last-of-type { break-after:auto; page-break-after:auto; }
+    h1 { font-size:22pt; margin:4mm 0; } h2 { font-size:15pt; margin:0 0 4mm; } h3 { font-size:10pt; margin:4mm 0 2mm; } p { line-height:1.35; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .brand { color:#ff6b00; font-size:18pt; font-weight:bold; letter-spacing:.04em; } .mode { color:#b44b00; font-weight:bold; }
+    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:3mm 6mm; } dl { margin:0; } dl>div { padding:2mm 0; border-bottom:1px solid #d9e0ea; } dt { color:#52627a; font-size:8pt; } dd { margin:1mm 0 0; font-weight:bold; overflow-wrap:anywhere; }
+    .damage-table { display:grid; gap:1.5mm; } .damage-row { display:grid; grid-template-columns:11mm 29mm 29mm 31mm 1fr; gap:2mm; align-items:center; padding:2mm; border-bottom:1px solid #d9e0ea; } .damage-head { color:#52627a; font-size:8pt; font-weight:bold; background:#edf2f8; border:0; } .damage-cell { overflow-wrap:anywhere; }
+    .inspection-sketch-grid { display:grid; grid-template-columns:1fr 1fr; gap:3mm 7mm; } .inspection-sketch-view { text-align:center; break-inside:avoid; page-break-inside:avoid; } .inspection-sketch-view h3 { margin:0 0 1mm; } .inspection-sketch-view:last-child { grid-column:1/-1; width:46mm; justify-self:center; } .inspection-sketch-canvas { position:relative; width:100%; line-height:0; } .inspection-reference-image { width:100%; height:auto; display:block; } .inspection-sketch-mark { position:absolute; transform:translate(-50%,-50%); display:inline-flex; align-items:center; justify-content:center; gap:1px; min-width:6mm; min-height:6mm; padding:1px; border:1px solid white; border-radius:50%; background:#b82119; color:#fff; font-weight:bold; line-height:1; } .inspection-sketch-mark.bosse { background:#c95a00; } .inspection-sketch-mark.eclat { background:#0066ff; } .inspection-sketch-mark-number { display:grid; place-items:center; width:3mm; height:3mm; border-radius:50%; background:#fff; color:#172b43; font-size:6pt; } .inspection-sketch-mark-symbol { font-size:7pt; } .inspection-sketch-tools { display:none; }
+    .photo-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4mm; } figure { margin:0; break-inside:avoid; page-break-inside:avoid; } figure h3 { margin:0 0 1mm; font-size:9pt; text-transform:uppercase; } figure img { width:100%; height:48mm; object-fit:contain; display:block; background:#f4f6f8; } figcaption { padding:1.5mm 0 0; font-size:8pt; overflow-wrap:anywhere; } .import { margin:1mm 0 0; font-size:7pt; color:#52627a; }
+    .signature-grid { display:grid; grid-template-columns:1fr 1fr; gap:7mm; } .signature { break-inside:avoid; border:1px solid #d9e0ea; padding:4mm; } .signature img { width:100%; height:38mm; object-fit:contain; display:block; } .footer { color:#52627a; font-size:8pt; margin-top:4mm; }.document-tools { margin:12px; padding:12px; background:#eef3f8; }.document-tools button { min-height:44px; padding:10px 20px; }
+    @media screen { body { background:#e8edf3; }.page { width:210mm; min-height:297mm; margin:16px auto; background:#fff; } }
+    @media print { .document-tools { display:none; } h1,h2,h3 { break-after:avoid; page-break-after:avoid; } }
   `;
   global.InspectionDocument = {
     open() { return global.open("about:blank", "_blank"); },
     async prepare(popup, snapshot, cache) {
       if (!popup) throw new Error("Autorisez l’ouverture du document dans votre navigateur.");
-      const doc = popup.document;
+      const doc = popup.document, images = [];
       doc.documentElement.lang = "fr"; doc.title = "GET LOCATION — État des lieux " + snapshot.mode + " — " + snapshot.reference;
       doc.head.replaceChildren(); doc.body.replaceChildren();
       const style = doc.createElement("style"); style.textContent = CSS; doc.head.append(style);
       const meta = doc.createElement("meta"); meta.name = "referrer"; meta.content = "no-referrer"; doc.head.append(meta);
-      const tools = doc.createElement("div"); tools.className = "document-tools"; tools.textContent = "Préparation des photos et signatures…"; doc.body.append(tools);
-      const text = (parent, tag, value, cls) => { const node = doc.createElement(tag); node.textContent = value; if (cls) node.className = cls; parent.append(node); return node; };
+      const tools = doc.createElement("div"); tools.className = "document-tools"; tools.textContent = "Préparation du document…"; doc.body.append(tools);
+      const text = (parent, tag, value, className) => { const node = doc.createElement(tag); node.textContent = value == null ? "" : String(value); if (className) node.className = className; parent.append(node); return node; };
       const page = title => { const node = doc.createElement("section"); node.className = "page"; doc.body.append(node); if (title) text(node, "h2", title); return node; };
-      const fields = (parent, entries) => { const dl = doc.createElement("dl"); dl.className = "grid"; parent.append(dl); entries.forEach(([label, value]) => { if (value !== "" && value != null) { const row = doc.createElement("div"); text(row, "dt", label); text(row, "dd", String(value)); dl.append(row); } }); };
-      const mediaDate = global.InspectionMedia.date;
-      const cleanliness = stage => ["propreteExterieure", "propreteInterieure", "propreteChargement"].map((key, index) => [["Propreté extérieure", "Propreté intérieure", "Propreté chargement"][index], stage[key] == null ? null : stage[key] + " / 5"]);
-      const stage = snapshot.stage;
-      const first = page(); text(first, "div", "GET LOCATION", "brand"); text(first, "h1", "État des lieux de " + snapshot.mode);
-      fields(first, [...snapshot.summary, ["Date / heure de l’état des lieux", mediaDate(stage.dateHeure)], ["Agent", stage.agent], ["Kilométrage", stage.km + " km"], ["Carburant", stage.carburant + " %"], ["Nombre de clés", stage.cles], ["Accessoires", stage.clesAccessoires], ...cleanliness(stage), ["Propreté historique", stage.proprete]]);
-      if (snapshot.mode === "retour" && snapshot.depart) { text(first, "h3", "Référence au départ"); fields(first, [["Kilométrage départ", snapshot.depart.km + " km"], ["Kilomètres parcourus", stage.km - snapshot.depart.km + " km"], ["Carburant départ", snapshot.depart.carburant + " %"], ...cleanliness(snapshot.depart)]); }
-      text(first, "p", snapshot.dirty ? "Document de travail — modifications non enregistrées." : "Document préparé à partir de l’état des lieux enregistré.", "footer");
-      const sketchPage = (heading, value) => {
-        const sheet = page(heading), holder = document.createElement("div");
-        global.createInspectionSketch(holder, { family: snapshot.family, marks: value.marks, readOnly: true }); sheet.append(doc.importNode(holder, true));
-        text(sheet, "p", "X Rayure · O Bosse / impact · ● Éclat", "footer");
-        return sheet;
+      const fields = (parent, entries) => { const dl = doc.createElement("dl"); dl.className = "grid"; parent.append(dl); entries.forEach(([label, value]) => { if (value !== "" && value != null) { const row = doc.createElement("div"); text(row, "dt", label); text(row, "dd", value); dl.append(row); } }); return dl; };
+      const readable = global.InspectionMedia.date, stage = snapshot.stage;
+      const cleanliness = value => [["Extérieur", value.propreteExterieure == null ? null : value.propreteExterieure + " / 5"], ["Intérieur", value.propreteInterieure == null ? null : value.propreteInterieure + " / 5"], ["Espace de chargement", value.propreteChargement == null ? null : value.propreteChargement + " / 5"]];
+      const damageRows = () => {
+        const rows = [];
+        if (snapshot.mode === "retour" && snapshot.depart && Array.isArray(snapshot.depart.marks)) snapshot.depart.marks.forEach(mark => rows.push({ mark, status: "Existant au départ" }));
+        (stage.marks || []).forEach(mark => rows.push({ mark, status: snapshot.mode === "retour" ? "Nouveau au retour" : "Existant" }));
+        return rows;
       };
-      sketchPage("Croquis — " + snapshot.mode, stage);
-      // A separate remarks page avoids ever pushing the final top silhouette across pages.
-      if (stage.dommages) { const notes = page("Dommages et remarques — " + snapshot.mode); text(notes, "p", stage.dommages); }
-      if (snapshot.mode === "retour" && snapshot.depart) { sketchPage("Croquis de référence — départ", snapshot.depart); if (snapshot.depart.dommages) { const notes = page("Dommages déjà présents au départ"); text(notes, "p", snapshot.depart.dommages); } }
-      const images = [];
+      const first = page(); text(first, "div", "GET LOCATION", "brand"); text(first, "h1", "État des lieux du véhicule"); text(first, "p", snapshot.reference + " · " + snapshot.mode.toUpperCase(), "mode");
+      fields(first, [...snapshot.summary, ["Date et heure", readable(stage.dateHeure)], ["Agent", stage.agent], ["Kilométrage", stage.km == null ? null : stage.km + " km"], ["Carburant / charge", stage.carburant == null ? null : stage.carburant + " %"], ["Clés", stage.cles], ["Type de constat", snapshot.mode.toUpperCase()]]);
+      text(first, "h3", "Propreté"); fields(first, cleanliness(stage));
+      text(first, "h3", "Dommages");
+      const table = doc.createElement("div"); table.className = "damage-table"; first.append(table);
+      const head = doc.createElement("div"); head.className = "damage-row damage-head"; ["N°", "Statut", "Type", "Zone", "Description"].forEach(value => text(head, "div", value, "damage-cell")); table.append(head);
+      const rows = damageRows();
+      if (!rows.length) text(first, "p", "Aucun dommage renseigné.");
+      rows.forEach((row, index) => { const line = doc.createElement("div"); line.className = "damage-row"; const type = global.InspectionSketch.TYPES.find(item => item.id === row.mark.type); [[index + 1, "N°"], [row.status, "Statut"], [type ? type.label : row.mark.type, "Type"], [global.InspectionSketch.labelFor(row.mark.view), "Zone"], [row.mark.description || "Non renseignée", "Description"]].forEach(([value, label]) => { const cell = text(line, "div", value, "damage-cell"); cell.dataset.label = label; }); table.append(line); });
+      text(first, "h3", "Remarques et contrôle"); text(first, "p", stage.dommages || "Aucune remarque."); fields(first, [["Accessoires", stage.clesAccessoires]]);
+      const sketchPage = (heading, value) => { const sheet = page(heading), holder = document.createElement("div"); global.createInspectionSketch(holder, { marks: value.marks, readOnly: true }); const imported = doc.importNode(holder, true); sheet.append(imported); imported.querySelectorAll(".inspection-reference-image").forEach(image => images.push(image)); text(sheet, "p", "X Rayure · O Bosse / impact · ● Éclat", "footer"); };
+      sketchPage("Schéma annoté — " + snapshot.mode, stage);
+      if (snapshot.mode === "retour" && snapshot.depart) sketchPage("Schéma de référence — départ", snapshot.depart);
       const photoPages = async (items, heading) => {
-        for (let i = 0; i < items.length; i += 2) {
-          const sheet = page(heading);
-          for (const item of items.slice(i, i + 2)) {
-            const url = await cache.get(item), figure = doc.createElement("figure"), image = doc.createElement("img"); figure.className = "photo";
-            image.alt = global.InspectionMedia.labels[item.slot] || item.label || "Photo"; image.src = url; figure.append(image); images.push(image);
-            text(figure, "figcaption", image.alt + " — Date/heure de la photo : " + mediaDate(item.capturedAt || item.dateHeure));
-            if (item.createdAt) text(figure, "p", "Importée le : " + mediaDate(item.createdAt), "import"); sheet.append(figure);
+        for (let index = 0; index < items.length; index += 9) {
+          const sheet = page(heading), grid = doc.createElement("div"); grid.className = "photo-grid"; sheet.append(grid);
+          for (const item of items.slice(index, index + 9)) {
+            const url = await cache.get(item), figure = doc.createElement("figure"), image = doc.createElement("img"); image.alt = global.InspectionMedia.labels[item.slot] || item.label || "Photo"; image.src = url; images.push(image); text(figure, "h3", image.alt); figure.append(image); text(figure, "figcaption", "Date/heure : " + readable(item.capturedAt || item.dateHeure)); if (item.createdAt) text(figure, "p", "Importée le : " + readable(item.createdAt), "import"); grid.append(figure);
           }
         }
       };
-      await photoPages(snapshot.photos, "Photos — " + snapshot.mode);
-      if (snapshot.mode === "retour") await photoPages(snapshot.departPhotos, "Photos de référence — départ");
-      const signatures = page("Signatures de l’état des lieux de " + snapshot.mode);
-      for (const role of ["client", "agence"]) {
-        const value = stage.signatures && stage.signatures[role], panel = doc.createElement("div"); panel.className = "signature"; signatures.append(panel);
-        text(panel, "h3", role === "client" ? "Client" : "Agence");
-        if (value) {
-          fields(panel, [["Nom du signataire", value.name], ["Date / heure de signature", value.signedAt ? mediaDate(value.signedAt) : "Non renseignée"]]);
-          if (value.imageDataUrl) { const image = doc.createElement("img"); image.alt = "Signature " + role; image.src = value.imageDataUrl; panel.append(image); images.push(image); }
-          else text(panel, "p", "Aucune signature graphique enregistrée.");
-        } else text(panel, "p", "Signature non renseignée.");
-      }
-      await Promise.all(images.map(image => global.InspectionMedia.decode(image)));
-      if (doc.fonts && doc.fonts.ready) await doc.fonts.ready;
-      tools.replaceChildren(); const print = doc.createElement("button"); print.textContent = "Imprimer / Enregistrer en PDF"; print.onclick = () => popup.print(); tools.append(print);
-      text(tools, "p", "Document prêt. Le document ne contient aucun lien d’accès sécurisé. Conservez les marges du document et désactivez les en-têtes et pieds de page du navigateur.");
-      doc.body.dataset.ready = "true";
-      popup.focus(); popup.print();
+      await photoPages(snapshot.photos, "Photos au " + snapshot.mode);
+      if (snapshot.mode === "retour" && snapshot.departPhotos.length) await photoPages(snapshot.departPhotos, "Photos de référence — départ");
+      const sign = page("Signatures — " + snapshot.mode), signatures = doc.createElement("div"); signatures.className = "signature-grid"; sign.append(signatures);
+      for (const role of ["client", "agence"]) { const value = stage.signatures && stage.signatures[role], panel = doc.createElement("section"); panel.className = "signature"; text(panel, "h3", role === "client" ? "Locataire" : "GET LOCATION"); if (value) { fields(panel, [["Nom", value.name], ["Signé le", value.signedAt ? readable(value.signedAt) : "Non renseigné"]]); if (value.imageDataUrl) { const image = doc.createElement("img"); image.alt = "Signature " + role; image.src = value.imageDataUrl; panel.append(image); images.push(image); } } else text(panel, "p", "Signature non renseignée."); signatures.append(panel); }
+      text(sign, "p", snapshot.dirty ? "Document de travail — modifications non enregistrées." : "Document préparé à partir de l’état des lieux enregistré.", "footer");
+      await Promise.all(images.map(image => global.InspectionMedia.decode(image))); if (doc.fonts && doc.fonts.ready) await doc.fonts.ready;
+      tools.replaceChildren(); const print = doc.createElement("button"); print.textContent = "Imprimer / Enregistrer en PDF"; print.onclick = () => popup.print(); tools.append(print); text(tools, "p", "Document prêt. Il ne contient aucun lien ni jeton d’accès."); doc.body.dataset.ready = "true"; popup.focus(); popup.print();
     }
   };
 }(window));

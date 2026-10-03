@@ -104,7 +104,7 @@ function buildDossierView(reservation) {
       // confirmation.html. Peut être absent sur une réservation payée avant
       // l'introduction de ce champ.
       contractNumero: reservation.contractNumero || null,
-      vehicule: vehicule ? { id: vehicule.id, nom: vehicule.nom, immatriculation: vehicule.immatriculation, caution: vehicule.caution, prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, vin: vehicule.vin || null, vehicleFamily: vehicule.vehicleFamily || "car" } : null,
+      vehicule: vehicule ? { id: vehicule.id, nom: vehicule.nom, immatriculation: vehicule.immatriculation, caution: vehicule.caution, prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, fuel: vehicule.fuel || null, vin: vehicule.vin || null, vehicleFamily: vehicule.vehicleFamily || "car" } : null,
       dateDebut: reservation.dateDebut,
       heureDebut: reservation.heureDebut,
       dateFin: reservation.dateFin,

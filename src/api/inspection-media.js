@@ -6,7 +6,7 @@ const { updateContractDossier } = require("../lib/reservation-store.js");
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const TYPES = new Set(["image/jpeg","image/png","image/webp","image/heic","image/heif"]);
-const SLOTS = new Set(["avant","arriere","gauche","droite","avant-gauche","avant-droit","arriere-gauche","arriere-droit","interieur","jante","dommage","autre"]);
+const SLOTS = new Set(["avant","arriere","gauche","droite","avant-gauche","avant-droit","arriere-gauche","arriere-droit","interieur","tableau-de-bord","jante","dommage","autre"]);
 
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});}
 function safeStage(v){return v==="depart"||v==="retour"?v:null;}

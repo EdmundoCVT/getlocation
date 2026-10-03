@@ -33,8 +33,10 @@ test("V3 : retour affiche cinq vues modifiables et cinq vues de référence, coo
   assert.equal(doc.querySelectorAll("#departureSketch .inspection-sketch-view").length, 5);
   const mark = doc.querySelector("#departureSketch [data-mark-id=m1]");
   assert.equal(mark.dataset.x, "20"); assert.equal(mark.dataset.y, "30");
-  assert.equal(mark.getAttribute("transform"), "translate(44,30)");
-  assert.equal(doc.querySelectorAll("#departureSketch [role=button]").length, 0);
+  assert.equal(mark.style.left, "20%"); assert.equal(mark.style.top, "30%");
+  assert.equal(mark.disabled, true);
+  assert.equal(doc.querySelectorAll("#sketch .inspection-reference-image").length, 5);
+  assert.match(doc.querySelector("#sketch [data-view=left] img").src, /images\/inspection\/vehicle-left\.png/);
   dom.window.close();
 });
 test("V3 : propretés indépendantes avec sélection visible et chargement seulement pour utilitaire", async () => {
@@ -48,9 +50,17 @@ test("V3 : propretés indépendantes avec sélection visible et chargement seule
   const car = await view({ family: "car" }); assert.equal(car.doc.querySelectorAll(".cleanliness-buttons").length, 2); car.dom.window.close();
 });
 test("V3 : chaque emplacement propose caméra et photothèque multiple sans capture", async () => {
-  const { dom, doc } = await view(); const cards = doc.querySelectorAll(".photo-slot"); assert.equal(cards.length, 12);
+  const { dom, doc } = await view(); const cards = doc.querySelectorAll(".photo-slot"); assert.equal(cards.length, 13);
   cards.forEach(card => { assert.equal(card.querySelectorAll("input[type=file]").length, 2); assert.equal(card.querySelector("[capture]").getAttribute("capture"), "environment"); assert.equal(card.querySelector("input:not([capture])").multiple, true); });
+  assert.equal(doc.querySelector("[data-slot=tableau-de-bord]").querySelector("h3").textContent, "Tableau de bord");
   assert.equal(doc.querySelectorAll(".signature-pad").length, 2); dom.window.close();
+});
+test("V3 : tableau des dommages conserve une description facultative dans la marque existante", async () => {
+  const { dom, doc } = await view({ mode: "depart" });
+  const input = doc.querySelector("#damageTable input"); assert.ok(input); input.value = "Rayure profonde porte avant"; input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  assert.match(doc.querySelector("#damageTable").textContent, /Existant/);
+  assert.equal(doc.querySelector("#sketch [data-mark-id]").dataset.x, "20");
+  dom.window.close();
 });
 test("V3 : historique reste en lecture seule et conserve le lecteur existant", async () => {
   const { dom, doc, requests } = await view({ legacy: true, mode: "depart" });

@@ -119,7 +119,10 @@ function validateMarks(value) {
       view: mark.view,
       type: mark.type,
       x: Math.max(0, Math.min(100, Math.round(x * 10) / 10)),
-      y: Math.max(0, Math.min(100, Math.round(y * 10) / 10))
+      y: Math.max(0, Math.min(100, Math.round(y * 10) / 10)),
+      // Extension compatible du même format de marque : les croquis
+      // historiques sans description restent inchangés.
+      description: text(mark.description, "description du dommage", { required: false, max: 500 })
     };
   });
 }

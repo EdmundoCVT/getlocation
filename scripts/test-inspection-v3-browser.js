@@ -53,7 +53,8 @@ test("V3 navigateur : départ complet, retour, rechargement, mobiles et PDF avec
       }
       const file = path.resolve(root, "." + (url.pathname === "/" ? "/etat-des-lieux.html" : url.pathname));
       if (!file.startsWith(root + path.sep) || !fs.existsSync(file)) { res.writeHead(404); res.end(); return; }
-      res.writeHead(200, { "Content-Type": file.endsWith(".js") ? "text/javascript" : file.endsWith(".css") ? "text/css" : "text/html", "Content-Security-Policy": CSP }); res.end(fs.readFileSync(file));
+      const type = file.endsWith(".js") ? "text/javascript" : file.endsWith(".css") ? "text/css" : file.endsWith(".png") ? "image/png" : "text/html";
+      res.writeHead(200, { "Content-Type": type, "Content-Security-Policy": CSP }); res.end(fs.readFileSync(file));
     } catch (error) { res.writeHead(500); res.end(error.stack); }
   });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
@@ -70,13 +71,27 @@ test("V3 navigateur : départ complet, retour, rechargement, mobiles et PDF avec
   await page.fill("#dateHeure", "2026-10-01T09:45"); await page.fill("#agent", "Agent V3"); await page.fill("#km", "4083"); await page.selectOption("#carburant", "90"); await page.fill("#cles", "2"); await page.fill("#clesAccessoires", "Double et câble");
   await page.click("[data-field=propreteExterieure] [data-score='2']"); await page.click("[data-field=propreteInterieure] [data-score='4']"); await page.click("[data-field=propreteChargement] [data-score='5']");
   await page.fill("#dommages", "Rayure profil conducteur. Éclat à l’avant.");
-  await page.locator("#sketch svg[data-view=left]").click({ position: { x: 100, y: 70 } });
+  await page.locator("#sketch .inspection-sketch-canvas[data-view=left]").click({ position: { x: 100, y: 70 } });
   await page.getByRole("button", { name: "● Éclat", exact: true }).click();
-  await page.locator("#sketch svg[data-view=front]").click({ position: { x: 80, y: 50 } });
-  const markPositions = await page.locator("#sketch [data-mark-id]").evaluateAll(nodes => nodes.map(n => [n.dataset.x, n.dataset.y, n.getAttribute("transform")]));
-  assert.equal(markPositions.length, 2);
+  await page.locator("#sketch .inspection-sketch-canvas[data-view=front]").click({ position: { x: 80, y: 50 } });
+  await page.getByRole("button", { name: "O Bosse / impact", exact: true }).click();
+  await page.locator("#sketch .inspection-sketch-canvas[data-view=right]").click({ position: { x: 100, y: 70 } });
+  await page.getByRole("button", { name: "X Rayure", exact: true }).click();
+  await page.locator("#sketch .inspection-sketch-canvas[data-view=rear]").click({ position: { x: 80, y: 50 } });
+  await page.getByRole("button", { name: "● Éclat", exact: true }).click();
+  await page.locator("#sketch .inspection-sketch-canvas[data-view=top]").click({ position: { x: 80, y: 150 } });
+  await page.locator("#damageTable input").first().fill("Rayure profonde — porte avant gauche");
+  const markPositions = await page.locator("#sketch [data-mark-id]").evaluateAll(nodes => nodes.map(n => [n.dataset.x, n.dataset.y, n.style.left, n.style.top]));
+  assert.equal(markPositions.length, 5);
+  // A tap on an existing numbered marker removes it. Re-add a temporary mark
+  // first so the five required views remain represented in the saved dossier.
+  await page.locator("#sketch .inspection-sketch-canvas[data-view=left]").click({ position: { x: 150, y: 90 } });
+  assert.equal(await page.locator("#sketch [data-mark-id]").count(), 6);
+  await page.locator("#sketch .inspection-sketch-canvas[data-view=left] [data-mark-id]").last().click();
+  assert.equal(await page.locator("#sketch [data-mark-id]").count(), 5);
   const picture = Buffer.from(await page.evaluate(() => { const canvas = document.createElement("canvas"); canvas.width = 480; canvas.height = 640; const ctx = canvas.getContext("2d"); ctx.fillStyle = "#ff6b00"; ctx.fillRect(0, 0, 480, 640); ctx.fillStyle = "#0066ff"; ctx.fillRect(20, 30, 100, 200); return canvas.toDataURL("image/png").split(",")[1]; }), "base64");
   await page.locator("[data-slot=avant] input:not([capture])").setInputFiles([{ name: "front1.png", mimeType: "image/png", buffer: picture }, { name: "front2.png", mimeType: "image/png", buffer: picture }]);
+  await page.locator("[data-slot=arriere] input[capture]").setInputFiles({ name: "rear-camera.png", mimeType: "image/png", buffer: picture });
   await waitStatus("Modifications non enregistrées");
   await page.waitForFunction(() => document.querySelectorAll('[data-slot=avant] .photo-item img').length === 2);
   console.log("Photos importées et décodées");
@@ -88,7 +103,8 @@ test("V3 navigateur : départ complet, retour, rechargement, mobiles et PDF avec
   console.log("Sauvegarde et rechargement effectués");
   assert.equal(await page.inputValue("#km"), "4083"); assert.equal(await page.inputValue("#dateHeure"), "2026-10-01T09:45"); assert.equal(await page.inputValue("#carburant"), "90");
   assert.equal(await page.locator("[data-field=propreteExterieure] [aria-pressed=true]").textContent(), "2"); assert.equal(await page.locator("[data-field=propreteInterieure] [aria-pressed=true]").textContent(), "4");
-  assert.deepEqual(await page.locator("#sketch [data-mark-id]").evaluateAll(nodes => nodes.map(n => [n.dataset.x, n.dataset.y, n.getAttribute("transform")])), markPositions);
+  assert.deepEqual(await page.locator("#sketch [data-mark-id]").evaluateAll(nodes => nodes.map(n => [n.dataset.x, n.dataset.y, n.style.left, n.style.top])), markPositions);
+  assert.equal(await page.locator("#damageTable input").first().inputValue(), "Rayure profonde — porte avant gauche");
   assert.equal(await page.locator("[data-slot=avant] .photo-item input").first().inputValue(), "2026-10-01T08:20");
   const after = JSON.parse(await env.RESERVATIONS_KV.get(reservation.id)).contractDossier.media.depart.find(item => item.key === before.key); assert.equal(after.createdAt, before.createdAt);
   // Date remains editable after a save/reload, without changing the server import timestamp.
@@ -100,6 +116,8 @@ test("V3 navigateur : départ complet, retour, rechargement, mobiles et PDF avec
   assert.equal(await page.locator("[data-slot=autre]").getByRole("button", { name: "Supprimer", exact: true }).count(), 0);
   page.once("dialog", dialog => dialog.accept()); await page.locator("[data-slot=avant]").getByRole("button", { name: "Supprimer", exact: true }).last().click();
   await page.waitForFunction(() => document.querySelectorAll('[data-slot=avant] .photo-item').length === 1);
+  await page.locator("[data-slot=tableau-de-bord] input:not([capture])").setInputFiles({ name: "dashboard.png", mimeType: "image/png", buffer: picture });
+  await page.waitForFunction(() => document.querySelectorAll('[data-slot=tableau-de-bord] .photo-item').length === 1);
   for (const role of ["client", "agence"]) {
     await page.fill(`#signature-${role}-name`, role === "client" ? "Client V3" : "Agent V3");
     const canvas = page.locator(`canvas[data-role=${role}]`); await canvas.scrollIntoViewIfNeeded(); const box = await canvas.boundingBox();
@@ -115,19 +133,19 @@ test("V3 navigateur : départ complet, retour, rechargement, mobiles et PDF avec
   for (const width of [375, 390, 430, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `pas de débordement à ${width}px`);
-    assert.deepEqual(await page.locator("#sketch [data-mark-id]").evaluateAll(nodes => nodes.map(n => [n.dataset.x, n.dataset.y, n.getAttribute("transform")])), markPositions);
+    assert.deepEqual(await page.locator("#sketch [data-mark-id]").evaluateAll(nodes => nodes.map(n => [n.dataset.x, n.dataset.y, n.style.left, n.style.top])), markPositions);
     await page.screenshot({ path: path.join(artifacts, `depart-${width}.png`), fullPage: true });
   }
   const print = async name => {
     const promised = context.waitForEvent("page"); await page.click("#pdf"); const popup = await promised;
     await popup.waitForFunction(() => document.body.dataset.ready === "true");
     assert.equal(popup.url(), "about:blank"); assert.equal(await popup.locator("input,select,textarea").count(), 0);
-    assert.equal(await popup.locator("img").evaluateAll(images => images.every(im => im.complete && im.naturalWidth > 0 && im.src.startsWith("data:image/"))), true);
+    assert.equal(await popup.locator("img").evaluateAll(images => images.every(im => im.complete && im.naturalWidth > 0 && (im.src.startsWith("data:image/") || im.src.includes("/images/inspection/")))), true);
     assert.equal(await popup.locator("body").textContent().then(text => text.includes(access.token) || text.includes("agencyToken")), false);
     const pdf = path.join(artifacts, name + ".pdf"); await popup.pdf({ path: pdf, preferCSSPageSize: true, printBackground: true, displayHeaderFooter: true });
-    const content = execFileSync("pdftotext", [pdf, "-"], { encoding: "utf8" }); assert.equal(content.includes(access.token) || content.includes("agencyToken") || content.includes("about:blank"), false); assert.match(content, /Client V3/); assert.match(content, /Date\/heure de la photo/);
+    const content = execFileSync("pdftotext", [pdf, "-"], { encoding: "utf8" }); assert.equal(content.includes(access.token) || content.includes("agencyToken") || content.includes("about:blank"), false); assert.match(content, /Client V3/); assert.match(content, /Date\/heure :/); assert.match(content, /TABLEAU DE BORD/);
     const imageList = execFileSync("pdfimages", ["-list", pdf], { encoding: "utf8" }); assert.match(imageList, /480\s+640/);
-    const textPages = content.split("\f"); const sketch = textPages.find(text => text.includes("Croquis — " + name)); assert.ok(sketch); for (const label of ["Profil conducteur", "Avant", "Profil passager", "Arrière", "Dessus"]) assert.ok(sketch.includes(label), `${label} sur la même page croquis`);
+    const textPages = content.split("\f"); const sketch = textPages.find(text => text.includes("Schéma annoté — " + name)); assert.ok(sketch); for (const label of ["Profil conducteur", "Avant", "Profil passager", "Arrière", "Dessus"]) assert.ok(sketch.includes(label), `${label} sur la même page croquis`);
     console.log("PDF vérifié :", name, "— photos incorporées, 5 vues sur une page, aucun token"); await popup.close();
   };
   await print("depart");
@@ -135,12 +153,12 @@ test("V3 navigateur : départ complet, retour, rechargement, mobiles et PDF avec
   await go("retour"); assert.equal(await page.locator("#departCompare").isVisible(), true); assert.match(await page.locator("#departureValues").textContent(), /4083/);
   await page.fill("#km", "4082"); await page.fill("#agent", "Agent Retour"); await page.click("#save"); assert.match(await page.locator("#message").textContent(), /inférieur/);
   await page.fill("#km", "4500"); await page.fill("#dateHeure", "2026-10-08T18:20"); await page.selectOption("#carburant", "70");
-  await page.locator("#sketch svg[data-view=rear]").click({ position: { x: 100, y: 50 } });
+  await page.locator("#sketch .inspection-sketch-canvas[data-view=rear]").click({ position: { x: 100, y: 50 } });
   await page.locator("[data-slot=avant] input:not([capture])").setInputFiles({ name: "return.png", mimeType: "image/png", buffer: picture }); await waitStatus("Modifications non enregistrées");
   await page.waitForFunction(() => document.querySelectorAll('#comparison img').length >= 2);
   await page.click("#save"); await waitStatus("Modifications enregistrées");
   const returned = JSON.parse(await env.RESERVATIONS_KV.get(reservation.id)).contractDossier;
-  assert.deepEqual(returned.depart, departure); assert.equal(returned.retour.km, 4500); assert.equal(returned.media.retour.length, 1); assert.equal(returned.media.depart.length, 2);
+  assert.deepEqual(returned.depart, departure); assert.equal(returned.retour.km, 4500); assert.equal(returned.media.retour.length, 1); assert.equal(returned.media.depart.length, 4);
   // A failed save preserves input and unsaved status.
   failSave = true; await page.fill("#agent", "Saisie conservée"); await page.click("#save"); await page.waitForFunction(() => document.querySelector("#message").textContent.includes("Échec simulé"));
   assert.equal(await page.inputValue("#agent"), "Saisie conservée"); assert.equal(await page.locator("#saveStatus").textContent(), "Modifications non enregistrées"); failSave = false;

@@ -33,7 +33,7 @@
     root.replaceChildren(); entries.forEach(([label, value]) => { const row = document.createElement("div"), dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = label; dd.textContent = value == null || value === "" ? "—" : String(value); row.append(dt, dd); root.append(row); });
   }
   function summaryEntries(r) {
-    return [["Client", r.conducteur ? [r.conducteur.prenom, r.conducteur.nom].filter(Boolean).join(" ") : ""], ["Véhicule", r.vehicule && r.vehicule.nom], ["Immatriculation", r.vehicule && r.vehicule.immatriculation], ["Contrat / réservation", r.contractNumero || r.id], ["Départ prévu", [r.dateDebut, r.heureDebut].filter(Boolean).join(" ")], ["Retour prévu", [r.dateFin, r.heureFin].filter(Boolean).join(" ")]];
+    return [["Locataire", r.conducteur ? [r.conducteur.prenom, r.conducteur.nom].filter(Boolean).join(" ") : ""], ["Téléphone", r.conducteur && r.conducteur.telephone], ["E-mail", r.conducteur && r.conducteur.email], ["Véhicule", r.vehicule && r.vehicule.nom], ["Immatriculation", r.vehicule && r.vehicule.immatriculation], ["Énergie", r.vehicule && (r.vehicule.carburant || r.vehicule.fuel)], ["Contrat / réservation", r.contractNumero || r.id], ["Départ prévu", [r.dateDebut, r.heureDebut].filter(Boolean).join(" ")], ["Retour prévu", [r.dateFin, r.heureFin].filter(Boolean).join(" ")]];
   }
   function openPhoto(url, caption) {
     $("lightboxImage").src = url; $("lightboxImage").alt = caption; $("lightboxCaption").textContent = caption;
@@ -84,6 +84,27 @@
       const update = () => { buttons.querySelectorAll("button").forEach(button => button.setAttribute("aria-pressed", Number(button.dataset.score) === scores[key])); value.textContent = scores[key] ? ["Très sale", "Sale", "Correct", "Propre", "Très propre"][scores[key] - 1] + " — " + scores[key] + " / 5" : "Non renseignée"; };
       for (let n = 1; n <= 5; n++) { const button = M.button(String(n), () => { scores[key] = n; update(); changed(); }); button.dataset.score = n; button.setAttribute("aria-label", title + " : " + n + " sur 5"); buttons.append(button); }
       fieldset.append(legend, buttons, value); root.append(fieldset); update();
+    });
+  }
+  function renderDamageTable() {
+    const root = $("damageTable"); if (!root || !sketch) return;
+    root.replaceChildren();
+    const rows = [];
+    if (mode === "retour" && dossier.depart && Array.isArray(dossier.depart.marks)) dossier.depart.marks.forEach(mark => rows.push({ mark, status: "Existant au départ", readOnly: true }));
+    sketch.getMarks().forEach(mark => rows.push({ mark, status: mode === "retour" ? "Nouveau au retour" : "Existant", readOnly: false }));
+    if (!rows.length) { const empty = document.createElement("p"); empty.className = "damage-empty"; empty.textContent = "Aucun dommage repéré sur le schéma."; root.append(empty); return; }
+    const head = document.createElement("div"); head.className = "damage-row damage-head";
+    ["N°", "Statut", "Type", "Zone", "Description"].forEach(label => { const cell = document.createElement("div"); cell.className = "damage-cell"; cell.textContent = label; head.append(cell); }); root.append(head);
+    rows.forEach((row, index) => {
+      const item = document.createElement("div"); item.className = "damage-row";
+      const info = window.InspectionSketch.TYPES.find(type => type.id === row.mark.type) || window.InspectionSketch.TYPES[0];
+      [[String(index + 1), "N°"], [row.status, "Statut"], [info.label, "Type"], [window.InspectionSketch.labelFor(row.mark.view), "Zone"]].forEach(([value, label]) => { const cell = document.createElement("div"); cell.className = "damage-cell"; cell.dataset.label = label; cell.textContent = value; item.append(cell); });
+      if (row.readOnly) { const cell = document.createElement("div"); cell.className = "damage-cell"; cell.dataset.label = "Description"; cell.textContent = row.mark.description || "Non renseignée"; item.append(cell); }
+      else {
+        const label = document.createElement("label"), input = document.createElement("input"); label.className = "field damage-cell"; label.dataset.label = "Description"; input.type = "text"; input.maxLength = 500; input.placeholder = "Ex. Rayure porte avant gauche"; input.value = row.mark.description || ""; input.setAttribute("aria-label", "Description du dommage " + (index + 1));
+        input.oninput = () => sketch.setDescription(row.mark.id, input.value); label.append(input); item.append(label);
+      }
+      root.append(item);
     });
   }
   function renderComparison() {
@@ -182,7 +203,8 @@
     $("carburant").value = stage.carburant == null ? 100 : stage.carburant; $("cles").value = stage.cles == null ? "" : stage.cles; $("clesAccessoires").value = stage.clesAccessoires || ""; $("dommages").value = stage.dommages || "";
     $("km").closest("label").firstChild.textContent = "Kilométrage " + mode;
     $("legacyCleanliness").hidden = !stage.proprete; $("legacyCleanliness").textContent = "Propreté historique conservée : " + (stage.proprete || ""); cleanliness(stage);
-    sketch = window.createInspectionSketch($("sketch"), { family, marks: stage.marks || [], onChange: changed });
+    sketch = window.createInspectionSketch($("sketch"), { family, marks: stage.marks || [], onChange: () => { renderDamageTable(); changed(); } });
+    renderDamageTable();
     for (const role of ["client", "agence"]) pads[role] = window.createInspectionSignature($("signatures"), { role, title: role === "client" ? "Signature client" : "Signature agence", value: stage.signatures && stage.signatures[role], onChange: changed });
     $("form").querySelectorAll("#information input,#vehicle input,#vehicle select,#dommages").forEach(input => input.addEventListener("input", changed));
     if (mode === "retour" && dossier.depart) {
