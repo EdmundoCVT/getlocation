@@ -1462,7 +1462,7 @@ function initReservationPage() {
       detailsToggle.setAttribute("aria-label", t(ouvert ? "Afficher les détails de {protection}" : "Masquer les détails de {protection}", { protection: t(protection.nom) }));
     });
 
-    ligneResume.append(niveauNode, franchise, prixNode, detailsToggle);
+    ligneResume.append(niveauNode, prixNode, detailsToggle);
     card.append(entete, ligneResume, details);
     card.classList.toggle("is-selected", choisie);
     protectionList.appendChild(card);
