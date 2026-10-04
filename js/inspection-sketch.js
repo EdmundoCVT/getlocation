@@ -31,7 +31,7 @@
     options = options || {};
     var marks = normalize(options.marks), current = "rayure", canvases = {};
     container.replaceChildren(); container.classList.add("inspection-sketch");
-    function changed() { if (options.onChange) options.onChange(); }
+    function changed(reason) { if (options.onChange) options.onChange(reason); }
     function remove(id) { marks = marks.filter(function (mark) { return mark.id !== id; }); redraw(); changed(); }
     function redraw() {
       VIEWS.forEach(function (view) {
@@ -75,7 +75,16 @@
     return {
       getMarks: function () { return normalize(marks); },
       setMarks: function (value) { marks = normalize(value); redraw(); },
-      setDescription: function (id, description) { marks = marks.map(function (mark) { return mark.id === id ? Object.assign({}, mark, { description: String(description || "").slice(0, 500) }) : mark; }); changed(); },
+      setDescription: function (id, description) {
+        marks = marks.map(function (mark) { return mark.id === id ? Object.assign({}, mark, { description: String(description || "").slice(0, 500) }) : mark; });
+        var mark = marks.find(function (item) { return item.id === id; });
+        if (mark) Array.prototype.forEach.call(container.querySelectorAll(".inspection-sketch-mark"), function (node) {
+          if (node.dataset.markId !== id) return;
+          var info = typeFor(mark);
+          node.title = "Repère " + (marks.indexOf(mark) + 1) + " — " + info.label + " — " + labelFor(mark.view) + (mark.description ? " : " + mark.description : "");
+        });
+        changed("description");
+      },
       getMark: function (id) { return marks.find(function (mark) { return mark.id === id; }) || null; }
     };
   };

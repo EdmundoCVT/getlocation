@@ -90,9 +90,15 @@ test("V3 : le document PDF dédié ne dépend plus de l'impression navigateur", 
 });
 test("V3 : tableau des dommages conserve une description facultative dans la marque existante", async () => {
   const { dom, doc } = await view({ mode: "depart" });
-  const input = doc.querySelector("#damageTable input"); assert.ok(input); input.value = "Rayure profonde porte avant"; input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  const input = doc.querySelector("#damageTable input"); assert.ok(input); input.focus();
+  for (const value of ["R", "Ra", "Rayure profonde porte avant"]) {
+    input.value = value; input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    assert.equal(doc.querySelector("#damageTable input"), input, "le champ n'est pas recréé pendant la saisie");
+    assert.equal(doc.activeElement, input, "le clavier mobile garde le focus");
+  }
   assert.match(doc.querySelector("#damageTable").textContent, /Existant/);
   assert.equal(doc.querySelector("#sketch [data-mark-id]").dataset.x, "20");
+  assert.match(doc.querySelector("#sketch [data-mark-id]").title, /Rayure profonde porte avant/);
   dom.window.close();
 });
 test("V3 : historique reste en lecture seule et conserve le lecteur existant", async () => {

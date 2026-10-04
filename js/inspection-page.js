@@ -204,7 +204,7 @@
     $("carburant").value = stage.carburant == null ? 100 : stage.carburant; $("cles").value = stage.cles == null ? "" : stage.cles; $("clesAccessoires").value = stage.clesAccessoires || ""; $("dommages").value = stage.dommages || "";
     $("km").closest("label").firstChild.textContent = "Kilométrage " + mode;
     $("legacyCleanliness").hidden = !stage.proprete; $("legacyCleanliness").textContent = "Propreté historique conservée : " + (stage.proprete || ""); cleanliness(stage);
-    sketch = window.createInspectionSketch($("sketch"), { family, marks: stage.marks || [], onChange: () => { renderDamageTable(); changed(); } });
+    sketch = window.createInspectionSketch($("sketch"), { family, marks: stage.marks || [], onChange: reason => { if (reason !== "description") renderDamageTable(); changed(); } });
     renderDamageTable();
     for (const role of ["client", "agence"]) pads[role] = window.createInspectionSignature($("signatures"), { role, title: role === "client" ? "Signature client" : "Signature agence", value: stage.signatures && stage.signatures[role], onChange: changed });
     $("form").querySelectorAll("#information input,#vehicle input,#vehicle select,#dommages").forEach(input => input.addEventListener("input", changed));
