@@ -2158,6 +2158,28 @@ textarea:focus-visible,
   .protection-nom { font-size: 1.05rem; }
   .protection-garanties li { font-size: 0.84rem; }
   .protection-select { padding-left: 8px; padding-right: 8px; font-size: 0.88rem; }
+
+  /* Dans la grille à quatre cartes, la largeur réelle de chaque formule
+     dépend aussi du récapitulatif à droite. Les quatre éléments du résumé
+     ne tiennent donc pas de façon fiable sur une seule ligne. On les place
+     explicitement sur trois rangées : les étoiles et le tarif ne peuvent
+     plus se recouvrir, même lorsque la colonne centrale est étroite. */
+  .protection-summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "level toggle"
+      "price price";
+    gap: 6px 8px;
+    align-items: center;
+  }
+  .protection-level { grid-area: level; }
+  .protection-card .protection-price {
+    grid-area: price;
+    min-width: 0;
+    align-items: flex-start;
+    text-align: left;
+  }
+  .protection-details-toggle { grid-area: toggle; }
 }
 
 .protection-choice,

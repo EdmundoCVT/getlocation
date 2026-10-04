@@ -222,6 +222,17 @@ const dataJsSource = fs.readFileSync(path.join(__dirname, "..", "js", "data.js")
 const pricingJsSource = fs.readFileSync(path.join(__dirname, "..", "js", "pricing.js"), "utf8");
 const contratEnSource = fs.readFileSync(path.join(__dirname, "..", "js", "contrat-en.js"), "utf8");
 const contratHtml = fs.readFileSync(path.join(__dirname, "..", "contrat.html"), "utf8");
+const styleCss = fs.readFileSync(path.join(__dirname, "..", "css", "style.css"), "utf8");
+
+test("grille de quatre protections : étoiles et tarif occupent des lignes distinctes", () => {
+  const start = styleCss.indexOf("@media (min-width: 1240px)");
+  const end = styleCss.indexOf("\n}\n\n.protection-choice", start);
+  const fourColumnsRule = styleCss.slice(start, end);
+  assert.ok(start !== -1 && end !== -1, "la règle quatre colonnes des protections doit exister");
+  assert.match(fourColumnsRule, /grid-template-areas:\s*\n\s*"level toggle"\s*\n\s*"price price";/);
+  assert.match(fourColumnsRule, /\.protection-card \.protection-price \{\s*\n\s*grid-area: price;/);
+  assert.match(fourColumnsRule, /\.protection-level \{ grid-area: level; \}/);
+});
 
 function corpsScriptContrat() {
   const apresDataJs = contratHtml.indexOf("js/data.js");
