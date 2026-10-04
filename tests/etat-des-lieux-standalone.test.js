@@ -13,6 +13,7 @@ async function view({ mode = "retour", legacy = false, family = "utility" } = {}
     runScripts: "outside-only",
     beforeParse(window) {
       window.HTMLCanvasElement.prototype.getContext = () => ({ beginPath() {}, arc() {}, fill() {}, moveTo() {}, lineTo() {}, stroke() {}, clearRect() {}, drawImage() {} });
+      window.HTMLCanvasElement.prototype.toDataURL = () => "data:image/png;base64,AA==";
       window.fetch = async (url, options) => {
         requests.push({ url, options });
         return { ok: true, json: async () => legacy ? { inspection: { id: "res_fixture", client: { nom: "Historique", prenom: "Client" }, vehicule: "Corsa", depart: { km: 4083, cles: 2, marques: [] } } } : {
@@ -54,6 +55,37 @@ test("V3 : chaque emplacement propose caméra et photothèque multiple sans capt
   cards.forEach(card => { assert.equal(card.querySelectorAll("input[type=file]").length, 2); assert.equal(card.querySelector("[capture]").getAttribute("capture"), "environment"); assert.equal(card.querySelector("input:not([capture])").multiple, true); });
   assert.equal(doc.querySelector("[data-slot=tableau-de-bord]").querySelector("h3").textContent, "Tableau de bord");
   assert.equal(doc.querySelectorAll(".signature-pad").length, 2); dom.window.close();
+});
+test("V3 : les deux signatures disposent d'une zone mobile agrandie et d'un mode plein écran", async () => {
+  const { dom, doc } = await view();
+  assert.equal(doc.querySelectorAll(".signature-pad").length, 2);
+  assert.equal(doc.querySelectorAll(".signature-expand").length, 2);
+  assert.ok(doc.getElementById("signatureDialogCanvas"));
+  assert.match(page, /signature-dialog/);
+  assert.match(fs.readFileSync(path.join(root, "js", "inspection-signature.js"), "utf8"), /Signer en plein écran/);
+  const css = fs.readFileSync(path.join(root, "css", "inspection.css"), "utf8");
+  assert.match(css, /\.signature-pad\{min-height:240px/);
+  assert.match(css, /\.signature-dialog\{width:100vw;height:100dvh/);
+  dom.window.close();
+});
+test("V3 : le bouton plein écran ouvre la signature du bon signataire", async () => {
+  const { dom, doc } = await view();
+  const dialog = doc.getElementById("signatureDialog");
+  dialog.showModal = function () { this.open = true; };
+  dom.window.InspectionMedia.decode = async image => image;
+  doc.querySelectorAll(".signature-expand")[1].click();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(dialog.open, true);
+  assert.equal(dialog.dataset.role, "agence");
+  assert.equal(doc.getElementById("signatureDialogTitle").textContent, "Signature agence");
+  dom.window.close();
+});
+test("V3 : le document PDF ne crée pas de page photo vide et garde le croquis indivisible", () => {
+  const source = fs.readFileSync(path.join(root, "js", "inspection-document.js"), "utf8");
+  assert.match(source, /if \(snapshot\.photos\.length\) await photoPages/);
+  assert.match(source, /page\(heading, "sketch-page"\)/);
+  assert.match(source, /\.sketch-page,.sketch-sheet,.inspection-sketch \{ break-inside:avoid; page-break-inside:avoid; \}/);
+  assert.match(source, /@page \{ size:A4; margin:10mm; \}/);
 });
 test("V3 : tableau des dommages conserve une description facultative dans la marque existante", async () => {
   const { dom, doc } = await view({ mode: "depart" });

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>État des lieux | GET LOCATION</title>
-  <link rel="stylesheet" href="css/inspection.css?v=4">
+  <link rel="stylesheet" href="css/inspection.css?v=5">
 </head>
 <body>
   <main class="inspection" id="inspectionApp">
@@ -88,11 +88,25 @@
     <button id="closeLightbox" type="button" class="outline">Fermer</button>
     <p id="lightboxCaption"></p><img id="lightboxImage" alt="">
   </dialog>
-  <script src="js/inspection-sketch.js?v=4"></script>
+  <dialog id="signatureDialog" class="signature-dialog" aria-labelledby="signatureDialogTitle">
+    <section class="signature-dialog-content">
+      <header class="signature-dialog-header">
+        <div><p class="eyebrow">État des lieux</p><h2 id="signatureDialogTitle">Signature</h2></div>
+        <button id="signatureDialogClose" type="button" class="outline">Fermer</button>
+      </header>
+      <p class="hint">Signez confortablement dans cette zone. Tournez le téléphone en paysage si cela vous aide.</p>
+      <canvas id="signatureDialogCanvas" width="1200" height="560" aria-label="Zone de signature agrandie"></canvas>
+      <div class="signature-dialog-actions">
+        <button id="signatureDialogClear" type="button" class="danger">Effacer</button>
+        <button id="signatureDialogConfirm" type="button" class="primary">Valider la signature</button>
+      </div>
+    </section>
+  </dialog>
+  <script src="js/inspection-sketch.js?v=5"></script>
   <script src="js/legacy-inspection-sketch.js?v=2"></script>
   <script src="js/inspection-media-view.js?v=4"></script>
-  <script src="js/inspection-signature.js?v=3"></script>
-  <script src="js/inspection-document.js?v=4"></script>
-  <script src="js/inspection-page.js?v=4"></script>
+  <script src="js/inspection-signature.js?v=4"></script>
+  <script src="js/inspection-document.js?v=5"></script>
+  <script src="js/inspection-page.js?v=5"></script>
 </body>
 </html>
