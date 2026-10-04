@@ -77,7 +77,7 @@
         <div class="actions">
           <button class="primary" id="save" type="submit">Enregistrer l’état des lieux</button>
           <button class="secondary" id="finalize" type="button">Finaliser l’état des lieux</button>
-          <button class="outline" id="pdf" type="button">Préparer le PDF</button>
+          <button class="outline" id="pdf" type="button">Télécharger le PDF</button>
         </div>
         <p class="hint">La finalisation reste modifiable. Toute correction peut être enregistrée à nouveau.</p>
         <p id="message" role="status" aria-live="polite"></p>
@@ -92,7 +92,7 @@
     <section class="signature-dialog-content">
       <header class="signature-dialog-header">
         <div><p class="eyebrow">État des lieux</p><h2 id="signatureDialogTitle">Signature</h2></div>
-        <button id="signatureDialogClose" type="button" class="outline">Fermer</button>
+        <button id="signatureDialogClose" type="button" class="outline">Annuler</button>
       </header>
       <p class="hint">Signez confortablement dans cette zone. Tournez le téléphone en paysage si cela vous aide.</p>
       <canvas id="signatureDialogCanvas" width="1200" height="560" aria-label="Zone de signature agrandie"></canvas>
@@ -105,8 +105,9 @@
   <script src="js/inspection-sketch.js?v=5"></script>
   <script src="js/legacy-inspection-sketch.js?v=2"></script>
   <script src="js/inspection-media-view.js?v=4"></script>
-  <script src="js/inspection-signature.js?v=4"></script>
-  <script src="js/inspection-document.js?v=5"></script>
-  <script src="js/inspection-page.js?v=5"></script>
+  <script src="js/inspection-signature.js?v=5"></script>
+  <script src="js/vendor/pdf-lib.min.js"></script>
+  <script src="js/inspection-document.js?v=6"></script>
+  <script src="js/inspection-page.js?v=6"></script>
 </body>
 </html>

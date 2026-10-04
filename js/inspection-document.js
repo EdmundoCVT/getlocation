@@ -1,70 +1,143 @@
-// Document A4 distinct de l'interface : lecture seule, sans URL/tokens ni
-// contrôles de saisie. Les mêmes sources privées déjà décodées sont utilisées.
+// PDF construit à partir des données du dossier ; aucun DOM imprimé ni URL d'accès.
 (function (global) {
   "use strict";
-  const CSS = `
-    @page { size:A4; margin:10mm; }
-    * { box-sizing:border-box; } body { margin:0; color:#172b43; font:10pt Arial,sans-serif; }
-    .page { min-height:0; padding:4mm 5mm; break-after:page; page-break-after:always; } .page:last-of-type { break-after:auto; page-break-after:auto; }
-    h1 { font-size:22pt; margin:2mm 0 3mm; } h2 { font-size:15pt; margin:0 0 3mm; break-after:avoid; page-break-after:avoid; } h3 { font-size:10pt; margin:3mm 0 1.5mm; break-after:avoid; page-break-after:avoid; } p { margin:2mm 0; line-height:1.3; white-space:pre-wrap; overflow-wrap:anywhere; }
-    .brand { color:#ff6b00; font-size:18pt; font-weight:bold; letter-spacing:.04em; } .mode { color:#b44b00; font-weight:bold; }
-    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:2.5mm 5mm; } dl { margin:0; } dl>div { padding:1.5mm 0; border-bottom:1px solid #d9e0ea; } dt { color:#52627a; font-size:8pt; } dd { margin:1mm 0 0; font-weight:bold; overflow-wrap:anywhere; }
-    .damage-table { display:grid; gap:1.5mm; break-inside:avoid; page-break-inside:avoid; } .damage-row { display:grid; grid-template-columns:11mm 29mm 29mm 31mm 1fr; gap:2mm; align-items:center; padding:2mm; border-bottom:1px solid #d9e0ea; break-inside:avoid; page-break-inside:avoid; } .damage-head { color:#52627a; font-size:8pt; font-weight:bold; background:#edf2f8; border:0; } .damage-cell { overflow-wrap:anywhere; }
-    .sketch-page,.sketch-sheet,.inspection-sketch { break-inside:avoid; page-break-inside:avoid; } .inspection-sketch-grid { display:grid; grid-template-columns:1fr 1fr; gap:3mm 7mm; align-items:start; } .inspection-sketch-view { text-align:center; break-inside:avoid; page-break-inside:avoid; } .inspection-sketch-view h3 { margin:0 0 1mm; } .inspection-sketch-view:last-child { grid-column:1/-1; width:42mm; justify-self:center; } .inspection-sketch-canvas { position:relative; width:100%; line-height:0; } .inspection-reference-image { width:100%; height:auto; display:block; } .inspection-sketch-mark { position:absolute; transform:translate(-50%,-50%); display:inline-flex; align-items:center; justify-content:center; gap:1px; min-width:6mm; min-height:6mm; padding:1px; border:1px solid white; border-radius:50%; background:#b82119; color:#fff; font-weight:bold; line-height:1; } .inspection-sketch-mark.bosse { background:#c95a00; } .inspection-sketch-mark.eclat { background:#0066ff; } .inspection-sketch-mark-number { display:grid; place-items:center; width:3mm; height:3mm; border-radius:50%; background:#fff; color:#172b43; font-size:6pt; } .inspection-sketch-mark-symbol { font-size:7pt; } .inspection-sketch-tools { display:none; }
-    .photo-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4mm; } figure { margin:0; break-inside:avoid; page-break-inside:avoid; } figure h3 { margin:0 0 1mm; font-size:9pt; text-transform:uppercase; } figure img { width:100%; height:48mm; object-fit:contain; display:block; background:#f4f6f8; } figcaption { padding:1.5mm 0 0; font-size:8pt; overflow-wrap:anywhere; } .import { margin:1mm 0 0; font-size:7pt; color:#52627a; }
-    .signature-grid { display:grid; grid-template-columns:1fr 1fr; gap:7mm; break-inside:avoid; page-break-inside:avoid; } .signature { break-inside:avoid; page-break-inside:avoid; border:1px solid #d9e0ea; padding:4mm; } .signature img { width:100%; height:38mm; object-fit:contain; display:block; } .footer { color:#52627a; font-size:8pt; margin-top:3mm; }.document-tools { margin:12px; padding:12px; background:#eef3f8; }.document-tools button { min-height:44px; padding:10px 20px; }
-    @media screen { body { background:#e8edf3; }.page { width:210mm; min-height:297mm; margin:16px auto; background:#fff; } }
-    @media print { .document-tools { display:none!important; } h1,h2,h3 { break-after:avoid; page-break-after:avoid; } }
-  `;
+  const { PDFDocument, StandardFonts, rgb } = global.PDFLib;
+  const W = 595.28, H = 841.89, M = 38, ink = rgb(.09,.16,.26), muted = rgb(.34,.41,.5), orange = rgb(1,.42,0), line = rgb(.85,.89,.93);
+  const safe = value => String(value == null ? "" : value).replace(/[\r\n\t]+/g, " ").replace(/[\u2011\u2013\u2014]/g, "-").replace(/[^\u0020-\u007e\u00a0-\u00ff\u20ac]/g, "?");
+  function wrap(font, value, size, width) {
+    const result = []; let row = "";
+    for (const word of safe(value).split(/\s+/)) {
+      if (!word) continue;
+      const next = row ? row + " " + word : word;
+      if (font.widthOfTextAtSize(next, size) <= width) { row = next; continue; }
+      if (row) result.push(row);
+      row = "";
+      for (const char of word) {
+        if (font.widthOfTextAtSize(row + char, size) > width && row) { result.push(row); row = ""; }
+        row += char;
+      }
+    }
+    if (row) result.push(row);
+    return result.length ? result : ["-"];
+  }
+  function write(page, font, value, x, y, size = 9, color = ink, width = W - M - x) {
+    const rows = wrap(font, value, size, width);
+    rows.forEach((row, i) => page.drawText(row, { x, y:y-i*(size+3), size, font, color }));
+    return y-rows.length*(size+3);
+  }
+  function fit(image, x, y, width, height) {
+    const ratio = Math.min(width/image.width, height/image.height), w = image.width*ratio, h = image.height*ratio;
+    return { x:x+(width-w)/2, y:y+(height-h)/2, width:w, height:h };
+  }
+  async function picture(pdf, url) {
+    const image = new Image(); image.src = url; await global.InspectionMedia.decode(image);
+    const canvas = document.createElement("canvas"), scale = Math.min(1,1600/Math.max(image.naturalWidth,image.naturalHeight));
+    canvas.width = Math.max(1,Math.round(image.naturalWidth*scale)); canvas.height = Math.max(1,Math.round(image.naturalHeight*scale));
+    const ctx = canvas.getContext("2d"); ctx.fillStyle = "white"; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.drawImage(image,0,0,canvas.width,canvas.height);
+    const binary = atob(canvas.toDataURL("image/jpeg",.88).split(",")[1]);
+    return pdf.embedJpg(Uint8Array.from(binary,c=>c.charCodeAt(0)));
+  }
   global.InspectionDocument = {
-    open() { return global.open("about:blank", "_blank"); },
-    async prepare(popup, snapshot, cache) {
-      if (!popup) throw new Error("Autorisez l’ouverture du document dans votre navigateur.");
-      const doc = popup.document, images = [];
-      doc.documentElement.lang = "fr"; doc.title = "GET LOCATION — État des lieux " + snapshot.mode + " — " + snapshot.reference;
-      doc.head.replaceChildren(); doc.body.replaceChildren();
-      const style = doc.createElement("style"); style.textContent = CSS; doc.head.append(style);
-      const meta = doc.createElement("meta"); meta.name = "referrer"; meta.content = "no-referrer"; doc.head.append(meta);
-      const tools = doc.createElement("div"); tools.className = "document-tools"; tools.textContent = "Préparation du document…"; doc.body.append(tools);
-      const text = (parent, tag, value, className) => { const node = doc.createElement(tag); node.textContent = value == null ? "" : String(value); if (className) node.className = className; parent.append(node); return node; };
-      const page = (title, className) => { const node = doc.createElement("section"); node.className = "page" + (className ? " " + className : ""); doc.body.append(node); if (title) text(node, "h2", title); return node; };
-      const fields = (parent, entries) => { const dl = doc.createElement("dl"); dl.className = "grid"; parent.append(dl); entries.forEach(([label, value]) => { if (value !== "" && value != null) { const row = doc.createElement("div"); text(row, "dt", label); text(row, "dd", value); dl.append(row); } }); return dl; };
-      const readable = global.InspectionMedia.date, stage = snapshot.stage;
-      const cleanliness = value => [["Extérieur", value.propreteExterieure == null ? null : value.propreteExterieure + " / 5"], ["Intérieur", value.propreteInterieure == null ? null : value.propreteInterieure + " / 5"], ["Espace de chargement", value.propreteChargement == null ? null : value.propreteChargement + " / 5"]];
-      const damageRows = () => {
-        const rows = [];
-        if (snapshot.mode === "retour" && snapshot.depart && Array.isArray(snapshot.depart.marks)) snapshot.depart.marks.forEach(mark => rows.push({ mark, status: "Existant au départ" }));
-        (stage.marks || []).forEach(mark => rows.push({ mark, status: snapshot.mode === "retour" ? "Nouveau au retour" : "Existant" }));
-        return rows;
+    async generate(snapshot, cache) {
+      const pdf = await PDFDocument.create(), regular = await pdf.embedFont(StandardFonts.Helvetica), bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+      pdf.setTitle("Etat des lieux GET LOCATION - "+snapshot.reference); pdf.setAuthor("GET LOCATION");
+      const date = global.InspectionMedia.date, stage = snapshot.stage, caption = snapshot.reference+" - "+snapshot.mode.toUpperCase();
+      const make = (title, sub = caption) => {
+        const page = pdf.addPage([W,H]);
+        page.drawText("GET LOCATION",{x:M,y:H-M,font:bold,size:16,color:orange});
+        write(page,bold,title,M,H-M-32,16);
+        write(page,bold,sub,M,H-M-51,9,muted);
+        page.drawLine({start:{x:M,y:H-M-62},end:{x:W-M,y:H-M-62},thickness:1,color:line});
+        return {page,y:H-M-84};
       };
-      const first = page(); text(first, "div", "GET LOCATION", "brand"); text(first, "h1", "État des lieux du véhicule"); text(first, "p", snapshot.reference + " · " + snapshot.mode.toUpperCase(), "mode");
-      fields(first, [...snapshot.summary, ["Date et heure", readable(stage.dateHeure)], ["Agent", stage.agent], ["Kilométrage", stage.km == null ? null : stage.km + " km"], ["Carburant / charge", stage.carburant == null ? null : stage.carburant + " %"], ["Clés", stage.cles], ["Type de constat", snapshot.mode.toUpperCase()]]);
-      text(first, "h3", "Propreté"); fields(first, cleanliness(stage));
-      text(first, "h3", "Dommages");
-      const table = doc.createElement("div"); table.className = "damage-table"; first.append(table);
-      const head = doc.createElement("div"); head.className = "damage-row damage-head"; ["N°", "Statut", "Type", "Zone", "Description"].forEach(value => text(head, "div", value, "damage-cell")); table.append(head);
-      const rows = damageRows();
-      if (!rows.length) text(first, "p", "Aucun dommage renseigné.");
-      rows.forEach((row, index) => { const line = doc.createElement("div"); line.className = "damage-row"; const type = global.InspectionSketch.TYPES.find(item => item.id === row.mark.type); [[index + 1, "N°"], [row.status, "Statut"], [type ? type.label : row.mark.type, "Type"], [global.InspectionSketch.labelFor(row.mark.view), "Zone"], [row.mark.description || "Non renseignée", "Description"]].forEach(([value, label]) => { const cell = text(line, "div", value, "damage-cell"); cell.dataset.label = label; }); table.append(line); });
-      text(first, "h3", "Remarques et contrôle"); text(first, "p", stage.dommages || "Aucune remarque."); fields(first, [["Accessoires", stage.clesAccessoires]]);
-      const sketchPage = (heading, value) => { const sheet = page(heading, "sketch-page"), holder = document.createElement("div"); holder.className = "sketch-sheet"; global.createInspectionSketch(holder, { marks: value.marks, readOnly: true }); const imported = doc.importNode(holder, true); sheet.append(imported); imported.querySelectorAll(".inspection-reference-image").forEach(image => images.push(image)); text(sheet, "p", "X Rayure · O Bosse / impact · ● Éclat", "footer"); };
-      sketchPage("Schéma annoté — " + snapshot.mode, stage);
-      if (snapshot.mode === "retour" && snapshot.depart) sketchPage("Schéma de référence — départ", snapshot.depart);
-      const photoPages = async (items, heading) => {
-        for (let index = 0; index < items.length; index += 9) {
-          const sheet = page(heading), grid = doc.createElement("div"); grid.className = "photo-grid"; sheet.append(grid);
-          for (const item of items.slice(index, index + 9)) {
-            const url = await cache.get(item), figure = doc.createElement("figure"), image = doc.createElement("img"); image.alt = global.InspectionMedia.labels[item.slot] || item.label || "Photo"; image.src = url; images.push(image); text(figure, "h3", image.alt); figure.append(image); text(figure, "figcaption", "Date/heure : " + readable(item.capturedAt || item.dateHeure)); if (item.createdAt) text(figure, "p", "Importée le : " + readable(item.createdAt), "import"); grid.append(figure);
-          }
+      let {page:first,y} = make("Etat des lieux du vehicule");
+      const fields = [...snapshot.summary,["Date et heure du constat",date(stage.dateHeure)],["Agent",stage.agent],["Kilometrage",stage.km == null ? "" : stage.km+" km"],["Carburant / charge",stage.carburant == null ? "" : stage.carburant+" %"],["Cles",stage.cles],["Accessoires",stage.clesAccessoires],["Proprete exterieure",stage.propreteExterieure == null ? stage.proprete : stage.propreteExterieure+" / 5"],["Proprete interieure",stage.propreteInterieure == null ? stage.proprete : stage.propreteInterieure+" / 5"],["Proprete chargement",stage.propreteChargement == null ? "" : stage.propreteChargement+" / 5"]].filter(([,v])=>v!==""&&v!=null);
+      for (let i=0;i<fields.length;i+=2) {
+        const pair = fields.slice(i,i+2), height = Math.max(27,...pair.map(([,v])=>wrap(bold,v,9,232).length*12+14));
+        if (y-height<150) ({page:first,y}=make("Informations (suite)"));
+        pair.forEach(([label,value],col)=>{const x=M+col*265;write(first,regular,label,x,y,7.5,muted,232);write(first,bold,value,x,y-13,9,ink,232);});
+        y-=height+5;
+      }
+      const rows = [];
+      if (snapshot.mode==="retour"&&snapshot.depart) (snapshot.depart.marks||[]).forEach(mark=>rows.push({mark,status:"Present au depart"}));
+      (stage.marks||[]).forEach(mark=>rows.push({mark,status:snapshot.mode==="retour"?"Nouveau au retour":"Au depart"}));
+      function block(title,values) {
+        if (y<105) ({page:first,y}=make("Constat (suite)"));
+        y=write(first,bold,title,M,y-5,11)-4;
+        for (const value of values) {
+          if (y-wrap(regular,value,8.5,W-2*M).length*11<52) ({page:first,y}=make("Constat (suite)"));
+          y=write(first,regular,value,M,y,8.5)-4;
         }
-      };
-      if (snapshot.photos.length) await photoPages(snapshot.photos, "Photos au " + snapshot.mode);
-      if (snapshot.mode === "retour" && snapshot.departPhotos.length) await photoPages(snapshot.departPhotos, "Photos de référence — départ");
-      const sign = page("Signatures — " + snapshot.mode), signatures = doc.createElement("div"); signatures.className = "signature-grid"; sign.append(signatures);
-      for (const role of ["client", "agence"]) { const value = stage.signatures && stage.signatures[role], panel = doc.createElement("section"); panel.className = "signature"; text(panel, "h3", role === "client" ? "Locataire" : "GET LOCATION"); if (value) { fields(panel, [["Nom", value.name], ["Signé le", value.signedAt ? readable(value.signedAt) : "Non renseigné"]]); if (value.imageDataUrl) { const image = doc.createElement("img"); image.alt = "Signature " + role; image.src = value.imageDataUrl; panel.append(image); images.push(image); } } else text(panel, "p", "Signature non renseignée."); signatures.append(panel); }
-      text(sign, "p", snapshot.dirty ? "Document de travail — modifications non enregistrées." : "Document préparé à partir de l’état des lieux enregistré.", "footer");
-      await Promise.all(images.map(image => global.InspectionMedia.decode(image))); if (doc.fonts && doc.fonts.ready) await doc.fonts.ready;
-      tools.replaceChildren(); const print = doc.createElement("button"); print.textContent = "Imprimer / Enregistrer en PDF"; print.onclick = () => popup.print(); tools.append(print); text(tools, "p", "Document prêt. Il ne contient aucun lien ni jeton d’accès."); doc.body.dataset.ready = "true"; popup.focus(); popup.print();
+      }
+      block("Dommages",rows.length?rows.map(({mark,status},i)=>{
+        const type=global.InspectionSketch.TYPES.find(t=>t.id===mark.type);
+        return (i+1)+". "+status+" - "+(type?type.label:mark.type)+" - "+global.InspectionSketch.labelFor(mark.view)+" : "+(mark.description||"Sans description");
+      }):["Aucun dommage renseigne."]);
+      block("Remarques",[stage.dommages||"Aucune remarque."]);
+      async function sketch(title,value) {
+        const {page}=make(title);
+        for (const [i,view] of global.InspectionSketch.VIEWS.entries()) {
+          const top=i<4?690-Math.floor(i/2)*174:350, x=i<4?M+(i%2)*265:(W-170)/2, width=i<4?245:170, height=i<4?142:278;
+          write(page,bold,view.label,x,top+18,9);
+          const response=await fetch(view.asset); if(!response.ok) throw new Error("Schema vehicule indisponible.");
+          const source=await pdf.embedPng(await response.arrayBuffer()), box=fit(source,x,top-height,width,height);
+          page.drawImage(source,box);
+          (value.marks||[]).forEach((mark,index)=>{
+            if(mark.view!==view.key)return;
+            const mx=box.x+Math.min(100,Math.max(0,Number(mark.x)||0))/100*box.width;
+            const my=box.y+(1-Math.min(100,Math.max(0,Number(mark.y)||0))/100)*box.height;
+            page.drawCircle({x:mx,y:my,size:9,color:orange,borderColor:rgb(1,1,1),borderWidth:1});
+            const number=String(index+1);page.drawText(number,{x:mx-bold.widthOfTextAtSize(number,8)/2,y:my-3,font:bold,size:8,color:rgb(1,1,1)});
+          });
+        }
+        write(page,regular,"Reperes numerotes correspondant a la liste des dommages.",M,61,8,muted);
+      }
+      await sketch("Schema annote - "+snapshot.mode,stage);
+      if(snapshot.mode==="retour"&&snapshot.depart) await sketch("Schema de reference - depart",snapshot.depart);
+      let photoPage=null, photoY=0, count=0;
+      async function photos(items,title) {
+        if(!items.length)return;
+        // A new stage always starts under its own heading; never mix departure
+        // and return photos under a misleading page title.
+        if(photoPage&&count){photoPage=null;count=0;}
+        for(const item of items) {
+          if(!photoPage||count>=9) {const sheet=make("Photos - "+title);photoPage=sheet.page;photoY=sheet.y;count=0;}
+          const col=count%3,row=Math.floor(count/3),x=M+col*176,top=photoY-row*156;
+          const source=await picture(pdf,await cache.get(item));
+          photoPage.drawRectangle({x,y:top-112,width:163,height:108,color:rgb(.96,.97,.98)});
+          photoPage.drawImage(source,fit(source,x+2,top-110,159,104));
+          write(photoPage,bold,(title+" - "+(global.InspectionMedia.labels[item.slot]||item.label||"Photo")),x,top-124,8,ink,160);
+          write(photoPage,regular,date(item.capturedAt||item.dateHeure),x,top-141,7.5,muted,160);
+          count++;
+        }
+      }
+      if(snapshot.mode==="retour"){await photos(snapshot.departPhotos,"depart");await photos(snapshot.photos,"retour");}
+      else await photos(snapshot.photos,"depart");
+      const remaining=photoPage?photoY-Math.ceil(count/3)*156:0;
+      let signPage,signY;
+      if(!photoPage||remaining<205) {const sheet=make("Signatures");signPage=sheet.page;signY=sheet.y;}
+      else {signPage=photoPage;signY=remaining-20;}
+      write(signPage,bold,"SIGNATURES - "+snapshot.mode.toUpperCase(),M,signY,11,orange);
+      for(const [index,role] of ["client","agence"].entries()) {
+        const value=stage.signatures&&stage.signatures[role],x=M+index*265,top=signY-18;
+        signPage.drawRectangle({x,y:top-125,width:245,height:120,borderColor:line,borderWidth:1});
+        write(signPage,bold,role==="client"?"LOCATAIRE":"GET LOCATION",x+9,top-18,9);
+        write(signPage,regular,"Nom : "+(value&&value.name||"Non renseigne"),x+9,top-35,8,ink,225);
+        write(signPage,regular,"Date : "+(value&&value.signedAt?date(value.signedAt):"Non renseignee"),x+9,top-49,8,ink,225);
+        if(value&&value.imageDataUrl){const image=await picture(pdf,value.imageDataUrl);signPage.drawImage(image,fit(image,x+9,top-116,227,61));}
+      }
+      pdf.getPages().forEach((page,index)=>{
+        page.drawLine({start:{x:M,y:29},end:{x:W-M,y:29},thickness:.7,color:line});
+        page.drawText("GET LOCATION - Etat des lieux",{x:M,y:16,font:regular,size:7,color:muted});
+        page.drawText((index+1)+" / "+pdf.getPageCount(),{x:W-M-34,y:16,font:regular,size:7,color:muted});
+      });
+      return pdf.save();
+    },
+    async download(snapshot,cache) {
+      const data=await this.generate(snapshot,cache),url=URL.createObjectURL(new Blob([data],{type:"application/pdf"}));
+      const link=document.createElement("a");link.href=url;link.download="etat-des-lieux-"+snapshot.mode+"-"+String(snapshot.reference).replace(/[^a-zA-Z0-9-]/g,"-")+".pdf";
+      document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+      return data;
     }
   };
 }(window));

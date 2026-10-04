@@ -19,10 +19,10 @@ d’autorisation. Aucun secret supplémentaire, migration ou stockage métier cr
 - `js/inspection-media-view.js` : chargement authentifié, décodage et cache local
   des images, aperçus, galerie et lightbox.
 - `js/inspection-signature.js` : deux signatures EDL indépendantes du contrat.
-- `js/inspection-document.js` : document A4 séparé, calé sur la structure de
+- `js/inspection-document.js` et `js/vendor/pdf-lib.min.js` : PDF A4 séparé, calé sur la structure de
   référence (informations, propreté, dommages, remarques, schéma, galerie
   trois colonnes et signatures). Chargement/décodage de toutes
-  les images avant impression. En cas de photo inaccessible, impression refusée
+  les images avant génération. En cas de photo inaccessible, téléchargement refusé
   avec un message explicite, pas de PDF silencieusement incomplet.
 
 ## Stockage et limites conservées
@@ -53,16 +53,16 @@ l’API existante, qui les actualise lors de l’enregistrement.
 
 La politique `img-src 'self' data:` interdit les URL `blob:` auparavant utilisées
 par la galerie. Les réponses privées sont désormais décodées en data URLs
-gardées en mémoire, également utilisables dans le document d’impression.
+gardées en mémoire, également utilisables pour construire le PDF.
 Aucun accès public aux médias n’a été ajouté. Les originaux ne sont pas
 recompressés, modifiés ou déplacés. Les formats non décodables par le navigateur
 (HEIC selon le navigateur) affichent une erreur explicite ; aucune conversion
 ni date artificielle n’est produite.
 
-Le document s’ouvre sur `about:blank`, sans token. Ses marges A4 sont réalisées
-par un padding interne avec une marge de page nulle pour éviter les pieds de
-page URL automatiques. Ne pas remplacer ces marges par celles du navigateur.
-L’impression directe de l’interface indique d’utiliser le mode document et
+Le PDF est créé localement depuis les données chargées et téléchargé comme un
+fichier, sans fenêtre `about:blank`, impression HTML ni URL dans le document.
+Les cinq vues et les repères sont dessinés sur des rectangles fixes en page 2.
+L’impression directe de l’interface indique d’utiliser le bouton PDF et
 retire temporairement le fragment sécurisé jusqu’à `afterprint`.
 
 Les dossiers `source=legacy` restent en lecture seule avec le moteur historique.
@@ -74,6 +74,7 @@ données de production Zvezdan n’est effectué par les tests.
 ```sh
 node --test --test-isolation=none tests/etat-des-lieux-standalone.test.js tests/worker-inspection-media.test.js tests/worker-contract-dossier.test.js tests/worker-legacy-inspection-agency.test.js tests/validate-contract-dossier.test.js
 node scripts/test-inspection-v3-browser.js
+node scripts/test-inspection-pdf-render.js
 npm test
 ```
 
@@ -92,6 +93,8 @@ refus d’un kilométrage incohérent, échec de sauvegarde sans perte de saisie
 refus d’impression si médias indisponibles, historique en lecture seule,
 375/390/430/1280 px, PDF contenant les images réelles et aucun token/URL.
 Les captures et PDF sont écrits dans un répertoire temporaire annoncé en sortie.
+La fixture PDF hors navigateur produit un départ et un retour reproductibles
+pour inspection avec Poppler, même si Chromium n'est pas installé.
 
 L’ouverture réelle de la caméra iOS/Android et le déploiement de production
 nécessitent une vérification manuelle après publication.

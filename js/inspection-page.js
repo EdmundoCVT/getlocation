@@ -184,16 +184,17 @@
     finally { saving = false; status(); }
   }
   $("form").onsubmit = event => { event.preventDefault(); save(false); };
+  document.addEventListener("inspection-signature-accepted", () => { save(false); });
   $("finalize").onclick = () => save(true);
   $("pdf").onclick = async () => {
     if (!dossier) return;
-    const popup = window.InspectionDocument.open();
-    $("pdf").disabled = true; message("Préparation du document et chargement de toutes les photos…");
+    $("pdf").disabled = true; message("Création du PDF et chargement de toutes les photos…");
     try {
       await queue; await Promise.all(Object.values(pads).map(pad => pad.ready()));
-      await window.InspectionDocument.prepare(popup, { mode, family, reference: reservation.contractNumero || reservation.id, summary: summaryEntries(reservation), stage: readStage(), depart: dossier.depart, photos: [...media[mode]], departPhotos: [...media.depart], dirty }, cache);
-      message("Document prêt : photos et signatures chargées avant impression.");
-    } catch (error) { message("PDF non imprimé : " + error.message); if (popup && !popup.closed) popup.document.body.textContent = "Document non imprimé : " + error.message + " Fermez cette fenêtre et réessayez."; }
+      if (dirty && !(await save(false))) throw new Error("Enregistrez les modifications avant de télécharger le PDF.");
+      await window.InspectionDocument.download({ mode, family, reference: reservation.contractNumero || reservation.id, summary: summaryEntries(reservation), stage: readStage(), depart: dossier.depart, photos: [...media[mode]], departPhotos: [...media.depart], dirty }, cache);
+      message("PDF téléchargé avec photos et signatures.");
+    } catch (error) { message("PDF non généré : " + error.message); }
     finally { $("pdf").disabled = false; }
   };
   function fill() {

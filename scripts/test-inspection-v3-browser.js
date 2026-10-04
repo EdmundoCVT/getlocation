@@ -120,8 +120,10 @@ test("V3 navigateur : départ complet, retour, rechargement, mobiles et PDF avec
   await page.waitForFunction(() => document.querySelectorAll('[data-slot=tableau-de-bord] .photo-item').length === 1);
   for (const role of ["client", "agence"]) {
     await page.fill(`#signature-${role}-name`, role === "client" ? "Client V3" : "Agent V3");
-    const canvas = page.locator(`canvas[data-role=${role}]`); await canvas.scrollIntoViewIfNeeded(); const box = await canvas.boundingBox();
+    await page.locator(`.signature-box:has(canvas[data-role=${role}]) .signature-expand`).click();
+    const canvas = page.locator("#signatureDialogCanvas"), box = await canvas.boundingBox();
     await page.mouse.move(box.x + 30, box.y + 30); await page.mouse.down(); await page.mouse.move(box.x + 120, box.y + 60, { steps: 6 }); await page.mouse.up();
+    await page.click("#signatureDialogConfirm");
   }
   await page.click("#save"); await waitStatus("Modifications enregistrées");
   await page.reload(); await page.waitForSelector("#form:not([hidden])");
@@ -137,16 +139,12 @@ test("V3 navigateur : départ complet, retour, rechargement, mobiles et PDF avec
     await page.screenshot({ path: path.join(artifacts, `depart-${width}.png`), fullPage: true });
   }
   const print = async name => {
-    const promised = context.waitForEvent("page"); await page.click("#pdf"); const popup = await promised;
-    await popup.waitForFunction(() => document.body.dataset.ready === "true");
-    assert.equal(popup.url(), "about:blank"); assert.equal(await popup.locator("input,select,textarea").count(), 0);
-    assert.equal(await popup.locator("img").evaluateAll(images => images.every(im => im.complete && im.naturalWidth > 0 && (im.src.startsWith("data:image/") || im.src.includes("/images/inspection/")))), true);
-    assert.equal(await popup.locator("body").textContent().then(text => text.includes(access.token) || text.includes("agencyToken")), false);
-    const pdf = path.join(artifacts, name + ".pdf"); await popup.pdf({ path: pdf, preferCSSPageSize: true, printBackground: true, displayHeaderFooter: true });
-    const content = execFileSync("pdftotext", [pdf, "-"], { encoding: "utf8" }); assert.equal(content.includes(access.token) || content.includes("agencyToken") || content.includes("about:blank"), false); assert.match(content, /Client V3/); assert.match(content, /Date\/heure :/); assert.match(content, /TABLEAU DE BORD/);
+    const promised = page.waitForEvent("download"); await page.click("#pdf"); const download = await promised;
+    const pdf = path.join(artifacts, name + ".pdf"); await download.saveAs(pdf);
+    const content = execFileSync("pdftotext", [pdf, "-"], { encoding: "utf8" }); assert.equal(content.includes(access.token) || content.includes("agencyToken") || content.includes("about:blank"), false); assert.match(content, /Client V3/); assert.match(content, /Tableau de bord/i);
     const imageList = execFileSync("pdfimages", ["-list", pdf], { encoding: "utf8" }); assert.match(imageList, /480\s+640/);
-    const textPages = content.split("\f"); const sketch = textPages.find(text => text.includes("Schéma annoté — " + name)); assert.ok(sketch); for (const label of ["Profil conducteur", "Avant", "Profil passager", "Arrière", "Dessus"]) assert.ok(sketch.includes(label), `${label} sur la même page croquis`);
-    console.log("PDF vérifié :", name, "— photos incorporées, 5 vues sur une page, aucun token"); await popup.close();
+    const textPages = content.split("\f"); const sketch = textPages.find(text => text.includes("Schema annote - " + name)); assert.ok(sketch); for (const label of ["Profil conducteur", "Avant", "Profil passager", "Arrière", "Dessus"]) assert.ok(sketch.includes(label), `${label} sur la même page croquis`);
+    console.log("PDF vérifié :", name, "— photos incorporées, 5 vues sur une page, aucun token");
   };
   await print("depart");
   const departure = JSON.parse(JSON.stringify(saved.depart));
@@ -164,8 +162,10 @@ test("V3 navigateur : départ complet, retour, rechargement, mobiles et PDF avec
   assert.equal(await page.inputValue("#agent"), "Saisie conservée"); assert.equal(await page.locator("#saveStatus").textContent(), "Modifications non enregistrées"); failSave = false;
   for (const role of ["client", "agence"]) {
     await page.fill(`#signature-${role}-name`, role === "client" ? "Client V3" : "Agent Retour");
-    const canvas = page.locator(`canvas[data-role=${role}]`); await canvas.scrollIntoViewIfNeeded(); const box = await canvas.boundingBox();
+    await page.locator(`.signature-box:has(canvas[data-role=${role}]) .signature-expand`).click();
+    const canvas = page.locator("#signatureDialogCanvas"), box = await canvas.boundingBox();
     await page.mouse.move(box.x + 40, box.y + 35); await page.mouse.down(); await page.mouse.move(box.x + 170, box.y + 70, { steps: 6 }); await page.mouse.up();
+    await page.click("#signatureDialogConfirm");
   }
   await page.click("#save"); await waitStatus("Modifications enregistrées");
   await page.reload(); await page.waitForSelector("#form:not([hidden])");
@@ -181,8 +181,8 @@ test("V3 navigateur : départ complet, retour, rechargement, mobiles et PDF avec
   await context.route("**/api/inspection-media?**", route => route.continue());
   failReads = true; await page.reload(); await page.waitForSelector("#form:not([hidden])"); await page.waitForFunction(() => [...document.querySelectorAll(".photo-placeholder")].some(node => node.textContent.includes("inaccessible")));
   assert.equal(await page.locator("#photos img").count(), 0);
-  const failedPopup = context.waitForEvent("page"); await page.click("#pdf"); const failed = await failedPopup;
-  await page.waitForFunction(() => document.querySelector("#message").textContent.startsWith("PDF non imprimé")); assert.equal(await failed.evaluate(() => window.__printCalls), 0); await failed.close(); failReads = false;
+  await page.click("#pdf");
+  await page.waitForFunction(() => document.querySelector("#message").textContent.startsWith("PDF non généré")); assert.equal(await page.evaluate(() => window.__printCalls), 0); failReads = false;
   const writes = calls.filter(call => call.method !== "GET").length;
   await page.goto(base + "?source=legacy&legacyId=res_legacy_fixture&mode=depart"); await page.waitForSelector("#legacyContent:not([hidden]) img");
   assert.match(await page.locator("#legacyContent").textContent(), /4083/);

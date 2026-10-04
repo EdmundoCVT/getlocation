@@ -34,7 +34,8 @@
     box.className = "signature-box"; title.textContent = options.title; label.className = "field"; label.textContent = "Nom du signataire";
     name.id = "signature-" + options.role + "-name"; name.maxLength = 100; name.autocomplete = "name"; label.append(name);
     canvas.className = "signature-pad"; canvas.width = 960; canvas.height = 420; canvas.dataset.role = options.role; canvas.setAttribute("aria-label", options.title + " — zone de signature");
-    expand.type = "button"; expand.className = "secondary signature-expand"; expand.textContent = "Signer en plein écran";
+    name.value = options.value && options.value.name || "";
+    expand.type = "button"; expand.className = "secondary signature-expand"; expand.textContent = "Signer";
     timestamp.className = "hint signature-time"; clear.type = "button"; clear.className = "danger"; clear.textContent = "Effacer la signature";
     box.append(title, label, canvas, expand, timestamp, clear); root.append(box);
 
@@ -63,7 +64,7 @@
         const target = root.ownerDocument.querySelector(".signature-pad[data-role='" + role + "']");
         if (target) {
           const targetCtx = target.getContext("2d"); targetCtx.clearRect(0, 0, target.width, target.height); targetCtx.drawImage(dialogCanvas, 0, 0, target.width, target.height);
-          target.dispatchEvent(new root.ownerDocument.defaultView.Event("inspection-signature-accepted"));
+          target.dispatchEvent(new root.ownerDocument.defaultView.Event("inspection-signature-accepted", { bubbles: true }));
         }
         close();
       };
