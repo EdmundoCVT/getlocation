@@ -1980,7 +1980,7 @@ textarea:focus-visible,
 
 .protection-summary {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 9px;
   min-width: 0;
@@ -2120,15 +2120,13 @@ textarea:focus-visible,
   .protection-head { flex-wrap: nowrap; }
   .protection-nom { flex: 1; min-width: 0; font-size: .96rem; }
   .protection-summary {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas: "level price toggle" "franchise price toggle";
-    gap: 1px 8px;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: "level price toggle";
+    gap: 8px;
   }
   .protection-level { grid-area: level; }
-  .protection-franchise { grid-area: franchise; }
   .protection-card .protection-price { grid-area: price; align-items: flex-end; text-align: right; }
   .protection-details-toggle { grid-area: toggle; }
-  .protection-franchise { font-size: .76rem; white-space: nowrap; }
   .protection-card .protection-price strong { font-size: 1rem; }
   .protection-select { min-height: 42px; width: 42px; flex-basis: 42px; padding: 0; }
   .protection-details-toggle { width: 38px; min-width: 38px; height: 38px; }
