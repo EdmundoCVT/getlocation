@@ -12,9 +12,9 @@
   const LEVELS = { low: "BASSE", normal: "NORMALE", high: "FORTE", veryHigh: "TRÈS FORTE", exceptional: "EXCEPTIONNELLE" };
   const LEVEL_PRIORITY = { low: 1, normal: 2, high: 3, veryHigh: 4, exceptional: 5 };
   const VEHICLE_RATES = {
-    "opel-corsa": { low: 45, normal: 49, high: 59, veryHigh: 65, exceptional: 79 },
-    "peugeot-2008-hybrid": { low: 55, normal: 59, high: 69, veryHigh: 79, exceptional: 95 },
-    "peugeot-3008": { low: 69, normal: 79, high: 89, veryHigh: 99, exceptional: 119 },
+    "opel-corsa": { low: 49, normal: 55, high: 59, veryHigh: 65, exceptional: 79 },
+    "peugeot-2008-hybrid": { low: 59, normal: 65, high: 75, veryHigh: 79, exceptional: 95 },
+    "peugeot-3008": { low: 99, normal: 99, high: 99, veryHigh: 99, exceptional: 119 },
     "toyota-proace-city": { low: 79, normal: 89, high: 99, veryHigh: 109, exceptional: 129 }
   };
   const MONTH_SEASONS = { 1: "low", 2: "low", 3: "normal", 4: "normal", 5: "high", 6: "high", 7: "veryHigh", 8: "veryHigh", 9: "high", 10: "normal", 11: "low", 12: "low" };
