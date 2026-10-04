@@ -1401,10 +1401,6 @@ function initReservationPage() {
     niveauAccessible.textContent = t("Niveau de protection : {niveau} sur 3", { niveau });
     niveauNode.append(etoiles, niveauAccessible);
 
-    const franchise = document.createElement("p");
-    franchise.className = "protection-franchise";
-    franchise.textContent = t("Franchise : {montant}", { montant: formatEUR(protection.franchise) });
-
     const prix = prixProtection(protection);
     const prixNode = document.createElement("p");
     prixNode.className = "protection-price";
