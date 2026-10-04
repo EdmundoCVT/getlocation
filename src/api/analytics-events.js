@@ -2,6 +2,8 @@ const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { readBoundedBody, RequestTooLargeError } = require("../lib/read-bounded-body.js");
 
 const EVENT_TYPES = new Set(["page_view", "search_started", "vehicle_results_viewed", "vehicle_selected", "booking_started", "checkout_reached", "payment_started", "booking_confirmed"]);
+const TRAFFIC_TYPES = new Set(["public", "internal", "automated"]);
+const SOURCES = new Set(["chatgpt.com"]);
 function json(status, body, extra = {}) { return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...extra } }); }
 function clientIp(request) { return request.headers.get("cf-connecting-ip") || "unknown"; }
 function text(value, max = 160) { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
@@ -23,12 +25,14 @@ async function handleAnalyticsEvents(request, env) {
     if (!/^[A-Za-z0-9_-]{20,120}$/.test(sessionId) || !EVENT_TYPES.has(eventType)) return null;
     const occurredAt = new Date(event.occurredAt || now).getTime();
     if (!Number.isFinite(occurredAt) || Math.abs(occurredAt - now) > 24 * 60 * 60 * 1000) return null;
-    return { id: newId(), occurredAt: new Date(occurredAt).toISOString(), sessionId, eventType, page: text(event.page, 120).replace(/[?#].*$/, "") || "/", language: text(event.language, 2) === "en" ? "en" : "fr", vehicleId: text(event.vehicleId, 80) || null, vehicleCategory: text(event.vehicleCategory, 80) || null };
+    const trafficType = text(event.trafficType, 16);
+    const source = text(event.source, 80);
+    return { id: newId(), occurredAt: new Date(occurredAt).toISOString(), sessionId, eventType, page: text(event.page, 120).replace(/[?#].*$/, "") || "/", language: text(event.language, 2) === "en" ? "en" : "fr", vehicleId: text(event.vehicleId, 80) || null, vehicleCategory: text(event.vehicleCategory, 80) || null, trafficType: TRAFFIC_TYPES.has(trafficType) ? trafficType : "public", source: SOURCES.has(source) ? source : null };
   }).filter(Boolean);
   if (!valid.length) return json(400, { error: "Événements invalides" });
   try {
-    await env.AGENCY_DB.batch(valid.map(event => env.AGENCY_DB.prepare("INSERT INTO analytics_events (id, occurred_at, session_id, event_type, page, language, vehicle_id, vehicle_category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(event.id, event.occurredAt, event.sessionId, event.eventType, event.page, event.language, event.vehicleId, event.vehicleCategory)));
+    await env.AGENCY_DB.batch(valid.map(event => env.AGENCY_DB.prepare("INSERT INTO analytics_events (id, occurred_at, session_id, event_type, page, language, vehicle_id, vehicle_category, traffic_type, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(event.id, event.occurredAt, event.sessionId, event.eventType, event.page, event.language, event.vehicleId, event.vehicleCategory, event.trafficType, event.source)));
     return json(202, { accepted: valid.length });
   } catch (error) { console.error("[analytics-events] stockage indisponible :", error && error.message); return json(503, { error: "Statistiques temporairement indisponibles" }); }
 }
-module.exports = { handleAnalyticsEvents, EVENT_TYPES };
+module.exports = { handleAnalyticsEvents, EVENT_TYPES, TRAFFIC_TYPES };

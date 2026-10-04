@@ -126,7 +126,7 @@ async function withClientUX(response, pathname) {
   }
 
   if (!html.includes("/js/analytics.js")) {
-    const analytics = '<script src="/js/analytics.js?v=1"></script>';
+    const analytics = '<script src="/js/analytics.js?v=2"></script>';
     html = html.includes("</body>") ? html.replace("</body>", `${analytics}\n</body>`) : `${html}\n${analytics}`;
   }
 
