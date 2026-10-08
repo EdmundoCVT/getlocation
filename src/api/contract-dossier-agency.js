@@ -18,7 +18,7 @@
 // du dossier contrat, un contrat ne doit jamais pouvoir diverger de ce qui
 // a réellement été payé.
 
-const { getVehiculeParId, calculerKilometrage, joursFacturablesDepuisHeures, dureeEnHeures, KM_INCLUS_PAR_JOUR, SUPPLEMENT_KM_CENTIMES, CGL_VERSION, parseAdressePersonnalisee } = require("../../js/data.js");
+const { getVehiculeParId, calculerKilometrage, joursFacturablesDepuisHeures, joursFacturablesPourPeriode, KM_INCLUS_PAR_JOUR, SUPPLEMENT_KM_CENTIMES, CGL_VERSION, parseAdressePersonnalisee } = require("../../js/data.js");
 const {
   updateContractDossier,
   findReservationByContractAgencyTokenHash,
@@ -68,11 +68,14 @@ async function resolveContractAgencyAccess(request, env) {
 }
 
 function joursReservation(reservation) {
+  if (reservation.dateDebut && reservation.heureDebut && reservation.dateFin && reservation.heureFin) {
+    return joursFacturablesPourPeriode(reservation.dateDebut, reservation.heureDebut, reservation.dateFin, reservation.heureFin);
+  }
   const heures = reservation.periodeDebut && reservation.periodeFin
     ? (new Date(reservation.periodeFin) - new Date(reservation.periodeDebut)) / (1000 * 60 * 60)
     : reservation.status === "manual_contract"
       ? (new Date(reservation.retour) - new Date(reservation.depart)) / (1000 * 60 * 60)
-      : dureeEnHeures(reservation.dateDebut, reservation.heureDebut, reservation.dateFin, reservation.heureFin);
+      : NaN;
   return joursFacturablesDepuisHeures(heures);
 }
 
