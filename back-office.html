@@ -78,6 +78,20 @@
   .dashboard-sheets p { margin:3px 0 0; color:#71717a; font-size:.85rem; }
   .mobile-nav-toggle, .sidebar-backdrop { display:none; }
   .google-sheets-link { display:inline-flex; align-items:center; gap:6px; }
+  .quote-grid { display:grid; grid-template-columns:minmax(0, 1fr) minmax(280px, .8fr); gap:16px; align-items:start; }
+  .quote-card { margin:0; }
+  .quote-extra-row { display:grid; grid-template-columns:minmax(0, 1fr) 120px auto; gap:8px; align-items:end; margin:8px 0; }
+  .quote-preview { border:1px solid #e4e4e9; border-radius:12px; padding:22px; background:#fff; box-shadow:0 8px 24px rgba(20,30,50,.08); }
+  .quote-preview[hidden] { display:none; }
+  .quote-brand { display:flex; justify-content:space-between; align-items:center; border-bottom:4px solid #ff6b00; padding-bottom:12px; }
+  .quote-brand img { width:44px; height:44px; object-fit:contain; }
+  .quote-total { background:#0066ff; color:#fff; padding:16px; border-radius:10px; margin-top:16px; }
+  .quote-total strong { display:block; font-size:1.8rem; }
+  .quote-lines { width:100%; border-collapse:collapse; margin-top:12px; }
+  .quote-lines td { padding:7px 0; border-bottom:1px solid #eee; }
+  .quote-lines td:last-child { text-align:right; white-space:nowrap; }
+  .quote-warning { color:#555; font-size:.86rem; }
+  .quote-error { color:#a32218; font-weight:700; }
   @media (max-width:820px) {
     .back-office-main { padding:14px 14px 28px; }
     .office-shell { display:block; }
@@ -89,6 +103,9 @@
     .dashboard-grid { grid-template-columns:1fr; }
     .dashboard-kpis, .analytics-kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); }
     .dashboard-sheets { align-items:flex-start; flex-direction:column; }
+    .quote-grid { grid-template-columns:1fr; }
+    .quote-extra-row { grid-template-columns:minmax(0, 1fr) 100px auto; }
+    .quote-preview { padding:16px; }
   }
 </style>
 </head>
@@ -119,6 +136,7 @@
         <button type="button" class="btn btn-sm" data-internal-view="searchSection"><span class="nav-icon" aria-hidden="true">▤</span>Réservations</button>
         <button type="button" class="btn btn-sm" data-internal-view="planningSection"><span class="nav-icon" aria-hidden="true">□</span>Planning</button>
         <button type="button" class="btn btn-sm" data-internal-view="deliveriesSection"><span class="nav-icon" aria-hidden="true">↗</span>Livraisons</button>
+        <button type="button" class="btn btn-sm" data-internal-view="quoteSection"><span class="nav-icon" aria-hidden="true">€</span>Devis express</button>
         <a class="btn btn-sm" href="/contrat"><span class="nav-icon" aria-hidden="true">▣</span>Contrats</a>
         <button type="button" class="btn btn-sm" data-internal-view="inspectionsSection"><span class="nav-icon" aria-hidden="true">✓</span>État des lieux</button>
         <button type="button" class="btn btn-sm" data-internal-view="depositsSection"><span class="nav-icon" aria-hidden="true">€</span>Dépôts de garantie</button>
@@ -149,6 +167,54 @@
       <div class="card dashboard-sheets">
         <div><h2>Planning Google Sheets</h2><p>Planning opérationnel actuel</p></div>
         <div class="section-actions" data-google-sheets-link></div>
+      </div>
+    </section>
+
+    <!-- ---- Devis express : document indicatif, sans réservation ni écriture planning ---- -->
+    <section id="quoteSection" hidden>
+      <h1 class="section-title">Devis express</h1>
+      <p class="section-subtitle">Préparez un devis indicatif. Aucun véhicule n'est réservé et aucun tarif public n'est modifié.</p>
+      <div class="quote-grid">
+        <form id="quoteForm" class="card quote-card">
+          <h2 style="margin-top:0">Location</h2>
+          <div class="form-grid">
+            <div class="field"><label for="q-vehicle">Véhicule</label><select id="q-vehicle" required></select></div>
+            <div class="field" id="q-custom-name-wrap" hidden><label for="q-custom-name">Véhicule personnalisé</label><input id="q-custom-name" maxlength="100" placeholder="Marque et modèle"></div>
+            <div class="field"><label for="q-start">Départ</label><input id="q-start" type="date" required></div>
+            <div class="field"><label for="q-start-time">Heure de départ</label><input id="q-start-time" type="time" value="10:00" required></div>
+            <div class="field"><label for="q-end">Retour</label><input id="q-end" type="date" required></div>
+            <div class="field"><label for="q-end-time">Heure de retour</label><input id="q-end-time" type="time" value="10:00" required></div>
+            <div class="field"><label for="q-rate-mode">Tarif journalier</label><select id="q-rate-mode"><option value="automatic">Automatique</option><option value="custom">Personnalisé</option></select></div>
+            <div class="field"><label for="q-daily">Tarif journalier TTC (€)</label><input id="q-daily" type="number" min="0" step="0.01" required></div>
+            <div class="field"><label>Durée estimée</label><output id="q-days">—</output></div>
+            <div class="field"><label for="q-pickup">Lieu de prise en charge</label><input id="q-pickup" maxlength="180" placeholder="Adresse ou agence"></div>
+            <div class="field"><label for="q-return">Lieu de retour</label><input id="q-return" maxlength="180" placeholder="Identique ou autre adresse"></div>
+            <div class="field"><label for="q-delivery-km">Distance livraison (km, facultatif)</label><input id="q-delivery-km" type="number" min="0" step="1" placeholder="Estimation automatique"></div>
+            <div class="field"><label for="q-delivery">Frais de livraison TTC (€)</label><input id="q-delivery" type="number" min="0" step="0.01" value="0"></div>
+            <div class="field"><label for="q-return-fee">Frais de retour TTC (€)</label><input id="q-return-fee" type="number" min="0" step="0.01" value="0"></div>
+            <div class="field"><label for="q-discount-type">Remise</label><select id="q-discount-type"><option value="amount">Montant (€)</option><option value="percent">Pourcentage (%)</option></select></div>
+            <div class="field"><label for="q-discount">Valeur de la remise</label><input id="q-discount" type="number" min="0" step="0.01" value="0"></div>
+            <div class="field"><label for="q-deposit">Dépôt de garantie séparé (€)</label><input id="q-deposit" type="number" min="0" step="0.01" value="0"></div>
+            <div class="field"><label for="q-validity">Validité (jours)</label><input id="q-validity" type="number" min="1" max="90" step="1" value="7"></div>
+            <div class="field"><label for="q-customer">Nom du client (facultatif)</label><input id="q-customer" maxlength="120"></div>
+            <div class="field full"><label for="q-comments">Commentaire (facultatif)</label><textarea id="q-comments" rows="2" maxlength="500"></textarea></div>
+          </div>
+          <h3>Options et frais supplémentaires</h3>
+          <div id="q-extras"></div>
+          <button type="button" class="btn btn-sm" id="q-add-extra">+ Ajouter une ligne</button>
+          <p id="q-error" class="quote-error" role="alert" hidden></p>
+          <div class="section-actions"><button type="button" class="btn btn-primary" id="q-preview-btn">Aperçu du devis</button></div>
+        </form>
+        <div>
+          <div class="section-actions" id="q-export-actions" hidden>
+            <button type="button" class="btn btn-secondary btn-sm" id="q-png">Télécharger le PNG</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="q-share">Partager</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="q-copy">Copier le texte</button>
+            <button type="button" class="btn btn-sm" id="q-edit">Modifier</button>
+          </div>
+          <article class="quote-preview" id="q-preview" hidden aria-live="polite"></article>
+          <canvas id="q-canvas" width="1200" height="1600" hidden></canvas>
+        </div>
       </div>
     </section>
 
@@ -368,6 +434,7 @@
 
 <script src="js/pricing.js?v=1"></script>
 <script src="js/data.js?v=29"></script>
+<script src="js/agency-quote.js?v=1"></script>
 <script>
 (function(){
 'use strict';
@@ -517,7 +584,7 @@ function alerteConnexion(){ alert('Connexion au serveur impossible. Vérifiez vo
 
 // ================= Connexion ================= //
 function showSection(id){
-  ['dashboardSection', 'statisticsSection', 'planningSection', 'deliveriesSection', 'inspectionsSection', 'depositsSection', 'vehiclesSection', 'settingsSection', 'searchSection', 'clientFormSection', 'clientSheetSection', 'rentalFormSection', 'rentalDetailSection'].forEach(function(s){
+  ['dashboardSection', 'quoteSection', 'statisticsSection', 'planningSection', 'deliveriesSection', 'inspectionsSection', 'depositsSection', 'vehiclesSection', 'settingsSection', 'searchSection', 'clientFormSection', 'clientSheetSection', 'rentalFormSection', 'rentalDetailSection'].forEach(function(s){
     document.getElementById(s).hidden = (s !== id);
   });
   document.querySelectorAll('[data-internal-view]').forEach(function(button){
