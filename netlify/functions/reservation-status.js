@@ -69,6 +69,7 @@ function toSafePublicView(reservation) {
     jours: reservation.jours,
     sousTotalBrut: reservation.sousTotalBrut,
     reductionDuree: reservation.reductionDuree || null,
+    presentationPrix: reservation.presentationPrix || null,
     assuranceMontant: reservation.assuranceMontant,
     options: Array.isArray(reservation.options) ? reservation.options : [],
     optionsMontant: reservation.optionsMontant,

@@ -227,6 +227,7 @@ async function handleCreatePayment(request, env) {
     jours: prix.jours,
     sousTotalBrut: prix.sousTotalBrut,
     reductionDuree: prix.reductionDuree,
+    presentationPrix: prix.presentationPrix,
     options: prix.optionsSelectionnees,
     optionsMontant: prix.optionsMontant,
     // Instantané de la protection retenue (niveau, franchise, jours

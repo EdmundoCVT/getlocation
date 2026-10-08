@@ -161,6 +161,11 @@ const CGL_VERSION = "2026-09-16";
 // meilleur palier atteint.
 const REDUCTIONS_DUREE = PRICING.DURATION_DISCOUNTS.map(([min, max, taux]) => ({ seuilJours: min, taux, libelle: `${min}${max === Infinity ? " jours et plus" : ` à ${max} jours`}` }));
 
+// Fiscalité de présentation : le prix de location public est déjà TTC.
+// Chaque ligne tarifaire expose néanmoins son taux afin de pouvoir faire
+// évoluer la fiscalité d'une option sans toucher au calcul global.
+const TVA_LOCATION_TAUX = 20;
+
 // Retourne le palier de réduction durée applicable (ou null si la location
 // est trop courte pour en bénéficier).
 function reductionDureeApplicable(jours) { const reduction = PRICING.discountForDays(jours); return reduction.rate ? { taux: reduction.rate, libelle: reduction.label } : null; }
@@ -745,6 +750,30 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut = "00:00", dateFi
       : Math.round(baseAvantPromo * promo.pourcentage) / 100;
 
   const total = baseAvantPromo - reductionPromoMontant;
+  // Structure de présentation unique pour les pages publiques. Les montants
+  // restent ceux du moteur existant : la TVA ne s'ajoute jamais au total,
+  // elle décompose uniquement le prix TTC de location après remise durée.
+  const locationHT = Math.round((sousTotal / (1 + TVA_LOCATION_TAUX / 100)) * 100) / 100;
+  const locationTVA = Math.round((sousTotal - locationHT) * 100) / 100;
+  const lignesPrix = [
+    { id: "location", libelle: "Frais de location", montant: sousTotalBrut, taxRate: TVA_LOCATION_TAUX, categorie: "location" },
+    ...(quote.discountRate ? [{ id: "remise-duree", libelle: "Remise durée", montant: -reductionDureeMontant, taxRate: TVA_LOCATION_TAUX, categorie: "remise" }] : []),
+    ...optionsSelectionnees.map((option) => ({ id: `option-${option.id}`, libelle: option.nom, montant: option.montant, taxRate: 0, categorie: "option" })),
+    ...(protectionChoisie.montant ? [{ id: "protection", libelle: protectionChoisie.nom, montant: protectionChoisie.montant, taxRate: 0, categorie: "protection" }] : []),
+    ...(supplementJeuneConducteur ? [{ id: "jeune-conducteur", libelle: supplementJeuneConducteur.libelle, montant: supplementJeuneConducteurMontant, taxRate: 0, categorie: "supplement" }] : []),
+    ...(reductionPromoMontant ? [{ id: "code-promo", libelle: "Code promo", montant: -reductionPromoMontant, taxRate: 0, categorie: "remise" }] : [])
+  ];
+  const presentationPrix = {
+    jours,
+    prixMoyenJour: Math.round((sousTotal / jours) * 100) / 100,
+    locationAvantRemise: sousTotalBrut,
+    remiseDuree: reductionDureeMontant,
+    locationTTC: sousTotal,
+    locationHT,
+    locationTVA,
+    lignes: lignesPrix,
+    total
+  };
 
   return {
     vehicule,
@@ -755,7 +784,8 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut = "00:00", dateFi
     tarifsJournaliers: quote.dailyRates,
     // Si les jours traversent plusieurs niveaux, le seul tarif/jour affiché
     // est la moyenne réellement facturée après remise de durée.
-    tarifMoyenJour: Math.round((quote.rentalAfterDiscount / jours) * 100) / 100,
+    tarifMoyenJour: presentationPrix.prixMoyenJour,
+    presentationPrix,
     kmInclus: quote.includedKm + (quote.extraMileagePackage ? quote.extraMileagePackage.km : 0),
     forfaitKilometrage: quote.extraMileagePackage,
     livraison: quote.delivery,
@@ -778,6 +808,9 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut = "00:00", dateFi
       tauxRemiseDuree: quote.discountRate,
       montantRemiseDuree: reductionDureeMontant,
       montantLocationApresRemise: sousTotal,
+      prixMoyenJour: presentationPrix.prixMoyenJour,
+      locationHT,
+      locationTVA,
       kilometresInclusLocation: quote.includedKm,
       kilometresInclus: quote.includedKm + (quote.extraMileagePackage ? quote.extraMileagePackage.km : 0),
       forfaitKilometrique: quote.extraMileagePackage,
@@ -894,6 +927,7 @@ if (typeof module !== "undefined" && module.exports) {
     HEURE_OUVERTURE,
     HEURE_FERMETURE,
     REDUCTIONS_DUREE,
+    TVA_LOCATION_TAUX,
     CODES_PROMO,
     OPTIONS,
     CGL_VERSION,

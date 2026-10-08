@@ -67,6 +67,7 @@ function toSafePublicView(reservation) {
     jours: reservation.jours,
     sousTotalBrut: reservation.sousTotalBrut,
     reductionDuree: reservation.reductionDuree || null,
+    presentationPrix: reservation.presentationPrix || null,
     kmInclus: reservation.pricingSnapshot && reservation.pricingSnapshot.kilometresInclus,
     forfaitKilometrage: reservation.pricingSnapshot && reservation.pricingSnapshot.forfaitKilometrique,
     livraison: reservation.pricingSnapshot && reservation.pricingSnapshot.livraison,

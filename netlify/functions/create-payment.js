@@ -231,6 +231,7 @@ exports.handler = async (event) => {
     jours: prix.jours,
     sousTotalBrut: prix.sousTotalBrut,
     reductionDuree: prix.reductionDuree,
+    presentationPrix: prix.presentationPrix,
     options: prix.optionsSelectionnees,
     optionsMontant: prix.optionsMontant,
     codePromo: prix.codePromo,

@@ -592,7 +592,8 @@ function initVehiculesPage() {
     document.title = `${vehiculeCible.nom} — GETLOCATION`;
   }
 
-  const recherche = readJSON(STORAGE.recherche, {
+  let rechercheEnregistree = readJSON(STORAGE.recherche, null);
+  const recherche = rechercheEnregistree || {
     lieuPrise: LIEUX[0],
     lieuRetour: LIEUX[0],
     adressePrise: "",
@@ -601,7 +602,7 @@ function initVehiculesPage() {
     dateFin: todayISO(5),
     heureDebut: "10:00",
     heureFin: "10:00"
-  });
+  };
   // Compatibilité : anciennes recherches enregistrées sans heure / adresse.
   if (!recherche.heureDebut) recherche.heureDebut = "10:00";
   if (!recherche.heureFin) recherche.heureFin = "10:00";
@@ -782,18 +783,16 @@ function initVehiculesPage() {
       return;
     }
     liste.forEach(v => {
-      // Le total affiché tient compte de la réduction durée (5 jours ou
-      // plus, voir REDUCTIONS_DUREE dans js/data.js) dès la page catalogue :
-      // le client voit l'avantage avant même de choisir son véhicule.
-      const prixInfo = calculerPrixTotal({
+      // Aucun tarif n'est affiché tant que le client n'a pas réellement
+      // validé ses dates dans la recherche : les valeurs par défaut de la
+      // barre ne sont pas une estimation commerciale.
+      const prixInfo = rechercheEnregistree && calculerPrixTotal({
         vehiculeId: v.id,
         dateDebut: recherche.dateDebut,
         heureDebut: recherche.heureDebut,
         dateFin: recherche.dateFin,
         heureFin: recherche.heureFin
       });
-      const total = prixInfo ? prixInfo.total : v.prixJour * jours;
-      const remise = prixInfo && prixInfo.reductionDuree ? prixInfo.reductionDuree : null;
       // bookingMode (voir js/data.js) : "instant" = paiement en ligne
       // immédiat (parcours inchangé) ; "request" = demande sans paiement.
       const estInstant = v.bookingMode !== "request";
@@ -825,13 +824,22 @@ function initVehiculesPage() {
           ${v.modelGuaranteed === false ? '<p class="hint-text">Le modèle présenté est indicatif. Un véhicule de catégorie équivalente peut être proposé.</p>' : ""}
           <div class="vehicle-footer">
             ${estInstant
-              ? `<div class="price"><span class="price-label">${t("Tarif pour {jours}", { jours: libelleJours(jours) })}</span><strong>${formatEUR(total)}</strong></div>`
+              ? (prixInfo
+                ? `<div class="price price-vehicle"><strong>${formatPrixJour(prixInfo.presentationPrix.prixMoyenJour)} / ${t("jour")}</strong>${prixInfo.reductionDuree ? `<span class="price-before-discount">${formatPrixJour(prixInfo.sousTotalBrut / prixInfo.jours)} / ${t("jour")}</span><small>${t("Remise durée appliquée")}</small>` : ""}<span class="price-total">${formatPrixJour(prixInfo.presentationPrix.locationTTC)} ${t("total")}</span><button type="button" class="price-details-trigger" data-price-details>${t("Détails du prix")}</button></div>`
+                : `<div class="price price-awaiting-dates"><span>${t("Sélectionnez vos dates pour voir le tarif")}</span></div>`)
               : `<div class="price price-request">${t("Tarif sur demande")}<small>${t("Disponibilité à confirmer")}</small></div>`}
             <button class="btn btn-primary btn-sm" data-id="${v.id}">${estInstant ? t("Choisir ce véhicule") : t(v.id === "sans-permis-request" ? "Faire une demande" : "Demander ce véhicule")}</button>
           </div>
         </div>
       `;
+      const priceDetails = card.querySelector("[data-price-details]");
+      if (priceDetails) priceDetails.addEventListener("click", (event) => { event.stopPropagation(); ouvrirDetailsPrix(prixInfo); });
       const choisirVehicule = () => {
+        if (!rechercheEnregistree) {
+          const dateBar = document.getElementById("date-bar");
+          if (dateBar) { dateBar.scrollIntoView({ behavior: "smooth", block: "center" }); dateBar.querySelector("#date-bar-toggle")?.click(); }
+          return;
+        }
         if (estInstant) {
           writeReservationLocal({
             vehiculeId: v.id,
@@ -869,6 +877,7 @@ function initVehiculesPage() {
     onApply: (nouvellesDates) => {
       Object.assign(recherche, nouvellesDates);
       writeJSON(STORAGE.recherche, recherche);
+      rechercheEnregistree = recherche;
       jours = joursFacturablesPourPeriode(recherche.dateDebut, recherche.heureDebut, recherche.dateFin, recherche.heureFin);
       renderGrid();
     }
@@ -964,6 +973,70 @@ function t(cle, variables) {
     });
   }
   return resultat;
+}
+
+// Présentation des prix consommateurs : le moteur tarifaire fournit déjà un
+// prix moyen exact. Cette fonction ne recalcule rien ; elle ne fait que
+// l'afficher sans décimales inutiles (59 € plutôt que 59,00 €).
+function formatPrixJour(montant) {
+  const locale = langueSite() === "en" ? "en-GB" : "fr-FR";
+  return new Intl.NumberFormat(locale, { style: "currency", currency: "EUR", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(montant);
+}
+
+function ouvrirDetailsPrix(prix) {
+  const presentation = prix && prix.presentationPrix;
+  if (!presentation) return;
+  let dialog = document.getElementById("price-details-dialog");
+  if (!dialog) {
+    dialog = document.createElement("dialog");
+    dialog.id = "price-details-dialog";
+    dialog.className = "price-details-dialog";
+    document.body.appendChild(dialog);
+  }
+  dialog.textContent = "";
+  const header = document.createElement("div");
+  header.className = "price-details-header";
+  const title = document.createElement("h2"); title.textContent = t("Détails du prix");
+  const close = document.createElement("button"); close.type = "button"; close.className = "price-details-close"; close.setAttribute("aria-label", t("Fermer")); close.textContent = "×";
+  close.addEventListener("click", () => { if (dialog.close) dialog.close(); else dialog.removeAttribute("open"); });
+  header.append(title, close); dialog.appendChild(header);
+
+  const addLine = (label, value, className) => {
+    const row = summaryRow(label, value);
+    if (className) row.classList.add(className);
+    dialog.appendChild(row);
+  };
+  const rentalLabel = `${libelleJours(presentation.jours)} × ${t("tarif calculé")}`;
+  addLine(t("Frais de location"), formatPrixJour(presentation.locationAvantRemise));
+  const rentalHint = document.createElement("p"); rentalHint.className = "price-details-hint"; rentalHint.textContent = rentalLabel; dialog.appendChild(rentalHint);
+  if (presentation.remiseDuree) addLine(t("Remise durée"), `− ${formatPrixJour(presentation.remiseDuree)}`, "discount");
+  const taxTitle = document.createElement("h3"); taxTitle.textContent = t("Taxes"); dialog.appendChild(taxTitle);
+  addLine(t("TVA 20 % incluse dans la location"), formatPrixJour(presentation.locationTVA));
+  const otherLines = presentation.lignes.filter((line) => !["location", "remise-duree"].includes(line.id));
+  if (otherLines.length) {
+    const otherTitle = document.createElement("h3"); otherTitle.textContent = t("Autres éléments"); dialog.appendChild(otherTitle);
+    otherLines.forEach((line) => addLine(t(line.libelle), `${line.montant < 0 ? "− " : ""}${formatPrixJour(Math.abs(line.montant))}`, line.montant < 0 ? "discount" : ""));
+  }
+  addLine(t("Total"), formatPrixJour(presentation.total), "total");
+  const caveat = document.createElement("p"); caveat.className = "price-details-hint"; caveat.textContent = t("La TVA est déjà incluse dans le prix de location et n’est jamais ajoutée au total."); dialog.appendChild(caveat);
+  if (dialog.showModal) dialog.showModal(); else dialog.setAttribute("open", "");
+}
+
+function appendPriceHighlights(container, prix) {
+  const presentation = prix && prix.presentationPrix;
+  if (!presentation) return;
+  const block = document.createElement("div"); block.className = "price-highlights";
+  const daily = document.createElement("strong"); daily.textContent = `${formatPrixJour(presentation.prixMoyenJour)} / ${t("jour")}`;
+  const total = document.createElement("span"); total.textContent = `${formatPrixJour(presentation.total)} ${t("total")}`;
+  block.append(daily);
+  if (presentation.remiseDuree) {
+    const previous = document.createElement("span"); previous.className = "price-before-discount"; previous.textContent = `${formatPrixJour(presentation.locationAvantRemise / presentation.jours)} / ${t("jour")}`;
+    const discount = document.createElement("small"); discount.textContent = t("Remise durée appliquée");
+    block.append(previous, discount);
+  }
+  block.appendChild(total);
+  const details = document.createElement("button"); details.type = "button"; details.className = "price-details-trigger"; details.textContent = t("Détails du prix"); details.addEventListener("click", () => ouvrirDetailsPrix(prix));
+  block.appendChild(details); container.appendChild(block);
 }
 
 // « 4 jours » / « 4 days » — le pluriel est porté par la traduction elle-même.
@@ -2157,7 +2230,7 @@ function initPaiementPage() {
     if (!prix) return;
     buildPaymentSummary(summary, vehicule, data, prix);
     const totalCompact = document.getElementById("payment-summary-total");
-    if (totalCompact) totalCompact.textContent = formatEUR(prix.total);
+    if (totalCompact) totalCompact.textContent = formatPrixJour(prix.total);
   }
   if (deliveryDistanceInput) deliveryDistanceInput.addEventListener("input", () => { data.deliveryDistanceKm = Number(deliveryDistanceInput.value); renderSummary(); });
   renderSummary();
@@ -2374,12 +2447,13 @@ function initConfirmationPage() {
 // Réutilisé sur reservation.html, paiement.html et confirmation.html pour
 // garantir un affichage cohérent du détail du prix sur tout le tunnel.
 function appendBreakdownRows(container, prix) {
-  container.appendChild(summaryRow(t("Location ({jours})", { jours: libelleJours(prix.jours) }), formatEUR(prix.sousTotalBrut)));
+  appendPriceHighlights(container, prix);
+  container.appendChild(summaryRow(t("Location ({jours})", { jours: libelleJours(prix.jours) }), formatPrixJour(prix.sousTotalBrut)));
 
   if (prix.reductionDuree) {
     const row = summaryRow(
       t("Remise durée ({palier}, -{taux}%)", { palier: t(prix.reductionDuree.libelle), taux: Math.round(prix.reductionDuree.taux * 100) }),
-      `− ${formatEUR(prix.reductionDuree.montant)}`
+      `− ${formatPrixJour(prix.reductionDuree.montant)}`
     );
     row.classList.add("discount");
     container.appendChild(row);
@@ -2388,12 +2462,8 @@ function appendBreakdownRows(container, prix) {
   (prix.optionsSelectionnees || []).forEach((opt) => {
     // Le nom de l'option vient de js/data.js, donc en français : sa
     // traduction est indexée sur ce texte dans js/i18n.js.
-    container.appendChild(summaryRow(t(opt.nom), formatEUR(opt.montant)));
+    container.appendChild(summaryRow(t(opt.nom), formatPrixJour(opt.montant)));
   });
-
-  if (Number.isFinite(prix.kmInclus)) {
-    container.appendChild(summaryRow(t("Kilométrage inclus"), `${prix.kmInclus.toLocaleString("fr-FR")} km`));
-  }
 
   // Protection : toujours affichée, y compris la formule incluse — le client
   // doit voir laquelle s'applique, pas seulement ce qu'elle coûte.
@@ -2403,7 +2473,7 @@ function appendBreakdownRows(container, prix) {
       protection.plafonne
         ? t("{nom} (forfait plafonné à {jours})", { nom: t(protection.nom), jours: libelleJours(protection.joursFactures) })
         : t("{nom} — {jours}", { nom: t(protection.nom), jours: libelleJours(prix.jours) }),
-      protection.montant > 0 ? formatEUR(protection.montant) : t("Incluse")
+      protection.montant > 0 ? formatPrixJour(protection.montant) : t("Incluse")
     );
     container.appendChild(ligne);
   }
@@ -2413,23 +2483,23 @@ function appendBreakdownRows(container, prix) {
   if (prix.supplementJeuneConducteur) {
     container.appendChild(summaryRow(
       t("Supplément jeune conducteur — {jours}", { jours: libelleJours(prix.jours) }),
-      formatEUR(prix.supplementJeuneConducteur.montant)
+      formatPrixJour(prix.supplementJeuneConducteur.montant)
     ));
   }
 
   if (prix.codePromo) {
     // .pourcentage OU .montant selon le type de code (voir CODES_PROMO,
     // js/data.js) — jamais les deux à la fois.
-    const suffixePromo = prix.codePromo.pourcentage !== undefined ? `-${prix.codePromo.pourcentage}%` : `-${formatEUR(prix.codePromo.montant)}`;
+    const suffixePromo = prix.codePromo.pourcentage !== undefined ? `-${prix.codePromo.pourcentage}%` : `-${formatPrixJour(prix.codePromo.montant)}`;
     const row = summaryRow(
       t("Code promo {code} ({remise})", { code: prix.codePromo.code, remise: suffixePromo }),
-      `− ${formatEUR(prix.reductionPromoMontant)}`
+      `− ${formatPrixJour(prix.reductionPromoMontant)}`
     );
     row.classList.add("discount");
     container.appendChild(row);
   }
 
-  const totalRow = summaryRow("Total", formatEUR(prix.total));
+  const totalRow = summaryRow("Total", formatPrixJour(prix.total));
   totalRow.classList.add("total");
   container.appendChild(totalRow);
 }

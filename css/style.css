@@ -1707,6 +1707,35 @@ textarea:focus-visible,
   color: #5f5f68;
 }
 
+.price-vehicle { display: grid; gap: 3px; }
+.price-vehicle strong { font-size: 1.25rem; white-space: nowrap; }
+.price-total { font-size: .8rem; color: #5f5f68; font-weight: 650; }
+.price-before-discount { color: #767680; font-size: .78rem; font-weight: 600; text-decoration: line-through; }
+.price-vehicle small { color: var(--vert); font-weight: 750; }
+.price-awaiting-dates { max-width: 165px; font-size: .82rem; line-height: 1.35; color: #5f5f68; font-weight: 650; }
+.price-details-trigger { width: fit-content; padding: 0; border: 0; background: transparent; color: var(--violet); font: inherit; font-size: .8rem; font-weight: 750; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+
+.price-highlights { display: grid; gap: 4px; padding: 0 0 14px; margin: 0 0 14px; border-bottom: 1px solid #f0f0f3; }
+.price-highlights strong { color: var(--gris-fonce); font-size: 1.45rem; line-height: 1.1; }
+.price-highlights > span:not(.price-before-discount) { color: #5f5f68; font-size: .9rem; font-weight: 650; }
+.price-highlights small { color: var(--vert); font-weight: 750; }
+.price-highlights .price-details-trigger { margin-top: 3px; }
+
+.price-details-dialog { width: min(460px, calc(100% - 28px)); max-height: min(82vh, 660px); border: 0; border-radius: 16px; padding: 20px; box-shadow: 0 20px 60px rgba(24, 28, 40, .28); color: var(--gris-fonce); }
+.price-details-dialog::backdrop { background: rgba(20, 24, 35, .46); }
+.price-details-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+.price-details-header h2 { margin: 0; font-size: 1.05rem; text-transform: uppercase; letter-spacing: .04em; }
+.price-details-close { width: 34px; height: 34px; border: 0; border-radius: 50%; background: #f2f3f6; color: var(--gris-fonce); font: 1.45rem/1 sans-serif; cursor: pointer; }
+.price-details-dialog h3 { margin: 18px 0 4px; font-size: .88rem; text-transform: uppercase; letter-spacing: .04em; }
+.price-details-dialog .summary-row { font-size: .92rem; }
+.price-details-hint { margin: -4px 0 8px; color: #686873; font-size: .8rem; }
+
+@media (max-width: 640px) {
+  .vehicle-footer { align-items: flex-end; }
+  .price-vehicle strong { font-size: 1.14rem; }
+  .price-details-dialog { padding: 18px; }
+}
+
 /* Filters */
 .filter-bar {
   display: flex;
