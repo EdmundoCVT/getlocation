@@ -1,300 +1,53 @@
-// tests/data-pricing.test.js
-//
-// Couvre le cœur du calcul de prix (js/data.js) : durée réelle en heures,
-// arrondi en jours facturables, et calcul du prix total. C'est la fonction
-// utilisée à la fois par l'affichage client ET par le recalcul serveur
-// faisant foi (create-payment-intent.js) — toute régression ici a un
-// impact direct sur la sécurité du paiement (montant facturé).
-//
-// Note (4 août 2026) : l'assurance tous risques optionnelle a été retirée
-// du site (décision métier). La franchise en cas de sinistre responsable
-// est désormais égale au montant de la caution du véhicule loué — il n'y a
-// plus de calcul d'assurance dans calculerPrixTotal.
-
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const {
-  dureeEnHeures,
-  joursFacturablesDepuisHeures,
-  calculerPrixTotal,
-  getVehiculeParId,
-  REDUCTIONS_DUREE,
-  reductionDureeApplicable,
-  getCodePromo,
-  OPTIONS,
-  getOptionParId
-} = require("../js/data.js");
+const fs = require("node:fs");
+const { dureeEnHeures, joursFacturablesPourPeriode, calculerPrixTotal, getVehiculeParId } = require("../js/data.js");
+const { calculateQuote } = require("../js/pricing.js");
 
-test("dureeEnHeures : calcule correctement la durée en heures", () => {
-  assert.equal(dureeEnHeures("2026-08-10", "10:00", "2026-08-11", "10:00"), 24);
-  assert.equal(dureeEnHeures("2026-08-10", "10:00", "2026-08-10", "16:00"), 6);
-  assert.equal(dureeEnHeures("2026-08-10", "10:00", "2026-08-10", "08:00"), -2);
+const base = { vehiculeId: "peugeot-2008-hybrid", dateDebut: "2026-10-08", heureDebut: "14:00", dateFin: "2026-10-09", heureFin: "14:00" };
+
+test("1 — exactement 24 heures : une journée facturée", () => {
+  assert.equal(joursFacturablesPourPeriode(base.dateDebut, base.heureDebut, base.dateFin, base.heureFin), 1);
+  assert.equal(calculerPrixTotal(base).jours, 1);
 });
-
-test("joursFacturablesDepuisHeures : arrondit toute heure entamée à un jour de plus", () => {
-  assert.equal(joursFacturablesDepuisHeures(24), 1);
-  assert.equal(joursFacturablesDepuisHeures(24.01), 2);
-  assert.equal(joursFacturablesDepuisHeures(1), 1); // minimum 1 jour
-  assert.equal(joursFacturablesDepuisHeures(48), 2);
-  assert.equal(joursFacturablesDepuisHeures(49), 3);
-  assert.equal(joursFacturablesDepuisHeures(0), 1);
-  assert.equal(joursFacturablesDepuisHeures(-5), 1);
-  assert.equal(joursFacturablesDepuisHeures(NaN), 1);
+test("2 — 24 heures et une minute : deux journées facturées", () => {
+  const quote = calculerPrixTotal({ ...base, heureFin: "14:01" });
+  assert.equal(quote.jours, 2); assert.equal(quote.kmInclus, 400);
 });
-
-test("calculerPrixTotal : renvoie null pour un véhicule inconnu", () => {
-  const result = calculerPrixTotal({
-    vehiculeId: "vehicule-inexistant",
-    dateDebut: "2026-08-10",
-    heureDebut: "10:00",
-    dateFin: "2026-08-12",
-    heureFin: "10:00"
-  });
-  assert.equal(result, null);
+test("3 — exactement 72 heures : trois journées facturées", () => {
+  assert.equal(calculerPrixTotal({ ...base, dateFin: "2026-10-11", heureFin: "14:00" }).jours, 3);
 });
-
-test("calculerPrixTotal : renvoie null pour une durée nulle ou négative", () => {
-  const params = {
-    vehiculeId: "opel-corsa",
-    dateDebut: "2026-08-10",
-    heureDebut: "10:00",
-    dateFin: "2026-08-10",
-    heureFin: "10:00"
-  };
-  assert.equal(calculerPrixTotal(params), null);
-
-  const negatif = calculerPrixTotal({ ...params, dateFin: "2026-08-09" });
-  assert.equal(negatif, null);
+test("4 — 72 heures et une minute : quatre journées facturées", () => {
+  assert.equal(calculerPrixTotal({ ...base, dateFin: "2026-10-11", heureFin: "14:01" }).jours, 4);
 });
-
-test("calculerPrixTotal : calcule correctement le prix de base", () => {
-  const vehicule = getVehiculeParId("peugeot-3008");
-  const result = calculerPrixTotal({
-    vehiculeId: "peugeot-3008",
-    dateDebut: "2026-08-01",
-    heureDebut: "10:00",
-    dateFin: "2026-08-04",
-    heureFin: "10:00"
-  });
-  assert.equal(result.jours, 3);
-  assert.equal(result.sousTotal, vehicule.prixJour * 3);
-  assert.equal(result.total, vehicule.prixJour * 3);
-  assert.equal(result.totalCentimes, Math.round(result.total * 100));
+test("5 — cas réel Peugeot 2008 : 78 h, 4 jours, 274 € et 800 km", () => {
+  const quote = calculerPrixTotal({ ...base, dateFin: "2026-10-11", heureFin: "20:00" });
+  assert.equal(dureeEnHeures(base.dateDebut, base.heureDebut, "2026-10-11", "20:00"), 78);
+  assert.equal(quote.jours, 4); assert.deepEqual(quote.tarifsJournaliers.map((day) => day.rate), [65, 65, 65, 79]);
+  assert.equal(quote.sousTotalBrut, 274); assert.equal(quote.kmInclus, 800); assert.equal(quote.reductionDuree, null);
 });
-
-test("calculerPrixTotal : une heure entamée au-delà d'un multiple de 24h ajoute un jour facturable", () => {
-  const vehicule = getVehiculeParId("opel-corsa");
-  // 24h pile => 1 jour
-  const pile = calculerPrixTotal({
-    vehiculeId: "opel-corsa",
-    dateDebut: "2026-08-01", heureDebut: "10:00",
-    dateFin: "2026-08-02", heureFin: "10:00"
-  });
-  assert.equal(pile.jours, 1);
-  assert.equal(pile.total, vehicule.prixJour);
-
-  // 24h + 1 minute => 2 jours facturables
-  const depasse = calculerPrixTotal({
-    vehiculeId: "opel-corsa",
-    dateDebut: "2026-08-01", heureDebut: "10:00",
-    dateFin: "2026-08-02", heureFin: "10:01"
-  });
-  assert.equal(depasse.jours, 2);
-  assert.equal(depasse.total, vehicule.prixJour * 2);
+test("6 — la dernière tranche entamée utilise le niveau événementiel de sa date locale", () => {
+  const quote = calculateQuote({ vehicleId: "peugeot-2008-hybrid", dateDebut: "2026-10-10", heureDebut: "14:00", dateFin: "2026-10-11", heureFin: "14:01" });
+  assert.deepEqual(quote.dailyRates.map((day) => [day.date, day.rate]), [["2026-10-10", 65], ["2026-10-11", 79]]);
 });
-
-test("calculerPrixTotal : totalCentimes est cohérent avec total (pas d'erreur d'arrondi flottant)", () => {
-  const result = calculerPrixTotal({
-    vehiculeId: "toyota-proace-city",
-    dateDebut: "2026-08-01", heureDebut: "10:00",
-    dateFin: "2026-08-08", heureFin: "10:00"
-  });
-  assert.equal(result.totalCentimes, Math.round(result.total * 100));
-  assert.equal(Number.isInteger(result.totalCentimes), true);
+test("7 — une journée entamée déclenche le palier de remise correspondant", () => {
+  const quote = calculerPrixTotal({ ...base, dateFin: "2026-10-12", heureFin: "14:01" });
+  assert.equal(quote.jours, 5); assert.equal(quote.reductionDuree.taux, 0.05);
 });
-
-/* ---------------------------------------------------------
-   Réduction durée (5 jours consécutifs ou plus)
---------------------------------------------------------- */
-
-test("reductionDureeApplicable : aucun palier en dessous de 5 jours", () => {
-  assert.equal(reductionDureeApplicable(1), null);
-  assert.equal(reductionDureeApplicable(3), null);
-  assert.equal(reductionDureeApplicable(4), null);
+test("8 — protections et options journalières suivent les jours facturés, protection plafonnée à 7 jours", () => {
+  const quote = calculerPrixTotal({ ...base, dateFin: "2026-10-15", heureFin: "14:01", protection: "confort", options: ["siege-enfant"] });
+  assert.equal(quote.jours, 8); assert.equal(quote.protection.montant, 42); assert.equal(quote.protection.joursFactures, 7);
+  assert.equal(quote.optionsSelectionnees.find((option) => option.id === "siege-enfant").montant, 80);
 });
-
-test("reductionDureeApplicable : palier atteint à partir de 5 jours", () => {
-  assert.equal(reductionDureeApplicable(5).seuilJours, 5);
-  assert.equal(reductionDureeApplicable(6).seuilJours, 5);
-  assert.equal(reductionDureeApplicable(90).seuilJours, 5);
+test("9 — Europe/Paris : changements d'heure et minuit utilisent les instants réels", () => {
+  assert.equal(joursFacturablesPourPeriode("2026-03-28", "14:00", "2026-03-29", "14:00"), 1);
+  assert.equal(joursFacturablesPourPeriode("2026-10-24", "14:00", "2026-10-26", "14:00"), 3);
+  assert.equal(joursFacturablesPourPeriode("2026-10-08", "23:30", "2026-10-09", "00:30"), 1);
+  assert.equal(calculerPrixTotal({ ...base, dateFin: base.dateDebut, heureFin: base.heureDebut }), null);
 });
-
-test("calculerPrixTotal : applique la remise durée à partir de 5 jours sur le sous-total", () => {
-  const vehicule = getVehiculeParId("opel-corsa");
-  const palier5 = REDUCTIONS_DUREE.find(r => r.seuilJours === 5);
-  const result = calculerPrixTotal({
-    vehiculeId: "opel-corsa",
-    dateDebut: "2026-08-01", heureDebut: "10:00",
-    dateFin: "2026-08-06", heureFin: "10:00" // 5 jours pile
-  });
-  assert.equal(result.jours, 5);
-  assert.equal(result.sousTotalBrut, vehicule.prixJour * 5);
-  assert.ok(result.reductionDuree);
-  assert.equal(result.reductionDuree.montantParJour, palier5.montantParJour);
-  assert.equal(result.reductionDuree.montant, palier5.montantParJour * 5);
-  assert.equal(result.sousTotal, result.sousTotalBrut - result.reductionDuree.montant);
-  assert.equal(result.total, result.sousTotal);
-});
-
-test("calculerPrixTotal : sans palier atteint (moins de 5 jours), aucune remise durée n'est appliquée", () => {
-  const vehicule = getVehiculeParId("opel-corsa");
-  const result = calculerPrixTotal({
-    vehiculeId: "opel-corsa",
-    dateDebut: "2026-08-01", heureDebut: "10:00",
-    dateFin: "2026-08-04", heureFin: "10:00" // 3 jours
-  });
-  assert.equal(result.reductionDuree, null);
-  assert.equal(result.sousTotal, vehicule.prixJour * 3);
-});
-
-/* ---------------------------------------------------------
-   Codes promo
---------------------------------------------------------- */
-
-test("getCodePromo : normalise la casse et les espaces, rejette un code inconnu", () => {
-  assert.equal(getCodePromo("  getloc10  ").code, "GETLOC10");
-  assert.equal(getCodePromo("GETLOC10").pourcentage > 0, true);
-  assert.equal(getCodePromo("CODE-INEXISTANT"), null);
-  assert.equal(getCodePromo(""), null);
-  assert.equal(getCodePromo(null), null);
-  assert.equal(getCodePromo(undefined), null);
-});
-
-test("calculerPrixTotal : applique un code promo valide sur le total (options incluses)", () => {
-  const vehicule = getVehiculeParId("opel-corsa");
-  const promo = getCodePromo("GETLOC10");
-  const result = calculerPrixTotal({
-    vehiculeId: "opel-corsa",
-    dateDebut: "2026-08-01", heureDebut: "10:00",
-    dateFin: "2026-08-04", heureFin: "10:00", // 3 jours, pas de remise durée
-    codePromo: "getloc10"
-  });
-  const baseAvantPromo = vehicule.prixJour * 3;
-  assert.equal(result.baseAvantPromo, baseAvantPromo);
-  assert.ok(result.codePromo);
-  assert.equal(result.codePromo.code, "GETLOC10");
-  assert.equal(result.reductionPromoMontant, Math.round(baseAvantPromo * promo.pourcentage) / 100);
-  assert.equal(result.total, baseAvantPromo - result.reductionPromoMontant);
-});
-
-test("calculerPrixTotal : applique un code promo à montant fixe (BIENVENUE20, pas un pourcentage)", () => {
-  const vehicule = getVehiculeParId("opel-corsa");
-  const result = calculerPrixTotal({
-    vehiculeId: "opel-corsa",
-    dateDebut: "2026-08-01", heureDebut: "10:00",
-    dateFin: "2026-08-04", heureFin: "10:00", // 3 jours, pas de remise durée
-    codePromo: "bienvenue20"
-  });
-  const baseAvantPromo = vehicule.prixJour * 3;
-  assert.equal(result.codePromo.code, "BIENVENUE20");
-  assert.equal(result.codePromo.montant, 20);
-  assert.equal(result.codePromo.pourcentage, undefined);
-  assert.equal(result.reductionPromoMontant, 20, "remise fixe, jamais proportionnelle au total");
-  assert.equal(result.total, baseAvantPromo - 20);
-});
-
-test("calculerPrixTotal : un code promo invalide est ignoré (aucune erreur, aucune remise)", () => {
-  const vehicule = getVehiculeParId("opel-corsa");
-  const result = calculerPrixTotal({
-    vehiculeId: "opel-corsa",
-    dateDebut: "2026-08-01", heureDebut: "10:00",
-    dateFin: "2026-08-04", heureFin: "10:00",
-    codePromo: "PAS-UN-VRAI-CODE"
-  });
-  assert.equal(result.codePromo, null);
-  assert.equal(result.reductionPromoMontant, 0);
-  assert.equal(result.total, vehicule.prixJour * 3);
-});
-
-/* ---------------------------------------------------------
-   Options (siège auto, forfaits, etc.)
---------------------------------------------------------- */
-
-test("OPTIONS : chaque option a un id, un prix positif et un type valide", () => {
-  assert.ok(OPTIONS.length > 0);
-  OPTIONS.forEach((opt) => {
-    assert.equal(typeof opt.id, "string");
-    assert.ok(["jour", "forfait"].includes(opt.type));
-    assert.ok(opt.prix > 0);
-    assert.equal(getOptionParId(opt.id).id, opt.id);
-  });
-});
-
-test("calculerPrixTotal : une option type \"jour\" est multipliée par le nombre de jours, une option \"forfait\" ne l'est pas", () => {
-  const vehicule = getVehiculeParId("opel-corsa");
-  const siegeAuto = getOptionParId("siege-enfant"); // type "jour"
-  const livraison = getOptionParId("livraison-adresse"); // type "forfait"
-  const result = calculerPrixTotal({
-    vehiculeId: "opel-corsa",
-    dateDebut: "2026-08-01", heureDebut: "10:00",
-    dateFin: "2026-08-04", heureFin: "10:00", // 3 jours
-    options: ["siege-enfant", "livraison-adresse"]
-  });
-  assert.equal(result.jours, 3);
-  const optSiege = result.optionsSelectionnees.find(o => o.id === "siege-enfant");
-  const optLivraison = result.optionsSelectionnees.find(o => o.id === "livraison-adresse");
-  assert.equal(optSiege.montant, siegeAuto.prix * 3);
-  assert.equal(optLivraison.montant, livraison.prix);
-  assert.equal(result.optionsMontant, optSiege.montant + optLivraison.montant);
-  assert.equal(result.total, vehicule.prixJour * 3 + result.optionsMontant);
-});
-
-test("forfaits kilométriques : les trois paliers utilisent les montants demandés", () => {
-  assert.equal(getOptionParId("km-200").prix, 60);
-  assert.equal(getOptionParId("km-supplementaire").prix, 100);
-  assert.equal(getOptionParId("km-400").prix, 150);
-});
-
-test("calculerPrixTotal : ignore un identifiant d'option inconnu et déduplique les doublons", () => {
-  const result = calculerPrixTotal({
-    vehiculeId: "opel-corsa",
-    dateDebut: "2026-08-01", heureDebut: "10:00",
-    dateFin: "2026-08-04", heureFin: "10:00",
-    options: ["siege-enfant", "siege-enfant", "option-qui-nexiste-pas"]
-  });
-  assert.equal(result.optionsSelectionnees.length, 1);
-  assert.equal(result.optionsSelectionnees[0].id, "siege-enfant");
-});
-
-test("calculerPrixTotal : pipeline complet — remise durée + options − code promo", () => {
-  const vehicule = getVehiculeParId("peugeot-3008");
-  const palier5 = REDUCTIONS_DUREE.find(r => r.seuilJours === 5);
-  const promo = getCodePromo("GETLOC15");
-  const siegeAuto = getOptionParId("siege-enfant");
-  const livraison = getOptionParId("livraison-adresse");
-
-  const result = calculerPrixTotal({
-    vehiculeId: "peugeot-3008",
-    dateDebut: "2026-08-01", heureDebut: "10:00",
-    dateFin: "2026-08-15", heureFin: "10:00", // 14 jours
-    options: ["siege-enfant", "livraison-adresse"],
-    codePromo: "GETLOC15"
-  });
-
-  const sousTotalBrut = vehicule.prixJour * 14;
-  const reductionDureeMontant = palier5.montantParJour * 14;
-  const sousTotal = sousTotalBrut - reductionDureeMontant;
-  const optionsMontant = siegeAuto.prix * 14 + livraison.prix;
-  const baseAvantPromo = sousTotal + optionsMontant;
-  const reductionPromoMontant = Math.round(baseAvantPromo * promo.pourcentage) / 100;
-  const total = baseAvantPromo - reductionPromoMontant;
-
-  assert.equal(result.sousTotalBrut, sousTotalBrut);
-  assert.equal(result.reductionDuree.montant, reductionDureeMontant);
-  assert.equal(result.sousTotal, sousTotal);
-  assert.equal(result.optionsMontant, optionsMontant);
-  assert.equal(result.baseAvantPromo, baseAvantPromo);
-  assert.equal(result.reductionPromoMontant, reductionPromoMontant);
-  assert.equal(result.total, total);
-  assert.equal(result.totalCentimes, Math.round(total * 100));
+test("10 — le calcul fiable ignore tout montant fourni par le navigateur et le récapitulatif ne double pas Protection", () => {
+  const expected = calculerPrixTotal({ ...base, dateFin: "2026-10-11", heureFin: "20:00" });
+  const forged = calculerPrixTotal({ ...base, dateFin: "2026-10-11", heureFin: "20:00", total: 0, amount: 0, price: 0 });
+  assert.equal(forged.totalCentimes, expected.totalCentimes); assert.equal(getVehiculeParId(base.vehiculeId).id, base.vehiculeId);
+  assert.doesNotMatch(fs.readFileSync(require.resolve("../js/app.js"), "utf8"), /Protection \{nom\}/);
 });

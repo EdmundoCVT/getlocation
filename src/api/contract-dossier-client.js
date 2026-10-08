@@ -11,7 +11,7 @@
 // réservation) : si le texte a changé depuis l'émission du lien, la
 // signature est refusée tant que le client n'a pas rechargé la page.
 
-const { getVehiculeParId, kmInclusPourJours, joursFacturablesDepuisHeures, dureeEnHeures, CGL_VERSION } = require("../../js/data.js");
+const { getVehiculeParId, kmInclusPourJours, joursFacturablesPourPeriode, CGL_VERSION } = require("../../js/data.js");
 const { updateContractDossier, findReservationByContractClientTokenHash } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { hashContractClientToken } = require("../lib/contract-dossier-token.js");
@@ -55,10 +55,7 @@ async function resolveContractClientAccess(request, env) {
 }
 
 function joursReservation(reservation) {
-  const heures = reservation.periodeDebut && reservation.periodeFin
-    ? (new Date(reservation.periodeFin) - new Date(reservation.periodeDebut)) / (1000 * 60 * 60)
-    : dureeEnHeures(reservation.dateDebut, reservation.heureDebut, reservation.dateFin, reservation.heureFin);
-  return joursFacturablesDepuisHeures(heures);
+  return joursFacturablesPourPeriode(reservation.dateDebut, reservation.heureDebut, reservation.dateFin, reservation.heureFin);
 }
 
 function buildClientView(reservation) {

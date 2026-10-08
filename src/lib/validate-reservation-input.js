@@ -12,7 +12,7 @@
 // confirmée en production — ne pas laisser les deux diverger si l'une des
 // deux est modifiée avant la suppression définitive de l'ancienne.
 
-const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, LIEUX_FREQUENTS_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS, anciennetePermisAnnees, PROTECTIONS, PROTECTION_PAR_DEFAUT, HEURE_OUVERTURE, HEURE_FERMETURE } = require("../../js/data.js");
+const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, LIEUX_FREQUENTS_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS, anciennetePermisAnnees, PROTECTIONS, PROTECTION_PAR_DEFAUT, HEURE_OUVERTURE, HEURE_FERMETURE, instantEuropeParis } = require("../../js/data.js");
 
 const MAX_LEN = {
   nom: 100,
@@ -126,15 +126,15 @@ function validateReservationInput(payload) {
   if (isValidHeure(heureFin) && !isHeureReservationAutorisee(heureFin)) errors.push("L'heure de fin doit être comprise entre 07:00 et 23:30");
 
   if (isValidDate(dateDebut) && isValidHeure(heureDebut)) {
-    const debut = new Date(`${dateDebut}T${heureDebut}:00`);
-    if (debut.getTime() < Date.now() - PAST_DATE_TOLERANCE_MS) {
+    const debut = instantEuropeParis(dateDebut, heureDebut);
+    if (debut !== null && debut < Date.now() - PAST_DATE_TOLERANCE_MS) {
       errors.push("La date de début ne peut pas être dans le passé");
     }
   }
   if (isValidDate(dateDebut) && isValidHeure(heureDebut) && isValidDate(dateFin) && isValidHeure(heureFin)) {
-    const debut = new Date(`${dateDebut}T${heureDebut}:00`);
-    const fin = new Date(`${dateFin}T${heureFin}:00`);
-    if (fin.getTime() <= debut.getTime()) errors.push("La date de fin doit être postérieure à la date de début");
+    const debut = instantEuropeParis(dateDebut, heureDebut);
+    const fin = instantEuropeParis(dateFin, heureFin);
+    if (debut === null || fin === null || fin <= debut) errors.push("La date de fin doit être postérieure à la date de début");
   }
 
   if (lieuPrise !== undefined && lieuPrise !== null && !LIEUX.includes(lieuPrise) && !LIEUX_HISTORIQUES.has(lieuPrise)) {

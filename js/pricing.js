@@ -12,9 +12,9 @@
   const LEVELS = { low: "BASSE", normal: "NORMALE", high: "FORTE", veryHigh: "TRÈS FORTE", exceptional: "EXCEPTIONNELLE" };
   const LEVEL_PRIORITY = { low: 1, normal: 2, high: 3, veryHigh: 4, exceptional: 5 };
   const VEHICLE_RATES = {
-    "opel-corsa": { low: 45, normal: 49, high: 59, veryHigh: 65, exceptional: 79 },
-    "peugeot-2008-hybrid": { low: 55, normal: 59, high: 69, veryHigh: 79, exceptional: 95 },
-    "peugeot-3008": { low: 69, normal: 79, high: 89, veryHigh: 99, exceptional: 119 },
+    "opel-corsa": { low: 49, normal: 55, high: 59, veryHigh: 65, exceptional: 79 },
+    "peugeot-2008-hybrid": { low: 59, normal: 65, high: 75, veryHigh: 79, exceptional: 95 },
+    "peugeot-3008": { low: 99, normal: 99, high: 99, veryHigh: 99, exceptional: 119 },
     "toyota-proace-city": { low: 79, normal: 89, high: 99, veryHigh: 109, exceptional: 129 }
   };
   const MONTH_SEASONS = { 1: "low", 2: "low", 3: "normal", 4: "normal", 5: "high", 6: "high", 7: "veryHigh", 8: "veryHigh", 9: "high", 10: "normal", 11: "low", 12: "low" };
@@ -27,9 +27,65 @@
   const EXTRA_MILEAGE_PACKAGES = { "km-200": { km: 200, amount: 60 }, "km-supplementaire": { km: 300, amount: 100 }, "km-400": { km: 400, amount: 150 } };
   const DELIVERY = { pickupFee: 20, perKm: 1, minimum: 25 };
 
-  function isoDate(value) { return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null; }
-  function addDays(iso, count) { const d = new Date(`${iso}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + count); return d.toISOString().slice(0, 10); }
-  function rentalDays(start, end) { const a = Date.parse(`${start}T00:00:00Z`), b = Date.parse(`${end}T00:00:00Z`); return Number.isFinite(a) && Number.isFinite(b) && b > a ? Math.round((b - a) / 86400000) : 0; }
+  const PARIS_TIME_ZONE = "Europe/Paris";
+  const parisDateParts = new Intl.DateTimeFormat("en-CA", { timeZone: PARIS_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  const parisOffset = new Intl.DateTimeFormat("en", { timeZone: PARIS_TIME_ZONE, timeZoneName: "longOffset" });
+
+  function parseDateTime(date, time) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date || "");
+    const timeMatch = /^(\d{2}):(\d{2})$/.exec(time || "");
+    if (!match || !timeMatch) return null;
+    const [year, month, day] = match.slice(1).map(Number);
+    const [hour, minute] = timeMatch.slice(1).map(Number);
+    const check = new Date(Date.UTC(year, month - 1, day));
+    return month >= 1 && month <= 12 && day >= 1 && day <= 31 && hour <= 23 && minute <= 59 && check.getUTCFullYear() === year && check.getUTCMonth() === month - 1 && check.getUTCDate() === day
+      ? { year, month, day, hour, minute }
+      : null;
+  }
+  function partsAt(ms) {
+    const parts = parisDateParts.formatToParts(new Date(ms));
+    const value = (type) => Number(parts.find((part) => part.type === type).value);
+    return { year: value("year"), month: value("month"), day: value("day"), hour: value("hour"), minute: value("minute") };
+  }
+  function offsetAt(ms) {
+    const value = parisOffset.formatToParts(new Date(ms)).find((part) => part.type === "timeZoneName").value;
+    const match = /^GMT([+-])(\d{2}):(\d{2})$/.exec(value);
+    return match ? (match[1] === "+" ? 1 : -1) * (Number(match[2]) * 60 + Number(match[3])) : null;
+  }
+  function sameParts(a, b) { return a.year === b.year && a.month === b.month && a.day === b.day && a.hour === b.hour && a.minute === b.minute; }
+  // Convertit une heure locale Europe/Paris en instant. Les créneaux ambiguës
+  // ou inexistants lors du changement d'heure sont refusés : aucun montant ne
+  // peut être calculé sur un instant incertain.
+  function parisInstant(date, time) {
+    const local = parseDateTime(date, time);
+    if (!local) return null;
+    const naive = Date.UTC(local.year, local.month - 1, local.day, local.hour, local.minute);
+    const offsets = new Set();
+    for (let delta = -36; delta <= 36; delta += 6) {
+      const offset = offsetAt(naive + delta * 3600000);
+      if (offset !== null) offsets.add(offset);
+    }
+    const matches = [...offsets]
+      .map((offset) => naive - offset * 60000)
+      .filter((instant) => sameParts(partsAt(instant), local));
+    return matches.length === 1 ? matches[0] : null;
+  }
+  function dateAtParis(ms) {
+    const { year, month, day } = partsAt(ms);
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+  function rentalPeriod(dateDebut, heureDebut = "00:00", dateFin, heureFin = "00:00") {
+    const start = parisInstant(dateDebut, heureDebut);
+    const end = parisInstant(dateFin, heureFin);
+    if (start === null || end === null || end <= start) return null;
+    const durationMinutes = (end - start) / 60000;
+    return { start, end, durationMinutes, days: Math.max(1, Math.ceil(durationMinutes / 1440)) };
+  }
+  function rentalDays(dateDebut, heureDebut, dateFin, heureFin) {
+    if (dateFin === undefined) { dateFin = heureDebut; heureDebut = "00:00"; heureFin = "00:00"; }
+    const period = rentalPeriod(dateDebut, heureDebut, dateFin, heureFin);
+    return period ? period.days : 0;
+  }
   function levelForDate(date, periods = SPECIAL_PERIODS) {
     const month = Number(date.slice(5, 7));
     const seasonalLevel = MONTH_SEASONS[month] || "normal";
@@ -48,13 +104,14 @@
   function discountForDays(days) { const found = DURATION_DISCOUNTS.find(([min, max]) => days >= min && days <= max); return found ? { rate: found[2], label: `${found[0]}${found[1] === Infinity ? " jours et plus" : ` à ${found[1]} jours`}` } : { rate: 0, label: null }; }
   function includedMileage(vehicleId, days) { const proace = vehicleId === "toyota-proace-city"; if (days <= 0) return 0; if (days <= 7) return [0, 200, 400, 600, 800, 900, 1000, 1100][days]; if (days <= 13) return 1100 + (days - 7) * (proace ? 100 : 125); if (days === 14) return proace ? 1800 : 2000; if (days <= 29) return (proace ? 1800 : 2000) + (days - 14) * (proace ? 75 : 100); return proace ? 3000 : 3500; }
   function deliveryCost(distanceKm) { const km = Number(distanceKm); return Number.isFinite(km) && km >= 0 ? Math.max(DELIVERY.minimum, DELIVERY.pickupFee + km * DELIVERY.perKm) : 0; }
-  function calculateQuote({ vehicleId, dateDebut, dateFin, extraMileagePackageId, deliveryDistanceKm }) {
-    const rates = VEHICLE_RATES[vehicleId]; const days = rentalDays(dateDebut, dateFin); if (!rates || !days) return null;
-    const dailyRates = Array.from({ length: days }, (_, index) => { const date = addDays(dateDebut, index); const season = levelForDate(date); return { date, level: season.level, levelLabel: LEVELS[season.level], event: season.event, rate: rates[season.level] }; });
+  function calculateQuote({ vehicleId, dateDebut, heureDebut = "00:00", dateFin, heureFin = "00:00", extraMileagePackageId, deliveryDistanceKm }) {
+    const rates = VEHICLE_RATES[vehicleId]; const period = rentalPeriod(dateDebut, heureDebut, dateFin, heureFin); if (!rates || !period) return null;
+    const { days } = period;
+    const dailyRates = Array.from({ length: days }, (_, index) => { const date = dateAtParis(period.start + index * 86400000); const season = levelForDate(date); return { date, level: season.level, levelLabel: LEVELS[season.level], event: season.event, rate: rates[season.level] }; });
     const rentalSubtotalCents = dailyRates.reduce((sum, day) => sum + day.rate * 100, 0); const discount = discountForDays(days); const discountCents = Math.round(rentalSubtotalCents * discount.rate); const rentalAfterDiscountCents = rentalSubtotalCents - discountCents;
     const packageInfo = EXTRA_MILEAGE_PACKAGES[extraMileagePackageId] || null; const deliveryCents = deliveryDistanceKm === undefined || deliveryDistanceKm === null || deliveryDistanceKm === "" ? 0 : Math.round(deliveryCost(deliveryDistanceKm) * 100);
     const includedKm = includedMileage(vehicleId, days); const totalCents = rentalAfterDiscountCents + (packageInfo ? packageInfo.amount * 100 : 0) + deliveryCents;
     return { days, dailyRates, rentalSubtotal: rentalSubtotalCents / 100, rentalSubtotalCents, discountRate: discount.rate, discountLabel: discount.label, discountAmount: discountCents / 100, discountCents, rentalAfterDiscount: rentalAfterDiscountCents / 100, rentalAfterDiscountCents, includedKm, extraMileagePackage: packageInfo ? { id: extraMileagePackageId, ...packageInfo } : null, delivery: deliveryCents ? { distanceKm: Number(deliveryDistanceKm), amount: deliveryCents / 100 } : null, total: totalCents / 100, totalCents };
   }
-  return { LEVELS, LEVEL_PRIORITY, VEHICLE_RATES, MONTH_SEASONS, SPECIAL_PERIODS, DURATION_DISCOUNTS, EXTRA_MILEAGE_PACKAGES, DELIVERY, rentalDays, levelForDate, discountForDays, includedMileage, deliveryCost, calculateQuote };
+  return { LEVELS, LEVEL_PRIORITY, VEHICLE_RATES, MONTH_SEASONS, SPECIAL_PERIODS, DURATION_DISCOUNTS, EXTRA_MILEAGE_PACKAGES, DELIVERY, PARIS_TIME_ZONE, parisInstant, rentalPeriod, rentalDays, levelForDate, discountForDays, includedMileage, deliveryCost, calculateQuote };
 });

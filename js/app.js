@@ -611,9 +611,7 @@ function initVehiculesPage() {
   // `jours` est recalculé (pas seulement à l'initialisation) quand le client
   // modifie ses dates depuis la barre de dates persistante (voir
   // initDateBar plus bas) — d'où le `let` plutôt qu'un `const`.
-  let jours = joursFacturablesDepuisHeures(
-    dureeEnHeures(recherche.dateDebut, recherche.heureDebut, recherche.dateFin, recherche.heureFin)
-  );
+  let jours = joursFacturablesPourPeriode(recherche.dateDebut, recherche.heureDebut, recherche.dateFin, recherche.heureFin);
 
   const filterBar = document.getElementById("filter-bar");
 
@@ -871,9 +869,7 @@ function initVehiculesPage() {
     onApply: (nouvellesDates) => {
       Object.assign(recherche, nouvellesDates);
       writeJSON(STORAGE.recherche, recherche);
-      jours = joursFacturablesDepuisHeures(
-        dureeEnHeures(recherche.dateDebut, recherche.heureDebut, recherche.dateFin, recherche.heureFin)
-      );
+      jours = joursFacturablesPourPeriode(recherche.dateDebut, recherche.heureDebut, recherche.dateFin, recherche.heureFin);
       renderGrid();
     }
   });
@@ -1775,9 +1771,7 @@ function initReservationPage() {
     getData: () => ({ dateDebut: data.dateDebut, heureDebut: data.heureDebut, dateFin: data.dateFin, heureFin: data.heureFin, jours: data.jours }),
     onApply: (nouvellesDates) => {
       Object.assign(data, nouvellesDates);
-      data.jours = joursFacturablesDepuisHeures(
-        dureeEnHeures(data.dateDebut, data.heureDebut, data.dateFin, data.heureFin)
-      );
+      data.jours = joursFacturablesPourPeriode(data.dateDebut, data.heureDebut, data.dateFin, data.heureFin);
       writeReservationLocal(data);
       render();
     }
@@ -2181,9 +2175,7 @@ function initPaiementPage() {
     getData: () => ({ dateDebut: data.dateDebut, heureDebut: data.heureDebut, dateFin: data.dateFin, heureFin: data.heureFin, jours: data.jours }),
     onApply: (nouvellesDates) => {
       Object.assign(data, nouvellesDates);
-      data.jours = joursFacturablesDepuisHeures(
-        dureeEnHeures(data.dateDebut, data.heureDebut, data.dateFin, data.heureFin)
-      );
+      data.jours = joursFacturablesPourPeriode(data.dateDebut, data.heureDebut, data.dateFin, data.heureFin);
       writeReservationLocal(data);
       renderSummary();
     }
@@ -2413,8 +2405,8 @@ function appendBreakdownRows(container, prix) {
     const protection = prix.protection;
     const ligne = summaryRow(
       protection.plafonne
-        ? t("Protection {nom} (forfait plafonné à {jours})", { nom: t(protection.nom), jours: libelleJours(protection.joursFactures) })
-        : t("Protection {nom} — {jours}", { nom: t(protection.nom), jours: libelleJours(prix.jours) }),
+        ? t("{nom} (forfait plafonné à {jours})", { nom: t(protection.nom), jours: libelleJours(protection.joursFactures) })
+        : t("{nom} — {jours}", { nom: t(protection.nom), jours: libelleJours(prix.jours) }),
       protection.montant > 0 ? formatEUR(protection.montant) : t("Incluse")
     );
     container.appendChild(ligne);

@@ -21,7 +21,7 @@
 //   computeWritableRuns) — une ligne nouvellement ajoutée n'a par
 //   construction ni formule ni validation à préserver.
 
-const { getVehiculeParId, dureeEnHeures, joursFacturablesDepuisHeures } = require("../../js/data.js");
+const { getVehiculeParId, joursFacturablesPourPeriode } = require("../../js/data.js");
 const { getRentalById } = require("./rentals.js");
 const { getClientById } = require("./clients.js");
 const { listPaymentsForRental, summarizePayments } = require("./payments.js");
@@ -105,7 +105,7 @@ function buildRowValues({ rental, client, vehicule, paymentsSummary, methodesUti
     rental.heureDebut || "",
     formatDateFR(rental.dateFin),
     rental.heureFin || "",
-    joursFacturablesDepuisHeures(dureeEnHeures(rental.dateDebut, rental.heureDebut, rental.dateFin, rental.heureFin)),
+    joursFacturablesPourPeriode(rental.dateDebut, rental.heureDebut, rental.dateFin, rental.heureFin),
     vehicule ? vehicule.prixJour : "",
     Number.isFinite(rental.priceTotalCents) ? euros(rental.priceTotalCents) : "",
     euros(paymentsSummary.totalPaidCents),

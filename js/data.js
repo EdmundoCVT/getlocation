@@ -14,11 +14,21 @@
 // Le repli ne sert qu'aux aperçus/tests qui évaluent historiquement data.js
 // seul : il évite une erreur de chargement, sans être utilisé en production.
 const PRICING = typeof module !== "undefined" && module.exports ? require("./pricing.js") : globalThis.GETLOCATION_PRICING || {
-  VEHICLE_RATES: { "opel-corsa": { normal: 49 }, "peugeot-2008-hybrid": { normal: 59 }, "peugeot-3008": { normal: 79 }, "toyota-proace-city": { normal: 89 } },
+  VEHICLE_RATES: { "opel-corsa": { normal: 55 }, "peugeot-2008-hybrid": { normal: 65 }, "peugeot-3008": { normal: 99 }, "toyota-proace-city": { normal: 89 } },
   DURATION_DISCOUNTS: [],
   discountForDays: () => ({ rate: 0, label: null }),
   includedMileage: (_id, days) => days * 200,
-  calculateQuote: ({ vehicleId, dateDebut, dateFin }) => { const days = Math.round((Date.parse(`${dateFin}T00:00:00Z`) - Date.parse(`${dateDebut}T00:00:00Z`)) / 86400000); const rate = (globalThis.GETLOCATION_PRICING || {}).VEHICLE_RATES?.[vehicleId]?.normal || 0; return days > 0 && rate ? { days, dailyRates: [], rentalSubtotal: days * rate, discountRate: 0, discountLabel: null, discountAmount: 0, rentalAfterDiscount: days * rate, includedKm: days * 200, extraMileagePackage: null, delivery: null } : null; }
+  rentalPeriod: (dateDebut, heureDebut = "00:00", dateFin, heureFin = "00:00") => {
+    const start = Date.parse(`${dateDebut}T${heureDebut}:00`), end = Date.parse(`${dateFin}T${heureFin}:00`);
+    return Number.isFinite(start) && Number.isFinite(end) && end > start ? { durationMinutes: (end - start) / 60000, days: Math.ceil((end - start) / 86400000) } : null;
+  },
+  calculateQuote: ({ vehicleId, dateDebut, heureDebut = "00:00", dateFin, heureFin = "00:00" }) => {
+    const period = (globalThis.GETLOCATION_PRICING || {}).rentalPeriod ? globalThis.GETLOCATION_PRICING.rentalPeriod(dateDebut, heureDebut, dateFin, heureFin) : null;
+    const days = period ? period.days : Math.ceil((Date.parse(`${dateFin}T${heureFin}:00`) - Date.parse(`${dateDebut}T${heureDebut}:00`)) / 86400000);
+    const rate = (globalThis.GETLOCATION_PRICING || {}).VEHICLE_RATES?.[vehicleId]?.normal || ({ "opel-corsa": 55, "peugeot-2008-hybrid": 65, "peugeot-3008": 99, "toyota-proace-city": 89 }[vehicleId] || 0);
+    return days > 0 && rate ? { days, dailyRates: [], rentalSubtotal: days * rate, discountRate: 0, discountLabel: null, discountAmount: 0, rentalAfterDiscount: days * rate, includedKm: days * 200, extraMileagePackage: null, delivery: null } : null;
+  },
+  parisInstant: (date, time = "00:00") => { const instant = Date.parse(`${date}T${time}:00`); return Number.isFinite(instant) ? instant : null; }
 };
 const LIEU_LIVRAISON = "Livraison à l'adresse de votre choix";
 const ADRESSE_PERSONNALISEE = "Saisir une adresse personnalisée";
@@ -632,9 +642,17 @@ function getVehiculeParId(id) {
 // Calcule la durée réelle de location en heures, en tenant compte de l'heure
 // de prise en charge et de restitution (pas seulement de la date calendaire).
 function dureeEnHeures(dateDebut, heureDebut, dateFin, heureFin) {
-  const debut = new Date(`${dateDebut}T${heureDebut || "00:00"}:00`);
-  const fin = new Date(`${dateFin}T${heureFin || "00:00"}:00`);
-  return (fin - debut) / (1000 * 60 * 60);
+  const period = PRICING.rentalPeriod(dateDebut, heureDebut, dateFin, heureFin);
+  return period ? period.durationMinutes / 60 : NaN;
+}
+
+function instantEuropeParis(date, heure) {
+  return PRICING.parisInstant(date, heure);
+}
+
+function joursFacturablesPourPeriode(dateDebut, heureDebut, dateFin, heureFin) {
+  const period = PRICING.rentalPeriod(dateDebut, heureDebut, dateFin, heureFin);
+  return period ? period.days : 0;
 }
 
 // Convertit une durée en heures en nombre de jours facturables : toute heure
@@ -675,12 +693,12 @@ function joursFacturablesDepuisHeures(dureeHeures) {
 // `protection` : identifiant du niveau retenu (voir PROTECTIONS). Absent ou
 // inconnu, la formule incluse « Essentiel » s'applique — 0 € — pour que les
 // réservations d'avant ce système gardent exactement leur montant.
-function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut, dateFin, heureFin, options, codePromo, permisDate, protection, deliveryDistanceKm }) {
+function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut = "00:00", dateFin, heureFin = "00:00", options, codePromo, permisDate, protection, deliveryDistanceKm }) {
   const vehicule = getVehiculeParId(vehiculeId);
   if (!vehicule) return null;
   const idsOptions = Array.isArray(options) ? [...new Set(options)] : [];
   const kmPackageId = idsOptions.find((id) => KM_PACKAGE_OPTION_IDS.includes(id));
-  const quoteInput = { vehicleId: vehiculeId, dateDebut, dateFin };
+  const quoteInput = { vehicleId: vehiculeId, dateDebut, heureDebut, dateFin, heureFin };
   if (kmPackageId) quoteInput.extraMileagePackageId = kmPackageId;
   if (idsOptions.includes("livraison-adresse")) quoteInput.deliveryDistanceKm = deliveryDistanceKm;
   const quote = PRICING.calculateQuote(quoteInput);
@@ -886,6 +904,8 @@ if (typeof module !== "undefined" && module.exports) {
     getFranchises,
     getVehiculeParId,
     dureeEnHeures,
+    instantEuropeParis,
+    joursFacturablesPourPeriode,
     joursFacturablesDepuisHeures,
     reductionDureeApplicable,
     prixJourMinimum,

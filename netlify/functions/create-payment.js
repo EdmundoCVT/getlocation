@@ -28,7 +28,7 @@
 // Acceptable pour une petite flotte à faible volume ; à durcir (verrou
 // distribué) si le volume de réservations augmente significativement.
 
-const { calculerPrixTotal } = require("../../js/data.js");
+const { calculerPrixTotal, instantEuropeParis } = require("../../js/data.js");
 const { validateReservationInput } = require("./lib/validate-reservation-input.js");
 const {
   createReservation,
@@ -197,8 +197,8 @@ exports.handler = async (event) => {
     };
   }
 
-  const periodeDebut = new Date(`${payload.dateDebut}T${payload.heureDebut}:00`).toISOString();
-  const periodeFin = new Date(`${payload.dateFin}T${payload.heureFin}:00`).toISOString();
+  const periodeDebut = new Date(instantEuropeParis(payload.dateDebut, payload.heureDebut)).toISOString();
+  const periodeFin = new Date(instantEuropeParis(payload.dateFin, payload.heureFin)).toISOString();
 
   const overlap = await hasOverlappingReservation(vehicule.id, periodeDebut, periodeFin);
   if (overlap) {
