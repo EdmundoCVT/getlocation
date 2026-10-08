@@ -65,8 +65,14 @@ async function createManualContract(env, rawData, operator) {
   const id = generateReservationId();
   const numero = await generateContractNumero(env);
   const now = new Date().toISOString();
+  // Les champs internes d'inspection ne proviennent jamais du formulaire
+  // contrat, y compris si un appelant forge le corps de la requête.
+  const { contractDossier, contractAgencyAccess, manualClientAccess, inspectionSchema, ...contractFields } = rawData;
   const record = {
-    ...rawData,
+    ...contractFields,
+    // Une saisie du contrat (dont kmDepart/etatDepart) n'est jamais une
+    // validation de l'état des lieux autonome.
+    inspectionSchema: "modern",
     id,
     contractNumero: numero,
     status: "manual_contract",
@@ -92,6 +98,12 @@ async function updateManualContract(env, id, rawData, operator) {
   if (!record || record.status !== "manual_contract") return null;
   const updated = {
     ...rawData,
+    // Le formulaire contrat remplace ses champs métier, mais n'a aucune
+    // autorité sur le dossier d'inspection ou ses jetons agence/client.
+    inspectionSchema: record.inspectionSchema,
+    contractDossier: record.contractDossier,
+    contractAgencyAccess: record.contractAgencyAccess,
+    manualClientAccess: record.manualClientAccess,
     id: record.id,
     contractNumero: record.contractNumero,
     status: "manual_contract",
@@ -109,6 +121,7 @@ async function createReservation(env, data) {
   const now = new Date().toISOString();
   const record = {
     ...data,
+    inspectionSchema: "modern",
     id,
     status: "pending_payment",
     createdAt: now,
@@ -279,13 +292,28 @@ async function setManualContractClientAccess(env, id, stored) {
   return updated;
 }
 
+async function updateManualContractAgencyAccess(env, id, stored, activateModernInspection = false) {
+  const record = await getReservation(env, id);
+  if (!record || record.status !== "manual_contract") return null;
+  // Un ancien contrat sans marqueur, mais sans relevé historique, peut être
+  // ouvert dans le nouvel outil : son premier lien agence fixe alors le
+  // schéma moderne avant tout upload/sauvegarde. Les vrais historiques sont
+  // écartés par contract-agency-link avant cet appel.
+  const updated = { ...record, contractAgencyAccess: stored, inspectionSchema: activateModernInspection ? "modern" : record.inspectionSchema };
+  await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
+  return updated;
+}
+
 // Même garde que updateReservationDocuments (réservation payée uniquement) :
 // le dossier contrat (champs contrat, remise, retour) ne doit jamais pouvoir
 // être modifié sur une réservation qui n'a jamais été payée.
 async function updateContractDossier(env, id, extra) {
   const record = await getReservation(env, id);
-  if (!record || record.status !== "paid") return null;
-  return updateReservationStatus(env, id, "paid", extra);
+  if (!record || !["paid", "manual_contract"].includes(record.status)) return null;
+  if (record.status === "paid") return updateReservationStatus(env, id, "paid", extra);
+  const updated = { ...record, ...extra, id: record.id, status: record.status, createdAt: record.createdAt, updatedAt: new Date().toISOString() };
+  await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
+  return updated;
 }
 
 async function listReservations(env) {
@@ -413,6 +441,7 @@ module.exports = {
   saveContractManualClientAccessIndex,
   findReservationByContractManualClientTokenHash,
   setManualContractClientAccess,
+  updateManualContractAgencyAccess,
   updateContractDossier,
   listReservations,
   hasOverlappingReservation,

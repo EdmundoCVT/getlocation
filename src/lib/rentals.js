@@ -70,7 +70,13 @@ function rowToRental(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     createdBy: row.created_by,
-    updatedBy: row.updated_by
+    updatedBy: row.updated_by,
+    // Présent uniquement pour les requêtes jointes de consultation interne
+    // (planning / état des lieux). Les endpoints publics ne renvoient jamais
+    // la fiche client complète depuis cette propriété.
+    client: row.first_name || row.last_name
+      ? { prenom: row.first_name || "", nom: row.last_name || "" }
+      : null
   };
 }
 
@@ -185,4 +191,9 @@ async function listRentalsByClient(env, clientId) {
   return (res.results || []).map(rowToRental);
 }
 
-module.exports = { STATUTS_VALIDES, createRental, getRentalById, updateRental, generateRentalContract, listRentalsByClient };
+async function listRentalsForInspection(env) {
+  const res = await env.AGENCY_DB.prepare("SELECT r.*, c.first_name, c.last_name FROM rentals r JOIN clients c ON c.id = r.client_id WHERE r.status != 'annulee' AND r.date_debut >= ?").bind("0000-01-01").all();
+  return (res.results || []).map(rowToRental).filter((r) => r.status !== "annulee").sort((a, b) => String(b.dateDebut).localeCompare(String(a.dateDebut))).slice(0, 200);
+}
+
+module.exports = { STATUTS_VALIDES, createRental, getRentalById, updateRental, generateRentalContract, listRentalsByClient, listRentalsForInspection };

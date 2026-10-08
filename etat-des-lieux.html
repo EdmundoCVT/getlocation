@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>État des lieux | GET LOCATION</title>
+  <link rel="stylesheet" href="css/inspection.css?v=6">
+</head>
+<body>
+  <main class="inspection" id="inspectionApp">
+    <header class="inspection-header">
+      <a class="brand" href="/back-office">GET LOCATION</a>
+      <span id="mode" class="mode"></span>
+      <h1>État des lieux</h1>
+      <p id="summary" role="status">Chargement de la location…</p>
+      <dl id="reservationSummary" class="summary-grid"></dl>
+      <p id="saveStatus" class="save-status" role="status">Chargement…</p>
+    </header>
+    <div id="legacyContent" hidden></div>
+    <form id="form" hidden>
+      <nav class="step-nav" aria-label="Étapes de l’état des lieux">
+        <a href="#information">1. Informations</a><a href="#vehicle">2. Propreté & véhicule</a>
+        <a href="#damage">3. Croquis</a><a href="#photoSection">4. Photos</a>
+        <a href="#signatureSection">5. Signatures</a><a href="#validation">6. Validation / PDF</a>
+      </nav>
+      <section id="departCompare" class="card departure" hidden>
+        <h2>État au départ</h2><p>Référence pour la comparaison au retour.</p>
+        <dl id="departureValues" class="summary-grid"></dl>
+        <p id="departDamage"></p><div id="departureSketch"></div>
+        <details><summary>Voir les photos du départ</summary><div id="departurePhotos" class="readonly-photos"></div></details>
+      </section>
+      <section id="information" class="card">
+        <h2><span class="step-number">1</span> Informations</h2>
+        <div class="grid">
+          <label class="field">Date et heure de l’état des lieux<input required id="dateHeure" type="datetime-local"></label>
+          <label class="field">Nom de l’agent<input required id="agent" autocomplete="name" maxlength="100"></label>
+        </div>
+      </section>
+      <section id="vehicle" class="card">
+        <h2><span class="step-number">2</span> Propreté & véhicule</h2>
+        <div class="grid">
+          <label class="field">Kilométrage<input required id="km" type="number" min="0" step="1" inputmode="numeric"></label>
+          <label class="field">Carburant<select id="carburant"></select></label>
+          <label class="field">Nombre de clés<input id="cles" type="number" min="0" max="20" step="1" inputmode="numeric"></label>
+          <label class="field">Clés et accessoires<input id="clesAccessoires" maxlength="300"></label>
+        </div>
+        <h3>Propreté</h3><p id="legacyCleanliness" class="hint" hidden></p>
+        <div id="cleanliness" class="cleanliness-grid"></div>
+        <p class="cleanliness-legend">1 = Très sale · 2 = Sale · 3 = Correct · 4 = Propre · 5 = Très propre</p>
+      </section>
+      <section id="damage" class="card">
+        <h2><span class="step-number">3</span> Croquis des dommages</h2>
+        <p class="hint">Choisissez un type, puis touchez la silhouette. Touchez une marque pour la supprimer.</p>
+        <div id="sketch"></div>
+        <div class="damage-table-wrap">
+          <h3>Tableau des dommages</h3>
+          <p class="hint">Chaque repère correspond au schéma. Ajoutez une précision lorsque nécessaire.</p>
+          <div id="damageTable" class="damage-table" role="region" aria-label="Tableau des dommages"></div>
+        </div>
+        <label class="field">Dommages et remarques<textarea id="dommages" rows="4" maxlength="2000"></textarea></label>
+      </section>
+      <section id="photoSection" class="card">
+        <h2><span class="step-number">4</span> Photos</h2>
+        <p class="hint">Ajoutez plusieurs vues ou gros plans. La date de prise de vue reste modifiable.</p>
+        <div id="photos" class="photo-grid"></div>
+        <details id="comparisonDetails" hidden><summary>Comparer les photos : Départ | Retour</summary><div id="comparison" class="comparison-grid"></div></details>
+      </section>
+      <section id="signatureSection" class="card">
+        <h2><span class="step-number">5</span> Signatures</h2>
+        <p class="hint">Signatures de cet état des lieux de <span id="signatureMode"></span>.</p>
+        <div id="signatures" class="signature-grid"></div>
+      </section>
+      <section id="validation" class="card">
+        <h2><span class="step-number">6</span> Validation / PDF</h2>
+        <p id="reviewStatus">Enregistrez les informations, puis vérifiez le document.</p>
+        <div class="actions">
+          <button class="primary" id="save" type="submit">Enregistrer l’état des lieux</button>
+          <button class="secondary" id="finalize" type="button">Finaliser l’état des lieux</button>
+          <button class="outline" id="pdf" type="button">Télécharger le PDF</button>
+        </div>
+        <p class="hint">La finalisation reste modifiable. Toute correction peut être enregistrée à nouveau.</p>
+        <p id="message" role="status" aria-live="polite"></p>
+      </section>
+    </form>
+  </main>
+  <dialog id="lightbox" class="lightbox" aria-label="Photo agrandie">
+    <button id="closeLightbox" type="button" class="outline">Fermer</button>
+    <p id="lightboxCaption"></p><img id="lightboxImage" alt="">
+  </dialog>
+  <dialog id="signatureDialog" class="signature-dialog" aria-labelledby="signatureDialogTitle">
+    <section class="signature-dialog-content">
+      <header class="signature-dialog-header">
+        <div><p class="eyebrow">État des lieux</p><h2 id="signatureDialogTitle">Signature</h2></div>
+        <button id="signatureDialogClose" type="button" class="outline">Annuler</button>
+      </header>
+      <p class="hint">Signez confortablement dans cette zone. Tournez le téléphone en paysage si cela vous aide.</p>
+      <canvas id="signatureDialogCanvas" width="1200" height="560" aria-label="Zone de signature agrandie"></canvas>
+      <div class="signature-dialog-actions">
+        <button id="signatureDialogClear" type="button" class="danger">Effacer</button>
+        <button id="signatureDialogConfirm" type="button" class="primary">Valider la signature</button>
+      </div>
+    </section>
+  </dialog>
+  <script src="js/inspection-sketch.js?v=6"></script>
+  <script src="js/legacy-inspection-sketch.js?v=2"></script>
+  <script src="js/inspection-media-view.js?v=4"></script>
+  <script src="js/inspection-signature.js?v=5"></script>
+  <script src="js/vendor/pdf-lib.min.js"></script>
+  <script src="js/inspection-document.js?v=6"></script>
+  <script src="js/inspection-page.js?v=7"></script>
+</body>
+</html>

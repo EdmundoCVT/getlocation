@@ -29,10 +29,13 @@ const { handleAgencyDeposits } = require("./api/agency-deposits.js");
 const { handleAnalyticsEvents } = require("./api/analytics-events.js");
 const { handleVehicleRequest } = require("./api/vehicle-request.js");
 const { handleBusinessPartner } = require("./api/business-partner.js");
+const { handleBusinessContact } = require("./api/business-contact.js");
 const { handleAgencyAnalytics } = require("./api/agency-analytics.js");
 const { handleAgencyGoogleSheets } = require("./api/agency-google-sheets.js");
 const { handleAgencyDashboard } = require("./api/agency-dashboard.js");
 const { handleInspectionMedia } = require("./api/inspection-media.js");
+const { handleLegacyInspectionAgency, handleLegacyInspectionMedia, handleLegacyInspectionDiagnostic } = require("./api/legacy-inspection-agency.js");
+const { handleZvezdanReturnMedia } = require("./api/zvezdan-return-media.js");
 const { runScheduledTasks } = require("./lib/scheduled-tasks.js");
 const { estCheminAnglais, servirPageAnglaise } = require("./lib/pages-en.js");
 
@@ -62,10 +65,15 @@ const ROUTES = {
   "/api/analytics-events": handleAnalyticsEvents,
   "/api/vehicle-request": handleVehicleRequest,
   "/api/business-partner": handleBusinessPartner,
+  "/api/business-contact": handleBusinessContact,
   "/api/agency-analytics": handleAgencyAnalytics,
   "/api/agency-google-sheets": handleAgencyGoogleSheets,
   "/api/agency-dashboard": handleAgencyDashboard,
-  "/api/inspection-media": handleInspectionMedia
+  "/api/inspection-media": handleInspectionMedia,
+  "/api/legacy-inspection-agency": handleLegacyInspectionAgency,
+  "/api/legacy-inspection-media": handleLegacyInspectionMedia,
+  "/api/legacy-inspection-diagnostic": handleLegacyInspectionDiagnostic,
+  "/api/zvezdan-return-media": handleZvezdanReturnMedia
 };
 
 function isVehicleResultsPath(pathname) {
@@ -118,7 +126,7 @@ async function withClientUX(response, pathname) {
   }
 
   if (!html.includes("/js/analytics.js")) {
-    const analytics = '<script src="/js/analytics.js?v=1"></script>';
+    const analytics = '<script src="/js/analytics.js?v=2"></script>';
     html = html.includes("</body>") ? html.replace("</body>", `${analytics}\n</body>`) : `${html}\n${analytics}`;
   }
 

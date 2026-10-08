@@ -172,6 +172,30 @@ test("GET : le jeton court renvoie exactement les données du formulaire (même 
   assert.equal(body.manualClientAccess, undefined);
 });
 
+test("GET : conserve intégralement les données historiques d'état des lieux sans migration", async () => {
+  const env = makeEnv();
+  const session = await loginAgency(env);
+  const historique = {
+    etatDepart: { marks: [{ id: "m1", view: "side", x: 25, y: 40, type: "rayure" }], observations: "Rayure porte conducteur" },
+    etatRetour: { marks: [{ id: "m2", view: "front", x: 50, y: 25, type: "impact" }], observations: "Impact constaté au retour" },
+    photosEtatDesLieux: [{ label: "Départ avant", dateHeure: "2026-08-13T10:05", dataUrl: "data:image/jpeg;base64,AA==" }],
+    kmDepart: "42150",
+    kmRetour: "42736"
+  };
+  const { id } = await creerContratManuel(env, session, historique);
+  const emission = await (await handleContractManualLink(makePostRequest("https://getlocation.fr/api/contract-manual-link", { id }, session), env)).json();
+  const before = env.RESERVATIONS_KV._raw.get(id).value;
+  const payload = await (await handleContractManualLink(manualLinkGet(extractManualToken(emission.clientUrl)), env)).json();
+
+  assert.deepEqual(payload.etatDepart, historique.etatDepart);
+  assert.deepEqual(payload.etatRetour, historique.etatRetour);
+  assert.deepEqual(payload.photosEtatDesLieux, historique.photosEtatDesLieux);
+  assert.equal(payload.kmDepart, "42150");
+  assert.equal(payload.kmRetour, "42736");
+  assert.deepEqual(env.RESERVATIONS_KV._raw.get(id).value.etatDepart, before.etatDepart, "la consultation ne réécrit pas le croquis historique");
+  assert.deepEqual(env.RESERVATIONS_KV._raw.get(id).value.photosEtatDesLieux, before.photosEtatDesLieux, "la consultation ne déplace ni ne réécrit les photos");
+});
+
 test("GET : un jeton révoqué (ou remplacé par une nouvelle émission) n'est plus accepté", async () => {
   const env = makeEnv();
   const session = await loginAgency(env);

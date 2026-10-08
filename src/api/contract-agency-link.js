@@ -17,7 +17,8 @@
 // façon avec son TTL). Session agence requise (voir agency-auth.js) —
 // aucun jeton par réservation à connaître au préalable.
 
-const { getReservation, saveContractAgencyAccessIndex, updateContractDossier } = require("../lib/reservation-store.js");
+const { getReservation, saveContractAgencyAccessIndex, updateContractDossier, updateManualContractAgencyAccess } = require("../lib/reservation-store.js");
+const { manualContractInspectionItem } = require("./agency-rentals.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { requireAgencySession } = require("../lib/agency-auth.js");
 const { issueContractAgencyAccess } = require("../lib/contract-dossier-token.js");
@@ -77,11 +78,14 @@ async function handlePost(request, env, headers) {
   }
 
   const reservation = await getReservation(env, body.id);
-  if (!reservation || reservation.status !== "paid") {
-    return new Response(JSON.stringify({ error: "Réservation introuvable ou non payée" }), { status: 404, headers });
+  if (!reservation || !["paid", "manual_contract"].includes(reservation.status)) {
+    return new Response(JSON.stringify({ error: "Dossier de location introuvable" }), { status: 404, headers });
+  }
+  if (reservation.status === "manual_contract" && manualContractInspectionItem(reservation).historyMode) {
+    return new Response(JSON.stringify({ error: "Cet état des lieux historique se consulte depuis la vue dédiée" }), { status: 409, headers });
   }
 
-  const access = await issueContractAgencyAccess(env, reservation, reservation.paidAt || reservation.createdAt);
+  const access = await issueContractAgencyAccess(env, reservation, reservation.status === "manual_contract" ? new Date().toISOString() : reservation.paidAt || reservation.createdAt);
   if (!access) {
     return new Response(JSON.stringify({ error: "Lien indisponible pour le moment (configuration serveur)." }), { status: 503, headers });
   }
@@ -89,7 +93,9 @@ async function handlePost(request, env, headers) {
   if (!saved) {
     return new Response(JSON.stringify({ error: "Lien indisponible pour le moment." }), { status: 503, headers });
   }
-  const updated = await updateContractDossier(env, body.id, { contractAgencyAccess: access.stored });
+  const updated = reservation.status === "manual_contract"
+    ? await updateManualContractAgencyAccess(env, body.id, access.stored, true)
+    : await updateContractDossier(env, body.id, { contractAgencyAccess: access.stored });
   if (!updated) {
     return new Response(JSON.stringify({ error: "Réservation introuvable" }), { status: 404, headers });
   }
@@ -98,7 +104,8 @@ async function handlePost(request, env, headers) {
   // Jeton en FRAGMENT (#agencyToken=), jamais en paramètre de requête —
   // même principe que #clientToken=/#manualToken= (voir
   // contract-dossier-token.js et contrat.html).
-  return new Response(JSON.stringify({ agencyUrl: `${origin}/contrat.html#agencyToken=${access.token}` }), { status: 200, headers });
+  const target = reservation.status === "manual_contract" ? "etat-des-lieux.html" : "contrat.html";
+  return new Response(JSON.stringify({ agencyUrl: `${origin}/${target}#agencyToken=${access.token}` }), { status: 200, headers });
 }
 
 async function handleContractAgencyLink(request, env) {

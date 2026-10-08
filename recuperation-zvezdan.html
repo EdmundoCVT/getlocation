@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Récupération des originaux — GET LOCATION</title>
+  <style>
+    :root{color-scheme:light;font-family:Inter,system-ui,sans-serif;color:#182232;background:#f5f7fa}*{box-sizing:border-box}body{margin:0}.page{max-width:880px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 2px 12px #0000000d}h1{font-size:1.45rem;margin:0 0 8px}.notice{color:#4c596a}.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.photo{border:1px solid #e4e8ee;border-radius:12px;overflow:hidden}.photo img{display:block;width:100%;height:190px;object-fit:contain;background:#f3f5f7}.photo-body{padding:12px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.button{display:inline-grid;place-items:center;min-height:44px;padding:8px 12px;border-radius:9px;background:#0066ff;color:#fff;text-decoration:none;font-weight:700}.button.download{background:#ff6b00}dl{margin:0;display:grid;grid-template-columns:minmax(0,1fr);gap:7px;font-size:.86rem}dt{font-weight:750;color:#4c596a}dd{margin:0;overflow-wrap:anywhere}.empty{color:#8a2633}.readonly{font-size:.88rem;color:#4c596a}
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="card">
+      <h1>Photos originales — retour Zvezdan</h1>
+      <p class="notice">Consultation forensique en lecture seule. Les fichiers R2 sont affichés et téléchargés sans recompression ni transformation.</p>
+      <p id="status" role="status">Chargement des originaux…</p>
+    </section>
+    <section id="photos" class="photos" aria-live="polite"></section>
+  </main>
+  <script>
+  (function(){
+    const api='/api/zvezdan-return-media',status=document.getElementById('status'),container=document.getElementById('photos');
+    const bytes=value=>typeof value==='number'?new Intl.NumberFormat('fr-FR',{style:'unit',unit:'byte',unitDisplay:'short',maximumFractionDigits:1}).format(value):'Non disponible';
+    const date=value=>value?new Date(value).toLocaleString('fr-FR',{dateStyle:'medium',timeStyle:'medium'}):'Non disponible';
+    const row=(list,label,value)=>{const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value||'Non disponible';list.append(dt,dd)};
+    const url=(photo,download)=>api+'?key='+encodeURIComponent(photo.key)+(download?'&download=1':'');
+    function render(photo,index){
+      const article=document.createElement('article');article.className='photo';
+      const image=new Image();image.loading='lazy';image.alt='Photo originale retour '+(index+1);image.src=url(photo);article.append(image);
+      const body=document.createElement('div');body.className='photo-body';const title=document.createElement('strong');title.textContent='Original '+(index+1);body.append(title);
+      const actions=document.createElement('div');actions.className='actions';
+      const open=document.createElement('a');open.className='button';open.href=url(photo);open.target='_blank';open.rel='noopener';open.textContent='Ouvrir taille réelle';
+      const download=document.createElement('a');download.className='button download';download.href=url(photo,true);download.textContent='Télécharger l’original';actions.append(open,download);body.append(actions);
+      const details=document.createElement('dl'),exif=photo.exif||{};row(details,'Clé R2',photo.key);row(details,'Taille',bytes(photo.size));row(details,'Date d’upload R2',date(photo.uploaded));row(details,'Date de prise de vue EXIF',exif.dateTimeOriginal||'Aucune date EXIF disponible');row(details,'CreateDate EXIF',exif.createDate||'Non disponible');row(details,'ModifyDate EXIF',exif.modifyDate||'Non disponible');row(details,'Appareil',exif.model||'Non disponible');row(details,'Orientation',exif.orientation?String(exif.orientation):'Non disponible');if(!exif.available){const note=document.createElement('p');note.className='readonly';note.textContent='EXIF : '+(exif.reason||'non disponible');body.append(note)}body.append(details);article.append(body);container.append(article);
+    }
+    fetch(api,{credentials:'same-origin'}).then(async response=>{const body=await response.json().catch(()=>({}));if(!response.ok)throw new Error(body.error||'Accès agence requis');return body}).then(data=>{status.textContent=data.count+' photo'+(data.count>1?'s':'')+' originale'+(data.count>1?'s':'')+' récupérable'+(data.count>1?'s':'')+'.';if(!data.photos.length){container.innerHTML='<p class="empty">Aucune photo trouvée sous le préfixe R2 sécurisé.</p>';return}data.photos.forEach(render)}).catch(error=>{status.textContent=error.message||'Accès agence requis.';status.className='empty'});
+  }());
+  </script>
+</body>
+</html>

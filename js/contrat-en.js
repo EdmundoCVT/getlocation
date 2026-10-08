@@ -100,11 +100,16 @@
     "Protection et garantie": "Protection and security deposit",
     "Garantie": "Security deposit",
     "Niveau de protection": "Protection level",
-    "Franchise /": "Excess /",
-    "Responsabilité maximale": "Maximum liability",
+    "Protection complémentaire": "Additional protection",
+    "Conditions et exclusions": "Terms and exclusions",
+    "Selon le contrat et les CGL": "Subject to the rental agreement and General Rental Conditions",
     "Dépôt de garantie": "Security deposit",
     "Mode": "Method",
-    "Franchises assurance": "Insurance excess",
+    "Franchises assurance": "Insurance terms",
+    "Les protections complémentaires réduisent la participation financière dans les conditions prévues au contrat. Elles restent soumises aux exclusions et limitations applicables.":
+      "Additional protection options reduce the renter's financial contribution under the terms of the rental agreement. They remain subject to the applicable exclusions and limitations.",
+    "Le dépôt de garantie ne constitue ni un plafond de responsabilité ni une limitation des sommes pouvant être réclamées.":
+      "The security deposit does not constitute a liability cap or a limitation on the amounts that may be claimed.",
     // Noms des formules : identiques à ceux affichés sur le site en anglais
     // (js/i18n.js), pour qu'un client retrouve sur son contrat le nom qu'il
     // a vu au moment de réserver.

@@ -40,6 +40,11 @@
   .analytics-events { max-height:420px; overflow:auto; }
   .analytics-event { padding:9px 0; border-bottom:1px solid #eee; }
   .analytics-event small { color:#666; }
+  .analytics-traffic-filters { margin-top:0; }
+  .traffic-badge { display:inline-block; margin-left:7px; padding:2px 7px; border-radius:999px; font-size:.72rem; font-weight:800; vertical-align:middle; }
+  .traffic-public { background:#e6f7ec; color:#1e7d43; }
+  .traffic-internal { background:#fff3cd; color:#8a6d00; }
+  .traffic-automated { background:#e5edff; color:#2d4fa3; }
   .back-office-main { max-width:1280px; padding-top:24px; padding-bottom:36px; }
   .office-shell { display:grid; grid-template-columns:220px minmax(0, 1fr); gap:28px; align-items:start; }
   .internal-sidebar { position:sticky; top:16px; padding:14px 10px; border:1px solid #e4e4e9; border-radius:12px; background:#fff; }
@@ -114,7 +119,8 @@
         <button type="button" class="btn btn-sm" data-internal-view="searchSection"><span class="nav-icon" aria-hidden="true">▤</span>Réservations</button>
         <button type="button" class="btn btn-sm" data-internal-view="planningSection"><span class="nav-icon" aria-hidden="true">□</span>Planning</button>
         <button type="button" class="btn btn-sm" data-internal-view="deliveriesSection"><span class="nav-icon" aria-hidden="true">↗</span>Livraisons</button>
-        <a class="btn btn-sm" href="/contrat"><span class="nav-icon" aria-hidden="true">▣</span>Contrats &amp; états des lieux</a>
+        <a class="btn btn-sm" href="/contrat"><span class="nav-icon" aria-hidden="true">▣</span>Contrats</a>
+        <button type="button" class="btn btn-sm" data-internal-view="inspectionsSection"><span class="nav-icon" aria-hidden="true">✓</span>État des lieux</button>
         <button type="button" class="btn btn-sm" data-internal-view="depositsSection"><span class="nav-icon" aria-hidden="true">€</span>Dépôts de garantie</button>
         <button type="button" class="btn btn-sm" data-internal-view="vehiclesSection"><span class="nav-icon" aria-hidden="true">▱</span>Véhicules</button>
         <button type="button" class="btn btn-sm" data-internal-view="statisticsSection"><span class="nav-icon" aria-hidden="true">◔</span>Statistiques</button>
@@ -155,6 +161,11 @@
         <button type="button" class="btn btn-secondary btn-sm analytics-period" data-days="7">7 derniers jours</button>
         <button type="button" class="btn btn-secondary btn-sm analytics-period" data-days="30">30 derniers jours</button>
       </div>
+      <div class="section-actions analytics-traffic-filters" aria-label="Filtrer les statistiques par type de trafic">
+        <button type="button" class="btn btn-secondary btn-sm analytics-traffic is-active" data-traffic="public">Prospects</button>
+        <button type="button" class="btn btn-secondary btn-sm analytics-traffic" data-traffic="internal">Internes/tests</button>
+        <button type="button" class="btn btn-secondary btn-sm analytics-traffic" data-traffic="all">Tous</button>
+      </div>
       <div class="card">
         <div id="analyticsKpis" class="analytics-kpis"><p class="hint-text">Chargement…</p></div>
         <p id="analyticsMeta" class="hint-text" style="margin-top:12px;"></p>
@@ -186,6 +197,11 @@
     </section>
 
     <!-- ---- Dépôts : traitement existant depuis une location ---- -->
+    <section id="inspectionsSection" hidden>
+      <h1 class="section-title">État des lieux</h1><p class="section-subtitle">Départs et retours à traiter.</p>
+      <div class="section-actions"><input id="inspectionSearch" type="search" placeholder="Client, véhicule, immatriculation, contrat" aria-label="Rechercher un état des lieux"><button type="button" class="btn btn-sm is-active" data-inspection-filter="todo">À faire</button><button type="button" class="btn btn-sm" data-inspection-filter="done">Terminés</button><button type="button" class="btn btn-sm" data-inspection-filter="all">Tous</button></div>
+      <div id="inspectionList" class="dashboard-grid"><p class="hint-text">Chargement…</p></div>
+    </section>
     <section id="depositsSection" hidden>
       <h1 class="section-title">Dépôts de garantie</h1>
       <p class="section-subtitle">Les dépôts existants restent rattachés à leur location pour préserver le suivi et la traçabilité.</p>
@@ -321,6 +337,8 @@
         <button type="button" class="btn btn-secondary" id="editRentalBtn">Modifier</button>
         <button type="button" class="btn btn-primary" id="generateContractBtn">Générer le numéro de contrat</button>
         <a class="btn btn-secondary" id="openContratBtn" target="_blank" rel="noopener">Ouvrir dans l'outil de contrat</a>
+        <button type="button" class="btn btn-secondary" id="openInspectionDepartBtn">État des lieux départ</button>
+        <button type="button" class="btn btn-secondary" id="openInspectionRetourBtn">État des lieux retour</button>
         <select id="rentalStatusSelect"></select>
       </div>
 
@@ -473,7 +491,8 @@ window.__backOffice = {
   statusBadge: statusBadge,
   syncBadge: syncBadge,
   contratPrefillUrl: contratPrefillUrl,
-  renderSyncStatusForTest: function(rental){ currentRental = rental; renderSyncStatus(); }
+  renderSyncStatusForTest: function(rental){ currentRental = rental; renderSyncStatus(); },
+  renderInspectionListForTest: function(rentals){ inspectionRentals = rentals; inspectionFilter = 'all'; document.getElementById('inspectionSearch').value = ''; renderInspectionList(); }
 };
 
 // ================= Appels API agence ================= //
@@ -498,7 +517,7 @@ function alerteConnexion(){ alert('Connexion au serveur impossible. Vérifiez vo
 
 // ================= Connexion ================= //
 function showSection(id){
-  ['dashboardSection', 'statisticsSection', 'planningSection', 'deliveriesSection', 'depositsSection', 'vehiclesSection', 'settingsSection', 'searchSection', 'clientFormSection', 'clientSheetSection', 'rentalFormSection', 'rentalDetailSection'].forEach(function(s){
+  ['dashboardSection', 'statisticsSection', 'planningSection', 'deliveriesSection', 'inspectionsSection', 'depositsSection', 'vehiclesSection', 'settingsSection', 'searchSection', 'clientFormSection', 'clientSheetSection', 'rentalFormSection', 'rentalDetailSection'].forEach(function(s){
     document.getElementById(s).hidden = (s !== id);
   });
   document.querySelectorAll('[data-internal-view]').forEach(function(button){
@@ -517,6 +536,7 @@ function sectionInitiale(){
 }
 
 function afficherApresConnexion(operator){
+  try { localStorage.setItem('getlocation_internal', '1'); } catch(_){ /* marqueur analytics non bloquant */ }
   document.getElementById('loginView').hidden = true;
   document.getElementById('mainView').hidden = false;
   initialiserDashboard(operator);
@@ -630,10 +650,19 @@ function renderVehiclesCatalog(){
   }).join('');
 }
 
+var analyticsDays = 7;
+var analyticsTraffic = 'public';
+function trafficLabel(type){
+  if(type === 'automated') return 'Test automatisé';
+  if(type === 'internal') return 'Interne';
+  return 'Prospect';
+}
 function renderAnalytics(data){
   var m = data.metrics || {};
+  var trafficCounts = data.trafficCounts || {};
   var labels = [
-    ['Visites', m.visits], ['Visiteurs / sessions', m.visitors],
+    ['Visites prospects', trafficCounts.prospect_visits], ['Visites internes/tests', trafficCounts.internal_visits], ['Visites totales', trafficCounts.total_visits],
+    ['Visiteurs / sessions', m.visitors],
     ['Commandes commencées', m.booking_started || m.search_started],
     ['Paiements commencés', m.payment_started], ['Réservations confirmées', m.booking_confirmed]
   ];
@@ -651,15 +680,20 @@ function renderAnalytics(data){
       var vehicle = event.vehicleId ? ' · véhicule ' + event.vehicleId : '';
       return '<div><strong>' + escapeHtml(time) + '</strong> — ' + escapeHtml(event.eventType) + ' <small>' + escapeHtml(event.page + vehicle) + '</small></div>';
     }).join('');
-    return '<div class="analytics-event"><strong>Session ' + escapeHtml(session.sessionId.slice(0, 8)) + '</strong> · ' + Number(session.pageCount || 0) + ' page(s) · ' + Number(session.durationSeconds || 0) + ' s<div>' + events + '</div></div>';
+    var type = session.trafficType || 'public';
+    return '<div class="analytics-event"><strong>Session ' + escapeHtml(session.sessionId.slice(0, 8)) + '</strong><span class="traffic-badge traffic-' + escapeHtml(type) + '">' + escapeHtml(trafficLabel(type)) + '</span> · ' + Number(session.pageCount || 0) + ' page(s) · ' + Number(session.durationSeconds || 0) + ' s<div>' + events + '</div></div>';
   }).join('');
 }
-function chargerStatistiques(days){
-  apiGet('/api/agency-analytics?days=' + days).then(function(res){
+function chargerStatistiques(days, traffic){
+  analyticsDays = days || analyticsDays;
+  analyticsTraffic = traffic || analyticsTraffic;
+  document.querySelectorAll('.analytics-traffic').forEach(function(button){ button.classList.toggle('is-active', button.dataset.traffic === analyticsTraffic); });
+  apiGet('/api/agency-analytics?days=' + analyticsDays + '&traffic=' + encodeURIComponent(analyticsTraffic)).then(function(res){
     if(res.ok) renderAnalytics(res.json); else document.getElementById('analyticsKpis').innerHTML = '<p class="error-text">' + escapeHtml(res.json.error || 'Statistiques indisponibles.') + '</p>';
   }).catch(function(){ document.getElementById('analyticsKpis').innerHTML = '<p class="error-text">Statistiques indisponibles.</p>'; });
 }
-document.querySelectorAll('.analytics-period').forEach(function(button){ button.addEventListener('click', function(){ chargerStatistiques(Number(button.dataset.days)); }); });
+document.querySelectorAll('.analytics-period').forEach(function(button){ button.addEventListener('click', function(){ chargerStatistiques(Number(button.dataset.days), analyticsTraffic); }); });
+document.querySelectorAll('.analytics-traffic').forEach(function(button){ button.addEventListener('click', function(){ chargerStatistiques(analyticsDays, button.dataset.traffic); }); });
 document.querySelectorAll('[data-internal-view]').forEach(function(button){ button.addEventListener('click', function(){
   showSection(button.dataset.internalView);
   setSidebarOpen(false);
@@ -985,9 +1019,23 @@ document.getElementById('rentalForm').addEventListener('submit', function(e){
 
 // ================= Détail location ================= //
 function openRentalDetail(rentalId){
+  var loadedRental = null;
   apiGet('/api/agency-rentals?id=' + encodeURIComponent(rentalId)).then(function(res){
     if(!res.ok){ alert(res.json.error || 'Location introuvable'); return null; }
-    currentRental = res.json.rental;
+    loadedRental = res.json.rental;
+    // L'ouverture depuis l'onglet État des lieux ne passe pas forcément par
+    // une fiche client. Charger alors le client lié avant le rendu afin que
+    // la fiche D1 historique reste consultable dans son contexte réel.
+    if(currentClient && currentClient.id === loadedRental.clientId) return null;
+    return apiGet('/api/agency-clients?id=' + encodeURIComponent(loadedRental.clientId));
+  }).then(function(clientRes){
+    if(!loadedRental) return null;
+    if(clientRes){
+      if(!clientRes.ok){ alert(clientRes.json.error || 'Client introuvable'); return null; }
+      currentClient = clientRes.json.client;
+    }
+    if(!currentClient) return null;
+    currentRental = loadedRental;
     renderRentalDetail();
     return Promise.all([
       apiGet('/api/agency-payments?rentalId=' + encodeURIComponent(rentalId)),
@@ -1029,6 +1077,58 @@ function renderRentalDetail(){
   renderSyncStatus();
   showSection('rentalDetailSection');
 }
+
+// Le jeton agence n'est jamais conservé dans le back-office ni mis dans le
+// HTML : il est réémis à la demande par l'API protégée par la session + CSRF,
+// puis placé uniquement dans le fragment de la nouvelle fenêtre.
+function openInspection(mode){
+  if(!currentRental || !currentRental.id){ return; }
+  // Les formats historiques sont lus par une vue dédiée, protégée par la
+  // session agence. Surtout, ne jamais détourner manualToken : il reste le
+  // lien client de vérification/signature du contrat manuel.
+  if(currentRental.historyMode){
+    var legacyPopup = window.open('', '_blank');
+    if(!legacyPopup){ alert('Autorisez l’ouverture de la nouvelle fenêtre pour consulter l’état des lieux.'); return; }
+    try { legacyPopup.opener = null; } catch(e) {}
+    var legacyId = currentRental.historyId || currentRental.id;
+    legacyPopup.location.href = '/etat-des-lieux.html?source=legacy&mode=' + encodeURIComponent(mode) + '&legacyId=' + encodeURIComponent(legacyId);
+    return;
+  }
+  var popup = window.open('', '_blank');
+  if(!popup){ alert('Autorisez l’ouverture de la nouvelle fenêtre pour démarrer l’état des lieux.'); return; }
+  try { popup.opener = null; } catch(e) {}
+  popup.document.title = 'Ouverture de l’état des lieux…';
+  apiPost('/api/contract-agency-link', { id: currentRental.id }).then(function(res){
+    if(!res.ok || !res.json.agencyUrl){ throw new Error(res.json.error || 'Lien sécurisé indisponible'); }
+    var source = new URL(res.json.agencyUrl);
+    popup.location.href = '/etat-des-lieux.html?mode=' + encodeURIComponent(mode) + source.hash;
+  }).catch(function(err){ popup.close(); alert(err.message || 'Impossible d’ouvrir l’état des lieux.'); });
+}
+
+var inspectionRentals = [], inspectionFilter = 'todo';
+function inspectionStatus(mode, inspection){
+  if(inspection[mode]) return '✓ Terminé';
+  return mode === 'retour' && !inspection.retourAvailable ? 'À venir' : 'À faire';
+}
+function renderInspectionList(){
+  var needle = (document.getElementById('inspectionSearch').value || '').toLowerCase();
+  var list = inspectionRentals.filter(function(r){
+    var done = r.inspection.depart && r.inspection.retour;
+    if(inspectionFilter === 'todo' && done) return false;
+    if(inspectionFilter === 'done' && !done) return false;
+    return !needle || [r.client && r.client.prenom, r.client && r.client.nom, r.vehiculeId, r.immatriculation, r.contractNumero, r.id].join(' ').toLowerCase().includes(needle);
+  });
+  var target = document.getElementById('inspectionList'); target.textContent = '';
+  if(!list.length){ target.innerHTML = '<p class="hint-text">Aucun état des lieux correspondant.</p>'; return; }
+  list.forEach(function(r){ var card=document.createElement('article'); card.className='card dashboard-card'; var title=document.createElement('h2'); title.textContent=(r.vehicule||r.vehiculeId||'Véhicule')+(r.immatriculation?' — '+r.immatriculation:''); var p=document.createElement('p'); p.textContent=[r.client ? (r.client.prenom+' '+r.client.nom) : 'Client', r.contractNumero||r.id, formatDateFR(r.dateDebut)+' '+r.heureDebut+' → '+formatDateFR(r.dateFin)+' '+r.heureFin].join(' · '); var actions=document.createElement('div'); actions.className='section-actions'; ['depart','retour'].forEach(function(mode){var b=document.createElement('button'); var historiqueTermine=!!r.historyMode&&!!r.inspection[mode]; var unavailable=(mode==='retour'&&!r.inspection.retourAvailable&&!r.inspection.retour)||(!r.openable&&!historiqueTermine); b.type='button'; b.className='btn btn-sm '+(r.inspection[mode]?'btn-secondary':'btn-primary'); b.textContent=(mode==='depart'?'Départ — ':'Retour — ')+inspectionStatus(mode,r.inspection); b.disabled=unavailable; if(historiqueTermine)b.title='Consulter l’état des lieux historique.'; if(!unavailable)b.onclick=function(){ currentRental={id:r.id,historyMode:r.historyMode,historyId:r.historyId}; openInspection(mode); }; actions.appendChild(b);}); card.append(title,p,actions);target.appendChild(card);});
+}
+function loadInspections(){ document.getElementById('inspectionList').innerHTML='<p class="hint-text">Chargement…</p>'; apiGet('/api/agency-rentals?view=inspection').then(function(res){ inspectionRentals=res.ok?(res.json.rentals||[]):[]; renderInspectionList(); }); }
+document.querySelectorAll('[data-inspection-filter]').forEach(function(b){ b.addEventListener('click',function(){ inspectionFilter=b.dataset.inspectionFilter; document.querySelectorAll('[data-inspection-filter]').forEach(function(x){x.classList.toggle('is-active',x===b)}); renderInspectionList(); }); });
+document.getElementById('inspectionSearch').addEventListener('input',renderInspectionList);
+document.querySelector('[data-internal-view="inspectionsSection"]').addEventListener('click',loadInspections);
+
+document.getElementById('openInspectionDepartBtn').addEventListener('click', function(){ openInspection('depart'); });
+document.getElementById('openInspectionRetourBtn').addEventListener('click', function(){ openInspection('retour'); });
 
 function renderSyncStatus(){
   var s = currentRental.syncStatus;

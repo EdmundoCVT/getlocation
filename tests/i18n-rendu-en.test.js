@@ -295,7 +295,12 @@ test("page juridique anglaise : le corps reste intégralement en français", asy
   const premiereLigne = document.querySelector('#cglProtections tr[data-protection="essentiel"]');
   assert.equal(premiereLigne.querySelector("th").textContent.trim(), "Protection Essentielle");
   assert.equal(premiereLigne.querySelector("[data-prix]").textContent.trim(), "Inclus");
-  assert.match(premiereLigne.querySelector("[data-franchise]").textContent, /2[\s  ]000 €/);
+  // La présentation commerciale ne parle plus de franchise : elle doit rester
+  // en français elle aussi sur la route anglaise, comme le reste des CGL.
+  assert.equal(
+    premiereLigne.querySelector("[data-description]").textContent.trim(),
+    "Protection minimale incluse"
+  );
 
   // L'en-tête, lui, est bien traduit, et la mention de langue est présente.
   assert.ok(document.querySelector(".legal-language-note"), "mention « version française faisant foi » absente");

@@ -182,8 +182,9 @@
   .dmg-canvas{background:#fff;border:0;border-radius:0;min-height:150px;overflow:visible;}
   .dmg-canvas svg{width:100%;height:100%;display:block;}
   .dmg-shape{stroke:#8b8b8b;stroke-width:1.35;vector-effect:non-scaling-stroke;fill:none;stroke-linecap:round;stroke-linejoin:round;}
+  .dmg-reference-image{display:block;width:100%;height:auto;object-fit:contain;user-select:none;}
   .dmg-view:nth-child(5){grid-column:1 / -1;max-width:260px;justify-self:center;width:100%;}
-  @media(max-width:640px){.dmg-grid{grid-template-columns:1fr 1fr;gap:16px 14px}.dmg-canvas{min-height:125px}.dmg-view-label{font-size:11px}.dmg-view:nth-child(5){max-width:210px}}
+  @media(max-width:640px){.dmg-grid{grid-template-columns:1fr;gap:18px}.dmg-canvas{min-height:0}.dmg-view-label{font-size:11px}.dmg-view:nth-child(5){max-width:none}}
 </style>
 </head>
 <body>
@@ -221,7 +222,7 @@
       <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap;">
         <a class="btn" href="/back-office">Tableau de bord</a>
         <a class="btn" href="/back-office#clients">Clients &amp; locations</a>
-        <a class="btn btn-primary" href="/contrat">Contrats &amp; états des lieux</a>
+        <a class="btn btn-primary" href="/contrat">Contrats</a>
         <a class="btn" href="/back-office#statistiques">Statistiques</a>
       </div>
     </nav>
@@ -427,12 +428,12 @@
 
         <!-- Niveau de protection : mêmes formules que sur le site (voir
              PROTECTIONS dans js/data.js), pour qu'un contrat établi au
-             comptoir facture — et affiche sa franchise — exactement comme une
+             comptoir reprenne exactement les mêmes protections et tarifs qu'une
              réservation en ligne. -->
         <div class="field full" style="margin-top:8px;">
           <label for="protection">Niveau de protection</label>
           <select id="protection"></select>
-          <small id="protectionAide">Le niveau de protection choisi est repris automatiquement sur le contrat PDF.</small>
+          <small id="protectionAide">Le niveau de protection choisi et son prix sont repris automatiquement sur le contrat PDF. Les garanties restent soumises aux conditions et exclusions du contrat.</small>
         </div>
 
         <!-- Équipement enfant : mêmes deux options que sur le site (voir
@@ -590,7 +591,7 @@
         <h3>Article 3 — Kilométrage et carburant</h3>
         <p>Le véhicule est loué avec un forfait de <strong><span class="fill" data-fill="kmInclusParJour">…</span> km inclus par jour de location</strong>, soit <span class="fill" data-fill="kmInclus">…</span> km au total pour la durée du contrat. Tout kilomètre parcouru au-delà de ce forfait est facturé <strong><span class="fill" data-fill="supplementKm">…</span> / km</strong> (voir le tableau de remise et restitution du véhicule pour le relevé kilométrique départ/retour). Le véhicule doit être restitué avec le même niveau de carburant qu'au départ.</p>
         <h3>Article 4 — Dépôt de garantie et assurance</h3>
-        <p>Un dépôt de garantie de <span class="fill" data-fill="caution">…</span> est prélevé avant remise des clés, réglé par <span class="fill" data-fill="modeCaution">…</span>. Le véhicule est couvert par une assurance responsabilité civile et les garanties complémentaires en vigueur, souscrites auprès d'Allianz Assurance ; les franchises applicables en cas de sinistre responsable, de vol ou de bris de glace ne sont pas nécessairement égales à ce dépôt de garantie — leurs montants sont précisés dans les Conditions Générales de Location. Un état des lieux (photos, kilométrage, niveau de carburant) est réalisé au départ et à la restitution ; toute dégradation non mentionnée au départ sera facturée sur devis.</p>
+        <p>Un dépôt de garantie de <span class="fill" data-fill="caution">…</span> est préautorisé avant remise des clés, réglé par <span class="fill" data-fill="modeCaution">…</span>. Le véhicule est couvert par une assurance responsabilité civile et les protections complémentaires éventuellement souscrites, selon leurs conditions et exclusions. Un état des lieux (photos, kilométrage, niveau de carburant) est réalisé au départ et à la restitution ; toute dégradation non mentionnée au départ pourra être facturée sur devis.</p>
         <p><strong>Dépôt de garantie.</strong> Le dépôt de garantie constitue une garantie financière. Il peut être utilisé pour couvrir les dommages, le carburant manquant, les kilomètres supplémentaires, un nettoyage exceptionnel et toute somme restant due. Il ne constitue ni un plafond de responsabilité ni une limitation des sommes pouvant être réclamées au locataire. Si les frais dépassent le dépôt de garantie, le complément pourra être réclamé conformément au contrat, aux protections souscrites et aux Conditions Générales de Location.</p>
         <p>À la restitution du véhicule et après validation de l'état des lieux de retour contradictoire : pour une caution réglée par empreinte bancaire (pré-autorisation), la mainlevée est ordonnée par GETLOCATION sous 7 jours ouvrables. Pour une caution réglée en espèces ou par virement bancaire, le dépôt de garantie est restitué par virement bancaire, sur le RIB fourni par le locataire, sous 7 jours ouvrables minimum — aucun remboursement en espèces n'est effectué sur place au moment du retour. En cas de dégradation, de nettoyage requis, de carburant manquant ou d'infraction constatée, GETLOCATION peut conserver tout ou partie du dépôt de garantie le temps d'évaluer les frais, dans la limite de 30 jours (voir le détail complet dans les Conditions Générales de Location).</p>
         <p id="secondConducteurClause" style="display:none;">Un second conducteur, <span class="fill" data-fill="nom2">…</span> (permis n° <span class="fill" data-fill="permis2">…</span>), est autorisé à conduire le véhicule dans les mêmes conditions que le locataire principal, qui reste seul responsable vis-à-vis du présent contrat.</p>
@@ -1175,12 +1176,19 @@ var DMG_TYPES = [
 ];
 
 var DMG_VIEWS = [
-  { key: 'left', label: 'Profil conducteur', shape: 'side' },
-  { key: 'front', label: 'Avant', shape: 'front' },
-  { key: 'right', label: 'Profil passager', shape: 'side', mirror: true },
-  { key: 'rear', label: 'Arrière', shape: 'rear' },
-  { key: 'top', label: 'Dessus', shape: 'top' }
+  { key: 'left', label: 'Profil conducteur', asset: '/images/inspection/vehicle-left.png' },
+  { key: 'front', label: 'Avant', asset: '/images/inspection/vehicle-front.png' },
+  { key: 'right', label: 'Profil passager', asset: '/images/inspection/vehicle-right.png' },
+  { key: 'rear', label: 'Arrière', asset: '/images/inspection/vehicle-rear.png' },
+  { key: 'top', label: 'Dessus', asset: '/images/inspection/vehicle-top.png' }
 ];
+
+var DMG_REFERENCE_IMAGES = {};
+DMG_VIEWS.forEach(function(vue){
+  var image = new Image();
+  image.src = vue.asset;
+  DMG_REFERENCE_IMAGES[vue.key] = image;
+});
 
 // Primitives : ['rect',x,y,w,h,rx] | ['ellipse',cx,cy,rx,ry] | ['line',x1,y1,x2,y2] | ['poly',[[x,y],...]]
 // (rayon rx omis = 0). w/h identiques entre "car" et "utility" pour une même
@@ -1298,69 +1306,6 @@ function normaliserEtatVehicule(etat){
   };
 }
 
-function svgEl(tag, attrs){
-  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
-  Object.keys(attrs).forEach(function(k){ el.setAttribute(k, attrs[k]); });
-  return el;
-}
-
-// Construit le <svg> de fond (silhouette seule, sans marque) pour une vue
-// donnée. `mirror` retourne horizontalement le contenu (utilisé pour "Côté
-// droit", qui réutilise la géométrie "side" de "Côté gauche").
-function construireSvgSchema(shapeKey, vehicleFamily, mirror){
-  var groupe = DMG_SHAPES[vehicleFamily === 'utility' ? 'utility' : 'car'];
-  var spec = groupe[shapeKey];
-  var svg = svgEl('svg', { viewBox: '0 0 ' + spec.w + ' ' + spec.h, preserveAspectRatio: 'xMidYMid meet' });
-  var g = svgEl('g', mirror ? { transform: 'translate(' + spec.w + ',0) scale(-1,1)' } : {});
-  spec.shapes.forEach(function(prim){
-    if(prim[0] === 'rect'){
-      g.appendChild(svgEl('rect', { class: 'dmg-shape', x: prim[1], y: prim[2], width: prim[3], height: prim[4], rx: prim[5] || 0 }));
-    } else if(prim[0] === 'ellipse'){
-      g.appendChild(svgEl('ellipse', { class: 'dmg-shape', cx: prim[1], cy: prim[2], rx: prim[3], ry: prim[4] }));
-    } else if(prim[0] === 'line'){
-      g.appendChild(svgEl('line', { class: 'dmg-shape', x1: prim[1], y1: prim[2], x2: prim[3], y2: prim[4] }));
-    } else if(prim[0] === 'poly'){
-      var points = prim[1].map(function(p){ return p[0] + ',' + p[1]; }).join(' ');
-      g.appendChild(svgEl('polyline', { class: 'dmg-shape', points: points, fill: 'none' }));
-    }
-  });
-  svg.appendChild(g);
-  return svg;
-}
-
-// Redessine la même silhouette dans le PDF (jsPDF), à l'intérieur du
-// rectangle [boxX,boxY,boxW,boxH] — mêmes primitives que construireSvgSchema,
-// jamais une capture d'écran ni une image : le PDF reste net à toute échelle
-// et très léger. Pour un rect mirroré, le bord gauche affiché correspond au
-// bord droit d'origine (W - (x+w)) — un simple point mirroré (tx) ne suffit
-// pas pour un rectangle, contrairement à line/ellipse/poly.
-function dessinerSchemaPdf(doc, shapeKey, vehicleFamily, mirror, boxX, boxY, boxW, boxH){
-  var groupe = DMG_SHAPES[vehicleFamily === 'utility' ? 'utility' : 'car'];
-  var spec = groupe[shapeKey];
-  var scaleX = boxW / spec.w, scaleY = boxH / spec.h;
-  function tx(px){ return boxX + (mirror ? (spec.w - px) : px) * scaleX; }
-  function ty(py){ return boxY + py * scaleY; }
-  doc.setDrawColor(150, 150, 150);
-  doc.setLineWidth(0.7);
-  spec.shapes.forEach(function(prim){
-    if(prim[0] === 'rect'){
-      var rx = prim[1], ry = prim[2], rw = prim[3], rh = prim[4], rr = prim[5] || 0;
-      var leftRaw = mirror ? (spec.w - (rx + rw)) : rx;
-      var rrPt = rr * Math.min(scaleX, scaleY);
-      doc.roundedRect(boxX + leftRaw * scaleX, ty(ry), rw * scaleX, rh * scaleY, rrPt, rrPt, 'S');
-    } else if(prim[0] === 'ellipse'){
-      doc.ellipse(tx(prim[1]), ty(prim[2]), prim[3] * scaleX, prim[4] * scaleY, 'S');
-    } else if(prim[0] === 'line'){
-      doc.line(tx(prim[1]), ty(prim[2]), tx(prim[3]), ty(prim[4]));
-    } else if(prim[0] === 'poly'){
-      var pts = prim[1];
-      for(var i = 0; i < pts.length - 1; i++){
-        doc.line(tx(pts[i][0]), ty(pts[i][1]), tx(pts[i + 1][0]), ty(pts[i + 1][1]));
-      }
-    }
-  });
-}
-
 // Dessine une marque de dommage dans le PDF, toujours en noir/gris foncé et
 // distinguée par la FORME (croix/cercle vide/point plein), jamais par la
 // seule couleur — lisible même imprimé en noir et blanc (voir mission §8).
@@ -1417,8 +1362,6 @@ function creerGestionEtat(container, vehicleFamilyGetter){
     label.textContent = vue.label;
     var canvas = document.createElement('div');
     canvas.className = 'dmg-canvas';
-    var dims = DMG_SHAPES.car[vue.shape];
-    canvas.style.aspectRatio = dims.w + ' / ' + dims.h;
     // Clic sur le fond = ajoute une marque ; un clic sur une marque
     // existante est intercepté par son propre gestionnaire (stopPropagation)
     // et n'atteint donc jamais ce niveau.
@@ -1449,12 +1392,16 @@ function creerGestionEtat(container, vehicleFamilyGetter){
   container.appendChild(obsWrap);
 
   function redessinerSchemas(){
-    var famille = vehicleFamilyGetter() === 'utility' ? 'utility' : 'car';
     DMG_VIEWS.forEach(function(vue){
       var canvas = canvases[vue.key];
-      var ancien = canvas.querySelector('svg');
+      var ancien = canvas.querySelector('.dmg-reference-image');
       if(ancien) ancien.remove();
-      canvas.insertBefore(construireSvgSchema(vue.shape, famille, !!vue.mirror), canvas.firstChild);
+      var image = document.createElement('img');
+      image.className = 'dmg-reference-image';
+      image.src = vue.asset;
+      image.alt = vue.label + ' — schéma véhicule détaillé';
+      image.draggable = false;
+      canvas.insertBefore(image, canvas.firstChild);
     });
   }
 
@@ -2453,29 +2400,20 @@ function genererPDF(payload, estApercu){
   // Bloc volontairement séparé du récapitulatif de la location : le dépôt de
   // garantie n'est pas un paiement, il ne doit jamais paraître s'ajouter au
   // prix de la location.
-  var franchises = getFranchises();
-  var texteFranchises = (franchises.dommages || franchises.vol || franchises.brisDeGlace)
-    ? [
-        franchises.dommages ? (contratEnAnglais ? 'damage ' : 'dommages ') + formatEUR(franchises.dommages) : null,
-        franchises.vol ? (contratEnAnglais ? 'theft ' : 'vol ') + formatEUR(franchises.vol) : null,
-        franchises.brisDeGlace ? (contratEnAnglais ? 'glass breakage ' : 'bris de glace ') + formatEUR(franchises.brisDeGlace) : null
-      ].filter(Boolean).join(' — ')
-    : (contratEnAnglais ? 'See the General Rental Conditions (version ' : 'Voir Conditions Générales de Location (version ') + (payload.cglVersion || getCglVersion()) + ').';
-  // Trois informations que le client ne doit JAMAIS confondre, présentées
-  // côte à côte mais distinctement : le niveau de protection retenu, la
-  // franchise qui reste à sa charge en cas de dommage, et le dépôt de
-  // garantie — qui n'est ni l'un ni l'autre, et n'est pas un paiement de la
-  // location. Un filet vertical sépare les deux premières (ce qui relève de
-  // la protection choisie) de la troisième (ce qui est bloqué en caution).
+  // Le niveau de protection et le dépôt restent distincts du prix de la
+  // location. Le contrat ne promet jamais un rachat de franchise, une
+  // responsabilité maximale, ni un plafond absolu des sommes dues.
   var protection = payload.protection || null;
   var largeurInterieure = maxWidth - 28;
   var xProtection = margin + 14;
-  var xFranchiseMax = xProtection + largeurInterieure * 0.28;
-  var xDepot = xProtection + largeurInterieure * 0.60;
-  var xMode = xProtection + largeurInterieure * 0.83;
+  var xDepot = xProtection + largeurInterieure * 0.48;
+  var xMode = xProtection + largeurInterieure * 0.79;
+  var texteProtection = T('Les protections complémentaires réduisent la participation financière dans les conditions prévues au contrat. Elles restent soumises aux exclusions et limitations applicables.');
+  var texteDepot = T('Le dépôt de garantie ne constitue ni un plafond de responsabilité ni une limitation des sommes pouvant être réclamées.');
   police('normal', 8, C.texte);
-  var lignesFranchises = doc.splitTextToSize(texteFranchises, largeurInterieure);
-  var hauteurGarantie = 72 + lignesFranchises.length * 10;
+  var lignesProtection = doc.splitTextToSize(texteProtection, largeurInterieure);
+  var lignesDepot = doc.splitTextToSize(texteDepot, largeurInterieure);
+  var hauteurGarantie = 82 + (lignesProtection.length + lignesDepot.length) * 10;
   titreSection(T('Protection et garantie'), hauteurGarantie + 18);
   doc.setFillColor(252, 252, 253);
   doc.setDrawColor(C.filet[0], C.filet[1], C.filet[2]);
@@ -2484,15 +2422,9 @@ function genererPDF(payload, estApercu){
   doc.line(xDepot - 12, y + 10, xDepot - 12, y + 48);
 
   police('normal', 6.8, C.label);
-  capitales(T('Niveau de protection'), xProtection, y + 15, 0.45);
+  capitales(T('Protection complémentaire'), xProtection, y + 15, 0.45);
   police('bold', 12.5, C.titre);
   doc.text(valeurOuTiret(protection ? T(protection.nom) : ''), xProtection, y + 40);
-
-  police('normal', 6.8, C.label);
-  capitales(T('Franchise /'), xFranchiseMax, y + 15, 0.45);
-  capitales(T('Responsabilité maximale'), xFranchiseMax, y + 24, 0.45);
-  police('bold', 12.5, C.titre);
-  doc.text(valeurOuTiret(protection ? formatEUR(protection.franchise) : ''), xFranchiseMax, y + 40);
 
   police('normal', 6.8, C.label);
   capitales(T('Dépôt de garantie'), xDepot, y + 15, 0.45);
@@ -2505,9 +2437,10 @@ function genererPDF(payload, estApercu){
   doc.text(valeurOuTiret(payload.mode_reglement_caution), xMode, y + 39);
 
   police('normal', 6.8, C.label);
-  capitales(T('Franchises assurance'), xProtection, y + 58, 0.45);
+  capitales(T('Conditions et exclusions'), xProtection, y + 58, 0.45);
   police('normal', 8, C.texte);
-  doc.text(lignesFranchises, xProtection, y + 68);
+  doc.text(lignesProtection, xProtection, y + 68);
+  doc.text(lignesDepot, xProtection, y + 68 + lignesProtection.length * 10);
   y += hauteurGarantie + 11;
   placePour(12);
   police('italic', 7.8, C.label);
@@ -2897,9 +2830,19 @@ function genererPDF(payload, estApercu){
       var yCadre = y + 5;
       doc.setDrawColor(C.filet[0], C.filet[1], C.filet[2]);
       doc.rect(xVue, yCadre, largeurVue, hauteurVue, 'S');
-      dessinerSchemaPdf(doc, vue.shape, payload.vehicleFamily, !!vue.mirror, xVue + 2, yCadre + 2, largeurVue - 4, hauteurVue - 4);
+      var image = DMG_REFERENCE_IMAGES[vue.key];
+      var imageX = xVue + 2, imageY = yCadre + 2, imageW = largeurVue - 4, imageH = hauteurVue - 4;
+      if(image && image.naturalWidth && image.naturalHeight){
+        var ratio = Math.min(imageW / image.naturalWidth, imageH / image.naturalHeight);
+        imageW = image.naturalWidth * ratio; imageH = image.naturalHeight * ratio;
+        imageX += (largeurVue - 4 - imageW) / 2; imageY += (hauteurVue - 4 - imageH) / 2;
+        doc.addImage(image, 'PNG', imageX, imageY, imageW, imageH, undefined, 'FAST');
+      } else {
+        police('italic', 5.5, C.label);
+        doc.text(T('Schéma détaillé indisponible'), xVue + largeurVue / 2, yCadre + hauteurVue / 2, { align: 'center' });
+      }
       (etat.marks || []).filter(function(m){ return m.view === vue.key; }).forEach(function(m){
-        dessinerMarquePdf(doc, m.type, xVue + 2 + (m.x / 100) * (largeurVue - 4), yCadre + 2 + (m.y / 100) * (hauteurVue - 4));
+        dessinerMarquePdf(doc, m.type, imageX + (m.x / 100) * imageW, imageY + (m.y / 100) * imageH);
       });
       xVue += largeurVue + ecart;
     });

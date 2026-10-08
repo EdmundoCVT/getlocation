@@ -51,6 +51,21 @@ test("le Worker route le dossier contrat sécurisé (agence et client)", () => {
   assert.match(worker, /"\/api\/contract-dossier-client"\s*:\s*handleContractDossierClient/);
 });
 
+test("le Worker route la lecture privée des médias historiques d'état des lieux", () => {
+  const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
+  assert.match(worker, /"\/api\/legacy-inspection-media"\s*:\s*handleLegacyInspectionMedia/);
+});
+
+test("le Worker route le diagnostic historique Zvezdan, limité à une lecture agence", () => {
+  const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
+  assert.match(worker, /"\/api\/legacy-inspection-diagnostic"\s*:\s*handleLegacyInspectionDiagnostic/);
+});
+
+test("le Worker route la récupération R2 Zvezdan en lecture agence", () => {
+  const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
+  assert.match(worker, /"\/api\/zvezdan-return-media"\s*:\s*handleZvezdanReturnMedia/);
+});
+
 test("le Worker route la numérotation/historique des contrats manuels", () => {
   const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
   assert.match(worker, /"\/api\/contracts-manual-create"\s*:\s*handleContractsManualCreate/);

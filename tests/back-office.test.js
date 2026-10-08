@@ -133,6 +133,85 @@ test("la navigation mobile ouvre et ferme la sidebar sans exposer de contenu sup
   assert.equal(toggle.getAttribute("aria-expanded"), "false");
 });
 
+test("états des lieux historiques terminés : les boutons restent cliquables, seul un retour futur reste désactivé", () => {
+  const window = buildWindow();
+  window.__backOffice.renderInspectionListForTest([
+    {
+      id: "res_historique", client: { prenom: "Israa", nom: "Benzaama" }, vehicule: "Opel Corsa", vehiculeId: "opel-corsa", immatriculation: "AB-123-CD",
+      dateDebut: "2026-08-13", heureDebut: "10:00", dateFin: "2026-08-15", heureFin: "10:00", contractNumero: "GL-20260813-0001",
+      openable: false, historyMode: "manual-contract", inspection: { depart: true, retour: true, retourAvailable: true }
+    },
+    {
+      id: "res_futur", client: { prenom: "Jean", nom: "Dupont" }, vehicule: "Opel Corsa", vehiculeId: "opel-corsa", immatriculation: "",
+      dateDebut: "2027-01-01", heureDebut: "10:00", dateFin: "2027-01-02", heureFin: "10:00", contractNumero: null,
+      openable: true, historyMode: null, inspection: { depart: false, retour: false, retourAvailable: false }
+    }
+  ]);
+  const buttons = [...window.document.querySelectorAll("#inspectionList button")];
+  const departHistorique = buttons.find((b) => b.textContent === "Départ — ✓ Terminé");
+  const retourHistorique = buttons.find((b) => b.textContent === "Retour — ✓ Terminé");
+  const retourFutur = buttons.find((b) => b.textContent === "Retour — À venir");
+  assert.ok(departHistorique && !departHistorique.disabled);
+  assert.ok(retourHistorique && !retourHistorique.disabled);
+  assert.ok(retourFutur && retourFutur.disabled);
+});
+
+test("chaque état des lieux historique terminé ouvre la vue legacy, jamais contrat.html", () => {
+  const window = buildWindow();
+  const popups=[];window.open=()=>{const popup={opener:window,document:{},location:{href:""}};popups.push(popup);return popup};
+  const historique=(id,historyMode,historyId)=>({id,client:{prenom:"Israa",nom:"Benzaama"},vehicule:"Opel Corsa",vehiculeId:"opel-corsa",immatriculation:"AB-123-CD",dateDebut:"2026-08-13",heureDebut:"10:00",dateFin:"2026-08-15",heureFin:"10:00",contractNumero:"GL-20260813-0001",openable:false,historyMode,historyId,inspection:{depart:true,retour:true,retourAvailable:true}});
+  window.__backOffice.renderInspectionListForTest([
+    historique("res_"+"a".repeat(32),"manual-contract","res_"+"a".repeat(32)),
+    historique("rnt_legacy","rental-record","rnt_legacy"),
+    historique("res_kv","rental-record","rnt_fusionnee")
+  ]);
+  [...window.document.querySelectorAll("#inspectionList .dashboard-card")].forEach((card,index)=>{
+    const buttons=[...card.querySelectorAll("button")];
+    const depart=buttons.find(b=>b.textContent==="Départ — ✓ Terminé"),retour=buttons.find(b=>b.textContent==="Retour — ✓ Terminé");
+    assert.equal(depart.disabled,false);assert.equal(retour.disabled,false);
+    depart.click();retour.click();
+    const expectedId=["res_"+"a".repeat(32),"rnt_legacy","rnt_fusionnee"][index];
+    const departUrl=popups[index*2].location.href,retourUrl=popups[index*2+1].location.href;
+    assert.match(departUrl,new RegExp("^/etat-des-lieux\\.html\\?source=legacy&mode=depart&legacyId="+expectedId+"$"));
+    assert.match(retourUrl,new RegExp("^/etat-des-lieux\\.html\\?source=legacy&mode=retour&legacyId="+expectedId+"$"));
+    [departUrl,retourUrl].forEach(url=>{assert.ok(!url.includes("contrat.html"));assert.ok(!url.includes("manualToken"))});
+  });
+});
+
+test("réservation KV moderne : conserve le workflow état des lieux sécurisé", async () => {
+  const window=buildWindow(),popup={opener:window,document:{},location:{href:""}};window.open=()=>popup;
+  window.fetch=async()=>({ok:true,json:async()=>({agencyUrl:"https://getlocation.fr/contrat.html#agencyToken="+"A".repeat(43)})});
+  window.__backOffice.renderInspectionListForTest([{id:"res_"+"b".repeat(32),client:{prenom:"Jean",nom:"Dupont"},vehicule:"Opel Corsa",vehiculeId:"opel-corsa",immatriculation:"",dateDebut:"2027-01-01",heureDebut:"10:00",dateFin:"2027-01-02",heureFin:"10:00",contractNumero:null,openable:true,historyMode:null,historyId:null,inspection:{depart:false,retour:false,retourAvailable:false}}]);
+  window.document.querySelector("#inspectionList button").click();
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.match(popup.location.href,/^\/etat-des-lieux\.html\?mode=depart#agencyToken=A{43}$/);
+});
+
+test("contrat manuel moderne : Départ À faire ouvre l'EDL autonome avec lien agence", async () => {
+  const window = buildWindow();
+  const popup = { opener: window, document: {}, location: { href: "" } };
+  window.open = () => popup;
+  let requestedId = null;
+  window.fetch = async (_url, options) => {
+    requestedId = JSON.parse(options.body).id;
+    return { ok: true, json: async () => ({ agencyUrl: "https://getlocation.fr/etat-des-lieux.html#agencyToken=" + "B".repeat(43) }) };
+  };
+  window.__backOffice.renderInspectionListForTest([{
+    id: "res_manual_modern", client: { prenom: "Anne", nom: "Martin" }, vehicule: "Opel Corsa",
+    vehiculeId: "opel-corsa", immatriculation: "AA-123-BB", dateDebut: "2026-10-10",
+    heureDebut: "10:00", dateFin: "2026-10-12", heureFin: "10:00", contractNumero: "GL-20261010-0001",
+    openable: true, historyMode: null, historyId: null,
+    inspection: { depart: false, retour: false, retourAvailable: false }
+  }]);
+  const depart = window.document.querySelector("#inspectionList button");
+  assert.equal(depart.textContent, "Départ — À faire");
+  assert.equal(depart.disabled, false);
+  depart.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(requestedId, "res_manual_modern");
+  assert.match(popup.location.href, /^\/etat-des-lieux\.html\?mode=depart#agencyToken=B{43}$/);
+});
+
 // Régression Lot 5 : renderSyncStatus utilisait row(), qui échappe
 // systématiquement sa valeur (correct pour du texte utilisateur) — appliqué
 // au HTML de confiance renvoyé par syncBadge(), il affichait le balisage
