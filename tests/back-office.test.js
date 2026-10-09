@@ -307,3 +307,32 @@ test("tableau des dépôts : filtres et cartes compactes affichent les montants 
   assert.match(window.document.getElementById("depositDashboardList").textContent, /Anne Martin/);
   assert.doesNotMatch(window.document.getElementById("depositDashboardList").textContent, /Joseph Nicholson/);
 });
+
+test("nouvelle empreinte : modes visibles, résumé de réservation et fermeture compacte", async () => {
+  const window = buildWindow();
+  window.fetch = () => Promise.resolve({ ok: true, json: async () => ({ rentals: [{ id: "rnt_42", vehiculeId: "opel-corsa", vehicule: "Opel Corsa Business", contractNumero: "GL-42", client: { prenom: "Felipe", nom: "Martin" } }] }) });
+  window.__backOffice.openDepositCreationForTest();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const panel = window.document.getElementById("depositCreationPanel");
+  assert.equal(window.document.getElementById("newDepositBtn").textContent, "Fermer");
+  assert.match(panel.textContent, /Felipe/);
+  assert.match(panel.textContent, /Montant libre/);
+  assert.equal(window.document.querySelectorAll("[data-deposit-mode]").length, 2);
+  window.document.querySelector('[data-deposit-mode="onsite"]').click();
+  assert.equal(window.document.getElementById("newDepositMode").value, "onsite");
+  assert.ok(window.document.querySelector('[data-deposit-mode="onsite"]').classList.contains("is-selected"));
+  window.document.getElementById("newDepositBtn").click();
+  assert.equal(panel.hidden, true);
+  assert.equal(window.document.getElementById("newDepositBtn").textContent, "+ Nouvelle empreinte");
+});
+
+test("après création : les partages sont réservés au mode envoyé au client", () => {
+  const window = buildWindow();
+  const data = { deposit: { id: "dep_x" }, customerLink: "https://getlocation.fr/deposit.html?token=test" };
+  window.__backOffice.renderCreatedDepositLinkForTest(data, "onsite");
+  assert.equal(window.document.getElementById("createdDepositCopy"), null);
+  window.__backOffice.renderCreatedDepositLinkForTest(data, "send");
+  assert.ok(window.document.getElementById("createdDepositCopy"));
+  assert.ok(window.document.getElementById("createdDepositWhatsapp"));
+  assert.ok(window.document.getElementById("createdDepositSms"));
+});
