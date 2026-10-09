@@ -11,7 +11,17 @@ const DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files";
 class DriveBackupError extends Error {}
 function esc(value) { return String(value || "").replace(/'/g, "\\'"); }
 function safePart(value) { return String(value || "INCONNU").replace(/[^A-Za-zÀ-ÿ0-9 _.-]/g, "_").trim().slice(0, 100) || "INCONNU"; }
-function driveConfigured(env) { return Boolean(env && env.GOOGLE_DRIVE_ROOT_FOLDER_ID && env.GOOGLE_SERVICE_ACCOUNT_KEY && env.AGENCY_DB); }
+function driveConfigurationChecks(env) {
+  return {
+    agencyDb: Boolean(env && env.AGENCY_DB),
+    driveRootFolderId: Boolean(env && typeof env.GOOGLE_DRIVE_ROOT_FOLDER_ID === "string" && env.GOOGLE_DRIVE_ROOT_FOLDER_ID.trim()),
+    googleServiceAccountKey: Boolean(env && typeof env.GOOGLE_SERVICE_ACCOUNT_KEY === "string" && env.GOOGLE_SERVICE_ACCOUNT_KEY.trim())
+  };
+}
+function missingDriveComponents(checks) {
+  return Object.entries(checks).filter(([, present]) => !present).map(([name]) => ({ agencyDb: "AGENCY_DB", driveRootFolderId: "GOOGLE_DRIVE_ROOT_FOLDER_ID", googleServiceAccountKey: "GOOGLE_SERVICE_ACCOUNT_KEY" })[name]);
+}
+function driveConfigured(env) { return Object.values(driveConfigurationChecks(env)).every(Boolean); }
 function sharedDriveUrl(path, base = DRIVE_API, list = false) {
   const url = new URL(`${base}${path}`);
   // Obligatoire pour tout accès à un dossier/fichier d'un Drive partagé.
@@ -83,7 +93,18 @@ async function enqueueDriveSync(env, reservationId) {
   return reservationId;
 }
 async function syncDriveBackup(env, reservationId, actor = null) {
-  if (!driveConfigured(env)) return { ok: false, reason: "Google Drive non configuré" };
+  const checks = driveConfigurationChecks(env);
+  const missing = missingDriveComponents(checks);
+  if (!driveConfigured(env)) {
+    const now = new Date().toISOString();
+    const reason = `Google Drive non configuré : ${missing.join(", ")}`;
+    if (checks.agencyDb) {
+      await enqueueDriveSync(env, reservationId);
+      await env.AGENCY_DB.prepare("UPDATE drive_sync_outbox SET status='error', attempt_count=attempt_count+1, last_attempt_at=?, last_error=?, updated_at=? WHERE reservation_id=?").bind(now, reason, now, reservationId).run();
+      await recordAuditEvent(env, { actor, eventType: "drive_backup_failed", entityType: "contract", entityId: reservationId, metadata: { error: reason } });
+    }
+    return { ok: false, reason, checks };
+  }
   await enqueueDriveSync(env, reservationId);
   const now = new Date().toISOString();
   try {
@@ -125,4 +146,4 @@ async function syncDriveBackup(env, reservationId, actor = null) {
 }
 async function getDriveSyncStatus(env, reservationId) { if (!env || !env.AGENCY_DB) return null; return env.AGENCY_DB.prepare("SELECT status, drive_folder_id, last_attempt_at, last_error, synced_at FROM drive_sync_outbox WHERE reservation_id=?").bind(reservationId).first(); }
 async function retryPendingDriveSyncs(env) { if (!env || !env.AGENCY_DB) return; const rows = await env.AGENCY_DB.prepare("SELECT reservation_id FROM drive_sync_outbox WHERE status IN ('pending','error')").all(); for (const row of rows.results || []) await syncDriveBackup(env, row.reservation_id, null); }
-module.exports = { driveConfigured, enqueueDriveSync, syncDriveBackup, getDriveSyncStatus, retryPendingDriveSyncs, safeSnapshot, sharedDriveUrl };
+module.exports = { driveConfigured, driveConfigurationChecks, enqueueDriveSync, syncDriveBackup, getDriveSyncStatus, retryPendingDriveSyncs, safeSnapshot, sharedDriveUrl };

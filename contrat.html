@@ -4548,8 +4548,8 @@ function initOwnerView(prefill){
         driveBtn.disabled = true; driveBtn.textContent = 'Synchronisation…';
         fetch('/api/agency-drive-backup', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken || ''}, body:JSON.stringify({id:entry.id}) })
           .then(function(r){ return r.json().then(function(data){ if(!r.ok && r.status !== 202) throw new Error(data.error || 'Erreur'); return data; }); })
-          .then(function(data){ afficherStatutDrive(data.ok ? {status:'synced'} : {status:'error'}); if(data.folderId){ var open = document.createElement('a'); open.className='btn'; open.target='_blank'; open.rel='noopener'; open.textContent='Ouvrir Drive'; open.href='https://drive.google.com/drive/folders/' + encodeURIComponent(data.folderId); actions.appendChild(open); } })
-          .catch(function(){ driveStatut.textContent='Drive : Erreur'; })
+          .then(function(data){ afficherStatutDrive(data.ok ? {status:'synced'} : {status:'error'}); if(!data.ok && data.reason) driveStatut.textContent = 'Drive : Erreur — ' + data.reason; if(data.folderId){ var open = document.createElement('a'); open.className='btn'; open.target='_blank'; open.rel='noopener'; open.textContent='Ouvrir Drive'; open.href='https://drive.google.com/drive/folders/' + encodeURIComponent(data.folderId); actions.appendChild(open); } })
+          .catch(function(err){ driveStatut.textContent='Drive : Erreur — ' + (err && err.message ? err.message : 'vérifiez la configuration'); })
           .finally(function(){ driveBtn.disabled=false; driveBtn.textContent='Synchroniser Drive'; });
       });
       actions.appendChild(driveBtn);
