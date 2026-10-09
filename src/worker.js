@@ -41,6 +41,7 @@ const { handleInspectionMedia } = require("./api/inspection-media.js");
 const { handleLegacyInspectionAgency, handleLegacyInspectionMedia, handleLegacyInspectionDiagnostic } = require("./api/legacy-inspection-agency.js");
 const { handleZvezdanReturnMedia } = require("./api/zvezdan-return-media.js");
 const { runScheduledTasks } = require("./lib/scheduled-tasks.js");
+const { retryPendingDriveSyncs } = require("./lib/google-drive-backup.js");
 const { estCheminAnglais, servirPageAnglaise } = require("./lib/pages-en.js");
 
 const ROUTES = {
@@ -179,6 +180,8 @@ export default {
     return withClientUX(await env.ASSETS.fetch(request), url.pathname);
   },
   async scheduled(controller, env, ctx) {
-    ctx.waitUntil(runScheduledTasks(env));
+    // La reprise Drive est fréquente et volontairement petite. Les autres
+    // traitements restent quotidiens afin de ne pas multiplier leurs effets.
+    ctx.waitUntil(controller.cron === "*/5 * * * *" ? retryPendingDriveSyncs(env) : runScheduledTasks(env));
   }
 };

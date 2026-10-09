@@ -4537,18 +4537,31 @@ function initOwnerView(prefill){
       function afficherStatutDrive(sync){
         if(!sync){ driveStatut.textContent = 'Drive : À synchroniser'; return; }
         if(sync.status === 'synced') driveStatut.textContent = 'Drive : Synchronisé';
-        else if(sync.status === 'error') driveStatut.textContent = 'Drive : Erreur';
+        else if(sync.status === 'processing') driveStatut.textContent = 'Drive : Synchronisation… ' + (sync.synced || 0) + ' / ' + (sync.total || 0);
+        else if(sync.status === 'error') driveStatut.textContent = 'Drive : Erreur' + (sync.error ? ' sur ' + sync.error + ' élément(s)' : '');
         else driveStatut.textContent = 'Drive : À synchroniser';
       }
       fetch('/api/agency-drive-backup?id=' + encodeURIComponent(entry.id), { credentials: 'same-origin' })
         .then(function(r){ return r.ok ? r.json() : null; }).then(function(data){ if(data) afficherStatutDrive(data.sync); }).catch(function(){});
+      function suivreSynchronisationDrive(essaisRestants){
+        if(essaisRestants <= 0) return;
+        window.setTimeout(function(){
+          fetch('/api/agency-drive-backup?id=' + encodeURIComponent(entry.id), { credentials: 'same-origin' })
+            .then(function(r){ return r.ok ? r.json() : null; })
+            .then(function(data){
+              if(!data || !data.sync) return;
+              afficherStatutDrive(data.sync);
+              if(data.sync.status === 'processing' || data.sync.status === 'pending') suivreSynchronisationDrive(essaisRestants - 1);
+            }).catch(function(){});
+        }, 4000);
+      }
       var driveBtn = document.createElement('button');
       driveBtn.type = 'button'; driveBtn.className = 'btn'; driveBtn.textContent = 'Synchroniser Drive';
       driveBtn.addEventListener('click', function(){
         driveBtn.disabled = true; driveBtn.textContent = 'Synchronisation…';
         fetch('/api/agency-drive-backup', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken || ''}, body:JSON.stringify({id:entry.id}) })
           .then(function(r){ return r.json().then(function(data){ if(!r.ok && r.status !== 202) throw new Error(data.error || 'Erreur'); return data; }); })
-          .then(function(data){ afficherStatutDrive(data.ok ? {status:'synced'} : {status:'error'}); if(!data.ok && data.reason) driveStatut.textContent = 'Drive : Erreur — ' + data.reason; if(data.folderId){ var open = document.createElement('a'); open.className='btn'; open.target='_blank'; open.rel='noopener'; open.textContent='Ouvrir Drive'; open.href='https://drive.google.com/drive/folders/' + encodeURIComponent(data.folderId); actions.appendChild(open); } })
+          .then(function(data){ afficherStatutDrive(data); if(data.status === 'processing' || data.status === 'pending') suivreSynchronisationDrive(10); if(!data.ok && data.reason) driveStatut.textContent = 'Drive : Erreur — ' + data.reason; if(data.folderId){ var open = document.createElement('a'); open.className='btn'; open.target='_blank'; open.rel='noopener'; open.textContent='Ouvrir Drive'; open.href='https://drive.google.com/drive/folders/' + encodeURIComponent(data.folderId); actions.appendChild(open); } })
           .catch(function(err){ driveStatut.textContent='Drive : Erreur — ' + (err && err.message ? err.message : 'vérifiez la configuration'); })
           .finally(function(){ driveBtn.disabled=false; driveBtn.textContent='Synchroniser Drive'; });
       });

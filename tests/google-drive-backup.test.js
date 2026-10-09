@@ -25,6 +25,15 @@ test("sauvegarde Drive : les binaires utilisent l'endpoint d'upload Google", () 
   assert.match(source, /upload: true/);
 });
 
+test("sauvegarde Drive : un passage est volontairement borné", () => {
+  const source = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "src", "lib", "google-drive-backup.js"), "utf8");
+  assert.match(source, /const DRIVE_BATCH_SIZE = 3/);
+  assert.match(source, /LIMIT \?/);
+  assert.match(source, /const accessToken = await getAccessToken\(env, DRIVE_SCOPE\)/);
+  assert.match(source, /plus quatre sous-requêtes externes/);
+  assert.match(source, /drive_sync_outbox WHERE status IN \('pending','processing','error'\).*LIMIT 1/);
+});
+
 test("sauvegarde Drive : une configuration complète reste exclusivement serveur", () => {
   assert.equal(driveConfigured({ AGENCY_DB: {}, GOOGLE_DRIVE_ROOT_FOLDER_ID: "folder", GOOGLE_SERVICE_ACCOUNT_KEY: "{}" }), true);
   assert.equal(driveConfigured({ AGENCY_DB: {}, GOOGLE_SERVICE_ACCOUNT_KEY: "{}" }), false);
