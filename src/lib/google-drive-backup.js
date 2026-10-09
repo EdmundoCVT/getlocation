@@ -6,22 +6,36 @@ const { recordAuditEvent } = require("./audit-log.js");
 
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const DRIVE_API = "https://www.googleapis.com/drive/v3/files";
+const DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files";
 
 class DriveBackupError extends Error {}
 function esc(value) { return String(value || "").replace(/'/g, "\\'"); }
 function safePart(value) { return String(value || "INCONNU").replace(/[^A-Za-zÀ-ÿ0-9 _.-]/g, "_").trim().slice(0, 100) || "INCONNU"; }
 function driveConfigured(env) { return Boolean(env && env.GOOGLE_DRIVE_ROOT_FOLDER_ID && env.GOOGLE_SERVICE_ACCOUNT_KEY && env.AGENCY_DB); }
+function sharedDriveUrl(path, base = DRIVE_API, list = false) {
+  const url = new URL(`${base}${path}`);
+  // Obligatoire pour tout accès à un dossier/fichier d'un Drive partagé.
+  // includeItemsFromAllDrives/corpora s'appliquent aux recherches : ils
+  // rendent l'idempotence fiable quand le parent appartient à un Drive partagé.
+  url.searchParams.set("supportsAllDrives", "true");
+  if (list) {
+    url.searchParams.set("includeItemsFromAllDrives", "true");
+    url.searchParams.set("corpora", "allDrives");
+  }
+  return url.toString();
+}
 
 async function request(env, path, options = {}) {
   const token = await getAccessToken(env, DRIVE_SCOPE);
-  const res = await fetch(`${DRIVE_API}${path}`, { ...options, headers: { Authorization: `Bearer ${token}`, ...(options.headers || {}) } });
+  const { upload, list, ...fetchOptions } = options;
+  const res = await fetch(sharedDriveUrl(path, upload ? DRIVE_UPLOAD_API : DRIVE_API, Boolean(list)), { ...fetchOptions, headers: { Authorization: `Bearer ${token}`, ...(fetchOptions.headers || {}) } });
   const json = await res.json().catch(() => null);
   if (!res.ok) throw new DriveBackupError((json && json.error && json.error.message) || `Google Drive (${res.status})`);
   return json;
 }
 async function folder(env, parentId, name) {
   const q = `name = '${esc(name)}' and mimeType = 'application/vnd.google-apps.folder' and '${esc(parentId)}' in parents and trashed = false`;
-  const found = await request(env, `?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=1`);
+  const found = await request(env, `?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=1`, { list: true });
   if (found.files && found.files[0]) return found.files[0].id;
   const created = await request(env, "?fields=id", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, mimeType: "application/vnd.google-apps.folder", parents: [parentId] }) });
   return created.id;
@@ -40,7 +54,7 @@ async function upload(env, reservationId, sourceKey, parentId, name, body, conte
   const merged = new Uint8Array(new TextEncoder().encode(prefix).length + bytes.length + new TextEncoder().encode(suffix).length);
   let i = 0; [new TextEncoder().encode(prefix), bytes, new TextEncoder().encode(suffix)].forEach((part) => { merged.set(part, i); i += part.length; });
   const path = old ? `/${old.drive_file_id}?uploadType=multipart&fields=id` : `?uploadType=multipart&fields=id`;
-  const result = await request(env, path, { method: old ? "PATCH" : "POST", headers: { "Content-Type": `multipart/related; boundary=${boundary}` }, body: merged });
+  const result = await request(env, path, { upload: true, method: old ? "PATCH" : "POST", headers: { "Content-Type": `multipart/related; boundary=${boundary}` }, body: merged });
   const now = new Date().toISOString();
   await env.AGENCY_DB.prepare("INSERT INTO drive_sync_files (reservation_id, source_key, drive_file_id, immutable, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(reservation_id, source_key) DO UPDATE SET drive_file_id=excluded.drive_file_id, immutable=excluded.immutable, updated_at=excluded.updated_at").bind(reservationId, sourceKey, result.id, immutable ? 1 : 0, now).run();
   return result.id;
@@ -111,4 +125,4 @@ async function syncDriveBackup(env, reservationId, actor = null) {
 }
 async function getDriveSyncStatus(env, reservationId) { if (!env || !env.AGENCY_DB) return null; return env.AGENCY_DB.prepare("SELECT status, drive_folder_id, last_attempt_at, last_error, synced_at FROM drive_sync_outbox WHERE reservation_id=?").bind(reservationId).first(); }
 async function retryPendingDriveSyncs(env) { if (!env || !env.AGENCY_DB) return; const rows = await env.AGENCY_DB.prepare("SELECT reservation_id FROM drive_sync_outbox WHERE status IN ('pending','error')").all(); for (const row of rows.results || []) await syncDriveBackup(env, row.reservation_id, null); }
-module.exports = { driveConfigured, enqueueDriveSync, syncDriveBackup, getDriveSyncStatus, retryPendingDriveSyncs, safeSnapshot };
+module.exports = { driveConfigured, enqueueDriveSync, syncDriveBackup, getDriveSyncStatus, retryPendingDriveSyncs, safeSnapshot, sharedDriveUrl };
