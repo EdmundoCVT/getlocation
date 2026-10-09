@@ -39,6 +39,10 @@ function generateReservationId() {
   return `res_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
 
+function contractLanguage(record) {
+  return record && (record.contractLanguage === "en" || record.langueClient === "en" || record.langue === "en") ? "en" : "fr";
+}
+
 // Numéro de contrat lisible GL-AAAAMMJJ-NNNN (distinct de l'id KV opaque
 // res_<hex> et de la "référence de réservation" GL-<8 derniers hex>
 // affichée au client sur confirmation.html — ni l'un ni l'autre n'est
@@ -76,6 +80,7 @@ async function createManualContract(env, rawData, operator) {
     id,
     contractNumero: numero,
     status: "manual_contract",
+    contractLanguage: contractLanguage(rawData),
     createdAt: now,
     updatedAt: now,
     createdBy: operator || null,
@@ -107,6 +112,7 @@ async function updateManualContract(env, id, rawData, operator) {
     manualClientAccess: record.manualClientAccess,
     contractVersion: record.contractVersion,
     contractSourceType: record.contractSourceType,
+    contractLanguage: contractLanguage(rawData),
     id: record.id,
     contractNumero: record.contractNumero,
     status: record.status,
@@ -540,4 +546,5 @@ module.exports = {
   contractVersionInfo,
   isSignedContract,
   createContractVersion
+  ,contractLanguage
 };

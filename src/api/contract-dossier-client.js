@@ -12,7 +12,7 @@
 // signature est refusée tant que le client n'a pas rechargé la page.
 
 const { getVehiculeParId, kmInclusPourJours, joursFacturablesPourPeriode, CGL_VERSION } = require("../../js/data.js");
-const { updateContractDossier, findReservationByContractClientTokenHash, contractVersionInfo } = require("../lib/reservation-store.js");
+const { updateContractDossier, findReservationByContractClientTokenHash, contractVersionInfo, contractLanguage } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { hashContractClientToken } = require("../lib/contract-dossier-token.js");
 const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
@@ -60,6 +60,7 @@ function joursReservation(reservation) {
 }
 
 function buildClientView(reservation) {
+  const language = contractLanguage(reservation);
   const vehicule = getVehiculeParId(reservation.vehiculeId);
   const jours = joursReservation(reservation);
   const dossier = reservation.contractDossier || { status: "draft", fields: null };
@@ -93,7 +94,8 @@ function buildClientView(reservation) {
       conducteur: reservation.conducteur
         ? { nom: reservation.conducteur.nom, prenom: reservation.conducteur.prenom, naissance: reservation.conducteur.naissance, telephone: reservation.conducteur.telephone, email: reservation.conducteur.email }
         : null,
-      cglVersion: CGL_VERSION
+      cglVersion: reservation.contractDossier && reservation.contractDossier.cglVersion || CGL_VERSION,
+      langue: language
     },
     fields: {
       modeCaution: fields.modeCaution || "carte",
@@ -150,7 +152,9 @@ async function handlePost(request, env, headers) {
   if (payload.cglAccepted !== true) {
     return new Response(JSON.stringify({ error: "Vous devez accepter les conditions de location avant de signer." }), { status: 400, headers });
   }
-  if (payload.cglVersion !== CGL_VERSION) {
+  const language = contractLanguage(reservation);
+  const expectedCgl = existingCglVersion(reservation, language);
+  if (payload.cglVersion !== expectedCgl) {
     return new Response(JSON.stringify({ error: "Les conditions de location ont été mises à jour, merci de recharger la page et réessayer." }), { status: 409, headers });
   }
   const signatureImage = typeof payload.signatureImage === "string" ? payload.signatureImage : "";
@@ -169,6 +173,7 @@ async function handlePost(request, env, headers) {
       status: "signed",
       cglAcceptedAt: signedAt,
       cglVersion: payload.cglVersion,
+      contractLanguage: language,
       signature: { imageDataUrl: signatureImage, signedAt, signatureId: genererIdentifiantSignature() },
       updatedAt: signedAt
     },
@@ -177,6 +182,10 @@ async function handlePost(request, env, headers) {
   if (!updated) return new Response(JSON.stringify({ error: "Réservation introuvable" }), { status: 404, headers });
   enqueueDriveSync(env, updated.id).catch(() => undefined);
   return new Response(JSON.stringify(buildClientView(updated)), { status: 200, headers });
+}
+
+function existingCglVersion(reservation) {
+  return reservation.contractDossier && reservation.contractDossier.cglVersion || CGL_VERSION;
 }
 
 async function handleContractDossierClient(request, env) {

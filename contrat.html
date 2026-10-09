@@ -714,6 +714,10 @@
         <p class="lead" style="margin-bottom:10px;">Le véhicule, les dates et les coordonnées viennent de la réservation payée (ci-dessus, non modifiables ici). Complétez le reste avant d'envoyer le lien de signature au client.</p>
         <div class="grid">
           <div class="field">
+            <label for="df-contractLanguage">Langue du contrat</label>
+            <select id="df-contractLanguage"><option value="fr">Français</option><option value="en">English</option></select>
+          </div>
+          <div class="field">
             <label for="df-immatriculation">Immatriculation</label>
             <input id="df-immatriculation" type="text" placeholder="AA-123-BB">
           </div>
@@ -3173,6 +3177,7 @@ function initDossierAgencyView(token){
     function val(champ){ return (f[champ] !== undefined && f[champ] !== '') ? f[champ] : (prefill[champ] || ''); }
 
     document.getElementById('df-immatriculation').value = f.immatriculation || (r.vehicule ? r.vehicule.immatriculation : '');
+    document.getElementById('df-contractLanguage').value = r.langue === 'en' ? 'en' : 'fr';
     document.getElementById('df-adresse').value = val('adresse');
     document.getElementById('df-codePostal').value = val('codePostal');
     document.getElementById('df-ville').value = val('ville');
@@ -3254,6 +3259,7 @@ function initDossierAgencyView(token){
     var modeCautionBtn = document.querySelector('#dfCautionTabs .tab-btn.active');
     apiPost({
       action: 'update-fields',
+      contractLanguage: document.getElementById('df-contractLanguage').value,
       immatriculation: document.getElementById('df-immatriculation').value,
       modeCaution: modeCautionBtn ? modeCautionBtn.dataset.mode : 'carte',
       adresse: document.getElementById('df-adresse').value,

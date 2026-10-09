@@ -21,7 +21,7 @@
 const { getVehiculeParId, calculerKilometrage, joursFacturablesDepuisHeures, joursFacturablesPourPeriode, KM_INCLUS_PAR_JOUR, SUPPLEMENT_KM_CENTIMES, CGL_VERSION, parseAdressePersonnalisee } = require("../../js/data.js");
 const {
   updateContractDossier,
-  findReservationByContractAgencyTokenHash,
+  findReservationByContractAgencyTokenHash, contractLanguage,
   saveContractClientAccessIndex
 } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
@@ -84,6 +84,7 @@ function joursReservation(reservation) {
 // sensibles hors de propos ici (cf. reservation-status.js, même principe de
 // minimisation pour une vue "publique" côté client).
 function buildDossierView(reservation) {
+  const language = contractLanguage(reservation);
   const manual = reservation.status === "manual_contract";
   const manualStart = manual && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(reservation.depart || "") ? reservation.depart : "";
   const manualEnd = manual && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(reservation.retour || "") ? reservation.retour : "";
@@ -140,7 +141,8 @@ function buildDossierView(reservation) {
       conducteur: manual ? { nom: reservation.nom || "", prenom: reservation.prenom || "", telephone: reservation.tel || "", email: reservation.email || "" } : reservation.conducteur
         ? { nom: reservation.conducteur.nom, prenom: reservation.conducteur.prenom, naissance: reservation.conducteur.naissance, telephone: reservation.conducteur.telephone, email: reservation.conducteur.email }
         : null,
-      cglVersion: CGL_VERSION
+      cglVersion: dossier && dossier.cglVersion || CGL_VERSION,
+      langue: language
     },
     kmInclusParJour: KM_INCLUS_PAR_JOUR,
     supplementKmCentimes: SUPPLEMENT_KM_CENTIMES,
@@ -211,8 +213,10 @@ async function handlePost(request, env, headers) {
     switch (payload.action) {
       case "update-fields": {
         const fields = validateContractFields(payload);
+        const language = payload.contractLanguage === "en" ? "en" : "fr";
         const updated = await updateContractDossier(env, reservation.id, {
-          contractDossier: { ...existing, fields, updatedAt: new Date().toISOString() }
+          contractLanguage: language,
+          contractDossier: { ...existing, fields, contractLanguage: language, updatedAt: new Date().toISOString() }
         });
         if (!updated) return new Response(JSON.stringify({ error: "Réservation introuvable" }), { status: 404, headers });
         return new Response(JSON.stringify(buildDossierView(updated)), { status: 200, headers });
