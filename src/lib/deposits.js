@@ -78,6 +78,46 @@ function depositFromRow(row) {
   };
 }
 
+// État de pilotage calculé à partir de la source Mollie et des captures :
+// aucun statut métier parallèle n'est enregistré. Les valeurs historiques
+// (cautions hors Mollie) restent lisibles sans être transformées.
+function dashboardStatus(deposit, capturedCents) {
+  if (deposit.provider !== "mollie") return deposit.status || "attendue";
+  const state = deposit.authorizationStatus;
+  if (["pending", "open", null].includes(state)) return "pending";
+  if (state === "authorized" || state === "captured") {
+    if (capturedCents >= deposit.amountRequestedCents) return "captured";
+    if (capturedCents > 0) return "partially_captured";
+    return "authorized";
+  }
+  if (state === "canceled") return "released";
+  return state;
+}
+
+function dashboardItem(row) {
+  const deposit = depositFromRow(row);
+  if (!deposit) return null;
+  const capturedCents = Number(row.captured_cents) || 0;
+  return {
+    ...deposit,
+    client: { firstName: row.first_name || "", lastName: row.last_name || "" },
+    rental: { id: row.rental_id, contractNumero: row.contract_numero || null, vehiculeId: row.vehicule_id || "", immatriculation: row.immatriculation || "" },
+    capturedCents,
+    availableCents: Math.max(0, deposit.amountRequestedCents - capturedCents),
+    dashboardStatus: dashboardStatus(deposit, capturedCents)
+  };
+}
+
+async function listDepositsForDashboard(env) {
+  const result = await env.AGENCY_DB.prepare(
+    `SELECT d.*, r.contract_numero, r.vehicule_id, r.immatriculation, c.first_name, c.last_name,
+      COALESCE((SELECT SUM(dc.amount_cents) FROM deposit_captures dc WHERE dc.deposit_id = d.id AND dc.status NOT IN ('failed', 'canceled')), 0) AS captured_cents
+     FROM deposits d JOIN rentals r ON r.id = d.rental_id JOIN clients c ON c.id = r.client_id
+     ORDER BY CASE WHEN d.authorization_expires_at IS NULL THEN 1 ELSE 0 END, d.authorization_expires_at ASC, d.created_at DESC`
+  ).all();
+  return (result.results || []).map(dashboardItem);
+}
+
 function toCents(amount) {
   const n = Number(amount);
   if (!Number.isFinite(n) || n < 0) throw new Error("Montant invalide");
@@ -275,6 +315,8 @@ module.exports = {
   getDepositForRental,
   getDepositById,
   getMollieDepositByPaymentId,
+  listDepositsForDashboard,
+  dashboardStatus,
   listDepositCaptures,
   findCaptureByIdempotencyKey,
   createMollieAuthorizationRecord,

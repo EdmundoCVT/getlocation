@@ -12,6 +12,7 @@ const {
   returnDeposit,
   getDepositForRental,
   getDepositById,
+  listDepositsForDashboard,
   listDepositCaptures,
   findCaptureByIdempotencyKey,
   createMollieAuthorizationRecord,
@@ -45,7 +46,20 @@ async function handleGet(request, env, headers) {
 
   const url = new URL(request.url);
   const rentalId = url.searchParams.get("rentalId");
-  if (!rentalId) return new Response(JSON.stringify({ error: "Paramètre rentalId requis" }), { status: 400, headers });
+  const depositId = url.searchParams.get("id");
+  if (depositId) {
+    const deposit = await getDepositById(env, depositId.slice(0, 100));
+    if (!deposit) return new Response(JSON.stringify({ error: "Dépôt introuvable" }), { status: 404, headers });
+    const [captures, history] = await Promise.all([
+      listDepositCaptures(env, deposit.id),
+      env.AGENCY_DB.prepare("SELECT event_type, metadata, created_at FROM audit_log WHERE entity_type = 'deposit' AND entity_id = ? ORDER BY created_at ASC").bind(deposit.id).all()
+    ]);
+    return new Response(JSON.stringify({ deposit, captures, history: history.results || [] }), { status: 200, headers });
+  }
+  if (!rentalId) {
+    const deposits = await listDepositsForDashboard(env);
+    return new Response(JSON.stringify({ deposits }), { status: 200, headers });
+  }
 
   const deposit = await getDepositForRental(env, rentalId.slice(0, 100));
   const captures = deposit && deposit.provider === "mollie" ? await listDepositCaptures(env, deposit.id) : [];

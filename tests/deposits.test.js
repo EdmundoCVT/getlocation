@@ -14,7 +14,8 @@ const {
   receiveDeposit,
   returnDeposit,
   getDepositForRental,
-  getDepositById
+  getDepositById,
+  dashboardStatus
 } = require("../src/lib/deposits.js");
 
 function makeEnv() {
@@ -118,4 +119,13 @@ test("getDepositForRental / getDepositById : null si introuvable", async () => {
   const env = makeEnv();
   assert.equal(await getDepositForRental(env, "rnt_inconnu"), null);
   assert.equal(await getDepositById(env, "dep_inconnu"), null);
+});
+
+test("dashboardStatus : distingue autorisation, capture partielle, capture totale et libération", () => {
+  const base = { provider: "mollie", amountRequestedCents: 150000 };
+  assert.equal(dashboardStatus({ ...base, authorizationStatus: "pending" }, 0), "pending");
+  assert.equal(dashboardStatus({ ...base, authorizationStatus: "authorized" }, 0), "authorized");
+  assert.equal(dashboardStatus({ ...base, authorizationStatus: "authorized" }, 35000), "partially_captured");
+  assert.equal(dashboardStatus({ ...base, authorizationStatus: "captured" }, 150000), "captured");
+  assert.equal(dashboardStatus({ ...base, authorizationStatus: "canceled" }, 0), "released");
 });

@@ -294,3 +294,16 @@ test("contratPrefillUrl : déduit acompteRegle/soldeRegle du vrai statut de paie
   );
   assert.equal(sansTotal.soldeRegle, undefined, "total inconnu : impossible de savoir si le solde est réglé, ne jamais deviner");
 });
+
+test("tableau des dépôts : filtres et cartes compactes affichent les montants et le statut", () => {
+  const window = buildWindow();
+  window.__backOffice.renderDepositDashboardForTest([
+    { id: "dep_1", client: { firstName: "Joseph", lastName: "Nicholson" }, rental: { id: "rnt_1", vehiculeId: "opel-corsa", contractNumero: "GL-1" }, amountRequestedCents: 150000, capturedCents: 35000, availableCents: 115000, dashboardStatus: "partially_captured", authorizationExpiresAt: "2099-10-16T12:00:00.000Z" },
+    { id: "dep_2", client: { firstName: "Anne", lastName: "Martin" }, rental: { id: "rnt_2", vehiculeId: "opel-corsa" }, amountRequestedCents: 50000, capturedCents: 0, availableCents: 50000, dashboardStatus: "authorized" }
+  ]);
+  assert.match(window.document.getElementById("depositDashboardList").textContent, /Joseph Nicholson/);
+  assert.match(window.document.getElementById("depositDashboardList").textContent, /1\s*150,00 € disponibles/);
+  window.document.querySelector('[data-deposit-filter="authorized"]').click();
+  assert.match(window.document.getElementById("depositDashboardList").textContent, /Anne Martin/);
+  assert.doesNotMatch(window.document.getElementById("depositDashboardList").textContent, /Joseph Nicholson/);
+});
