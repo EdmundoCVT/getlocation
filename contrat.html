@@ -133,7 +133,11 @@
   .historique-groupe{margin-top:14px;font-size:12px;font-weight:700;color:#6b6478;text-transform:uppercase;letter-spacing:.04em;}
   .version-badge{display:inline-block;margin-left:5px;padding:2px 6px;border-radius:999px;background:var(--gris-clair);color:#514a60;font-size:11px;font-weight:700;vertical-align:middle;}
   .version-badge.archive{background:#f0e8e0;color:#765d4b;}
-  @media (max-width:600px){.historique-toolbar{align-items:stretch;flex-direction:column;}.historique-toolbar select{width:100%;}.historique-row .actions{width:100%;flex-wrap:wrap;}.historique-row .actions .btn{flex:1;}}
+  .contract-section-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 18px;}
+  .contract-section-tab{min-height:46px;padding:10px 12px;border:1px solid var(--ligne);border-radius:10px;background:var(--blanc);font:inherit;font-size:14px;font-weight:700;color:#6b6478;cursor:pointer;}
+  .contract-section-tab.active{background:var(--bleu-ocean);border-color:var(--bleu-ocean);color:#fff;}
+  .contract-section-heading{margin:0 0 4px;}
+  @media (max-width:600px){.historique-toolbar{align-items:stretch;flex-direction:column;}.historique-toolbar select{width:100%;}.historique-row .actions{width:100%;flex-wrap:wrap;}.historique-row .actions .btn{flex:1;}.contract-section-tab{font-size:13px;padding:9px 7px;}}
   .link-box{display:flex;gap:8px;margin-top:14px;}
   .link-box input{background:var(--gris-clair);font-size:13px;color:#6b6478;}
   .link-box .btn{flex:none;}
@@ -229,11 +233,23 @@
       <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap;">
         <a class="btn" href="/back-office">Tableau de bord</a>
         <a class="btn" href="/back-office#clients">Clients &amp; locations</a>
-        <a class="btn btn-primary" href="/contrat">Contrats</a>
+        <a class="btn btn-primary" href="/contrat?view=list">Contrats</a>
         <a class="btn" href="/back-office#statistiques">Statistiques</a>
       </div>
     </nav>
-    <h1>Préparer un contrat de location</h1>
+    <nav class="contract-section-nav" aria-label="Sections des contrats">
+      <button type="button" class="contract-section-tab active" id="contractsListTab" aria-controls="existingContractsPanel" aria-selected="true">Contrats existants</button>
+      <button type="button" class="contract-section-tab" id="contractsNewTab" aria-controls="newContractPanel" aria-selected="false">+ Nouveau contrat</button>
+    </nav>
+
+    <section id="existingContractsPanel" aria-labelledby="existingContractsTitle">
+      <h1 class="contract-section-heading" id="existingContractsTitle">Contrats existants</h1>
+      <p class="lead">Recherchez, filtrez et ouvrez vos contrats sans quitter cette page.</p>
+      <div id="contractsHistoryMount"></div>
+    </section>
+
+    <section id="newContractPanel" class="hidden" aria-labelledby="newContractTitle">
+    <h1 id="newContractTitle">Préparer un contrat de location</h1>
     <p class="lead">Remplissez les informations de la location. Un lien sera généré pour l'envoyer au client, qui n'aura plus qu'à vérifier et signer.</p>
 
     <form id="ownerForm">
@@ -572,12 +588,19 @@
             <option value="brouillon">À compléter</option>
             <option value="archive">Archivés</option>
           </select>
+          <select id="historiqueAnnee" aria-label="Filtrer par année"><option value="">Toutes les années</option></select>
+          <select id="historiqueMois" aria-label="Filtrer par mois"><option value="">Tous les mois</option></select>
+          <select id="historiqueTri" aria-label="Trier les contrats">
+            <option value="recent">Plus récent</option>
+            <option value="ancien">Plus ancien</option>
+          </select>
         </div>
         <p class="meta-line" id="historiqueVide">Aucun contrat généré pour l'instant.</p>
         <div id="historiqueListe"></div>
       </div>
 
     </form>
+    </section>
   </div>
 
   <!-- ================= MODE CLIENT (vérification + signature) ================= -->
@@ -3659,7 +3682,46 @@ function lireImagesEtatDesLieux(){
   return Promise.all(fichiers.map(function(f){ return redimensionnerImage(f.file, f.label); }));
 }
 
+// La liste ne vit plus au bas du long formulaire : elle est déplacée dans
+// son propre espace dès l'initialisation, sans dupliquer ni recharger les
+// données déjà gérées par chargerHistorique().
+function initNavigationContrats(prefill){
+  var mount = document.getElementById('contractsHistoryMount');
+  var historique = document.getElementById('derniers-contrats');
+  var listPanel = document.getElementById('existingContractsPanel');
+  var newPanel = document.getElementById('newContractPanel');
+  var listTab = document.getElementById('contractsListTab');
+  var newTab = document.getElementById('contractsNewTab');
+  if(historique && mount && historique.parentNode !== mount) mount.appendChild(historique);
+
+  function afficherVue(vue, mettreUrl){
+    var nouvelle = vue === 'new';
+    listPanel.classList.toggle('hidden', nouvelle);
+    newPanel.classList.toggle('hidden', !nouvelle);
+    listTab.classList.toggle('active', !nouvelle);
+    newTab.classList.toggle('active', nouvelle);
+    listTab.setAttribute('aria-selected', String(!nouvelle));
+    newTab.setAttribute('aria-selected', String(nouvelle));
+    if(mettreUrl){
+      var url = new URL(window.location.href);
+      url.searchParams.set('view', nouvelle ? 'new' : 'list');
+      history.replaceState(null, '', url.pathname + (url.search || '') + url.hash);
+    }
+  }
+
+  if(!listTab.dataset.ready){
+    listTab.addEventListener('click', function(){ afficherVue('list', true); });
+    newTab.addEventListener('click', function(){ afficherVue('new', true); });
+    listTab.dataset.ready = 'true';
+  }
+  // Un pré-remplissage provenant d'une réservation doit naturellement
+  // mener au formulaire ; la page Contrats classique ouvre toujours la liste.
+  var vueDemandee = (typeof params !== 'undefined' && params.get('view') === 'new') || prefill ? 'new' : 'list';
+  afficherVue(vueDemandee, false);
+}
+
 function initOwnerView(prefill){
+  initNavigationContrats(prefill);
   var selectVehicule = document.getElementById('vehicule');
   var inputImmat = document.getElementById('immat');
   var selectLieu = document.getElementById('lieu');
@@ -4392,16 +4454,27 @@ function initOwnerView(prefill){
     conteneur.innerHTML = '';
     var recherche = (document.getElementById('historiqueRecherche').value || '').trim().toLowerCase();
     var filtre = document.getElementById('historiqueFiltre').value;
+    var annee = document.getElementById('historiqueAnnee').value;
+    var mois = document.getElementById('historiqueMois').value;
+    var tri = document.getElementById('historiqueTri').value;
     var contrats = historiqueContrats.filter(function(entry){
       var raw = entry.rawData || {}, resume = entry.resume || {};
       var texte = [entry.numero, raw.nom, raw.prenom, raw.vehiculeId, resume.nom, resume.prenom, resume.vehiculeId, resume.immatriculation].join(' ').toLowerCase();
       var version = entry.version || {};
+      var date = new Date(entry.createdAt || 0);
+      var moisCle = isNaN(date.getTime()) ? '' : date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
       if(recherche && texte.indexOf(recherche) === -1) return false;
+      if(annee && (!moisCle || moisCle.slice(0, 4) !== annee)) return false;
+      if(mois && moisCle !== mois) return false;
       if(filtre === 'actif') return version.isActive !== false;
       if(filtre === 'signe') return version.status === 'signed';
       if(filtre === 'brouillon') return version.status !== 'signed' && version.status !== 'archived';
       if(filtre === 'archive') return version.isActive === false || version.status === 'archived';
       return true;
+    });
+    contrats.sort(function(a, b){
+      var ordre = String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+      return tri === 'ancien' ? -ordre : ordre;
     });
     if(!contrats.length){
       vide.classList.remove('hidden');
@@ -4571,12 +4644,38 @@ function initOwnerView(prefill){
       .then(function(r){ return r.ok ? r.json() : { contracts: [] }; })
       .then(function(res){
         historiqueContrats = res.contracts || [];
+        mettreAJourFiltresHistorique();
         renderHistorique();
       })
       .catch(function(){ /* historique = confort, ne bloque pas le reste de la page si indisponible */ });
   }
+  function mettreAJourFiltresHistorique(){
+    var anneeSelect = document.getElementById('historiqueAnnee');
+    var moisSelect = document.getElementById('historiqueMois');
+    var ancienneAnnee = anneeSelect.value, ancienMois = moisSelect.value;
+    var annees = {}, mois = {};
+    historiqueContrats.forEach(function(entry){
+      var date = new Date(entry.createdAt || 0);
+      if(isNaN(date.getTime())) return;
+      var annee = String(date.getFullYear());
+      var cle = annee + '-' + String(date.getMonth() + 1).padStart(2, '0');
+      annees[annee] = true;
+      mois[cle] = date;
+    });
+    anneeSelect.innerHTML = '<option value="">Toutes les années</option>';
+    Object.keys(annees).sort().reverse().forEach(function(annee){ anneeSelect.add(new Option(annee, annee)); });
+    moisSelect.innerHTML = '<option value="">Tous les mois</option>';
+    Object.keys(mois).sort().reverse().forEach(function(cle){
+      moisSelect.add(new Option(mois[cle].toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }), cle));
+    });
+    anneeSelect.value = annees[ancienneAnnee] ? ancienneAnnee : '';
+    moisSelect.value = mois[ancienMois] ? ancienMois : '';
+  }
   document.getElementById('historiqueRecherche').addEventListener('input', renderHistorique);
   document.getElementById('historiqueFiltre').addEventListener('change', renderHistorique);
+  document.getElementById('historiqueAnnee').addEventListener('change', renderHistorique);
+  document.getElementById('historiqueMois').addEventListener('change', renderHistorique);
+  document.getElementById('historiqueTri').addEventListener('change', renderHistorique);
   chargerHistorique();
 
   function regenererLien(){
