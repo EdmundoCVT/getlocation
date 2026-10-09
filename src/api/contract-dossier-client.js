@@ -12,7 +12,7 @@
 // signature est refusée tant que le client n'a pas rechargé la page.
 
 const { getVehiculeParId, kmInclusPourJours, joursFacturablesPourPeriode, CGL_VERSION } = require("../../js/data.js");
-const { updateContractDossier, findReservationByContractClientTokenHash } = require("../lib/reservation-store.js");
+const { updateContractDossier, findReservationByContractClientTokenHash, contractVersionInfo } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { hashContractClientToken } = require("../lib/contract-dossier-token.js");
 
@@ -49,7 +49,7 @@ async function resolveContractClientAccess(request, env) {
   const reservation = await findReservationByContractClientTokenHash(env, tokenHash);
   const access = reservation && reservation.contractClientAccess;
   const expired = !access || !access.expiresAt || new Date(access.expiresAt).getTime() <= Date.now();
-  const invalid = !reservation || reservation.status !== "paid" ||
+  const invalid = !reservation || !["paid", "contract_version"].includes(reservation.status) ||
     !access || access.tokenHash !== tokenHash || access.revokedAt || expired;
   return invalid ? null : { reservation };
 }
@@ -158,6 +158,9 @@ async function handlePost(request, env, headers) {
   }
 
   const existing = reservation.contractDossier || { status: "draft", fields: null, depart: null, retour: null, observations: "" };
+  if (existing.status === "signed" || (reservation.contractVersion && reservation.contractVersion.isActive === false)) {
+    return new Response(JSON.stringify({ error: "Ce contrat signé est archivé. L'agence doit créer une nouvelle version pour le modifier." }), { status: 409, headers });
+  }
   const signedAt = new Date().toISOString();
   const updated = await updateContractDossier(env, reservation.id, {
     contractDossier: {
@@ -167,7 +170,8 @@ async function handlePost(request, env, headers) {
       cglVersion: payload.cglVersion,
       signature: { imageDataUrl: signatureImage, signedAt, signatureId: genererIdentifiantSignature() },
       updatedAt: signedAt
-    }
+    },
+    contractVersion: { ...contractVersionInfo(reservation), status: "signed", isActive: true, signedAt }
   });
   if (!updated) return new Response(JSON.stringify({ error: "Réservation introuvable" }), { status: 404, headers });
   return new Response(JSON.stringify(buildClientView(updated)), { status: 200, headers });

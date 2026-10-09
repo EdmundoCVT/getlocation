@@ -65,7 +65,9 @@ async function handleContractsHistory(request, env) {
     });
   }
 
-  const contracts = await listContractsHistory(env, 30);
+  // La recherche et les filtres sont appliqués dans l'interface agence ;
+  // une fenêtre assez large évite de masquer les contrats plus anciens.
+  const contracts = await listContractsHistory(env, 500);
   return new Response(JSON.stringify({ contracts }), { status: 200, headers });
 }
 

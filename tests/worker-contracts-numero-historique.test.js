@@ -16,7 +16,10 @@ const {
   updateManualContract,
   listContractsHistory,
   createReservation,
-  updateReservationStatus
+  updateReservationStatus,
+  updateContractDossier,
+  createContractVersion,
+  getReservation
 } = require("../src/lib/reservation-store.js");
 
 function makeEnv() {
@@ -88,6 +91,30 @@ test("updateManualContract : refuse de modifier une réservation en ligne (mauva
   const reservation = await createReservation(env, { vehiculeId: "opel-corsa" });
   const result = await updateManualContract(env, reservation.id, rawDataValide);
   assert.equal(result, null);
+});
+
+test("versionnement : une version signée est figée, archivée et copiée dans une nouvelle version active", async () => {
+  const env = makeEnv();
+  const v1 = await createManualContract(env, rawDataValide, "Edmundo");
+  const signedAt = "2026-10-09T10:00:00.000Z";
+  await updateContractDossier(env, v1.id, {
+    contractDossier: { status: "signed", signature: { imageDataUrl: "data:image/png;base64,signee", signedAt } },
+    contractVersion: { contractId: v1.contractNumero, version: 1, isActive: true, status: "signed", createdAt: v1.createdAt, signedAt }
+  });
+
+  await assert.rejects(() => updateManualContract(env, v1.id, { ...rawDataValide, nom: "Modifié" }), /Version signée/);
+  const v2 = await createContractVersion(env, v1.id, "Edmundo");
+  const v1Archivee = await getReservation(env, v1.id);
+
+  assert.equal(v1Archivee.contractVersion.status, "archived");
+  assert.equal(v1Archivee.contractVersion.isActive, false);
+  assert.equal(v1Archivee.contractDossier.signature.signedAt, signedAt, "la signature V1 reste inchangée");
+  assert.equal(v2.contractVersion.version, 2);
+  assert.equal(v2.contractVersion.isActive, true);
+  assert.equal(v2.contractVersion.supersedesVersion, 1);
+  assert.equal(v2.contractDossier.status, "draft");
+  assert.equal(v2.contractDossier.signature, null, "la nouvelle version doit être resignée");
+  assert.notEqual(v2.id, v1.id);
 });
 
 test("listContractsHistory : ignore les réservations sans contractNumero (jamais payées)", async () => {

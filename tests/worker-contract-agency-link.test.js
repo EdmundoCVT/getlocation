@@ -13,7 +13,7 @@ const assert = require("node:assert/strict");
 
 const { createFakeKv } = require("./helpers/fake-kv.js");
 const { createFakeD1 } = require("./helpers/fake-d1.js");
-const { createReservation, updateReservationStatus } = require("../src/lib/reservation-store.js");
+const { createReservation, updateReservationStatus, updateContractDossier, getReservation } = require("../src/lib/reservation-store.js");
 const { handleContractAgencyLink } = require("../src/api/contract-agency-link.js");
 const { handleContractDossierAgency } = require("../src/api/contract-dossier-agency.js");
 const { handleAgencyLogin } = require("../src/api/agency-login.js");
@@ -173,4 +173,20 @@ test("POST : réémettre invalide l'ancien jeton (plus jamais reconstructible de
 
   const res = await handleContractDossierAgency(agencyGet(ancienToken), env);
   assert.equal(res.status, 401);
+});
+
+test("POST : une version signée reste consultable et la réémission du lien ne modifie pas sa signature", async () => {
+  const env = makeEnv();
+  const session = await loginAgency(env);
+  const id = await creerReservationPayee(env);
+  const signedAt = "2026-10-09T10:00:00.000Z";
+  await updateContractDossier(env, id, {
+    contractDossier: { status: "signed", signature: { imageDataUrl: "data:image/png;base64,signee", signedAt } },
+    contractVersion: { contractId: "GL-TEST", version: 1, isActive: false, status: "archived", signedAt }
+  });
+
+  const res = await handleContractAgencyLink(makePostRequest("https://getlocation.fr/api/contract-agency-link", { id }, session), env);
+  assert.equal(res.status, 200);
+  const apres = await getReservation(env, id);
+  assert.equal(apres.contractDossier.signature.signedAt, signedAt);
 });

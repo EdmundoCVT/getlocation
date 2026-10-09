@@ -127,6 +127,13 @@
   .historique-row .details{color:#6b6478;font-size:12.5px;}
   .historique-row .actions{display:flex;gap:6px;flex:none;}
   .historique-row .btn{padding:7px 10px;font-size:13px;}
+  .historique-toolbar{display:flex;gap:8px;align-items:center;margin:10px 0 4px;}
+  .historique-toolbar input,.historique-toolbar select{min-width:0;padding:9px 10px;border:1px solid var(--ligne);border-radius:9px;background:#fff;font:inherit;}
+  .historique-toolbar input{flex:1;}
+  .historique-groupe{margin-top:14px;font-size:12px;font-weight:700;color:#6b6478;text-transform:uppercase;letter-spacing:.04em;}
+  .version-badge{display:inline-block;margin-left:5px;padding:2px 6px;border-radius:999px;background:var(--gris-clair);color:#514a60;font-size:11px;font-weight:700;vertical-align:middle;}
+  .version-badge.archive{background:#f0e8e0;color:#765d4b;}
+  @media (max-width:600px){.historique-toolbar{align-items:stretch;flex-direction:column;}.historique-toolbar select{width:100%;}.historique-row .actions{width:100%;flex-wrap:wrap;}.historique-row .actions .btn{flex:1;}}
   .link-box{display:flex;gap:8px;margin-top:14px;}
   .link-box input{background:var(--gris-clair);font-size:13px;color:#6b6478;}
   .link-box .btn{flex:none;}
@@ -555,7 +562,17 @@
       </div>
 
       <div class="card" id="derniers-contrats">
-        <h2>Derniers contrats</h2>
+        <h2>Contrats</h2>
+        <div class="historique-toolbar" role="search">
+          <input id="historiqueRecherche" type="search" autocomplete="off" placeholder="Rechercher n° contrat, client, véhicule…" aria-label="Rechercher un contrat">
+          <select id="historiqueFiltre" aria-label="Filtrer les contrats">
+            <option value="tous">Tous les contrats</option>
+            <option value="actif">Versions actives</option>
+            <option value="signe">Signés</option>
+            <option value="brouillon">À compléter</option>
+            <option value="archive">Archivés</option>
+          </select>
+        </div>
         <p class="meta-line" id="historiqueVide">Aucun contrat généré pour l'instant.</p>
         <div id="historiqueListe"></div>
       </div>
@@ -4361,6 +4378,8 @@ function initOwnerView(prefill){
   var historiqueContrats = [];
 
   function statutContrat(entry){
+    if(entry.version && entry.version.status === 'signed') return 'Signé';
+    if(entry.version && entry.version.status === 'archived') return 'Archivé';
     if(entry.origine === 'reservation') return entry.resume.statut === 'paid' ? 'Payée en ligne' : entry.resume.statut;
     var rawData = entry.rawData || {};
     if(rawData.kmDepart && !rawData.kmRetour) return 'En cours (retour à compléter)';
@@ -4371,12 +4390,33 @@ function initOwnerView(prefill){
     var conteneur = document.getElementById('historiqueListe');
     var vide = document.getElementById('historiqueVide');
     conteneur.innerHTML = '';
-    if(!historiqueContrats.length){
+    var recherche = (document.getElementById('historiqueRecherche').value || '').trim().toLowerCase();
+    var filtre = document.getElementById('historiqueFiltre').value;
+    var contrats = historiqueContrats.filter(function(entry){
+      var raw = entry.rawData || {}, resume = entry.resume || {};
+      var texte = [entry.numero, raw.nom, raw.prenom, raw.vehiculeId, resume.nom, resume.prenom, resume.vehiculeId, resume.immatriculation].join(' ').toLowerCase();
+      var version = entry.version || {};
+      if(recherche && texte.indexOf(recherche) === -1) return false;
+      if(filtre === 'actif') return version.isActive !== false;
+      if(filtre === 'signe') return version.status === 'signed';
+      if(filtre === 'brouillon') return version.status !== 'signed' && version.status !== 'archived';
+      if(filtre === 'archive') return version.isActive === false || version.status === 'archived';
+      return true;
+    });
+    if(!contrats.length){
       vide.classList.remove('hidden');
       return;
     }
     vide.classList.add('hidden');
-    historiqueContrats.forEach(function(entry){
+    var groupeActuel = '';
+    contrats.forEach(function(entry){
+      var dateGroupe = new Date(entry.createdAt || 0);
+      var groupe = isNaN(dateGroupe.getTime()) ? 'Sans date' : dateGroupe.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      if(groupe !== groupeActuel){
+        groupeActuel = groupe;
+        var titre = document.createElement('div'); titre.className = 'historique-groupe'; titre.textContent = groupe;
+        conteneur.appendChild(titre);
+      }
       var vehiculeId = entry.origine === 'reservation' ? entry.resume.vehiculeId : (entry.rawData && entry.rawData.vehiculeId);
       var nom = entry.origine === 'reservation' ? (entry.resume.prenom + ' ' + entry.resume.nom) : ((entry.rawData.prenom||'') + ' ' + (entry.rawData.nom||''));
       var depart = entry.origine === 'reservation' ? entry.resume.depart : (entry.rawData && entry.rawData.depart);
@@ -4385,7 +4425,7 @@ function initOwnerView(prefill){
       row.className = 'historique-row';
       row.innerHTML =
         '<div class="info">' +
-          '<span class="numero">' + escapeHtml(entry.numero) + (entry.origine === 'reservation' ? ' <span style="font-weight:400;color:#6b6478;">(réservation en ligne)</span>' : '') + '</span>' +
+          '<span class="numero">' + escapeHtml(entry.numero) + ' <span class="version-badge' + ((entry.version && entry.version.isActive === false) ? ' archive' : '') + '">V' + escapeHtml(String((entry.version && entry.version.version) || 1)) + ((entry.version && entry.version.isActive === false) ? ' · archivée' : '') + '</span>' + (entry.origine === 'reservation' ? ' <span style="font-weight:400;color:#6b6478;">(réservation en ligne)</span>' : '') + '</span>' +
           '<span class="details">' + escapeHtml(nom) +
             ' — ' + escapeHtml(v ? v.nom : (vehiculeId || '')) +
             ' — ' + escapeHtml(depart ? formatDateHeureFR(depart) : '') +
@@ -4394,6 +4434,32 @@ function initOwnerView(prefill){
         '</div>' +
         '<div class="actions"></div>';
       var actions = row.querySelector('.actions');
+
+      function appelerLienAgence(ouvrir){
+        return fetch('/api/contract-agency-link', {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-Agency-Csrf': agenceCsrfToken || '' },
+          body: JSON.stringify({ id: entry.id })
+        }).then(function(r){ return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || 'Erreur'); return body; }); })
+          .then(function(body){ if(ouvrir) window.open(body.agencyUrl, '_blank', 'noopener'); else afficherLienDossierAgence(row, body.agencyUrl); return body; });
+      }
+
+      function ajouterNouvelleVersion(){
+        var btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'btn'; btn.textContent = 'Nouvelle version';
+        btn.addEventListener('click', function(){
+          if(!confirm('Créer une nouvelle version modifiable de ce contrat signé ? La version actuelle restera archivée et consultable.')) return;
+          btn.disabled = true; btn.textContent = 'Création…';
+          fetch('/api/contracts-version', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken || ''}, body:JSON.stringify({id:entry.id}) })
+            .then(function(r){ return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || 'Erreur'); return body; }); })
+            .then(function(version){ return fetch('/api/contract-agency-link', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken || ''}, body:JSON.stringify({id:version.id}) }); })
+            .then(function(r){ return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || 'Erreur'); return body; }); })
+            .then(function(body){ window.open(body.agencyUrl, '_blank', 'noopener'); chargerHistorique(); })
+            .catch(function(err){ alert(err.message || 'La nouvelle version n’a pas pu être créée.'); })
+            .finally(function(){ btn.disabled=false; btn.textContent='Nouvelle version'; });
+        });
+        actions.appendChild(btn);
+      }
 
       // Les contrats issus d'une réservation en ligne vivent dans le
       // dossier sécurisé (jeton envoyé par e-mail à l'agence au moment du
@@ -4404,7 +4470,8 @@ function initOwnerView(prefill){
       // plus dépendre de retrouver l'e-mail d'origine — par exemple pour
       // transmettre directement à Antonio le lien du dossier afin qu'il
       // complète l'état des lieux de retour depuis son téléphone.
-      if(entry.origine === 'manuel'){
+      var estSigne = entry.version && (entry.version.status === 'signed' || entry.version.status === 'archived');
+      if(entry.origine === 'manuel' && !estSigne){
         var ouvrirBtn = document.createElement('button');
         ouvrirBtn.type = 'button'; ouvrirBtn.className = 'btn'; ouvrirBtn.textContent = 'Ouvrir';
         ouvrirBtn.addEventListener('click', function(){
@@ -4426,22 +4493,21 @@ function initOwnerView(prefill){
 
         actions.appendChild(ouvrirBtn);
         actions.appendChild(dupliquerBtn);
-      } else if(entry.origine === 'reservation'){
+      } else {
+        var ouvrirBtn = document.createElement('button');
+        ouvrirBtn.type = 'button'; ouvrirBtn.className = 'btn'; ouvrirBtn.textContent = 'Voir';
+        ouvrirBtn.addEventListener('click', function(){
+          ouvrirBtn.disabled = true; appelerLienAgence(true).catch(function(err){ alert(err.message || "Le contrat n'a pas pu être ouvert."); }).finally(function(){ ouvrirBtn.disabled = false; });
+        });
+        actions.appendChild(ouvrirBtn);
+      }
+      if(entry.origine === 'reservation'){
         var lienBtn = document.createElement('button');
         lienBtn.type = 'button'; lienBtn.className = 'btn'; lienBtn.textContent = 'Renvoyer le lien';
         lienBtn.addEventListener('click', function(){
           var texteInitial = lienBtn.textContent;
           lienBtn.disabled = true; lienBtn.textContent = 'Génération…';
-          fetch('/api/contract-agency-link', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json', 'X-Agency-Csrf': agenceCsrfToken || '' },
-            body: JSON.stringify({ id: entry.id })
-          }).then(function(r){
-            return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || 'Erreur'); return body; });
-          }).then(function(body){
-            afficherLienDossierAgence(row, body.agencyUrl);
-          }).catch(function(err){
+          appelerLienAgence(false).catch(function(err){
             alert(err.message || "Le lien n'a pas pu être généré.");
           }).finally(function(){
             lienBtn.disabled = false; lienBtn.textContent = texteInitial;
@@ -4449,6 +4515,7 @@ function initOwnerView(prefill){
         });
         actions.appendChild(lienBtn);
       }
+      if(estSigne) ajouterNouvelleVersion();
       conteneur.appendChild(row);
     });
   }
@@ -4508,6 +4575,8 @@ function initOwnerView(prefill){
       })
       .catch(function(){ /* historique = confort, ne bloque pas le reste de la page si indisponible */ });
   }
+  document.getElementById('historiqueRecherche').addEventListener('input', renderHistorique);
+  document.getElementById('historiqueFiltre').addEventListener('change', renderHistorique);
   chargerHistorique();
 
   function regenererLien(){

@@ -95,7 +95,8 @@ async function createManualContract(env, rawData, operator) {
 // payload. createdBy n'est jamais réécrit (on garde l'auteur d'origine).
 async function updateManualContract(env, id, rawData, operator) {
   const record = await getReservation(env, id);
-  if (!record || record.status !== "manual_contract") return null;
+  if (!record || (record.status !== "manual_contract" && !(record.status === "contract_version" && record.contractSourceType === "manual"))) return null;
+  if (isSignedContract(record)) throw new Error("Version signée — archivée : créez une nouvelle version");
   const updated = {
     ...rawData,
     // Le formulaire contrat remplace ses champs métier, mais n'a aucune
@@ -104,9 +105,11 @@ async function updateManualContract(env, id, rawData, operator) {
     contractDossier: record.contractDossier,
     contractAgencyAccess: record.contractAgencyAccess,
     manualClientAccess: record.manualClientAccess,
+    contractVersion: record.contractVersion,
+    contractSourceType: record.contractSourceType,
     id: record.id,
     contractNumero: record.contractNumero,
-    status: "manual_contract",
+    status: record.status,
     createdAt: record.createdAt,
     createdBy: record.createdBy || null,
     updatedAt: new Date().toISOString(),
@@ -286,7 +289,7 @@ async function findReservationByContractManualClientTokenHash(env, tokenHash) {
 // updateManualContract).
 async function setManualContractClientAccess(env, id, stored) {
   const record = await getReservation(env, id);
-  if (!record || record.status !== "manual_contract") return null;
+  if (!record || (record.status !== "manual_contract" && !(record.status === "contract_version" && record.contractSourceType === "manual"))) return null;
   const updated = { ...record, manualClientAccess: stored };
   await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
   return updated;
@@ -304,16 +307,88 @@ async function updateManualContractAgencyAccess(env, id, stored, activateModernI
   return updated;
 }
 
+// L'émission d'un lien agence ne modifie aucune donnée métier ni la signature.
+// Cette opération doit rester possible pour consulter une version archivée.
+async function setContractAgencyAccess(env, id, stored, activateModernInspection = false) {
+  const record = await getReservation(env, id);
+  if (!record || !["paid", "manual_contract", "contract_version"].includes(record.status)) return null;
+  const updated = {
+    ...record,
+    contractAgencyAccess: stored,
+    inspectionSchema: activateModernInspection ? "modern" : record.inspectionSchema
+  };
+  await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
+  return updated;
+}
+
 // Même garde que updateReservationDocuments (réservation payée uniquement) :
 // le dossier contrat (champs contrat, remise, retour) ne doit jamais pouvoir
 // être modifié sur une réservation qui n'a jamais été payée.
 async function updateContractDossier(env, id, extra) {
   const record = await getReservation(env, id);
-  if (!record || !["paid", "manual_contract"].includes(record.status)) return null;
+  if (!record || !["paid", "manual_contract", "contract_version"].includes(record.status)) return null;
+  if (isSignedContract(record)) throw new Error("Version signée — archivée : créez une nouvelle version");
   if (record.status === "paid") return updateReservationStatus(env, id, "paid", extra);
   const updated = { ...record, ...extra, id: record.id, status: record.status, createdAt: record.createdAt, updatedAt: new Date().toISOString() };
   await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
   return updated;
+}
+
+function contractVersionInfo(record) {
+  const legacy = record && record.contractVersion;
+  const dossier = record && record.contractDossier || {};
+  return {
+    contractId: legacy && legacy.contractId || record && record.contractNumero || record && record.id,
+    version: Number(legacy && legacy.version) || 1,
+    isActive: legacy ? legacy.isActive !== false : true,
+    status: legacy && legacy.status || (dossier.status === "signed" ? "signed" : "draft"),
+    createdAt: legacy && legacy.createdAt || record && record.createdAt || null,
+    signedAt: legacy && legacy.signedAt || (dossier.signature && dossier.signature.signedAt) || null,
+    supersedesVersion: legacy && legacy.supersedesVersion || null
+  };
+}
+
+function isSignedContract(record) {
+  const version = contractVersionInfo(record);
+  return version.status === "signed" || Boolean(record && record.contractDossier && record.contractDossier.status === "signed");
+}
+
+async function createContractVersion(env, id, operator) {
+  const source = await getReservation(env, id);
+  if (!source || !["paid", "manual_contract", "contract_version"].includes(source.status)) return null;
+  if (!isSignedContract(source)) throw new Error("Seule une version signée peut être archivée et versionnée");
+  const sourceVersion = contractVersionInfo(source);
+  const contractId = sourceVersion.contractId;
+  const records = await listReservations(env);
+  const versions = records.filter((record) => contractVersionInfo(record).contractId === contractId);
+  const nextVersion = Math.max.apply(null, versions.map((record) => contractVersionInfo(record).version)) + 1;
+  const now = new Date().toISOString();
+  const archivedSource = { ...source, contractVersion: { ...sourceVersion, isActive: false, status: "archived", signedAt: sourceVersion.signedAt || now } };
+  await env.RESERVATIONS_KV.put(source.id, JSON.stringify(archivedSource));
+  const { contractAgencyAccess, contractClientAccess, manualClientAccess, ...copy } = source;
+  const clonedDossier = source.contractDossier ? {
+    ...source.contractDossier,
+    status: "draft",
+    sentAt: null,
+    cglAcceptedAt: null,
+    signature: null,
+    updatedAt: now
+  } : { status: "draft", fields: null, depart: null, retour: null, observations: "" };
+  const newId = generateReservationId();
+  const record = {
+    ...copy,
+    id: newId,
+    status: source.status === "manual_contract" || source.contractSourceType === "manual" ? "manual_contract" : "contract_version",
+    contractSourceType: source.status === "manual_contract" || source.contractSourceType === "manual" ? "manual" : "reservation",
+    contractDossier: clonedDossier,
+    contractVersion: { contractId, version: nextVersion, isActive: true, status: "draft", createdAt: now, signedAt: null, supersedesVersion: sourceVersion.version },
+    createdAt: now,
+    updatedAt: now,
+    createdBy: operator || null,
+    updatedBy: operator || null
+  };
+  await env.RESERVATIONS_KV.put(newId, JSON.stringify(record));
+  return record;
 }
 
 async function listReservations(env) {
@@ -349,11 +424,12 @@ async function listContractsHistory(env, limit = 30) {
   const records = await listReservations(env);
   const avecNumero = records.filter((r) => r.contractNumero);
 
-  avecNumero.sort((a, b) => (b.contractNumero || "").localeCompare(a.contractNumero || ""));
+  avecNumero.sort((a, b) => String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || "")));
 
   return avecNumero.slice(0, limit).map((r) => {
-    if (r.status === "manual_contract") {
-      return { id: r.id, numero: r.contractNumero, origine: "manuel", createdAt: r.createdAt, rawData: r };
+    const version = contractVersionInfo(r);
+    if (r.status === "manual_contract" || r.contractSourceType === "manual") {
+      return { id: r.id, numero: r.contractNumero, origine: "manuel", createdAt: r.createdAt, rawData: r, version };
     }
     return {
       id: r.id,
@@ -365,8 +441,9 @@ async function listContractsHistory(env, limit = 30) {
         nom: (r.conducteur && r.conducteur.nom) || "",
         prenom: (r.conducteur && r.conducteur.prenom) || "",
         depart: r.periodeDebut || (r.dateDebut && r.heureDebut ? `${r.dateDebut}T${r.heureDebut}` : ""),
-        statut: r.status
-      }
+        statut: r.status,
+        immatriculation: r.immatriculation || ""
+      }, version
     };
   });
 }
@@ -442,6 +519,7 @@ module.exports = {
   findReservationByContractManualClientTokenHash,
   setManualContractClientAccess,
   updateManualContractAgencyAccess,
+  setContractAgencyAccess,
   updateContractDossier,
   listReservations,
   hasOverlappingReservation,
@@ -451,5 +529,8 @@ module.exports = {
   generateContractNumero,
   createManualContract,
   updateManualContract,
-  listContractsHistory
+  listContractsHistory,
+  contractVersionInfo,
+  isSignedContract,
+  createContractVersion
 };

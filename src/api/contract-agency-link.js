@@ -17,7 +17,7 @@
 // façon avec son TTL). Session agence requise (voir agency-auth.js) —
 // aucun jeton par réservation à connaître au préalable.
 
-const { getReservation, saveContractAgencyAccessIndex, updateContractDossier, updateManualContractAgencyAccess } = require("../lib/reservation-store.js");
+const { getReservation, saveContractAgencyAccessIndex, setContractAgencyAccess } = require("../lib/reservation-store.js");
 const { manualContractInspectionItem } = require("./agency-rentals.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { requireAgencySession } = require("../lib/agency-auth.js");
@@ -78,7 +78,7 @@ async function handlePost(request, env, headers) {
   }
 
   const reservation = await getReservation(env, body.id);
-  if (!reservation || !["paid", "manual_contract"].includes(reservation.status)) {
+  if (!reservation || !["paid", "manual_contract", "contract_version"].includes(reservation.status)) {
     return new Response(JSON.stringify({ error: "Dossier de location introuvable" }), { status: 404, headers });
   }
   if (reservation.status === "manual_contract" && manualContractInspectionItem(reservation).historyMode) {
@@ -93,9 +93,7 @@ async function handlePost(request, env, headers) {
   if (!saved) {
     return new Response(JSON.stringify({ error: "Lien indisponible pour le moment." }), { status: 503, headers });
   }
-  const updated = reservation.status === "manual_contract"
-    ? await updateManualContractAgencyAccess(env, body.id, access.stored, true)
-    : await updateContractDossier(env, body.id, { contractAgencyAccess: access.stored });
+  const updated = await setContractAgencyAccess(env, body.id, access.stored, reservation.status === "manual_contract");
   if (!updated) {
     return new Response(JSON.stringify({ error: "Réservation introuvable" }), { status: 404, headers });
   }

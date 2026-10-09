@@ -62,7 +62,7 @@ async function resolveContractAgencyAccess(request, env) {
   const reservation = await findReservationByContractAgencyTokenHash(env, tokenHash);
   const access = reservation && reservation.contractAgencyAccess;
   const expired = !access || !access.expiresAt || new Date(access.expiresAt).getTime() <= Date.now();
-  const invalid = !reservation || !["paid", "manual_contract"].includes(reservation.status) ||
+  const invalid = !reservation || !["paid", "manual_contract", "contract_version"].includes(reservation.status) ||
     !access || access.tokenHash !== tokenHash || access.revokedAt || expired;
   return invalid ? null : { reservation };
 }

@@ -19,6 +19,7 @@ const { handleContractAgencyLink } = require("./api/contract-agency-link.js");
 const { handleContractsManualCreate } = require("./api/contracts-manual-create.js");
 const { handleContractsManualUpdate } = require("./api/contracts-manual-update.js");
 const { handleContractsHistory } = require("./api/contracts-history.js");
+const { handleContractsVersion } = require("./api/contracts-version.js");
 const { handleAgencyLogin } = require("./api/agency-login.js");
 const { handleAgencyLogout } = require("./api/agency-logout.js");
 const { handleAgencySession } = require("./api/agency-session.js");
@@ -56,6 +57,7 @@ const ROUTES = {
   "/api/contracts-manual-create": handleContractsManualCreate,
   "/api/contracts-manual-update": handleContractsManualUpdate,
   "/api/contracts-history": handleContractsHistory,
+  "/api/contracts-version": handleContractsVersion,
   "/api/agency-login": handleAgencyLogin,
   "/api/agency-logout": handleAgencyLogout,
   "/api/agency-session": handleAgencySession,

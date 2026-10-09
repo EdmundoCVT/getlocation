@@ -71,6 +71,7 @@ test("le Worker route la numérotation/historique des contrats manuels", () => {
   assert.match(worker, /"\/api\/contracts-manual-create"\s*:\s*handleContractsManualCreate/);
   assert.match(worker, /"\/api\/contracts-manual-update"\s*:\s*handleContractsManualUpdate/);
   assert.match(worker, /"\/api\/contracts-history"\s*:\s*handleContractsHistory/);
+  assert.match(worker, /"\/api\/contracts-version"\s*:\s*handleContractsVersion/);
 });
 
 test("assets.binding est déclaré (nécessaire pour env.ASSETS.fetch() dans src/worker.js)", () => {

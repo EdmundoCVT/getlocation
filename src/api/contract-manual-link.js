@@ -102,7 +102,7 @@ async function handlePost(request, env, headers) {
   }
 
   const record = await getReservation(env, body.id);
-  if (!record || record.status !== "manual_contract") {
+  if (!record || (record.status !== "manual_contract" && !(record.status === "contract_version" && record.contractSourceType === "manual"))) {
     return new Response(JSON.stringify({ error: "Contrat manuel introuvable" }), { status: 404, headers });
   }
 
@@ -144,7 +144,7 @@ async function handleGet(request, env, headers) {
   const record = await findReservationByContractManualClientTokenHash(env, tokenHash);
   const access = record && record.manualClientAccess;
   const expired = !access || !access.expiresAt || new Date(access.expiresAt).getTime() <= Date.now();
-  const invalid = !record || record.status !== "manual_contract" ||
+  const invalid = !record || (record.status !== "manual_contract" && !(record.status === "contract_version" && record.contractSourceType === "manual")) ||
     !access || access.tokenHash !== tokenHash || access.revokedAt || expired;
   if (invalid) {
     return new Response(JSON.stringify({ error: "Ce lien est invalide ou a expiré." }), { status: 401, headers });
