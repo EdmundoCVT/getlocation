@@ -1990,6 +1990,20 @@ function livrerPDF(doc, nomFichier){
   ecrireOngletPdf(onglet, URL.createObjectURL(doc.output('blob')), nomFichier);
 }
 
+// Copie secondaire : l'upload ne bloque jamais l'ouverture/téléchargement
+// local du PDF. Le serveur exige la session agence et conserve d'abord le
+// binaire dans R2 pour pouvoir le relancer si Drive est indisponible.
+function archiverPdfDrive(doc, payload){
+  if(!payload || !/^res_[a-f0-9]{32}$/.test(payload.reference || '') || !window.agenceCsrfToken) return;
+  var version = Number(payload.contractVersion && payload.contractVersion.version) || 1;
+  var kind = payload.signature_image ? 'contract-signed' : 'contract-draft';
+  try{
+    var blob = doc.output('blob');
+    var form = new FormData(); form.append('id', payload.reference); form.append('kind', kind); form.append('version', String(version)); form.append('file', blob, 'contrat.pdf');
+    fetch('/api/agency-drive-pdf', { method:'POST', credentials:'same-origin', headers:{'X-Agency-Csrf':window.agenceCsrfToken}, body:form }).catch(function(){});
+  }catch(e){}
+}
+
 // Page d'accueil du PDF dans l'onglet séparé : aperçu + bouton de
 // téléchargement PORTANT LE NOM DU CONTRAT. Safari, lui, affiche un PDF brut
 // sans son nom (son partage ne propose qu'un nom générique) — d'où cette
@@ -2958,6 +2972,7 @@ function genererPDF(payload, estApercu){
 
   var suffixe = payload.numero ? ('-' + payload.numero) : (payload.signature_image ? '' : '-apercu');
   var nomFichier = 'contrat-getlocation-' + (payload.locataire_nom || 'client').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-') + suffixe + '.pdf';
+  archiverPdfDrive(doc, payload);
   livrerPDF(doc, nomFichier);
 }
 
@@ -4418,6 +4433,7 @@ function initOwnerView(prefill){
         .then(function(result){
           var payload = construirePayload(rawData, null, null);
           payload.numero = result.numero;
+          payload.reference = result.id;
           payload.photosEtatDesLieux = photos;
           genererPDF(payload, false);
           var msg = document.getElementById('numeroGenereMsg');

@@ -329,6 +329,16 @@ async function setContractAgencyAccess(env, id, stored, activateModernInspection
   return updated;
 }
 
+async function setDrivePdfFile(env, id, item) {
+  const record = await getReservation(env, id);
+  if (!record || !["paid", "manual_contract", "contract_version"].includes(record.status)) return null;
+  const files = Array.isArray(record.drivePdfFiles) ? record.drivePdfFiles.filter((file) => file && file.sourceKey !== item.sourceKey) : [];
+  files.push(item);
+  const updated = { ...record, drivePdfFiles: files, updatedAt: new Date().toISOString() };
+  await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
+  return updated;
+}
+
 // Même garde que updateReservationDocuments (réservation payée uniquement) :
 // le dossier contrat (champs contrat, remise, retour) ne doit jamais pouvoir
 // être modifié sur une réservation qui n'a jamais été payée.
@@ -533,6 +543,7 @@ module.exports = {
   setManualContractClientAccess,
   updateManualContractAgencyAccess,
   setContractAgencyAccess,
+  setDrivePdfFile,
   updateContractDossier,
   listReservations,
   hasOverlappingReservation,

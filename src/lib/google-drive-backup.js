@@ -92,6 +92,13 @@ async function syncDriveBackup(env, reservationId, actor = null) {
       const object = await env.DOCUMENTS_BUCKET.get(item.key); if (!object) continue;
       await upload(env, record.id, item.key, folders.documents, `${safePart(record.contractNumero || record.id)}-${safePart(item.type || "document")}`, new Uint8Array(await object.arrayBuffer()), item.contentType || "application/octet-stream", false);
     }
+    for (const item of Array.isArray(record.drivePdfFiles) ? record.drivePdfFiles : []) {
+      if (!env.DOCUMENTS_BUCKET || !item || !item.key || !item.sourceKey) continue;
+      const object = await env.DOCUMENTS_BUCKET.get(item.key); if (!object) continue;
+      const target = item.kind && item.kind.indexOf("edl-") === 0 ? folders.inspections : folders.contracts;
+      const label = item.kind === "contract-signed" ? "SIGNE" : item.kind === "contract-draft" ? "BROUILLON" : item.kind === "edl-depart" ? "EDL-DEPART" : "EDL-RETOUR";
+      await upload(env, record.id, item.sourceKey, target, `${safePart(record.contractNumero || record.id)}-V${item.version}-${label}.pdf`, new Uint8Array(await object.arrayBuffer()), "application/pdf", Boolean(item.immutable));
+    }
     await env.AGENCY_DB.prepare("UPDATE drive_sync_outbox SET status='synced', drive_folder_id=?, attempt_count=attempt_count+1, last_attempt_at=?, last_error=NULL, synced_at=?, updated_at=? WHERE reservation_id=?").bind(folders.root, now, now, now, record.id).run();
     await recordAuditEvent(env, { actor, eventType: "drive_backup_succeeded", entityType: "contract", entityId: record.id });
     return { ok: true, folderId: folders.root };
