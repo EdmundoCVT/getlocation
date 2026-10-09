@@ -15,6 +15,6 @@ async function handleAgencyDriveBackup(request, env) {
   if (!await getReservation(env, id)) return new Response(JSON.stringify({ error: "Dossier introuvable" }), { status: 404, headers: h });
   await enqueueDriveSync(env, id);
   const result = await syncDriveBackup(env, id, auth.session.operator);
-  return new Response(JSON.stringify(result), { status: result.ok ? 200 : 202, headers: h });
+  return new Response(JSON.stringify({ ...result, sync: await getDriveSyncStatus(env, id) }), { status: result.ok ? 200 : 202, headers: h });
 }
 module.exports = { handleAgencyDriveBackup };

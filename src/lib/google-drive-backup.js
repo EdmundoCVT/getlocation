@@ -8,6 +8,7 @@ const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const DRIVE_API = "https://www.googleapis.com/drive/v3/files";
 const DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files";
 const DRIVE_BATCH_SIZE = 3;
+const DRIVE_FOLDER_KEYS = ["clients", "year", "month", "root", "contracts", "inspections", "documents", "deposit"];
 
 class DriveBackupError extends Error {}
 function esc(value) { return String(value || "").replace(/'/g, "\\'"); }
@@ -103,10 +104,28 @@ async function progress(env, reservationId) {
   const counts = { pending: 0, processing: 0, synced: 0, error: 0 }; (rows.results || []).forEach((r) => { counts[r.status] = Number(r.count) || 0; });
   return { total: counts.pending + counts.processing + counts.synced + counts.error, ...counts };
 }
+function folderProgress(serializedFolders) {
+  let folders = {};
+  try { folders = JSON.parse(serializedFolders || "{}"); } catch (e) { /* l'état sera recréé à la prochaine synchronisation */ }
+  return { completed: DRIVE_FOLDER_KEYS.filter((key) => Boolean(folders[key])).length, total: DRIVE_FOLDER_KEYS.length };
+}
+function driveSyncDiagnostic(row, files, jobError = null) {
+  if (!row) return null;
+  return {
+    status: row.status,
+    folderProgress: folderProgress(row.drive_folders_json),
+    files: { total: files.total, synced: files.synced, pending: files.pending, processing: files.processing, error: files.error },
+    lastAttemptAt: row.last_attempt_at || null,
+    // Une erreur de job précise est plus utile que le compteur conservé dans
+    // l'outbox. Aucun détail d'authentification n'est stocké ni renvoyé.
+    lastError: jobError || row.last_error || null,
+    syncedAt: row.synced_at || null
+  };
+}
 async function ensureFolderStep(env, record, outbox, accessToken) {
   const ids = JSON.parse(outbox.drive_folders_json || "{}");
   const path = [["clients", env.GOOGLE_DRIVE_ROOT_FOLDER_ID, "DOSSIERS CLIENTS"], ["year", "clients", String(new Date(record.createdAt || Date.now()).getFullYear())], ["month", "year", `${String(new Date(record.createdAt || Date.now()).getMonth() + 1).padStart(2, "0")} - ${new Date(record.createdAt || Date.now()).toLocaleDateString("fr-FR", { month: "long" }).replace(/^./, (x) => x.toUpperCase())}`], ["root", "month", `${safePart(record.contractNumero || record.id)} - ${safePart(`${(record.conducteur || record).nom || ""} ${(record.conducteur || record).prenom || ""}`)}`], ["contracts", "root", "01 - Contrats"], ["inspections", "root", "02 - États des lieux"], ["documents", "root", "03 - Documents client"], ["deposit", "root", "04 - Dépôt de garantie"]];
-  for (const [key, parent, name] of path) if (!ids[key]) { ids[key] = await folder(env, parent === env.GOOGLE_DRIVE_ROOT_FOLDER_ID ? parent : ids[parent], name, accessToken); await env.AGENCY_DB.prepare("UPDATE drive_sync_outbox SET status='processing', drive_folders_json=?, updated_at=? WHERE reservation_id=?").bind(JSON.stringify(ids), new Date().toISOString(), record.id).run(); return null; }
+  for (const [key, parent, name] of path) if (!ids[key]) { const now = new Date().toISOString(); ids[key] = await folder(env, parent === env.GOOGLE_DRIVE_ROOT_FOLDER_ID ? parent : ids[parent], name, accessToken); await env.AGENCY_DB.prepare("UPDATE drive_sync_outbox SET status='processing', drive_folders_json=?, last_attempt_at=?, last_error=NULL, updated_at=? WHERE reservation_id=?").bind(JSON.stringify(ids), now, now, record.id).run(); return null; }
   return ids;
 }
 async function syncDriveBackup(env, reservationId, actor = null) {
@@ -153,8 +172,15 @@ async function syncDriveBackup(env, reservationId, actor = null) {
     return { ok: false, reason };
   }
 }
-async function getDriveSyncStatus(env, reservationId) { if (!env || !env.AGENCY_DB) return null; const row = await env.AGENCY_DB.prepare("SELECT status, drive_folder_id, last_attempt_at, last_error, synced_at FROM drive_sync_outbox WHERE reservation_id=?").bind(reservationId).first(); return row ? { ...row, ...(await progress(env, reservationId)) } : null; }
+async function getDriveSyncStatus(env, reservationId) {
+  if (!env || !env.AGENCY_DB) return null;
+  const row = await env.AGENCY_DB.prepare("SELECT status, drive_folders_json, last_attempt_at, last_error, synced_at FROM drive_sync_outbox WHERE reservation_id=?").bind(reservationId).first();
+  if (!row) return null;
+  const files = await progress(env, reservationId);
+  const latest = await env.AGENCY_DB.prepare("SELECT last_error FROM drive_sync_jobs WHERE reservation_id=? AND status='error' AND last_error IS NOT NULL ORDER BY updated_at DESC LIMIT 1").bind(reservationId).first();
+  return driveSyncDiagnostic(row, files, latest && latest.last_error);
+}
 // Le cron ne traite qu'un dossier par invocation : 3 opérations Drive au
 // maximum (ou une étape de dossier), jamais une boucle non bornée.
 async function retryPendingDriveSyncs(env) { if (!env || !env.AGENCY_DB) return; const rows = await env.AGENCY_DB.prepare("SELECT reservation_id FROM drive_sync_outbox WHERE status IN ('pending','processing','error') ORDER BY updated_at ASC LIMIT 1").all(); for (const row of rows.results || []) await syncDriveBackup(env, row.reservation_id, null); }
-module.exports = { driveConfigured, driveConfigurationChecks, enqueueDriveSync, syncDriveBackup, getDriveSyncStatus, retryPendingDriveSyncs, safeSnapshot, sharedDriveUrl };
+module.exports = { driveConfigured, driveConfigurationChecks, enqueueDriveSync, syncDriveBackup, getDriveSyncStatus, retryPendingDriveSyncs, safeSnapshot, sharedDriveUrl, driveSyncDiagnostic };

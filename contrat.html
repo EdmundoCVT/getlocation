@@ -4534,12 +4534,44 @@ function initOwnerView(prefill){
       driveStatut.className = 'details';
       driveStatut.textContent = 'Drive : À synchroniser';
       row.querySelector('.info').appendChild(driveStatut);
+      var driveDiagnostic = document.createElement('span');
+      driveDiagnostic.className = 'details hidden';
+      row.querySelector('.info').appendChild(driveDiagnostic);
+      var driveError = document.createElement('span');
+      driveError.className = 'details hidden';
+      row.querySelector('.info').appendChild(driveError);
+      function formatDateDrive(value){
+        if(!value) return '—';
+        var date = new Date(value);
+        return isNaN(date.getTime()) ? '—' : date.toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+      }
+      function afficherDiagnosticDrive(sync){
+        if(!sync){ driveDiagnostic.textContent=''; return; }
+        var folders = sync.folderProgress || { completed:0, total:8 };
+        var files = sync.files || { total:sync.total || 0, synced:sync.synced || 0, pending:sync.pending || 0, processing:sync.processing || 0, error:sync.error || 0 };
+        var lines = [
+          'Dossiers : ' + (folders.completed || 0) + ' / ' + (folders.total || 8),
+          'Fichiers : ' + (files.synced || 0) + ' / ' + (files.total || 0),
+          'En attente : ' + ((files.pending || 0) + (files.processing || 0)),
+          'En erreur : ' + (files.error || 0),
+          'Dernière tentative : ' + formatDateDrive(sync.lastAttemptAt)
+        ];
+        if(sync.lastError) lines.push('Dernière erreur : ' + String(sync.lastError).slice(0, 160));
+        driveDiagnostic.textContent = lines.join(' · ');
+      }
       function afficherStatutDrive(sync){
-        if(!sync){ driveStatut.textContent = 'Drive : À synchroniser'; return; }
+        if(!sync){ driveStatut.textContent = 'Drive : À synchroniser'; driveError.textContent=''; driveError.classList.add('hidden'); afficherDiagnosticDrive(null); return; }
+        var folders = sync.folderProgress || { completed:8, total:8 };
+        var files = sync.files || { total:sync.total || 0, synced:sync.synced || 0, error:sync.error || 0 };
         if(sync.status === 'synced') driveStatut.textContent = 'Drive : Synchronisé';
-        else if(sync.status === 'processing') driveStatut.textContent = 'Drive : Synchronisation… ' + (sync.synced || 0) + ' / ' + (sync.total || 0);
-        else if(sync.status === 'error') driveStatut.textContent = 'Drive : Erreur' + (sync.error ? ' sur ' + sync.error + ' élément(s)' : '');
+        else if(sync.status === 'processing' && (folders.completed || 0) < (folders.total || 8)) driveStatut.textContent = 'Drive : Préparation des dossiers ' + (folders.completed || 0) + ' / ' + (folders.total || 8);
+        else if(sync.status === 'processing' && (files.error || 0)) driveStatut.textContent = 'Drive : Synchronisation incomplète';
+        else if(sync.status === 'processing') driveStatut.textContent = 'Drive : Synchronisation ' + (files.synced || 0) + ' / ' + (files.total || 0);
+        else if(sync.status === 'error') driveStatut.textContent = 'Drive : Erreur';
         else driveStatut.textContent = 'Drive : À synchroniser';
+        if(sync.lastError && (sync.status === 'error' || (files.error || 0))){ driveError.textContent = 'Dernière erreur : ' + String(sync.lastError).slice(0, 120); driveError.classList.remove('hidden'); }
+        else { driveError.textContent=''; driveError.classList.add('hidden'); }
+        afficherDiagnosticDrive(sync);
       }
       fetch('/api/agency-drive-backup?id=' + encodeURIComponent(entry.id), { credentials: 'same-origin' })
         .then(function(r){ return r.ok ? r.json() : null; }).then(function(data){ if(data) afficherStatutDrive(data.sync); }).catch(function(){});
@@ -4561,11 +4593,18 @@ function initOwnerView(prefill){
         driveBtn.disabled = true; driveBtn.textContent = 'Synchronisation…';
         fetch('/api/agency-drive-backup', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken || ''}, body:JSON.stringify({id:entry.id}) })
           .then(function(r){ return r.json().then(function(data){ if(!r.ok && r.status !== 202) throw new Error(data.error || 'Erreur'); return data; }); })
-          .then(function(data){ afficherStatutDrive(data); if(data.status === 'processing' || data.status === 'pending') suivreSynchronisationDrive(10); if(!data.ok && data.reason) driveStatut.textContent = 'Drive : Erreur — ' + data.reason; if(data.folderId){ var open = document.createElement('a'); open.className='btn'; open.target='_blank'; open.rel='noopener'; open.textContent='Ouvrir Drive'; open.href='https://drive.google.com/drive/folders/' + encodeURIComponent(data.folderId); actions.appendChild(open); } })
+          .then(function(data){ var sync = data.sync || data; afficherStatutDrive(sync); if(sync.status === 'processing' || sync.status === 'pending') suivreSynchronisationDrive(10); if(!data.ok && data.reason) driveStatut.textContent = 'Drive : Erreur — ' + data.reason; if(data.folderId){ var open = document.createElement('a'); open.className='btn'; open.target='_blank'; open.rel='noopener'; open.textContent='Ouvrir Drive'; open.href='https://drive.google.com/drive/folders/' + encodeURIComponent(data.folderId); actions.appendChild(open); } })
           .catch(function(err){ driveStatut.textContent='Drive : Erreur — ' + (err && err.message ? err.message : 'vérifiez la configuration'); })
           .finally(function(){ driveBtn.disabled=false; driveBtn.textContent='Synchroniser Drive'; });
       });
       actions.appendChild(driveBtn);
+      var driveDetailsBtn = document.createElement('button');
+      driveDetailsBtn.type = 'button'; driveDetailsBtn.className = 'btn'; driveDetailsBtn.textContent = 'Détails Drive';
+      driveDetailsBtn.addEventListener('click', function(){
+        driveDiagnostic.classList.toggle('hidden');
+        driveDetailsBtn.textContent = driveDiagnostic.classList.contains('hidden') ? 'Détails Drive' : 'Masquer détails';
+      });
+      actions.appendChild(driveDetailsBtn);
 
       function appelerLienAgence(ouvrir){
         return fetch('/api/contract-agency-link', {

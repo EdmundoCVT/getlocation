@@ -8,3 +8,9 @@ test("diagnostic Drive : l'API agence expose les checks sans exposer de valeur",
   assert.match(source, /checks: driveConfigurationChecks\(env\)/);
   assert.doesNotMatch(source, /GOOGLE_SERVICE_ACCOUNT_KEY:\s*env\./);
 });
+
+test("diagnostic Drive : la réponse de synchronisation contient l'état lisible", () => {
+  assert.match(source, /sync: await getDriveSyncStatus\(env, id\)/);
+  assert.doesNotMatch(source, /GOOGLE_SERVICE_ACCOUNT_KEY\s*:\s*env\./);
+  assert.doesNotMatch(source, /access_token/);
+});

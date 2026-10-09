@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { safeSnapshot, driveConfigured, driveConfigurationChecks, sharedDriveUrl, syncDriveBackup } = require("../src/lib/google-drive-backup.js");
+const { safeSnapshot, driveConfigured, driveConfigurationChecks, sharedDriveUrl, syncDriveBackup, driveSyncDiagnostic } = require("../src/lib/google-drive-backup.js");
 
 test("sauvegarde Drive : le snapshot exclut les accès et données carte", () => {
   const snapshot = safeSnapshot({ id: "res_" + "a".repeat(32), contractNumero: "GL-20261009-0001", status: "paid", createdAt: "2026-10-09T10:00:00Z", conducteur: { prenom: "Amir", nom: "Fatkullin", cardNumber: "4111111111111111" }, contractAgencyAccess: { tokenHash: "secret" }, contractDossier: { status: "signed", signature: { imageDataUrl: "data:image/png;base64,x", signedAt: "2026-10-09" } } });
@@ -42,6 +42,19 @@ test("sauvegarde Drive : une configuration complète reste exclusivement serveur
 test("sauvegarde Drive : le diagnostic ne retourne que la présence des composants", () => {
   assert.deepEqual(driveConfigurationChecks({ AGENCY_DB: {}, GOOGLE_DRIVE_ROOT_FOLDER_ID: "folder", GOOGLE_SERVICE_ACCOUNT_KEY: "{}" }), { agencyDb: true, driveRootFolderId: true, googleServiceAccountKey: true });
   assert.deepEqual(driveConfigurationChecks({ AGENCY_DB: {} }), { agencyDb: true, driveRootFolderId: false, googleServiceAccountKey: false });
+});
+
+test("sauvegarde Drive : le diagnostic sépare dossiers, fichiers et erreur actuelle", () => {
+  const diagnostic = driveSyncDiagnostic({ status: "processing", drive_folders_json: JSON.stringify({ clients: "a", year: "b", month: "c" }), last_attempt_at: "2026-10-09T01:32:00.000Z", last_error: "ancienne erreur" }, { total: 12, synced: 3, pending: 8, processing: 0, error: 1 }, "Google Drive 403 — accès refusé");
+  assert.deepEqual(diagnostic.folderProgress, { completed: 3, total: 8 });
+  assert.deepEqual(diagnostic.files, { total: 12, synced: 3, pending: 8, processing: 0, error: 1 });
+  assert.equal(diagnostic.lastError, "Google Drive 403 — accès refusé");
+  assert.equal(JSON.stringify(diagnostic).includes("ancienne erreur"), false);
+});
+
+test("sauvegarde Drive : un progrès de dossier efface l'erreur précédente", () => {
+  const source = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "src", "lib", "google-drive-backup.js"), "utf8");
+  assert.match(source, /last_attempt_at=\?, last_error=NULL/);
 });
 
 test("sauvegarde Drive : une configuration manquante transforme l'outbox en erreur", async () => {
