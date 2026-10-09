@@ -34,6 +34,50 @@ function rowToDeposit(row) {
   };
 }
 
+function centsToMollieAmount(cents) {
+  return { currency: "EUR", value: (Number(cents) / 100).toFixed(2) };
+}
+
+function base64Url(bytes) {
+  let value = "";
+  for (const byte of bytes) value += String.fromCharCode(byte);
+  return btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function opaqueToken() {
+  return base64Url(crypto.getRandomValues(new Uint8Array(32)));
+}
+
+async function linkHash(token, pepper) {
+  if (!pepper) throw new Error("DEPOSIT_LINK_PEPPER manquant");
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(pepper), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`deposit-link:${token}`));
+  return Array.from(new Uint8Array(signature), (part) => part.toString(16).padStart(2, "0")).join("");
+}
+
+function mollieState(payment) {
+  const status = payment && payment.status;
+  if (status === "authorized") return "authorized";
+  if (status === "paid") return "captured";
+  if (["canceled", "expired", "failed"].includes(status)) return status;
+  return status || "pending";
+}
+
+function depositFromRow(row) {
+  const deposit = rowToDeposit(row);
+  if (!deposit) return null;
+  return {
+    ...deposit,
+    provider: row.provider || null,
+    molliePaymentId: row.mollie_payment_id || null,
+    authorizationStatus: row.authorization_status || null,
+    authorizationExpiresAt: row.authorization_expires_at || null,
+    authorizedAt: row.authorized_at || null,
+    releasedAt: row.released_at || null,
+    customerLinkExpiresAt: row.customer_link_expires_at || null
+  };
+}
+
 function toCents(amount) {
   const n = Number(amount);
   if (!Number.isFinite(n) || n < 0) throw new Error("Montant invalide");
@@ -43,13 +87,90 @@ function toCents(amount) {
 async function getDepositForRental(env, rentalId) {
   if (!rentalId) return null;
   const row = await env.AGENCY_DB.prepare("SELECT * FROM deposits WHERE rental_id = ?").bind(rentalId).first();
-  return rowToDeposit(row);
+  return depositFromRow(row);
 }
 
 async function getDepositById(env, id) {
   if (!id) return null;
   const row = await env.AGENCY_DB.prepare("SELECT * FROM deposits WHERE id = ?").bind(id).first();
-  return rowToDeposit(row);
+  return depositFromRow(row);
+}
+
+async function getMollieDepositByPaymentId(env, paymentId) {
+  const row = await env.AGENCY_DB.prepare("SELECT * FROM deposits WHERE mollie_payment_id = ?").bind(paymentId).first();
+  return depositFromRow(row);
+}
+
+async function listDepositCaptures(env, depositId) {
+  const result = await env.AGENCY_DB.prepare("SELECT * FROM deposit_captures WHERE deposit_id = ? ORDER BY requested_at ASC").bind(depositId).all();
+  return (result.results || []).map((row) => ({
+    id: row.id, mollieCaptureId: row.mollie_capture_id || null, amountCents: row.amount_cents,
+    reason: row.reason, status: row.status, requestedAt: row.requested_at,
+    completedAt: row.completed_at || null, failureReason: row.failure_reason || null
+  }));
+}
+
+async function findCaptureByIdempotencyKey(env, idempotencyKey) {
+  if (!idempotencyKey) return null;
+  const row = await env.AGENCY_DB.prepare("SELECT * FROM deposit_captures WHERE idempotency_key = ?").bind(idempotencyKey).first();
+  if (!row) return null;
+  return { id: row.id, depositId: row.deposit_id, amountCents: row.amount_cents, status: row.status };
+}
+
+async function createMollieAuthorizationRecord(env, { rentalId, amount, operator, payment, customerToken = opaqueToken(), linkLifetimeHours = 72 }) {
+  const existing = await getDepositForRental(env, rentalId);
+  if (existing) throw new Error("Une caution existe déjà pour cette location");
+  const amountRequestedCents = toCents(amount);
+  if (!payment || !payment.id) throw new Error("Réponse Mollie incomplète");
+  const now = new Date();
+  const id = generateId("dep");
+  const expires = new Date(now.getTime() + linkLifetimeHours * 60 * 60 * 1000).toISOString();
+  await env.AGENCY_DB.prepare(
+    `INSERT INTO deposits (id, rental_id, amount_requested_cents, method, status, provider, mollie_payment_id, authorization_status, authorization_expires_at, authorized_at, released_at, customer_link_hash, customer_link_expires_at, release_requested_at, created_at, updated_at, created_by, updated_by)
+     VALUES (?, ?, ?, 'carte', 'attendue', 'mollie', ?, ?, ?, NULL, NULL, ?, ?, NULL, ?, ?, ?, ?)`
+  ).bind(id, rentalId, amountRequestedCents, payment.id, mollieState(payment), payment.captureBefore || null,
+    await linkHash(customerToken, env.DEPOSIT_LINK_PEPPER), expires, now.toISOString(), now.toISOString(), operator, operator).run();
+  return { deposit: await getDepositById(env, id), customerToken };
+}
+
+async function resolveCustomerDepositLink(env, token) {
+  if (!token || typeof token !== "string" || token.length < 32) return null;
+  const hash = await linkHash(token, env.DEPOSIT_LINK_PEPPER);
+  const row = await env.AGENCY_DB.prepare("SELECT * FROM deposits WHERE customer_link_hash = ? AND customer_link_expires_at > ?")
+    .bind(hash, new Date().toISOString()).first();
+  return depositFromRow(row);
+}
+
+async function refreshCustomerDepositLink(env, id, operator, linkLifetimeHours = 72) {
+  const deposit = await getDepositById(env, id);
+  if (!deposit || deposit.provider !== "mollie") return null;
+  const token = opaqueToken();
+  const now = new Date();
+  const expires = new Date(now.getTime() + linkLifetimeHours * 60 * 60 * 1000).toISOString();
+  await env.AGENCY_DB.prepare("UPDATE deposits SET customer_link_hash = ?, customer_link_expires_at = ?, updated_at = ?, updated_by = ? WHERE id = ?")
+    .bind(await linkHash(token, env.DEPOSIT_LINK_PEPPER), expires, now.toISOString(), operator, id).run();
+  return { deposit: await getDepositById(env, id), customerToken: token };
+}
+
+async function applyMolliePaymentState(env, payment) {
+  const deposit = await getMollieDepositByPaymentId(env, payment.id);
+  if (!deposit) return null;
+  const now = new Date().toISOString();
+  const status = mollieState(payment);
+  const authorizedAt = status === "authorized" && !deposit.authorizedAt ? now : deposit.authorizedAt;
+  const releasedAt = ["canceled", "expired", "failed"].includes(status) ? now : deposit.releasedAt;
+  await env.AGENCY_DB.prepare(
+    "UPDATE deposits SET authorization_status = ?, authorization_expires_at = ?, authorized_at = ?, released_at = ?, updated_at = ?, updated_by = ? WHERE id = ?"
+  ).bind(status, payment.captureBefore || deposit.authorizationExpiresAt, authorizedAt, releasedAt, now, "mollie-webhook", deposit.id).run();
+  const captures = payment._embedded && Array.isArray(payment._embedded.captures) ? payment._embedded.captures : [];
+  for (const capture of captures) {
+    if (!capture.id) continue;
+    const cents = Math.round(Number(capture.amount && capture.amount.value) * 100);
+    await env.AGENCY_DB.prepare(
+      "UPDATE deposit_captures SET mollie_capture_id = ?, status = ?, completed_at = ?, failure_reason = NULL WHERE deposit_id = ? AND (mollie_capture_id = ? OR (amount_cents = ? AND status = 'pending'))"
+    ).bind(capture.id, capture.status || "pending", capture.status === "paid" ? now : null, deposit.id, capture.id, cents).run();
+  }
+  return getDepositById(env, deposit.id);
 }
 
 // Crée la demande de caution (montant + mode de remise prévus) — avant toute
@@ -128,6 +249,23 @@ async function returnDeposit(env, id, data, operator) {
   return getDepositById(env, id);
 }
 
+async function recordCaptureRequest(env, { depositId, amountCents, reason, operator, idempotencyKey, mollieCapture }) {
+  const id = generateId("dcp");
+  const now = new Date().toISOString();
+  await env.AGENCY_DB.prepare(
+    "INSERT INTO deposit_captures (id, deposit_id, mollie_capture_id, amount_cents, reason, status, idempotency_key, requested_by, requested_at, completed_at, failure_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)"
+  ).bind(id, depositId, mollieCapture && mollieCapture.id || null, amountCents, reason, mollieCapture && mollieCapture.status || "pending", idempotencyKey, operator, now, mollieCapture && mollieCapture.status === "paid" ? now : null).run();
+  return id;
+}
+
+async function markReleaseRequested(env, id, operator) {
+  const now = new Date().toISOString();
+  await env.AGENCY_DB.prepare(
+    "UPDATE deposits SET release_requested_at = ?, updated_at = ?, updated_by = ? WHERE id = ?"
+  ).bind(now, now, operator, id).run();
+  return getDepositById(env, id);
+}
+
 module.exports = {
   METHODES_VALIDES,
   createDepositRequest,
@@ -135,5 +273,16 @@ module.exports = {
   receiveDeposit,
   returnDeposit,
   getDepositForRental,
-  getDepositById
+  getDepositById,
+  getMollieDepositByPaymentId,
+  listDepositCaptures,
+  findCaptureByIdempotencyKey,
+  createMollieAuthorizationRecord,
+  resolveCustomerDepositLink,
+  refreshCustomerDepositLink,
+  applyMolliePaymentState,
+  centsToMollieAmount,
+  recordCaptureRequest,
+  markReleaseRequested,
+  generateDepositLinkToken: opaqueToken
 };

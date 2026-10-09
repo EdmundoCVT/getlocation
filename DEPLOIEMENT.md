@@ -43,6 +43,7 @@ Le code est complet et testé (`npm test`), mais **rien de tout cela n'est dépl
 | Variable | Obligatoire | Rôle |
 |---|---|---|
 | `MOLLIE_API_KEY` | Oui, pour activer le paiement en ligne | Identique à l'ancienne variable Netlify (section 2) — jeton d'accès Mollie (`test_...` ou `live_...`). |
+| `DEPOSIT_LINK_PEPPER` | Oui, pour les liens de préautorisation | Secret aléatoire distinct, utilisé uniquement pour l’empreinte HMAC des liens client ; ne jamais le remplacer par une clé Mollie. |
 | `RESEND_API_KEY` | Oui, pour les emails (confirmation client + contrat agence) | Clé API Resend (remplace `GMAIL_USER`/`GMAIL_APP_PASSWORD`). Sans elle, le paiement fonctionne quand même, seuls les emails ne sont pas envoyés (comportement "best effort" inchangé). |
 | `RESEND_FROM` | Optionnel | Adresse expéditrice, format `"Nom <adresse@domaine>"`. Doit appartenir à un domaine vérifié dans Resend (voir 0.1.3). Par défaut : `"GET LOCATION <reservations@getlocation.fr>"`. |
 | `AGENCY_EMAIL` | Oui, pour recevoir le contrat pré-rempli et la copie cachée des confirmations | Remplace l'usage de `GMAIL_USER` comme adresse de réception (l'agence peut garder une adresse Gmail ordinaire ici — elle ne sert plus qu'en tant que destinataire, plus d'authentification SMTP). |

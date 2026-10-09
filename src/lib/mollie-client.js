@@ -46,8 +46,23 @@ function createPayment(apiKey, paymentData, idempotencyKey) {
   return mollieRequest(apiKey, "/payments", { method: "POST", body: paymentData, idempotencyKey });
 }
 
-function getPayment(apiKey, paymentId) {
-  return mollieRequest(apiKey, `/payments/${encodeURIComponent(paymentId)}`);
+function getPayment(apiKey, paymentId, { embedCaptures = false } = {}) {
+  const suffix = embedCaptures ? "?embed=captures" : "";
+  return mollieRequest(apiKey, `/payments/${encodeURIComponent(paymentId)}${suffix}`);
 }
 
-module.exports = { createPayment, getPayment, MollieApiError };
+function createCapture(apiKey, paymentId, captureData, idempotencyKey) {
+  return mollieRequest(apiKey, `/payments/${encodeURIComponent(paymentId)}/captures`, {
+    method: "POST", body: captureData, idempotencyKey
+  });
+}
+
+// Libère uniquement le solde encore autorisé. Mollie indique que la banque
+// émettrice reste seule décisionnaire du délai effectif de déblocage.
+function releaseAuthorization(apiKey, paymentId, idempotencyKey) {
+  return mollieRequest(apiKey, `/payments/${encodeURIComponent(paymentId)}/release-authorization`, {
+    method: "POST", body: {}, idempotencyKey
+  });
+}
+
+module.exports = { createPayment, getPayment, createCapture, releaseAuthorization, MollieApiError };

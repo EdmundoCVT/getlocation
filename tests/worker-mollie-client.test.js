@@ -11,7 +11,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { createPayment, getPayment, MollieApiError } = require("../src/lib/mollie-client.js");
+const { createPayment, getPayment, createCapture, releaseAuthorization, MollieApiError } = require("../src/lib/mollie-client.js");
 
 function withFakeFetch(handler, fn) {
   const original = globalThis.fetch;
@@ -120,4 +120,32 @@ test("getPayment : id inconnu (404 Mollie) lève MollieApiError avec statusCode 
       });
     }
   );
+});
+
+test("createCapture : envoie le montant et une clé d'idempotence au sous-endpoint de capture", async () => {
+  let capturedUrl, capturedInit;
+  await withFakeFetch(async (url, init) => {
+    capturedUrl = url; capturedInit = init;
+    return new Response(JSON.stringify({ id: "cpt_test", status: "pending" }), { status: 201 });
+  }, async () => {
+    const capture = await createCapture("test_key", "tr_test", { amount: { currency: "EUR", value: "12.50" }, description: "Rayure" }, "capture-idempotency");
+    assert.equal(capture.id, "cpt_test");
+    assert.equal(capturedUrl, "https://api.mollie.com/v2/payments/tr_test/captures");
+    assert.equal(capturedInit.headers["Idempotency-Key"], "capture-idempotency");
+    assert.deepEqual(JSON.parse(capturedInit.body), { amount: { currency: "EUR", value: "12.50" }, description: "Rayure" });
+  });
+});
+
+test("releaseAuthorization : appelle l'endpoint de libération sans exposer de donnée carte", async () => {
+  let capturedUrl, capturedInit;
+  await withFakeFetch(async (url, init) => {
+    capturedUrl = url; capturedInit = init;
+    return new Response(JSON.stringify(true), { status: 200 });
+  }, async () => {
+    await releaseAuthorization("test_key", "tr_test", "release-idempotency");
+    assert.equal(capturedUrl, "https://api.mollie.com/v2/payments/tr_test/release-authorization");
+    assert.equal(capturedInit.method, "POST");
+    assert.equal(capturedInit.headers["Idempotency-Key"], "release-idempotency");
+    assert.equal(capturedInit.body, "{}");
+  });
 });

@@ -26,6 +26,7 @@ const { handleAgencyClients } = require("./api/agency-clients.js");
 const { handleAgencyRentals } = require("./api/agency-rentals.js");
 const { handleAgencyPayments } = require("./api/agency-payments.js");
 const { handleAgencyDeposits } = require("./api/agency-deposits.js");
+const { handleDepositCheckout } = require("./api/deposit-checkout.js");
 const { handleAnalyticsEvents } = require("./api/analytics-events.js");
 const { handleVehicleRequest } = require("./api/vehicle-request.js");
 const { handleBusinessPartner } = require("./api/business-partner.js");
@@ -62,6 +63,7 @@ const ROUTES = {
   "/api/agency-rentals": handleAgencyRentals,
   "/api/agency-payments": handleAgencyPayments,
   "/api/agency-deposits": handleAgencyDeposits,
+  "/api/deposit-checkout": handleDepositCheckout,
   "/api/analytics-events": handleAnalyticsEvents,
   "/api/vehicle-request": handleVehicleRequest,
   "/api/business-partner": handleBusinessPartner,

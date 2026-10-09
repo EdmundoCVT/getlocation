@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer"><title>Dépôt de garantie | GetLocation</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="container" style="max-width:620px;padding:48px 20px;">
+    <section class="card" style="padding:28px;">
+      <h1>Dépôt de garantie</h1>
+      <p id="depositMessage">Préparation de la page sécurisée…</p>
+      <a id="checkoutButton" class="btn btn-primary" hidden rel="noreferrer">Continuer vers le paiement sécurisé</a>
+      <p class="hint-text" style="margin-top:20px;">La saisie de votre carte et l’authentification 3D Secure sont traitées directement par Mollie. GetLocation ne reçoit jamais vos données de carte.</p>
+    </section>
+  </main>
+  <script>
+  (async function () {
+    const token = new URL(location.href).searchParams.get('token');
+    const message = document.getElementById('depositMessage');
+    if (!token) { message.textContent = 'Ce lien est invalide.'; return; }
+    try {
+      const response = await fetch('/api/deposit-checkout?token=' + encodeURIComponent(token), { credentials: 'omit', referrerPolicy: 'no-referrer' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Lien indisponible');
+      if (data.status === 'authorized' || data.status === 'paid') { message.textContent = 'Votre dépôt de garantie a bien été traité.'; return; }
+      if (!data.checkoutUrl) throw new Error('La page de paiement n’est plus disponible.');
+      const button = document.getElementById('checkoutButton');
+      button.href = data.checkoutUrl;
+      button.hidden = false;
+      message.textContent = 'Vous allez être redirigé vers Mollie pour autoriser le dépôt de garantie.';
+    } catch (error) { message.textContent = error.message; }
+  }());
+  </script>
+</body>
+</html>

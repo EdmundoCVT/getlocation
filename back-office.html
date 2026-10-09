@@ -270,10 +270,10 @@
     </section>
     <section id="depositsSection" hidden>
       <h1 class="section-title">Dépôts de garantie</h1>
-      <p class="section-subtitle">Les dépôts existants restent rattachés à leur location pour préserver le suivi et la traçabilité.</p>
+      <p class="section-subtitle">Préautorisez une carte, capturez uniquement les montants justifiés, puis libérez le solde restant.</p>
       <div class="card">
-        <p>Recherchez une réservation puis ouvrez sa fiche pour consulter ou mettre à jour le dépôt de garantie associé.</p>
-        <div class="section-actions"><button type="button" class="btn btn-primary" data-internal-view="searchSection">Rechercher une réservation</button></div>
+        <p>Choisissez une réservation pour rattacher la préautorisation au client, au contrat et au véhicule. Les données de carte et la validation 3D Secure restent exclusivement chez Mollie.</p>
+        <div class="section-actions"><button type="button" class="btn btn-primary" data-internal-view="searchSection">Choisir une réservation</button></div>
       </div>
     </section>
 
@@ -531,7 +531,7 @@ function clearError(id){ var el = document.getElementById(id); el.hidden = true;
 var RENTAL_STATUS_LABELS = { brouillon: 'Brouillon', contrat_genere: 'Contrat généré', en_cours: 'En cours', terminee: 'Terminée', annulee: 'Annulée' };
 var PAYMENT_METHOD_LABELS = { carte: 'Carte bancaire', especes: 'Espèces', virement: 'Virement' };
 var PAYMENT_STATUS_LABELS = { impaye: 'Impayé', partiel: 'Partiel', solde: 'Soldé' };
-var DEPOSIT_STATUS_LABELS = { attendue: 'Attendue', recue: 'Reçue', restituee: 'Restituée', retenue_partielle: 'Retenue partielle', retenue_totale: 'Retenue totale' };
+var DEPOSIT_STATUS_LABELS = { attendue: 'En attente', recue: 'Reçue', restituee: 'Restituée', retenue_partielle: 'Retenue partielle', retenue_totale: 'Retenue totale', pending: 'En attente de validation', authorized: 'Autorisé', captured: 'Capture en cours / effectuée', canceled: 'Libéré', expired: 'Expiré', failed: 'Refusé' };
 var SYNC_STATUS_LABELS = { pending: 'En attente', synced: 'Synchronisé', error: 'Erreur' };
 
 function statusBadge(status){
@@ -1112,6 +1112,7 @@ function openRentalDetail(rentalId){
     if(!results) return;
     var summary = results[0].json.summary || { totalDueCents: 0, totalPaidCents: 0, balanceCents: 0, status: 'impaye' };
     renderPayments(results[0].json.payments || [], summary);
+    window.currentDepositCaptures = results[1].json.captures || [];
     renderDeposit(results[1].json.deposit);
     // Recalcule le lien avec le VRAI montant déjà encaissé, connu seulement
     // une fois les paiements chargés (voir le commentaire de contratPrefillUrl).
@@ -1327,21 +1328,24 @@ function renderDeposit(deposit){
 
   if(!deposit){
     box.innerHTML =
-      '<p class="hint-text">Aucun dépôt de garantie enregistré pour cette location.</p>' +
+      '<p class="hint-text">Créez une préautorisation Mollie liée à cette location. Le client saisit sa carte sur la page Mollie sécurisée ; aucune donnée bancaire ne transite par GetLocation.</p>' +
       '<form id="depositCreateForm" class="form-grid" style="margin-top:10px;">' +
-        '<div class="field"><label for="dep-amount">Montant (€)</label><input id="dep-amount" type="number" min="0.01" step="0.01" required></div>' +
-        '<div class="field"><label for="dep-method">Mode de remise</label><select id="dep-method"><option value="carte">Carte bancaire</option><option value="especes">Espèces</option><option value="virement">Virement</option></select></div>' +
-        '<div class="field full"><button type="submit" class="btn btn-primary">Enregistrer la demande de dépôt de garantie</button></div>' +
+        '<div class="field"><label for="dep-amount">Montant à préautoriser (€)</label><input id="dep-amount" type="number" min="0.50" step="0.01" required></div>' +
+        '<div class="field full"><button type="submit" class="btn btn-primary">Créer le lien Mollie sécurisé</button></div>' +
       '</form>';
     document.getElementById('depositCreateForm').addEventListener('submit', function(e){
       e.preventDefault();
       var amount = document.getElementById('dep-amount').value;
-      var method = document.getElementById('dep-method').value;
-      apiPost('/api/agency-deposits', { action: 'create', rentalId: currentRental.id, data: { amount: Number(amount), method: method } }).then(function(res){
+      apiPost('/api/agency-deposits', { action: 'create-mollie-authorization', rentalId: currentRental.id, amount: Number(amount) }).then(function(res){
         if(!res.ok){ alert(res.json.error || 'Erreur'); return; }
-        renderDeposit(res.json.deposit);
+        renderMollieDeposit(res.json.deposit, [], res.json.customerLink);
       }).catch(alerteConnexion);
     });
+    return;
+  }
+
+  if(deposit.provider === 'mollie'){
+    renderMollieDeposit(deposit, window.currentDepositCaptures || []);
     return;
   }
 
@@ -1387,6 +1391,42 @@ function renderDeposit(deposit){
       }).catch(alerteConnexion);
     });
   }
+}
+
+function renderMollieDeposit(deposit, captures, newlyCreatedLink){
+  var box = document.getElementById('depositCard');
+  var link = newlyCreatedLink || '';
+  var captured = (captures || []).filter(function(c){ return c.status !== 'failed' && c.status !== 'canceled'; }).reduce(function(total, c){ return total + Number(c.amountCents || 0); }, 0);
+  var remaining = Math.max(0, Number(deposit.amountRequestedCents || 0) - captured);
+  var html =
+    row('Préautorisation', euros(deposit.amountRequestedCents)) +
+    row('Statut Mollie', DEPOSIT_STATUS_LABELS[deposit.authorizationStatus] || deposit.authorizationStatus || 'En attente') +
+    row('Contrat', currentRental.contractNumero || 'Non généré') +
+    row('Solde autorisé', euros(remaining)) +
+    (deposit.authorizationExpiresAt ? row('À capturer avant', deposit.authorizationExpiresAt) : '') +
+    '<p class="hint-text">Paiement hébergé par Mollie (équivalent sécurisé pour carte sur place) : le personnel ne voit ni ne saisit jamais le numéro de carte ou le CVV.</p>';
+  if(link){
+    html += '<div class="section-actions"><a class="btn btn-primary" id="openDepositLink" target="_blank" rel="noopener">Ouvrir sur cet iPhone</a><button class="btn btn-secondary" type="button" id="copyDepositLink">Copier le lien</button><a class="btn btn-secondary" id="whatsappDepositLink" target="_blank" rel="noopener">WhatsApp</a><a class="btn btn-secondary" id="smsDepositLink">SMS</a></div>';
+  } else if(deposit.authorizationStatus === 'pending' || deposit.authorizationStatus === 'open') {
+    html += '<div class="section-actions"><button class="btn btn-secondary" type="button" id="newDepositLink">Générer un nouveau lien sécurisé</button></div>';
+  }
+  html += '<h3 style="margin-top:20px;">Historique des captures</h3>' + ((captures || []).length ? '<div class="rentals-list">' + captures.map(function(c){ return '<div class="card" style="padding:12px; margin:8px 0;">' + escapeHtml(euros(c.amountCents)) + ' — ' + escapeHtml(c.reason) + '<br><span class="hint-text">' + escapeHtml(DEPOSIT_STATUS_LABELS[c.status] || c.status) + ' · ' + escapeHtml(c.requestedAt || '') + '</span></div>'; }).join('') + '</div>' : '<p class="hint-text">Aucune capture.</p>');
+  if((deposit.authorizationStatus === 'authorized' || deposit.authorizationStatus === 'captured') && remaining > 0){
+    html += '<form id="depositCaptureForm" class="form-grid" style="margin-top:16px;"><div class="field"><label for="captureAmount">Montant à capturer (€)</label><input id="captureAmount" type="number" min="0.01" max="' + (remaining / 100).toFixed(2) + '" step="0.01" required></div><div class="field"><label for="captureReason">Motif obligatoire</label><input id="captureReason" maxlength="500" required></div><div class="field full"><button class="btn btn-primary" type="submit">Capturer ce montant</button><button class="btn btn-secondary" id="releaseDepositBtn" type="button">Libérer le solde restant</button></div></form>';
+  }
+  box.innerHTML = html;
+  if(link){
+    document.getElementById('openDepositLink').href = link;
+    document.getElementById('whatsappDepositLink').href = 'https://wa.me/?text=' + encodeURIComponent('Voici votre lien sécurisé de dépôt de garantie GetLocation : ' + link);
+    document.getElementById('smsDepositLink').href = 'sms:?&body=' + encodeURIComponent('Voici votre lien sécurisé de dépôt de garantie GetLocation : ' + link);
+    document.getElementById('copyDepositLink').addEventListener('click', function(){ navigator.clipboard.writeText(link).then(function(){ alert('Lien copié.'); }).catch(function(){ prompt('Copiez ce lien :', link); }); });
+  }
+  var newLink = document.getElementById('newDepositLink');
+  if(newLink) newLink.addEventListener('click', function(){ apiPost('/api/agency-deposits', { action: 'new-customer-link', id: deposit.id }).then(function(res){ if(!res.ok){ alert(res.json.error || 'Erreur'); return; } renderMollieDeposit(res.json.deposit, captures, res.json.customerLink); }).catch(alerteConnexion); });
+  var captureForm = document.getElementById('depositCaptureForm');
+  if(captureForm) captureForm.addEventListener('submit', function(e){ e.preventDefault(); if(!confirm('Confirmer cette capture irréversible ?')) return; var submit = captureForm.querySelector('button[type="submit"]'); submit.disabled = true; apiPost('/api/agency-deposits', { action: 'capture', id: deposit.id, amount: Number(document.getElementById('captureAmount').value), reason: document.getElementById('captureReason').value, idempotencyKey: crypto.randomUUID().replace(/-/g, '') }).then(function(res){ if(!res.ok){ alert(res.json.error || 'Erreur'); return; } window.currentDepositCaptures = res.json.captures || []; renderMollieDeposit(res.json.deposit, window.currentDepositCaptures); }).catch(alerteConnexion).finally(function(){ submit.disabled = false; }); });
+  var release = document.getElementById('releaseDepositBtn');
+  if(release) release.addEventListener('click', function(){ if(!confirm('Libérer le solde non capturé ? Cette demande est envoyée à Mollie.')) return; apiPost('/api/agency-deposits', { action: 'release', id: deposit.id }).then(function(res){ if(!res.ok){ alert(res.json.error || 'Erreur'); return; } renderMollieDeposit(res.json.deposit, captures); }).catch(alerteConnexion); });
 }
 })();
 </script>

@@ -34,6 +34,7 @@
 // dashboard Mollie n'est nécessaire.
 
 const { getPayment } = require("../lib/mollie-client.js");
+const { getMollieDepositByPaymentId, applyMolliePaymentState } = require("../lib/deposits.js");
 const {
   updateReservationStatus,
   getReservation,
@@ -234,6 +235,15 @@ async function handleFailedOrCanceled(env, payment) {
 // finaux ; les autres n'entraînent aucune action ici (rien à confirmer ni
 // à annuler tant que l'issue n'est pas connue).
 async function processPaymentStatus(env, payment) {
+  // Les cautions sont un domaine séparé des réservations : ne jamais faire
+  // passer une préautorisation au statut « réservation payée ». Le webhook
+  // reste la source de vérité, y compris pour une capture ou une libération
+  // faite depuis le dashboard Mollie.
+  const deposit = await getMollieDepositByPaymentId(env, payment.id);
+  if (deposit) {
+    await applyMolliePaymentState(env, payment);
+    return;
+  }
   switch (payment.status) {
     case "paid":
       await handlePaid(env, payment);
@@ -270,7 +280,7 @@ async function handleMollieWebhook(request, env) {
   try {
     // Ne jamais faire confiance au corps du webhook : on revérifie toujours
     // le statut réel directement auprès de l'API Mollie avec cet id.
-    const payment = await getPayment(apiKey, paymentId);
+    const payment = await getPayment(apiKey, paymentId, { embedCaptures: true });
     await processPaymentStatus(env, payment);
     return new Response(JSON.stringify({ received: true }), { status: 200 });
   } catch (err) {
