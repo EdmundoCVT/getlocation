@@ -100,3 +100,23 @@ test("une seconde caution pour la même location est refusée (400)", async () =
   );
   assert.equal(res.status, 400);
 });
+
+test("préautorisation Mollie sans DEPOSIT_LINK_PEPPER : erreur générique et aucun appel Mollie", async () => {
+  const env = makeAgencyEnv({ MOLLIE_API_KEY: "test_key" });
+  const session = await loginAgency(env);
+  const rental = await creerLocation(env, session);
+  const originalFetch = globalThis.fetch;
+  let mollieCalled = false;
+  globalThis.fetch = async () => { mollieCalled = true; throw new Error("Mollie ne doit pas être appelée"); };
+  try {
+    const res = await handleAgencyDeposits(
+      agencyRequest("https://getlocation.fr/api/agency-deposits", { method: "POST", session, body: { action: "create-mollie-authorization", rentalId: rental.id, amount: 500 } }),
+      env
+    );
+    assert.equal(res.status, 503);
+    assert.equal((await res.json()).error, "Impossible de créer le lien sécurisé pour le moment. Vérifiez la configuration du service.");
+    assert.equal(mollieCalled, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

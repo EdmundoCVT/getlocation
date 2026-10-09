@@ -20,6 +20,7 @@ const {
   centsToMollieAmount,
   recordCaptureRequest,
   markReleaseRequested,
+  DepositLinkConfigurationError,
   generateDepositLinkToken
 } = require("../lib/deposits.js");
 const { createPayment, createCapture, releaseAuthorization, MollieApiError } = require("../lib/mollie-client.js");
@@ -105,6 +106,9 @@ async function handlePost(request, env, headers) {
       const rental = await getRentalById(env, body.rentalId);
       if (!rental) return new Response(JSON.stringify({ error: "Location introuvable" }), { status: 404, headers });
       if (!env.MOLLIE_API_KEY) throw new Error("MOLLIE_API_KEY manquante");
+      // Vérifier le secret AVANT l'appel Mollie : sinon un paiement pourrait
+      // être créé sans pouvoir persister le lien opaque qui lui est associé.
+      if (!env.DEPOSIT_LINK_PEPPER) throw new DepositLinkConfigurationError();
       const amountCents = Math.round(Number(body.amount) * 100);
       if (!Number.isInteger(amountCents) || amountCents < 50) throw new Error("Montant de préautorisation invalide");
       const token = generateDepositLinkToken();
@@ -184,6 +188,10 @@ async function handlePost(request, env, headers) {
     }
     return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers });
   } catch (err) {
+    if (err instanceof DepositLinkConfigurationError) {
+      console.error("[agency-deposits] Configuration du secret de lien dépôt absente.");
+      return new Response(JSON.stringify({ error: "Impossible de créer le lien sécurisé pour le moment. Vérifiez la configuration du service." }), { status: 503, headers });
+    }
     return new Response(JSON.stringify({ error: err instanceof MollieApiError ? handleMollieError(err) : err.message || "Requête invalide" }), { status: 400, headers });
   }
 }

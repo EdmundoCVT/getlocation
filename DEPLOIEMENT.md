@@ -26,6 +26,7 @@ Le code est complet et testé (`npm test`), mais **rien de tout cela n'est dépl
 2. **Configurer les secrets du Worker** (équivalent Cloudflare des "Environment variables" de Netlify) :
    ```
    npx wrangler secret put MOLLIE_API_KEY
+   npx wrangler secret put DEPOSIT_LINK_PEPPER
    npx wrangler secret put RESEND_API_KEY
    npx wrangler secret put AGENCY_EMAIL
    npx wrangler secret put TEST_DISCOUNT_CODE
@@ -54,6 +55,20 @@ Le code est complet et testé (`npm test`), mais **rien de tout cela n'est dépl
 | `DOCUMENT_TOKEN_PEPPER` | Requis avant d'activer le parcours documentaire | Secret aléatoire long utilisé pour calculer l'empreinte HMAC des jetons d'accès aux documents. Le jeton brut n'est jamais stocké. |
 
 Aucune de ces variables ne doit être ajoutée à `wrangler.jsonc` (fichier commité) : toutes se configurent via `wrangler secret put NOM` (ou dans le dashboard Cloudflare → Workers & Pages → getlocation → Settings → Variables), jamais en clair dans le dépôt.
+
+### 0.2.2 Préautorisation : configuration du secret de lien
+
+Les liens de dépôt utilisent un jeton opaque aléatoire dans l’URL et seul son HMAC-SHA-256 est conservé en D1. `DEPOSIT_LINK_PEPPER` est donc un **secret Worker**, distinct de `MOLLIE_API_KEY`, qui ne doit jamais être exposé au navigateur ni ajouté à `wrangler.jsonc`.
+
+Pour la production, depuis un terminal déjà authentifié Cloudflare :
+
+```
+npx wrangler secret put DEPOSIT_LINK_PEPPER
+```
+
+Wrangler demande alors la valeur sans l’afficher. Générer et conserver cette valeur dans le gestionnaire de mots de passe de l’équipe ; ne pas la remplacer au hasard ensuite, car les liens de dépôt encore valides deviendraient impossibles à vérifier. Dans le dashboard : **Workers & Pages → getlocation → Settings → Variables and Secrets → Add → Secret**.
+
+Le Worker actif est Cloudflare (production). Si un environnement Preview séparé est créé dans Cloudflare, ajouter le même secret dans sa section **Preview** avant d’y tester le flux. En local, définir une valeur de test uniquement dans `.dev.vars` non versionné, jamais dans `.env` commité. Les tests unitaires injectent leurs secrets en mémoire.
 
 ### 0.2.1 Formulaire Business : réception des demandes
 

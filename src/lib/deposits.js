@@ -11,6 +11,13 @@ const { generateId } = require("./id.js");
 
 const METHODES_VALIDES = ["carte", "especes", "virement"];
 
+class DepositLinkConfigurationError extends Error {
+  constructor() {
+    super("DEPOSIT_LINK_PEPPER manquant");
+    this.name = "DepositLinkConfigurationError";
+  }
+}
+
 function rowToDeposit(row) {
   if (!row) return null;
   return {
@@ -49,7 +56,7 @@ function opaqueToken() {
 }
 
 async function linkHash(token, pepper) {
-  if (!pepper) throw new Error("DEPOSIT_LINK_PEPPER manquant");
+  if (!pepper) throw new DepositLinkConfigurationError();
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(pepper), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`deposit-link:${token}`));
   return Array.from(new Uint8Array(signature), (part) => part.toString(16).padStart(2, "0")).join("");
@@ -326,5 +333,6 @@ module.exports = {
   centsToMollieAmount,
   recordCaptureRequest,
   markReleaseRequested,
+  DepositLinkConfigurationError,
   generateDepositLinkToken: opaqueToken
 };
