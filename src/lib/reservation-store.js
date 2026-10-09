@@ -116,6 +116,8 @@ async function updateManualContract(env, id, rawData, operator) {
     updatedBy: operator || null
   };
   await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
+  // La copie Drive est best-effort : jamais d'impact sur le contrat local.
+  try { require("./google-drive-backup.js").enqueueDriveSync(env, id).catch(() => undefined); } catch (e) { /* module facultatif */ }
   return updated;
 }
 
@@ -328,9 +330,14 @@ async function updateContractDossier(env, id, extra) {
   const record = await getReservation(env, id);
   if (!record || !["paid", "manual_contract", "contract_version"].includes(record.status)) return null;
   if (isSignedContract(record)) throw new Error("Version signée — archivée : créez une nouvelle version");
-  if (record.status === "paid") return updateReservationStatus(env, id, "paid", extra);
+  if (record.status === "paid") {
+    const updatedPaid = await updateReservationStatus(env, id, "paid", extra);
+    try { require("./google-drive-backup.js").enqueueDriveSync(env, id).catch(() => undefined); } catch (e) { /* module facultatif */ }
+    return updatedPaid;
+  }
   const updated = { ...record, ...extra, id: record.id, status: record.status, createdAt: record.createdAt, updatedAt: new Date().toISOString() };
   await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
+  try { require("./google-drive-backup.js").enqueueDriveSync(env, id).catch(() => undefined); } catch (e) { /* module facultatif */ }
   return updated;
 }
 

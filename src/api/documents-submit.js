@@ -7,6 +7,7 @@ const { sendDocumentsNotificationEmail } = require("../lib/send-documents-notifi
 const { issueAgencyDocumentAccess } = require("../lib/agency-document-token.js");
 const { saveAgencyDocumentAccessIndex } = require("../lib/reservation-store.js");
 const { readBoundedBody, RequestTooLargeError } = require("../lib/read-bounded-body.js");
+const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
 
 const MAX_REQUEST_BYTES = 52 * 1024 * 1024;
 
@@ -102,6 +103,7 @@ async function handleDocumentsSubmit(request, env) {
     });
     if (!updated) throw new Error("Réservation non disponible");
     await saveAgencyDocumentAccessIndex(env, updated.id, agencyAccess.stored.tokenHash, agencyAccess.stored.expiresAt);
+    enqueueDriveSync(env, updated.id).catch(() => undefined);
     await cleanup(env, previousKeys);
     await sendDocumentsNotificationEmail(env, updated, uploaded.map((file) => file.type), agencyAccess.token);
     return new Response(JSON.stringify({ received: true, documentsStatus: "submitted" }), { status: 200, headers });

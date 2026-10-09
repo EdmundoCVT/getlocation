@@ -3,6 +3,7 @@
 // Accès réservé au jeton agence du dossier contrat. Aucune URL R2 publique.
 const { resolveContractAgencyAccess } = require("./contract-dossier-agency.js");
 const { updateContractDossier } = require("../lib/reservation-store.js");
+const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const TYPES = new Set(["image/jpeg","image/png","image/webp","image/heic","image/heif"]);
@@ -50,6 +51,7 @@ async function handleUpload(request,env,reservation){
   media[stage]=list.slice(-30);
   const updated=await updateContractDossier(env,reservation.id,{contractDossier:{...existing,media,updatedAt:new Date().toISOString()}});
   if(!updated){await env.DOCUMENTS_BUCKET.delete(key);return json({error:"Réservation introuvable"},404);}
+  enqueueDriveSync(env, updated.id).catch(()=>undefined);
   return json({ok:true,item});
 }
 

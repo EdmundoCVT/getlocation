@@ -28,6 +28,7 @@ const { runReturnReminders } = require("./return-reminders.js");
 const { runAgencyDailySummary } = require("./agency-daily-summary.js");
 const { purgeAgencyAuthData } = require("./agency-auth.js");
 const { retryPendingSheetSyncs } = require("./sheet-sync-outbox.js");
+const { retryPendingDriveSyncs } = require("./google-drive-backup.js");
 
 const CRON_STEPS = [
   { name: "document-retention", run: runDocumentRetentionPurge },
@@ -39,6 +40,7 @@ const CRON_STEPS = [
   // en attente ou en échec (voir sheet-sync-outbox.js) — best-effort, une
   // panne Google ne doit jamais faire échouer le reste du cron.
   { name: "sheet-sync-retry", run: retryPendingSheetSyncs },
+  { name: "drive-backup-retry", run: retryPendingDriveSyncs },
   { name: "document-reminders", run: runDocumentReminders },
   { name: "pickup-reminders", run: runPickupReminders },
   { name: "return-reminders", run: runReturnReminders },

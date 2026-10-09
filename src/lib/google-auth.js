@@ -4,8 +4,8 @@
 // Lot 3 — voir CLAUDE.md) : signe un JWT avec la clé privée du compte de
 // service (Web Crypto, RS256 — aucune dépendance externe, comme le reste du
 // code serveur de ce dépôt) et l'échange contre un jeton d'accès OAuth2.
-// Portée limitée à Google Sheets uniquement (principe du moindre
-// privilège).
+// La portée est choisie par le client serveur (Sheets ou Drive) ; aucune
+// portée Google n'est jamais demandée depuis le navigateur.
 //
 // La clé du compte de service (fichier JSON téléchargé depuis Google Cloud)
 // est stockée EN ENTIER dans un unique secret Cloudflare
@@ -57,12 +57,12 @@ function parseServiceAccountKey(env) {
   }
 }
 
-async function signAssertion(serviceAccount) {
+async function signAssertion(serviceAccount, scope = SHEETS_SCOPE) {
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: "RS256", typ: "JWT" };
   const claims = {
     iss: serviceAccount.client_email,
-    scope: SHEETS_SCOPE,
+    scope,
     aud: TOKEN_URL,
     iat: now,
     exp: now + 3600
@@ -82,11 +82,11 @@ class GoogleAuthError extends Error {
 
 // Renvoie un jeton d'accès Bearer valide ~1h, ou lève GoogleAuthError si la
 // configuration est absente/invalide ou si Google refuse l'échange.
-async function getAccessToken(env) {
+async function getAccessToken(env, scope = SHEETS_SCOPE) {
   const serviceAccount = parseServiceAccountKey(env);
   if (!serviceAccount) throw new GoogleAuthError("GOOGLE_SERVICE_ACCOUNT_KEY manquant ou invalide");
 
-  const assertion = await signAssertion(serviceAccount);
+  const assertion = await signAssertion(serviceAccount, scope);
   const res = await fetch(TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },

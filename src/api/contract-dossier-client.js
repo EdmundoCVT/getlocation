@@ -15,6 +15,7 @@ const { getVehiculeParId, kmInclusPourJours, joursFacturablesPourPeriode, CGL_VE
 const { updateContractDossier, findReservationByContractClientTokenHash, contractVersionInfo } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { hashContractClientToken } = require("../lib/contract-dossier-token.js");
+const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
 
 const MAX_SIGNATURE_DATA_URL_LENGTH = 300000; // large marge pour un PNG 700x150 en base64
 
@@ -174,6 +175,7 @@ async function handlePost(request, env, headers) {
     contractVersion: { ...contractVersionInfo(reservation), status: "signed", isActive: true, signedAt }
   });
   if (!updated) return new Response(JSON.stringify({ error: "Réservation introuvable" }), { status: 404, headers });
+  enqueueDriveSync(env, updated.id).catch(() => undefined);
   return new Response(JSON.stringify(buildClientView(updated)), { status: 200, headers });
 }
 

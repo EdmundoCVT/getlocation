@@ -4508,6 +4508,30 @@ function initOwnerView(prefill){
         '<div class="actions"></div>';
       var actions = row.querySelector('.actions');
 
+      var driveStatut = document.createElement('span');
+      driveStatut.className = 'details';
+      driveStatut.textContent = 'Drive : À synchroniser';
+      row.querySelector('.info').appendChild(driveStatut);
+      function afficherStatutDrive(sync){
+        if(!sync){ driveStatut.textContent = 'Drive : À synchroniser'; return; }
+        if(sync.status === 'synced') driveStatut.textContent = 'Drive : Synchronisé';
+        else if(sync.status === 'error') driveStatut.textContent = 'Drive : Erreur';
+        else driveStatut.textContent = 'Drive : À synchroniser';
+      }
+      fetch('/api/agency-drive-backup?id=' + encodeURIComponent(entry.id), { credentials: 'same-origin' })
+        .then(function(r){ return r.ok ? r.json() : null; }).then(function(data){ if(data) afficherStatutDrive(data.sync); }).catch(function(){});
+      var driveBtn = document.createElement('button');
+      driveBtn.type = 'button'; driveBtn.className = 'btn'; driveBtn.textContent = 'Synchroniser Drive';
+      driveBtn.addEventListener('click', function(){
+        driveBtn.disabled = true; driveBtn.textContent = 'Synchronisation…';
+        fetch('/api/agency-drive-backup', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken || ''}, body:JSON.stringify({id:entry.id}) })
+          .then(function(r){ return r.json().then(function(data){ if(!r.ok && r.status !== 202) throw new Error(data.error || 'Erreur'); return data; }); })
+          .then(function(data){ afficherStatutDrive(data.ok ? {status:'synced'} : {status:'error'}); if(data.folderId){ var open = document.createElement('a'); open.className='btn'; open.target='_blank'; open.rel='noopener'; open.textContent='Ouvrir Drive'; open.href='https://drive.google.com/drive/folders/' + encodeURIComponent(data.folderId); actions.appendChild(open); } })
+          .catch(function(){ driveStatut.textContent='Drive : Erreur'; })
+          .finally(function(){ driveBtn.disabled=false; driveBtn.textContent='Synchroniser Drive'; });
+      });
+      actions.appendChild(driveBtn);
+
       function appelerLienAgence(ouvrir){
         return fetch('/api/contract-agency-link', {
           method: 'POST', credentials: 'same-origin',

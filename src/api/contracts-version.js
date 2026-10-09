@@ -2,6 +2,7 @@
 // est archivée et reste consultable, la copie devient la seule active.
 const { createContractVersion } = require("../lib/reservation-store.js");
 const { requireAgencySession } = require("../lib/agency-auth.js");
+const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
 
 function headers(request, env) {
   const allowed = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -21,6 +22,8 @@ async function handleContractsVersion(request, env) {
     if (!body || typeof body.id !== "string" || !/^res_[a-f0-9]{32}$/.test(body.id)) throw new Error("Identifiant de contrat invalide");
     const version = await createContractVersion(env, body.id, auth.session.operator);
     if (!version) return new Response(JSON.stringify({ error: "Contrat introuvable" }), { status: 404, headers: responseHeaders });
+    enqueueDriveSync(env, body.id).catch(() => undefined);
+    enqueueDriveSync(env, version.id).catch(() => undefined);
     return new Response(JSON.stringify({ id: version.id, numero: version.contractNumero, version: version.contractVersion }), { status: 201, headers: responseHeaders });
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message || "Création de version impossible" }), { status: 400, headers: responseHeaders });

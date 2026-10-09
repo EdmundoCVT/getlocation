@@ -13,6 +13,7 @@
 const { createManualContract } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { requireAgencySession } = require("../lib/agency-auth.js");
+const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
 
 function getAllowedOrigins(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -100,6 +101,8 @@ async function handleContractsManualCreate(request, env) {
   }
 
   const record = await createManualContract(env, rawData, auth.session.operator);
+  // Copie secondaire, jamais bloquante pour la création du contrat.
+  enqueueDriveSync(env, record.id).catch(() => undefined);
   return new Response(JSON.stringify({ id: record.id, numero: record.contractNumero, createdAt: record.createdAt }), { status: 200, headers });
 }
 
