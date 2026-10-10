@@ -67,6 +67,8 @@ function buildClientView(reservation) {
   const fields = dossier.fields || {};
   return {
     reservation: {
+      id: reservation.id,
+      contractVersion: { version: Number(reservation.contractVersion && reservation.contractVersion.version) || 1 },
       numero: reservation.contractNumero || null,
       vehicule: vehicule ? { nom: vehicule.nom, caution: vehicule.caution, prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, vin: vehicule.vin || null } : null,
       immatriculation: fields.immatriculation || "",

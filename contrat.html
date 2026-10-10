@@ -1994,13 +1994,16 @@ function livrerPDF(doc, nomFichier){
 // local du PDF. Le serveur exige la session agence et conserve d'abord le
 // binaire dans R2 pour pouvoir le relancer si Drive est indisponible.
 function archiverPdfDrive(doc, payload){
-  if(!payload || !/^res_[a-f0-9]{32}$/.test(payload.reference || '') || !window.agenceCsrfToken) return;
+  if(!payload || !/^res_[a-f0-9]{32}$/.test(payload.reference || '')) return;
   var version = Number(payload.contractVersion && payload.contractVersion.version) || 1;
-  var kind = payload.signature_image ? 'contract-signed' : 'contract-draft';
+  if(Object.prototype.hasOwnProperty.call(payload, 'driveArchiveKind') && !payload.driveArchiveKind) return;
+  var kind = payload.driveArchiveKind || (payload.signature_image ? 'contract-signed' : 'contract-draft');
   try{
     var blob = doc.output('blob');
     var form = new FormData(); form.append('id', payload.reference); form.append('kind', kind); form.append('version', String(version)); form.append('file', blob, 'contrat.pdf');
-    fetch('/api/agency-drive-pdf', { method:'POST', credentials:'same-origin', headers:{'X-Agency-Csrf':window.agenceCsrfToken}, body:form }).catch(function(){});
+    var headers = payload.driveArchiveToken ? {Authorization:'Bearer ' + payload.driveArchiveToken} : (agenceCsrfToken ? {'X-Agency-Csrf':agenceCsrfToken} : null);
+    if(!headers) return;
+    fetch('/api/agency-drive-pdf', { method:'POST', credentials:'same-origin', headers:headers, body:form }).catch(function(){});
   }catch(e){}
 }
 
@@ -3097,6 +3100,11 @@ function initDossierAgencyView(token){
     return traduireValeursPayload({
       'form-name': 'contrat-signature',
       reference: r.id,
+      contractVersion: r.contractVersion,
+      driveArchiveToken: token,
+      // Une copie agence d'un contrat signé est un rendu ultérieur, jamais
+      // l'original historique : elle ne doit donc pas créer un faux signé.
+      driveArchiveKind: v.dossier.status === 'signed' ? null : 'contract-draft',
       numero: r.contractNumero || '',
       // Langue de la reservation : le contrat que le client ouvre depuis son
       // lien securise est etabli dans la langue ou il a reserve.
@@ -3416,6 +3424,12 @@ function initDossierClientView(token){
     var adresseComplete = [f.adresse, [f.codePostal, f.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
     return traduireValeursPayload({
       'form-name': 'contrat-signature',
+      reference: r.id,
+      contractVersion: r.contractVersion,
+      driveArchiveToken: token,
+      // Seul le rendu produit immédiatement après la signature contient le
+      // binaire original à rendre immuable dans R2/Drive.
+      driveArchiveKind: sigData ? 'contract-signed' : null,
       numero: r.numero || '',
       statutDossier: v.status,
       langueClient: r.langue === 'en' ? 'en' : 'fr',
@@ -4557,6 +4571,11 @@ function initOwnerView(prefill){
           'Dernière tentative : ' + formatDateDrive(sync.lastAttemptAt)
         ];
         if(sync.lastRun) lines.push('Dernier passage : ' + (sync.lastRun.selected || 0) + ' sélectionné(s), ' + (sync.lastRun.syncedThisRun || 0) + ' synchronisé(s)');
+        if(sync.pdfs){
+          lines.push('PDF contrat : ' + (sync.pdfs.contract && sync.pdfs.contract.present ? 'présent' : 'manquant'));
+          if(sync.pdfs.edlDepart && sync.pdfs.edlDepart.expected) lines.push('PDF EDL départ : ' + (sync.pdfs.edlDepart.present ? 'présent' : 'manquant'));
+          if(sync.pdfs.edlRetour && sync.pdfs.edlRetour.expected) lines.push('PDF EDL retour : ' + (sync.pdfs.edlRetour.present ? 'présent' : 'manquant'));
+        }
         if(sync.lastError) lines.push('Dernière erreur : ' + String(sync.lastError).slice(0, 160));
         driveDiagnostic.textContent = lines.join(' · ');
       }

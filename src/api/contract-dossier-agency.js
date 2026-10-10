@@ -107,6 +107,7 @@ function buildDossierView(reservation) {
   return {
     reservation: {
       id: reservation.id,
+      contractVersion: { version: Number(reservation.contractVersion && reservation.contractVersion.version) || 1 },
       // Numéro de contrat séquentiel lisible (GL-AAAAMMJJ-NNNN), assigné à
       // la confirmation du paiement (voir mollie-webhook.js) — distinct de
       // `id` (opaque) et de la référence non séquentielle de

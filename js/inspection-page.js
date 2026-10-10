@@ -186,14 +186,25 @@
   $("form").onsubmit = event => { event.preventDefault(); save(false); };
   document.addEventListener("inspection-signature-accepted", () => { save(false); });
   $("finalize").onclick = () => save(true);
+  async function archiverPdfInspection(bytes) {
+    const version = Number(reservation.contractVersion && reservation.contractVersion.version) || 1;
+    const form = new FormData();
+    form.append("id", reservation.id);
+    form.append("kind", mode === "retour" ? "edl-return" : "edl-depart");
+    form.append("version", String(version));
+    form.append("file", new Blob([bytes], { type: "application/pdf" }), "etat-des-lieux-" + mode + ".pdf");
+    const response = await api("/api/agency-drive-pdf", { method: "POST", body: form });
+    await json(response);
+  }
   $("pdf").onclick = async () => {
     if (!dossier) return;
     $("pdf").disabled = true; message("Création du PDF et chargement de toutes les photos…");
     try {
       await queue; await Promise.all(Object.values(pads).map(pad => pad.ready()));
       if (dirty && !(await save(false))) throw new Error("Enregistrez les modifications avant de télécharger le PDF.");
-      await window.InspectionDocument.download({ mode, family, reference: reservation.contractNumero || reservation.id, summary: summaryEntries(reservation), stage: readStage(), depart: dossier.depart, photos: [...media[mode]], departPhotos: [...media.depart], dirty }, cache);
-      message("PDF téléchargé avec photos et signatures.");
+      const bytes = await window.InspectionDocument.download({ mode, family, reference: reservation.contractNumero || reservation.id, summary: summaryEntries(reservation), stage: readStage(), depart: dossier.depart, photos: [...media[mode]], departPhotos: [...media.depart], dirty }, cache);
+      try { await archiverPdfInspection(bytes); message("PDF téléchargé, archivé et mis en attente de synchronisation Drive."); }
+      catch (archiveError) { message("PDF téléchargé. Archivage Drive à réessayer : " + archiveError.message); }
     } catch (error) { message("PDF non généré : " + error.message); }
     finally { $("pdf").disabled = false; }
   };
