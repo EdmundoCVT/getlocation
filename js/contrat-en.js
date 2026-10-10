@@ -166,11 +166,20 @@
       "Key: X = scratch — circle = dent / impact — solid dot = chip / minor impact",
     "Véhicule au départ": "Vehicle at pick-up",
     "Véhicule au retour": "Vehicle at return",
+    "Profil conducteur": "Driver side",
+    "Profil passager": "Passenger side",
+    "Avant": "Front",
+    "Arrière": "Rear",
+    "Dessus": "Top",
+    "Rayure": "Scratch",
+    "Bosse / impact": "Dent / impact",
+    "Éclat / petit impact": "Chip / minor impact",
     "Observations au départ": "Observations at pick-up",
     "Observations au retour": "Observations at return",
     "Observations complémentaires": "Further observations",
     "À compléter": "To be completed",
     "Annexe photo": "Photo appendix",
+    "Schéma détaillé indisponible": "Detailed vehicle diagram unavailable",
 
     // Pied de page
     "Contrat de location (pied)": "Rental agreement",
@@ -234,7 +243,7 @@
       titre: "Article 2 — Price and payment",
       paragraphes: [
         "Total agreed rental amount: {total}. This amount includes any extras selected, listed line by line in the "
-          + "financial summary above. Deposit payment of {montantRegle}: {detailAcompte}. Remaining balance of {soldeRestant}: {detailSolde}."
+          + "financial summary above. Amount already paid: {montantRegle} ({detailAcompte}). Remaining balance: {soldeRestant}{detailSolde}."
       ]
     },
     {
@@ -288,7 +297,7 @@
       paragraphes: [
         "This agreement sets out the essential points of the rental; the complete rules (driver and licence, cancellation, traffic "
           + "fines, use of the vehicle, territory, extension, no-show, liability in the event of an accident, governing law, etc.) are "
-          + "set out in the General Rental Conditions — version {cglVersion}, available at cgl.html and made available to the renter "
+          + "set out in the General Rental Conditions — version {cglVersion}, made available to the renter "
           + "before signature. The renter acknowledges having read them and accepts them without reservation, together with all the "
           + "information above. This agreement is governed by French law."
       ]
@@ -299,7 +308,7 @@
   // ("intro : point ; point ; …"), pour que le découpage en puces du PDF
   // fonctionne à l'identique.
   var DECLARATION = "By signing this agreement, the renter declares : that the information provided above is accurate ; "
-    + "that they hold a valid driving licence ; that they have read this agreement and the General Rental Conditions (cgl.html) ; "
+    + "that they hold a valid driving licence ; that they have read this agreement and the General Rental Conditions ; "
     + "that they accept the agreed pricing and any extras selected ; that they have read the cover and excess amounts set out in "
     + "Article 4 ; that they acknowledge the condition of the vehicle as recorded at handover (see the handover and return table).";
 

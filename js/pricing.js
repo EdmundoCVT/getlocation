@@ -102,7 +102,10 @@
     return { level: seasonalLevel, event: null };
   }
   function discountForDays(days) { const found = DURATION_DISCOUNTS.find(([min, max]) => days >= min && days <= max); return found ? { rate: found[2], label: `${found[0]}${found[1] === Infinity ? " jours et plus" : ` à ${found[1]} jours`}` } : { rate: 0, label: null }; }
-  function includedMileage(vehicleId, days) { const proace = vehicleId === "toyota-proace-city"; if (days <= 0) return 0; if (days <= 7) return [0, 200, 400, 600, 800, 900, 1000, 1100][days]; if (days <= 13) return 1100 + (days - 7) * (proace ? 100 : 125); if (days === 14) return proace ? 1800 : 2000; if (days <= 29) return (proace ? 1800 : 2000) + (days - 14) * (proace ? 75 : 100); return proace ? 3000 : 3500; }
+  // Le contrat annonce 200 km inclus par jour facturé. Cette fonction est la
+  // source de vérité commune au devis, à la réservation et au PDF : aucun
+  // palier dégressif ne doit venir contredire cette règle commerciale.
+  function includedMileage(_vehicleId, days) { const billedDays = Math.max(0, Number(days) || 0); return billedDays * 200; }
   function deliveryCost(distanceKm) { const km = Number(distanceKm); return Number.isFinite(km) && km >= 0 ? Math.max(DELIVERY.minimum, DELIVERY.pickupFee + km * DELIVERY.perKm) : 0; }
   function calculateQuote({ vehicleId, dateDebut, heureDebut = "00:00", dateFin, heureFin = "00:00", extraMileagePackageId, deliveryDistanceKm }) {
     const rates = VEHICLE_RATES[vehicleId]; const period = rentalPeriod(dateDebut, heureDebut, dateFin, heureFin); if (!rates || !period) return null;

@@ -153,6 +153,28 @@ test("page 1 : les huit informations que le client doit saisir en 10 secondes so
   assert.match(page1, /DÉPÔT DE GARANTIE/);          // garantie
 });
 
+test("PDF EN : kilométrage, livraison, règlement et annexe ne mélangent pas le français", () => {
+  const journal = genererJournal({
+    langueClient: "en",
+    lieu: "Livraison à l'adresse de votre choix",
+    depart: "2026-10-10T10:00",
+    retour: "2026-10-15T10:00",
+    montantRegle: "",
+    soldeRegle: false,
+    etatDepart: { marks: [], observations: "" },
+    etatRetour: { marks: [], observations: "" }
+  });
+  const texte = journal.map((item) => item.texte).join(" | ");
+  assert.match(texte, /1 000 km in total/);
+  assert.match(texte, /Delivery to the address of your choice/);
+  assert.match(texte, /Amount already paid/);
+  assert.doesNotMatch(texte, /Deposit payment|Amount already paid\s+-/);
+  assert.doesNotMatch(texte, /To be paid by bank card \(pending\)/);
+  assert.match(texte, /Driver side/);
+  assert.match(texte, /Passenger side/);
+  assert.doesNotMatch(texte, /Profil conducteur|Profil passager|l'adresse de votre choix|\(cgl\.html\)/);
+});
+
 test("tarification : prix de location + options retenues, aucun détail de calcul interne", () => {
   // Le client lit le prix convenu, pas la façon dont l'agence y est arrivée.
   const journal = genererJournal({ codePromo: "BIENVENUE20" });

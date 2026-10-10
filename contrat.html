@@ -1681,13 +1681,23 @@ function traduireValeursPayload(payload){
   payload.modePaiementSolde = T(payload.modePaiementSolde);
   payload.mode_reglement_caution = T(payload.mode_reglement_caution);
   payload.detailAcompte = traduireDetailReglement(payload.detailAcompte, dico);
-  payload.detailSolde = traduireDetailReglement(payload.detailSolde, dico);
+  // Un solde nul ne peut jamais rester « pending ». Le suffixe est préparé
+  // pour l'article anglais uniquement lorsqu'un montant demeure dû.
+  var soldeChiffres = String(payload.soldeRestant == null ? '' : payload.soldeRestant).replace(/[^0-9,.-]/g, '').replace(',', '.');
+  payload.detailSolde = soldeChiffres !== '' && Number(soldeChiffres) === 0
+    ? ''
+    : (' — ' + traduireDetailReglement(payload.detailSolde, dico));
 
   // Lieu : seul le prefixe « Livraison a » est une formulation ; l'adresse
   // elle-meme reste telle que saisie.
   function lieu(v){
     var texte = String(v || '');
-    if(texte.indexOf('Livraison \u00e0 ') === 0) return 'Delivery to ' + texte.slice('Livraison \u00e0 '.length);
+    // Les choix métier (dont « Livraison à l'adresse de votre choix »)
+    // ont leur traduction complète dans le dictionnaire. Ne traduire le
+    // seul préfixe qu'en dernier recours pour une adresse libre.
+    var traductionComplete = T(texte);
+    if(traductionComplete !== texte) return traductionComplete;
+    if(texte.indexOf('Livraison \u00e0 ') === 0) return 'Delivery to ' + T(texte.slice('Livraison \u00e0 '.length));
     return T(texte);
   }
   payload.lieu = lieu(payload.lieu);
@@ -2218,6 +2228,13 @@ function genererPDF(payload, estApercu){
   function montantRetranche(texte){
     return '-' + String(texte).replace(/^[-−]\s*/, '');
   }
+  function montantSansSigne(texte){
+    return String(texte || '').replace(/^[-−]\s*/, '');
+  }
+  function montantEstNul(texte){
+    var chiffres = String(texte == null ? '' : texte).replace(/[^0-9,.-]/g, '').replace(',', '.');
+    return chiffres !== '' && Number(chiffres) === 0;
+  }
   function majusculeInitiale(texte){
     var t = String(texte || '').trim();
     return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
@@ -2438,7 +2455,10 @@ function genererPDF(payload, estApercu){
   police('bold', 8.5, C.label);
   capitales(T('État du règlement'), margin, y, 0.7);
   y += 15;
-  ligneMontant(T('Acompte déjà réglé'), montantRetranche(payload.montantRegle || payload.total), { espace: 1 });
+  // Le signe négatif a du sens dans le récapitulatif FR, mais la version EN
+  // présente explicitement un montant déjà payé : « Amount already paid:
+  // €280 », sans l'ambiguïté comptable « -280 € ».
+  ligneMontant(T('Acompte déjà réglé'), contratEnAnglais ? montantSansSigne(payload.montantRegle || payload.total) : montantRetranche(payload.montantRegle || payload.total), { espace: 1 });
   police('normal', 7.8, C.label);
   doc.text(majusculeInitiale(payload.detailAcompte || ((contratEnAnglais ? 'paid by ' : 'réglé par ') + (payload.modePaiement || (contratEnAnglais ? 'bank card' : 'carte bancaire')).toLowerCase())), margin, y + 8);
   y += 18;
@@ -2453,7 +2473,10 @@ function genererPDF(payload, estApercu){
   police('bold', 11, C.titre);
   capitales(T('Reste à payer'), margin + 14, y + 20, 0.6);
   police('normal', 7.8, C.label);
-  doc.text(majusculeInitiale(payload.detailSolde || ''), margin + 14, y + 34);
+  // Un solde nul n'est jamais « pending » : ne pas imprimer une instruction
+  // de règlement qui contredirait le montant affiché.
+  var detailSoldePdf = montantEstNul(payload.soldeRestant) ? '' : majusculeInitiale(String(payload.detailSolde || '').replace(/^—\s*/, ''));
+  if(detailSoldePdf) doc.text(detailSoldePdf, margin + 14, y + 34);
   police('bold', 18, C.orange);
   doc.text(String(payload.soldeRestant || formatEUR(0)), pageWidth - margin - 14, y + 29, { align: 'right' });
   y += hauteurEncadre + 10;
