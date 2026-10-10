@@ -254,6 +254,16 @@
 
     <form id="ownerForm">
       <div class="card">
+        <div class="field full">
+          <label for="langueClient">Langue du contrat</label>
+          <select id="langueClient" aria-describedby="langueClientHint">
+            <option value="fr">Français</option>
+            <option value="en">English</option>
+          </select>
+          <p class="meta-line" id="langueClientHint">La langue reste modifiable jusqu'à la signature de cette version.</p>
+        </div>
+      </div>
+      <div class="card">
         <h2>Véhicule et durée</h2>
         <div class="grid">
           <div class="field full">
@@ -267,18 +277,6 @@
           <div class="field">
             <label for="lieu">Lieu de prise en charge</label>
             <select id="lieu" required></select>
-          </div>
-          <!-- Langue du client : pré-remplie d'après la version du site où
-               la réservation a été faite (voir langue dans la réservation).
-               Le contrat reste rédigé en français — seule version faisant
-               foi, comme les CGL — mais un client anglophone voit une
-               mention en anglais l'indiquant clairement. -->
-          <div class="field">
-            <label for="langueClient">Langue du client</label>
-            <select id="langueClient">
-              <option value="fr">Français</option>
-              <option value="en">English</option>
-            </select>
           </div>
         </div>
         <div class="check-row">
@@ -705,6 +703,14 @@
       <p class="lead" id="dossierReference"></p>
 
       <div class="card">
+        <div class="field full">
+          <label for="df-contractLanguage">Langue du contrat</label>
+          <select id="df-contractLanguage" aria-describedby="df-contractLanguageHint"><option value="fr">Français</option><option value="en">English</option></select>
+          <p class="meta-line" id="df-contractLanguageHint">Modifiable jusqu'à la signature. La version signée garde définitivement sa langue.</p>
+        </div>
+      </div>
+
+      <div class="card">
         <h2>Récapitulatif de la réservation</h2>
         <div id="dossierRecap"></div>
       </div>
@@ -713,10 +719,6 @@
         <h2>Informations du contrat à compléter</h2>
         <p class="lead" style="margin-bottom:10px;">Le véhicule, les dates et les coordonnées viennent de la réservation payée (ci-dessus, non modifiables ici). Complétez le reste avant d'envoyer le lien de signature au client.</p>
         <div class="grid">
-          <div class="field">
-            <label for="df-contractLanguage">Langue du contrat</label>
-            <select id="df-contractLanguage"><option value="fr">Français</option><option value="en">English</option></select>
-          </div>
           <div class="field">
             <label for="df-immatriculation">Immatriculation</label>
             <input id="df-immatriculation" type="text" placeholder="AA-123-BB">
@@ -1152,7 +1154,7 @@ function sectionsContrat(payload, dictionnaire){
     permis2: payload.second_conducteur_permis,
     ribIban: payload.rib_iban,
     ribTitulaire: payload.rib_titulaire || (payload.locataire_prenom + ' ' + payload.locataire_nom).trim(),
-    cglVersion: payload.cglVersion || getCglVersion()
+    cglVersion: payload.cglVersion || getCglVersion(payload.langueClient)
   };
   var sections = dictionnaire.articles(valeurs, {
     secondConducteur: payload.second_conducteur === 'Oui',
@@ -1781,9 +1783,8 @@ function construirePayload(data, sigData, stamp){
     immatriculation: data.immat,
     lieu: lieuAffiche,
     lieuRetour: lieuAffiche,
-    // Langue du client : ne change RIEN au contenu du contrat, qui reste
-    // rédigé en français (seule version faisant foi). Sert uniquement à
-    // ajouter une mention en anglais pour un client anglophone.
+    // Langue contractuelle de la version : elle pilote les textes, les CGL
+    // versionnées et les rendus PDF, jamais la langue du navigateur.
     langueClient: data.langueClient === 'en' ? 'en' : 'fr',
     livraison: data.livraison ? 'Oui (+20 €)' : 'Non',
     depart: formatDateHeureFR(data.depart, data.langueClient),
@@ -1832,7 +1833,7 @@ function construirePayload(data, sigData, stamp){
     remarques: (data.remarques || '').trim().slice(0, 1500),
     etatDepart: normaliserEtatVehicule(data.etatDepart),
     etatRetour: normaliserEtatVehicule(data.etatRetour),
-    cglVersion: getCglVersion(),
+    cglVersion: getCglVersion(data.langueClient),
     horodatage_signature: stamp || '',
     signature_image: sigData || '',
     rib_iban: data.ribIban || '',
@@ -1873,7 +1874,7 @@ function remplirTexteArticles(payload){
   setFill('kmInclus', payload.kmInclus);
   setFill('kmInclusParJour', getKmInclusParJour().toLocaleString('fr-FR'));
   setFill('supplementKm', formatEURPrecis((payload.supplementKmCentimes !== undefined ? payload.supplementKmCentimes : getSupplementKmCentimes()) / 100));
-  setFill('cglVersion', payload.cglVersion || getCglVersion());
+  setFill('cglVersion', payload.cglVersion || getCglVersion(payload.langueClient));
   if(payload.second_conducteur === 'Oui'){
     setFill('nom2', (payload.second_conducteur_prenom + ' ' + payload.second_conducteur_nom).trim());
     setFill('permis2', payload.second_conducteur_permis);
@@ -2523,7 +2524,7 @@ function genererPDF(payload, estApercu){
   // Version des CGL ASSOCIÉE AU CONTRAT (payload.cglVersion, figée à sa
   // création) : rééditer un ancien contrat ne doit jamais lui attribuer
   // après coup la version en vigueur aujourd'hui.
-  var versionCgl = payload.cglVersion || getCglVersion();
+  var versionCgl = payload.cglVersion || getCglVersion(payload.langueClient);
   doc.text((contratEnAnglais ? 'Applicable General Rental Conditions: version ' : 'Conditions Générales de Location applicables : version ') + versionCgl + (contratEnAnglais ? ' — full text at getlocation.fr/cgl.html' : ' — texte complet sur getlocation.fr/cgl.html'), margin, y);
   y += 18;
 
@@ -3117,8 +3118,8 @@ function initDossierAgencyView(token){
       lieu: lieuAffiche,
       lieuRetour: r.lieuRetour || lieuAffiche,
       livraison: f.livraison ? 'Oui (+20 €)' : 'Non',
-      depart: formatDateHeureFR(departISO),
-      retour: formatDateHeureFR(retourISO),
+      depart: formatDateHeureFR(departISO, r.langue),
+      retour: formatDateHeureFR(retourISO, r.langue),
       duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
       detailFinancier: lignesDetailFinancier(detailFinancierDepuisReservation(r)),
       // Réservation payée en ligne : la totalité est déjà réglée, le solde
@@ -3148,8 +3149,8 @@ function initDossierAgencyView(token){
       second_conducteur_permis_pays: f.secondConducteurPermisPays || '',
       second_conducteur_permis_date: f.secondConducteurPermisDate || '',
       kmInclus: kmInclusPourJours(jours).toLocaleString('fr-FR'),
-      cglVersion: r.cglVersion || getCglVersion(),
-      horodatage_signature: v.dossier.signature ? formatDateHeureFR(v.dossier.signature.signedAt) : '',
+      cglVersion: r.cglVersion || getCglVersion(r.langue),
+      horodatage_signature: v.dossier.signature ? formatDateHeureFR(v.dossier.signature.signedAt, r.langue) : '',
       signatureId: v.dossier.signature ? v.dossier.signature.signatureId : '',
       signature_image: v.dossier.signature ? (v.dossier.signature.imageDataUrl || '') : '',
       remise: v.dossier.depart,
@@ -3200,7 +3201,12 @@ function initDossierAgencyView(token){
     function val(champ){ return (f[champ] !== undefined && f[champ] !== '') ? f[champ] : (prefill[champ] || ''); }
 
     document.getElementById('df-immatriculation').value = f.immatriculation || (r.vehicule ? r.vehicule.immatriculation : '');
-    document.getElementById('df-contractLanguage').value = r.langue === 'en' ? 'en' : 'fr';
+    var languageField = document.getElementById('df-contractLanguage');
+    languageField.value = r.langue === 'en' ? 'en' : 'fr';
+    languageField.disabled = view.dossier.status === 'signed';
+    document.getElementById('df-contractLanguageHint').textContent = view.dossier.status === 'signed'
+      ? ('Langue : ' + (r.langue === 'en' ? 'English' : 'Français') + ' — version signée.')
+      : 'Modifiable jusqu\'à la signature. La version signée garde définitivement sa langue.';
     document.getElementById('df-adresse').value = val('adresse');
     document.getElementById('df-codePostal').value = val('codePostal');
     document.getElementById('df-ville').value = val('ville');
@@ -3275,6 +3281,20 @@ function initDossierAgencyView(token){
   document.getElementById('df-second-toggle').addEventListener('change', function(){
     document.getElementById('dfSecondBlock').classList.toggle('show', this.checked);
   });
+  // La langue est persistée indépendamment des autres champs : un lien déjà
+  // envoyé reflète donc immédiatement la langue choisie par l'agence.
+  document.getElementById('df-contractLanguage').addEventListener('change', function(){
+    var field = this, previous = view && view.reservation && view.reservation.langue || 'fr';
+    field.disabled = true;
+    apiPost({ action: 'update-language', contractLanguage: field.value }).then(function(body){
+      view = body; render();
+      document.getElementById('dfSaveMsg').textContent = 'Langue du contrat enregistrée ✓';
+    }).catch(function(err){
+      field.value = previous === 'en' ? 'en' : 'fr';
+      field.disabled = false;
+      document.getElementById('dfSaveMsg').textContent = err.message;
+    });
+  });
 
   document.getElementById('dfSaveBtn').addEventListener('click', function(){
     var msg = document.getElementById('dfSaveMsg');
@@ -3313,8 +3333,10 @@ function initDossierAgencyView(token){
   document.getElementById('dfSendBtn').addEventListener('click', function(){
     apiPost({ action: 'send-to-client' }).then(function(body){
       view = body; render();
-      var message = 'Bonjour ' + (view.reservation.conducteur ? view.reservation.conducteur.prenom : '') +
-        ', voici le lien pour vérifier et signer votre contrat de location GETLOCATION : ' + body.clientUrl;
+      var english = view.reservation.langue === 'en';
+      var message = english
+        ? ('Hello ' + (view.reservation.conducteur ? view.reservation.conducteur.prenom : '') + ', here is the secure link to review and sign your GETLOCATION rental agreement: ' + body.clientUrl)
+        : ('Bonjour ' + (view.reservation.conducteur ? view.reservation.conducteur.prenom : '') + ', voici le lien pour vérifier et signer votre contrat de location GETLOCATION : ' + body.clientUrl);
       var messageEnc = encodeURIComponent(message);
       document.getElementById('dfLinkOutput').value = body.clientUrl;
       document.getElementById('dfLinkBox').classList.remove('hidden');
@@ -3326,7 +3348,11 @@ function initDossierAgencyView(token){
       // garde le message complet, ce canal n'ayant jamais posé ce problème.
       document.getElementById('dfWhatsappBtn').href = 'https://wa.me/?text=' + encodeURIComponent(body.clientUrl);
       document.getElementById('dfSmsBtn').href = smsHref(encodeURIComponent(body.clientUrl));
-      document.getElementById('dfEmailBtn').href = 'mailto:?subject=' + encodeURIComponent('Votre contrat de location GETLOCATION') + '&body=' + messageEnc;
+      if(english){
+        document.getElementById('dfEmailBtn').href = 'mailto:?subject=' + encodeURIComponent('Your GETLOCATION rental agreement') + '&body=' + messageEnc;
+      } else {
+        document.getElementById('dfEmailBtn').href = 'mailto:?subject=' + encodeURIComponent('Votre contrat de location GETLOCATION') + '&body=' + messageEnc;
+      }
     }).catch(function(err){
       var missingEl = document.getElementById('dfMissingFields');
       missingEl.classList.remove('hidden');
@@ -3440,8 +3466,8 @@ function initDossierClientView(token){
       lieu: lieuAffiche,
       lieuRetour: r.lieuRetour || lieuAffiche,
       livraison: f.livraison ? 'Oui (+20 €)' : 'Non',
-      depart: formatDateHeureFR(departISO),
-      retour: formatDateHeureFR(retourISO),
+      depart: formatDateHeureFR(departISO, r.langue),
+      retour: formatDateHeureFR(retourISO, r.langue),
       duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
       detailFinancier: lignesDetailFinancier(detailFinancierDepuisReservation(r)),
       // Réservation payée en ligne : la totalité est déjà réglée, le solde
@@ -3471,11 +3497,33 @@ function initDossierClientView(token){
       second_conducteur_permis_pays: f.secondConducteurPermisPays || '',
       second_conducteur_permis_date: f.secondConducteurPermisDate || '',
       kmInclus: kmInclusPourJours(jours).toLocaleString('fr-FR'),
-      cglVersion: r.cglVersion || getCglVersion(),
+      cglVersion: r.cglVersion || getCglVersion(r.langue),
       horodatage_signature: stamp || '',
       signatureId: signatureId || '',
       signature_image: sigData || ''
     });
+  }
+
+  // La page client ne déduit jamais la langue du navigateur : elle applique
+  // uniquement la langue renvoyée par la version de contrat sécurisée.
+  function traduireInterfaceClient(langue){
+    if(langue !== 'en') return function(v){ return v; };
+    var traductions = {
+      'Vérification et signature': 'Review and signature', 'Votre contrat de location': 'Your rental agreement',
+      'Vérifiez les informations ci-dessous, puis signez pour valider votre réservation.': 'Review the information below, then sign to confirm your booking.',
+      'Récapitulatif': 'Summary', '📄 Aperçu PDF (avant signature)': '📄 PDF preview (before signing)',
+      'Contrat déjà signé': 'Agreement already signed', '📄 Télécharger le PDF': '📄 Download the PDF',
+      'Conditions de location': 'Rental terms', 'Effacer': 'Clear', 'Signer et valider le contrat': 'Sign and confirm agreement',
+      'Signez avec la souris, le trackpad ou le doigt': 'Sign using your mouse, trackpad or finger'
+    };
+    var root = document.getElementById('dossierClientContent');
+    root.querySelectorAll('h1,h2,p.lead,.badge,button,.hint').forEach(function(el){
+      var text = el.textContent.trim(); if(traductions[text]) el.textContent = traductions[text];
+    });
+    document.getElementById('dc-accept').nextElementSibling.innerHTML = 'I confirm that the information provided is accurate, that I hold a valid driving licence, that I have read this agreement and the <a href="cgl.html" target="_blank" rel="noopener">General Rental Conditions</a>, and that I accept the rental terms, applicable pricing and the condition of the vehicle on handover.';
+    return function(value){ return ({
+      'Véhicule':'Vehicle', 'Immatriculation':'Registration', 'Livraison':'Delivery', 'Lieu de prise en charge':'Pick-up location', 'Départ':'Pick-up', 'Retour':'Return', 'Total':'Total', 'Dépôt de garantie':'Security deposit', 'Locataire':'Renter', 'N° de permis':'Driving licence no.', 'Second conducteur':'Additional driver', 'carte bancaire':'bank card', 'espèces':'cash'
+    }[value] || value); };
   }
 
   loading.classList.remove('hidden');
@@ -3486,23 +3534,24 @@ function initDossierClientView(token){
       content.classList.remove('hidden');
 
       var r = v.reservation, f = v.fields;
+      var L = traduireInterfaceClient(r.langue);
       var departISO = r.dateDebut + 'T' + r.heureDebut;
       var retourISO = r.dateFin + 'T' + r.heureFin;
       var lieuAffiche = f.livraison ? ('Livraison à ' + f.livraisonRue + ', ' + f.livraisonCP + ' ' + f.livraisonVille) : r.lieuPrise;
 
       var recap = document.getElementById('dcRecap');
       recap.textContent = '';
-      recap.appendChild(recapRow('Véhicule', r.vehicule ? r.vehicule.nom : ''));
-      recap.appendChild(recapRow('Immatriculation', r.immatriculation));
-      recap.appendChild(recapRow(f.livraison ? 'Livraison' : 'Lieu de prise en charge', lieuAffiche));
-      recap.appendChild(recapRow('Départ', formatDateHeureFR(departISO)));
-      recap.appendChild(recapRow('Retour', formatDateHeureFR(retourISO)));
-      recap.appendChild(recapRow('Total', formatEUR(r.total)));
-      recap.appendChild(recapRow('Dépôt de garantie', r.vehicule ? (formatEUR(r.vehicule.caution) + ' (' + (f.modeCaution === 'carte' ? 'carte bancaire' : 'espèces') + ')') : ''));
-      recap.appendChild(recapRow('Locataire', r.conducteur ? (r.conducteur.prenom + ' ' + r.conducteur.nom) : ''));
-      recap.appendChild(recapRow('N° de permis', f.permisNumero));
+      recap.appendChild(recapRow(L('Véhicule'), r.vehicule ? r.vehicule.nom : ''));
+      recap.appendChild(recapRow(L('Immatriculation'), r.immatriculation));
+      recap.appendChild(recapRow(L(f.livraison ? 'Livraison' : 'Lieu de prise en charge'), lieuAffiche));
+      recap.appendChild(recapRow(L('Départ'), formatDateHeureFR(departISO, r.langue)));
+      recap.appendChild(recapRow(L('Retour'), formatDateHeureFR(retourISO, r.langue)));
+      recap.appendChild(recapRow(L('Total'), formatEUR(r.total)));
+      recap.appendChild(recapRow(L('Dépôt de garantie'), r.vehicule ? (formatEUR(r.vehicule.caution) + ' (' + L(f.modeCaution === 'carte' ? 'carte bancaire' : 'espèces') + ')') : ''));
+      recap.appendChild(recapRow(L('Locataire'), r.conducteur ? (r.conducteur.prenom + ' ' + r.conducteur.nom) : ''));
+      recap.appendChild(recapRow(L('N° de permis'), f.permisNumero));
       if(f.secondConducteur){
-        recap.appendChild(recapRow('Second conducteur', f.secondConducteurPrenom + ' ' + f.secondConducteurNom + ' (permis ' + f.secondConducteurPermisNumero + ')'));
+        recap.appendChild(recapRow(L('Second conducteur'), f.secondConducteurPrenom + ' ' + f.secondConducteurNom + ' (' + (r.langue === 'en' ? 'licence ' : 'permis ') + f.secondConducteurPermisNumero + ')'));
       }
 
       remplirTexteArticles(construireDossierClientPayload(v, null, null, null));
@@ -3515,9 +3564,9 @@ function initDossierClientView(token){
         document.getElementById('dcSignCard').classList.add('hidden');
         var already = document.getElementById('dcAlreadySigned');
         already.classList.remove('hidden');
-        document.getElementById('dcAlreadySignedMeta').textContent = 'Signé le ' + formatDateHeureFR(v.signedAt) + ' — identifiant ' + v.signatureId;
+        document.getElementById('dcAlreadySignedMeta').textContent = (r.langue === 'en' ? 'Signed on ' : 'Signé le ') + formatDateHeureFR(v.signedAt, r.langue) + (r.langue === 'en' ? ' — reference ' : ' — identifiant ') + v.signatureId;
         document.getElementById('dcDownloadSignedPdfBtn').addEventListener('click', function(){
-          genererPDF(construireDossierClientPayload(v, null, formatDateHeureFR(v.signedAt), v.signatureId), false);
+          genererPDF(construireDossierClientPayload(v, null, formatDateHeureFR(v.signedAt, r.langue), v.signatureId), false);
         });
         return;
       }
@@ -3600,9 +3649,9 @@ function initDossierClientView(token){
         }).then(function(res){ return res.json().then(function(body){ if(!res.ok) throw new Error(body.error || 'La signature a échoué'); return body; }); })
         .then(function(signed){
           var now = new Date();
-          var stamp = now.toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' }) + ' à ' + now.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+          var stamp = formatDateHeureFR(now.toISOString(), r.langue);
           document.getElementById('dcStatusBox').classList.add('show');
-          document.getElementById('dcStatusText').textContent = 'Contrat signé électroniquement le ' + stamp + '.';
+          document.getElementById('dcStatusText').textContent = r.langue === 'en' ? ('Agreement signed electronically on ' + stamp + '.') : ('Contrat signé électroniquement le ' + stamp + '.');
           Array.prototype.forEach.call(document.getElementById('dcSignForm').querySelectorAll('button, input'), function(el){ el.disabled = true; });
           document.getElementById('dcClearBtn').style.display = 'none';
           genererPDF(construireDossierClientPayload(v, sigData, stamp, signed.signatureId), false);
@@ -5084,7 +5133,7 @@ function initClientView(data){
   setFill('kmInclus', kmInclus.toLocaleString('fr-FR'));
   setFill('kmInclusParJour', getKmInclusParJour().toLocaleString('fr-FR'));
   setFill('supplementKm', formatEURPrecis(getSupplementKmCentimes() / 100));
-  setFill('cglVersion', getCglVersion());
+  setFill('cglVersion', getCglVersion(data.langueClient));
   if(data.secondConducteur){
     setFill('nom2', data.prenom2 + ' ' + data.nom2);
     setFill('permis2', data.permis2);

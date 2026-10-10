@@ -15,7 +15,7 @@ const { createReservation, updateReservationStatus, saveContractAgencyAccessInde
 const { issueContractAgencyAccess, hashContractAgencyToken, hashContractClientToken } = require("../src/lib/contract-dossier-token.js");
 const { handleContractDossierAgency } = require("../src/api/contract-dossier-agency.js");
 const { handleContractDossierClient } = require("../src/api/contract-dossier-client.js");
-const { CGL_VERSION } = require("../js/data.js");
+const { CGL_VERSION, CGL_EN_VERSION } = require("../js/data.js");
 
 const PEPPER = "pepper-de-test-dossier-contrat-worker";
 
@@ -275,6 +275,30 @@ test("client : lecture du récapitulatif avant signature", async () => {
   assert.equal(body.status, "sent");
   assert.equal(body.reservation.vehicule.nom, "Opel Corsa Business 1.2T");
   assert.equal(body.fields.permisNumero, "123456789");
+});
+
+test("langue : se met à jour avant signature, pilote les CGL et reste figée après signature", async () => {
+  const e = env();
+  const { agencyToken, reservationId } = await setupReservationPayee(e, { langue: "en" });
+  const update = await handleContractDossierAgency(agencyPost(agencyToken, { action: "update-language", contractLanguage: "en" }), e);
+  assert.equal(update.status, 200);
+  assert.equal((await update.json()).reservation.langue, "en");
+
+  await handleContractDossierAgency(agencyPost(agencyToken, { ...CHAMPS_MINIMAUX, contractLanguage: "en" }), e);
+  const sent = await handleContractDossierAgency(agencyPost(agencyToken, { action: "send-to-client" }), e);
+  const clientToken = extractClientToken((await sent.json()).clientUrl);
+  const clientView = await handleContractDossierClient(clientGet(clientToken), e);
+  assert.equal((await clientView.json()).reservation.cglVersion, CGL_EN_VERSION);
+
+  const sigPng = "data:image/png;base64," + "A".repeat(200);
+  const signed = await handleContractDossierClient(clientPost(clientToken, { cglAccepted: true, cglVersion: CGL_EN_VERSION, signatureImage: sigPng }), e);
+  assert.equal(signed.status, 200);
+  const locked = await handleContractDossierAgency(agencyPost(agencyToken, { action: "update-language", contractLanguage: "fr" }), e);
+  assert.equal(locked.status, 400);
+  assert.match((await locked.json()).error, /Version signée/);
+  const record = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
+  assert.equal(record.contractLanguage, "en");
+  assert.equal(record.contractDossier.cglVersion, CGL_EN_VERSION);
 });
 
 test("client : la signature est refusée sans acceptation des CGL ou avec une version de CGL périmée", async () => {

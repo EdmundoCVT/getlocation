@@ -11,7 +11,7 @@
 // réservation) : si le texte a changé depuis l'émission du lien, la
 // signature est refusée tant que le client n'a pas rechargé la page.
 
-const { getVehiculeParId, kmInclusPourJours, joursFacturablesPourPeriode, CGL_VERSION } = require("../../js/data.js");
+const { getVehiculeParId, kmInclusPourJours, joursFacturablesPourPeriode, getCglVersion } = require("../../js/data.js");
 const { updateContractDossier, findReservationByContractClientTokenHash, contractVersionInfo, contractLanguage } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { hashContractClientToken } = require("../lib/contract-dossier-token.js");
@@ -96,7 +96,7 @@ function buildClientView(reservation) {
       conducteur: reservation.conducteur
         ? { nom: reservation.conducteur.nom, prenom: reservation.conducteur.prenom, naissance: reservation.conducteur.naissance, telephone: reservation.conducteur.telephone, email: reservation.conducteur.email }
         : null,
-      cglVersion: reservation.contractDossier && reservation.contractDossier.cglVersion || CGL_VERSION,
+      cglVersion: reservation.contractDossier && reservation.contractDossier.cglVersion || getCglVersion(language),
       langue: language
     },
     fields: {
@@ -186,8 +186,8 @@ async function handlePost(request, env, headers) {
   return new Response(JSON.stringify(buildClientView(updated)), { status: 200, headers });
 }
 
-function existingCglVersion(reservation) {
-  return reservation.contractDossier && reservation.contractDossier.cglVersion || CGL_VERSION;
+function existingCglVersion(reservation, language) {
+  return reservation.contractDossier && reservation.contractDossier.cglVersion || getCglVersion(language);
 }
 
 async function handleContractDossierClient(request, env) {

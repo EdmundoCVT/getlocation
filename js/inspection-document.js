@@ -40,8 +40,20 @@
   global.InspectionDocument = {
     async generate(snapshot, cache) {
       const pdf = await PDFDocument.create(), regular = await pdf.embedFont(StandardFonts.Helvetica), bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+      const english = snapshot.language === "en";
+      const T = value => !english ? value : ({
+        "Etat des lieux du vehicule": "Vehicle condition report", "Informations (suite)": "Information (continued)",
+        "Date et heure du constat": "Report date and time", "Agent": "Agent", "Kilometrage": "Odometer", "Carburant / charge": "Fuel / charge",
+        "Cles": "Keys", "Accessoires": "Accessories", "Proprete exterieure": "Exterior cleanliness", "Proprete interieure": "Interior cleanliness", "Proprete chargement": "Cargo-area cleanliness",
+        "Constat (suite)": "Report (continued)", "Dommages": "Damage", "Remarques": "Comments", "Aucun dommage renseigne.": "No damage recorded.", "Aucune remarque.": "No comments.",
+        "Schema annote - ": "Annotated vehicle diagram - ", "Schema de reference - depart": "Reference diagram - departure", "Photos - ": "Photos - ",
+        "Signatures": "Signatures", "SIGNATURES - ": "SIGNATURES - ", "LOCATAIRE": "RENTER", "Non renseigne": "Not provided", "Non renseignee": "Not provided", "Nom : ": "Name: ", "Date : ": "Date: ",
+        "GET LOCATION - Etat des lieux": "GET LOCATION - Vehicle condition report", "Reperes numerotes correspondant a la liste des dommages.": "Numbered markers correspond to the damage list.",
+        "Present au depart": "Present at departure", "Nouveau au retour": "New at return", "Au depart": "At departure", "Sans description": "No description", "depart": "departure", "retour": "return"
+      }[value] || value);
+      const modeLabel = mode => T(mode === "retour" ? "retour" : "depart");
       pdf.setTitle("Etat des lieux GET LOCATION - "+snapshot.reference); pdf.setAuthor("GET LOCATION");
-      const date = global.InspectionMedia.date, stage = snapshot.stage, caption = snapshot.reference+" - "+snapshot.mode.toUpperCase();
+      const date = global.InspectionMedia.date, stage = snapshot.stage, caption = snapshot.reference+" - "+modeLabel(snapshot.mode).toUpperCase();
       const make = (title, sub = caption) => {
         const page = pdf.addPage([W,H]);
         page.drawText("GET LOCATION",{x:M,y:H-M,font:bold,size:16,color:orange});
@@ -50,30 +62,30 @@
         page.drawLine({start:{x:M,y:H-M-62},end:{x:W-M,y:H-M-62},thickness:1,color:line});
         return {page,y:H-M-84};
       };
-      let {page:first,y} = make("Etat des lieux du vehicule");
-      const fields = [...snapshot.summary,["Date et heure du constat",date(stage.dateHeure)],["Agent",stage.agent],["Kilometrage",stage.km == null ? "" : stage.km+" km"],["Carburant / charge",stage.carburant == null ? "" : stage.carburant+" %"],["Cles",stage.cles],["Accessoires",stage.clesAccessoires],["Proprete exterieure",stage.propreteExterieure == null ? stage.proprete : stage.propreteExterieure+" / 5"],["Proprete interieure",stage.propreteInterieure == null ? stage.proprete : stage.propreteInterieure+" / 5"],["Proprete chargement",stage.propreteChargement == null ? "" : stage.propreteChargement+" / 5"]].filter(([,v])=>v!==""&&v!=null);
+      let {page:first,y} = make(T("Etat des lieux du vehicule"));
+      const fields = [...snapshot.summary,[T("Date et heure du constat"),date(stage.dateHeure)],[T("Agent"),stage.agent],[T("Kilometrage"),stage.km == null ? "" : stage.km+" km"],[T("Carburant / charge"),stage.carburant == null ? "" : stage.carburant+" %"],[T("Cles"),stage.cles],[T("Accessoires"),stage.clesAccessoires],[T("Proprete exterieure"),stage.propreteExterieure == null ? stage.proprete : stage.propreteExterieure+" / 5"],[T("Proprete interieure"),stage.propreteInterieure == null ? stage.proprete : stage.propreteInterieure+" / 5"],[T("Proprete chargement"),stage.propreteChargement == null ? "" : stage.propreteChargement+" / 5"]].filter(([,v])=>v!==""&&v!=null);
       for (let i=0;i<fields.length;i+=2) {
         const pair = fields.slice(i,i+2), height = Math.max(27,...pair.map(([,v])=>wrap(bold,v,9,232).length*12+14));
-        if (y-height<150) ({page:first,y}=make("Informations (suite)"));
+        if (y-height<150) ({page:first,y}=make(T("Informations (suite)")));
         pair.forEach(([label,value],col)=>{const x=M+col*265;write(first,regular,label,x,y,7.5,muted,232);write(first,bold,value,x,y-13,9,ink,232);});
         y-=height+5;
       }
       const rows = [];
-      if (snapshot.mode==="retour"&&snapshot.depart) (snapshot.depart.marks||[]).forEach(mark=>rows.push({mark,status:"Present au depart"}));
-      (stage.marks||[]).forEach(mark=>rows.push({mark,status:snapshot.mode==="retour"?"Nouveau au retour":"Au depart"}));
+      if (snapshot.mode==="retour"&&snapshot.depart) (snapshot.depart.marks||[]).forEach(mark=>rows.push({mark,status:T("Present au depart")}));
+      (stage.marks||[]).forEach(mark=>rows.push({mark,status:snapshot.mode==="retour"?T("Nouveau au retour"):T("Au depart")}));
       function block(title,values) {
-        if (y<105) ({page:first,y}=make("Constat (suite)"));
+        if (y<105) ({page:first,y}=make(T("Constat (suite)")));
         y=write(first,bold,title,M,y-5,11)-4;
         for (const value of values) {
-          if (y-wrap(regular,value,8.5,W-2*M).length*11<52) ({page:first,y}=make("Constat (suite)"));
+          if (y-wrap(regular,value,8.5,W-2*M).length*11<52) ({page:first,y}=make(T("Constat (suite)")));
           y=write(first,regular,value,M,y,8.5)-4;
         }
       }
-      block("Dommages",rows.length?rows.map(({mark,status},i)=>{
+      block(T("Dommages"),rows.length?rows.map(({mark,status},i)=>{
         const type=global.InspectionSketch.TYPES.find(t=>t.id===mark.type);
-        return (i+1)+". "+status+" - "+(type?type.label:mark.type)+" - "+global.InspectionSketch.labelFor(mark.view)+" : "+(mark.description||"Sans description");
-      }):["Aucun dommage renseigne."]);
-      block("Remarques",[stage.dommages||"Aucune remarque."]);
+        return (i+1)+". "+status+" - "+(type?type.label:mark.type)+" - "+global.InspectionSketch.labelFor(mark.view)+" : "+(mark.description||T("Sans description"));
+      }):[T("Aucun dommage renseigne.")]);
+      block(T("Remarques"),[stage.dommages||T("Aucune remarque.")]);
       async function sketch(title,value) {
         const {page}=make(title);
         for (const [i,view] of global.InspectionSketch.VIEWS.entries()) {
@@ -92,8 +104,8 @@
         }
         write(page,regular,"Reperes numerotes correspondant a la liste des dommages.",M,61,8,muted);
       }
-      await sketch("Schema annote - "+snapshot.mode,stage);
-      if(snapshot.mode==="retour"&&snapshot.depart) await sketch("Schema de reference - depart",snapshot.depart);
+      await sketch(T("Schema annote - ")+modeLabel(snapshot.mode),stage);
+      if(snapshot.mode==="retour"&&snapshot.depart) await sketch(T("Schema de reference - depart"),snapshot.depart);
       let photoPage=null, photoY=0, count=0;
       async function photos(items,title) {
         if(!items.length)return;
@@ -111,24 +123,24 @@
           count++;
         }
       }
-      if(snapshot.mode==="retour"){await photos(snapshot.departPhotos,"depart");await photos(snapshot.photos,"retour");}
-      else await photos(snapshot.photos,"depart");
+      if(snapshot.mode==="retour"){await photos(snapshot.departPhotos,modeLabel("depart"));await photos(snapshot.photos,modeLabel("retour"));}
+      else await photos(snapshot.photos,modeLabel("depart"));
       const remaining=photoPage?photoY-Math.ceil(count/3)*156:0;
       let signPage,signY;
-      if(!photoPage||remaining<205) {const sheet=make("Signatures");signPage=sheet.page;signY=sheet.y;}
+      if(!photoPage||remaining<205) {const sheet=make(T("Signatures"));signPage=sheet.page;signY=sheet.y;}
       else {signPage=photoPage;signY=remaining-20;}
-      write(signPage,bold,"SIGNATURES - "+snapshot.mode.toUpperCase(),M,signY,11,orange);
+      write(signPage,bold,T("SIGNATURES - ")+modeLabel(snapshot.mode).toUpperCase(),M,signY,11,orange);
       for(const [index,role] of ["client","agence"].entries()) {
         const value=stage.signatures&&stage.signatures[role],x=M+index*265,top=signY-18;
         signPage.drawRectangle({x,y:top-125,width:245,height:120,borderColor:line,borderWidth:1});
-        write(signPage,bold,role==="client"?"LOCATAIRE":"GET LOCATION",x+9,top-18,9);
-        write(signPage,regular,"Nom : "+(value&&value.name||"Non renseigne"),x+9,top-35,8,ink,225);
-        write(signPage,regular,"Date : "+(value&&value.signedAt?date(value.signedAt):"Non renseignee"),x+9,top-49,8,ink,225);
+        write(signPage,bold,role==="client"?T("LOCATAIRE"):"GET LOCATION",x+9,top-18,9);
+        write(signPage,regular,T("Nom : ")+(value&&value.name||T("Non renseigne")),x+9,top-35,8,ink,225);
+        write(signPage,regular,T("Date : ")+(value&&value.signedAt?date(value.signedAt):T("Non renseignee")),x+9,top-49,8,ink,225);
         if(value&&value.imageDataUrl){const image=await picture(pdf,value.imageDataUrl);signPage.drawImage(image,fit(image,x+9,top-116,227,61));}
       }
       pdf.getPages().forEach((page,index)=>{
         page.drawLine({start:{x:M,y:29},end:{x:W-M,y:29},thickness:.7,color:line});
-        page.drawText("GET LOCATION - Etat des lieux",{x:M,y:16,font:regular,size:7,color:muted});
+        page.drawText(T("GET LOCATION - Etat des lieux"),{x:M,y:16,font:regular,size:7,color:muted});
         page.drawText((index+1)+" / "+pdf.getPageCount(),{x:W-M-34,y:16,font:regular,size:7,color:muted});
       });
       return pdf.save();

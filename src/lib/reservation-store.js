@@ -40,7 +40,12 @@ function generateReservationId() {
 }
 
 function contractLanguage(record) {
-  return record && (record.contractLanguage === "en" || record.langueClient === "en" || record.langue === "en") ? "en" : "fr";
+  // `contractLanguage` appartient à la version de contrat et prévaut sur la
+  // langue de navigation historique de la réservation. Cela permet par
+  // exemple V1 EN signée puis V2 FR sans rouvrir ni altérer V1.
+  if (record && (record.contractLanguage === "fr" || record.contractLanguage === "en")) return record.contractLanguage;
+  if (record && record.contractDossier && (record.contractDossier.contractLanguage === "fr" || record.contractDossier.contractLanguage === "en")) return record.contractDossier.contractLanguage;
+  return record && (record.langueClient === "en" || record.langue === "en") ? "en" : "fr";
 }
 
 // Numéro de contrat lisible GL-AAAAMMJJ-NNNN (distinct de l'id KV opaque

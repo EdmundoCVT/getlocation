@@ -18,7 +18,7 @@
 // du dossier contrat, un contrat ne doit jamais pouvoir diverger de ce qui
 // a réellement été payé.
 
-const { getVehiculeParId, calculerKilometrage, joursFacturablesDepuisHeures, joursFacturablesPourPeriode, KM_INCLUS_PAR_JOUR, SUPPLEMENT_KM_CENTIMES, CGL_VERSION, parseAdressePersonnalisee } = require("../../js/data.js");
+const { getVehiculeParId, calculerKilometrage, joursFacturablesDepuisHeures, joursFacturablesPourPeriode, KM_INCLUS_PAR_JOUR, SUPPLEMENT_KM_CENTIMES, getCglVersion, parseAdressePersonnalisee } = require("../../js/data.js");
 const {
   updateContractDossier,
   findReservationByContractAgencyTokenHash, contractLanguage,
@@ -142,7 +142,7 @@ function buildDossierView(reservation) {
       conducteur: manual ? { nom: reservation.nom || "", prenom: reservation.prenom || "", telephone: reservation.tel || "", email: reservation.email || "" } : reservation.conducteur
         ? { nom: reservation.conducteur.nom, prenom: reservation.conducteur.prenom, naissance: reservation.conducteur.naissance, telephone: reservation.conducteur.telephone, email: reservation.conducteur.email }
         : null,
-      cglVersion: dossier && dossier.cglVersion || CGL_VERSION,
+      cglVersion: dossier && dossier.cglVersion || getCglVersion(language),
       langue: language
     },
     kmInclusParJour: KM_INCLUS_PAR_JOUR,
@@ -217,7 +217,19 @@ async function handlePost(request, env, headers) {
         const language = payload.contractLanguage === "en" ? "en" : "fr";
         const updated = await updateContractDossier(env, reservation.id, {
           contractLanguage: language,
-          contractDossier: { ...existing, fields, contractLanguage: language, updatedAt: new Date().toISOString() }
+          // Tant que la version n'est pas signée, ses CGL suivent sa langue
+          // active. Après signature, updateContractDossier bloque toute
+          // écriture et garde donc langue + CGL immuables.
+          contractDossier: { ...existing, fields, contractLanguage: language, cglVersion: getCglVersion(language), updatedAt: new Date().toISOString() }
+        });
+        if (!updated) return new Response(JSON.stringify({ error: "Réservation introuvable" }), { status: 404, headers });
+        return new Response(JSON.stringify(buildDossierView(updated)), { status: 200, headers });
+      }
+      case "update-language": {
+        const language = payload.contractLanguage === "en" ? "en" : "fr";
+        const updated = await updateContractDossier(env, reservation.id, {
+          contractLanguage: language,
+          contractDossier: { ...existing, contractLanguage: language, cglVersion: getCglVersion(language), updatedAt: new Date().toISOString() }
         });
         if (!updated) return new Response(JSON.stringify({ error: "Réservation introuvable" }), { status: 404, headers });
         return new Response(JSON.stringify(buildDossierView(updated)), { status: 200, headers });

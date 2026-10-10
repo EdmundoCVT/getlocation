@@ -137,7 +137,10 @@ function normaliserLangue(valeur) {
 
 // Langue à utiliser pour écrire au client d'une réservation donnée.
 function langueClient(reservation) {
-  return normaliserLangue(reservation && reservation.langue);
+  // Dès qu'un dossier contrat existe, sa langue est la source de vérité pour
+  // les messages liés au contrat (lien, signature, rappel, dépôt). Les
+  // réservations historiques conservent leur ancien champ `langue`.
+  return normaliserLangue(reservation && (reservation.contractLanguage || reservation.langueClient || reservation.langue));
 }
 
 function substituer(texte, variables) {

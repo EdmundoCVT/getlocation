@@ -149,6 +149,10 @@ const HEURE_FERMETURE = "23:30";
 // résolus (cf. LEGAL-TODO.md) — ce mécanisme trace la version acceptée,
 // il ne garantit pas à lui seul la validité juridique du texte.
 const CGL_VERSION = "2026-09-16";
+// La version anglaise est un texte contractuel distinct, revu et publié
+// séparément. Elle ne doit jamais être déduite ni traduite au moment de la
+// signature : la version est enregistrée avec chaque contrat.
+const CGL_EN_VERSION = "2026-10-10-en";
 
 // Réduction selon la durée de location : aucun tarif dégressif en dessous
 // de 5 jours consécutifs ; à partir de 5 jours, réduction fixe de
@@ -853,8 +857,8 @@ function getKmInclusParJour() {
 function getSupplementKmCentimes() {
   return SUPPLEMENT_KM_CENTIMES;
 }
-function getCglVersion() {
-  return CGL_VERSION;
+function getCglVersion(language) {
+  return language === "en" ? CGL_EN_VERSION : CGL_VERSION;
 }
 function getAgence() {
   return AGENCE;
@@ -931,6 +935,7 @@ if (typeof module !== "undefined" && module.exports) {
     CODES_PROMO,
     OPTIONS,
     CGL_VERSION,
+    CGL_EN_VERSION,
     formatEUR,
     formatEURPrecis,
     AGENCE,

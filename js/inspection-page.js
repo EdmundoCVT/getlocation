@@ -202,7 +202,7 @@
     try {
       await queue; await Promise.all(Object.values(pads).map(pad => pad.ready()));
       if (dirty && !(await save(false))) throw new Error("Enregistrez les modifications avant de télécharger le PDF.");
-      const bytes = await window.InspectionDocument.download({ mode, family, reference: reservation.contractNumero || reservation.id, summary: summaryEntries(reservation), stage: readStage(), depart: dossier.depart, photos: [...media[mode]], departPhotos: [...media.depart], dirty }, cache);
+      const bytes = await window.InspectionDocument.download({ mode, family, language: reservation.langue === "en" ? "en" : "fr", reference: reservation.contractNumero || reservation.id, summary: summaryEntries(reservation), stage: readStage(), depart: dossier.depart, photos: [...media[mode]], departPhotos: [...media.depart], dirty }, cache);
       try { await archiverPdfInspection(bytes); message("PDF téléchargé, archivé et mis en attente de synchronisation Drive."); }
       catch (archiveError) { message("PDF téléchargé. Archivage Drive à réessayer : " + archiveError.message); }
     } catch (error) { message("PDF non généré : " + error.message); }

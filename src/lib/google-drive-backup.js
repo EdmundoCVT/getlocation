@@ -1,7 +1,7 @@
 // Copie de sauvegarde privée vers Google Drive. KV/R2 restent la source de
 // vérité : aucune écriture métier ne dépend de ce module.
 const { getAccessToken } = require("./google-auth.js");
-const { getReservation, contractVersionInfo } = require("./reservation-store.js");
+const { getReservation, contractVersionInfo, contractLanguage } = require("./reservation-store.js");
 const { recordAuditEvent } = require("./audit-log.js");
 
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
@@ -73,7 +73,7 @@ async function upload(env, reservationId, sourceKey, parentId, name, body, conte
 }
 function safeSnapshot(record) {
   const dossier = record.contractDossier || {};
-  return { id: record.id, contractNumero: record.contractNumero || null, status: record.status, createdAt: record.createdAt, updatedAt: record.updatedAt, vehiculeId: record.vehiculeId || null, immatriculation: record.immat || record.immatriculation || null, conducteur: record.conducteur ? { prenom: record.conducteur.prenom || null, nom: record.conducteur.nom || null } : { prenom: record.prenom || null, nom: record.nom || null }, periodeDebut: record.periodeDebut || record.depart || null, periodeFin: record.periodeFin || record.retour || null, contractVersion: contractVersionInfo(record), contractDossier: { status: dossier.status || "draft", fields: dossier.fields || null, depart: dossier.depart || null, retour: dossier.retour || null, observations: dossier.observations || "", media: dossier.media || { depart: [], retour: [] }, signature: dossier.signature ? { signedAt: dossier.signature.signedAt || null, signatureId: dossier.signature.signatureId || null } : null } };
+  return { id: record.id, contractNumero: record.contractNumero || null, status: record.status, createdAt: record.createdAt, updatedAt: record.updatedAt, contractLanguage: contractLanguage(record), vehiculeId: record.vehiculeId || null, immatriculation: record.immat || record.immatriculation || null, conducteur: record.conducteur ? { prenom: record.conducteur.prenom || null, nom: record.conducteur.nom || null } : { prenom: record.prenom || null, nom: record.nom || null }, periodeDebut: record.periodeDebut || record.depart || null, periodeFin: record.periodeFin || record.retour || null, contractVersion: contractVersionInfo(record), contractDossier: { status: dossier.status || "draft", cglVersion: dossier.cglVersion || null, fields: dossier.fields || null, depart: dossier.depart || null, retour: dossier.retour || null, observations: dossier.observations || "", media: dossier.media || { depart: [], retour: [] }, signature: dossier.signature ? { signedAt: dossier.signature.signedAt || null, signatureId: dossier.signature.signatureId || null } : null } };
 }
 async function enqueueDriveSync(env, reservationId) {
   if (!env || !env.AGENCY_DB || !reservationId) return null;
