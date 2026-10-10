@@ -37,6 +37,16 @@ function formatDateHeureFR(iso, heure) {
   return langueSite() === "en" ? `${base} at ${heure}` : `${base} à ${heure}`;
 }
 
+function libelleDureeEtFacturation(dateDebut, heureDebut, dateFin, heureFin, jours) {
+  const heures = dureeEnHeures(dateDebut, heureDebut, dateFin, heureFin);
+  if (!isFinite(heures) || heures >= 24) return libelleJours(jours);
+  const minutes = Math.round(heures * 60);
+  const texteHeures = minutes % 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60}` : `${minutes / 60} h`;
+  return langueSite() === "en"
+    ? `${texteHeures} — billed as ${libelleJours(jours)}`
+    : `${texteHeures} — facturée comme ${libelleJours(jours)}`;
+}
+
 function readJSON(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -196,10 +206,34 @@ function heureReservationAutorisee(heure) {
   return valeur >= enMinutes(HEURE_OUVERTURE) && valeur <= enMinutes(HEURE_FERMETURE);
 }
 
+// Normalise uniquement les contrôles de date/heure : la règle métier reste
+// celle de dureeEnHeures()/joursFacturablesPourPeriode(). Une location peut
+// donc commencer et finir le même jour, à condition que le retour soit
+// strictement postérieur au départ.
+function corrigerPeriodeFormulaire(inputDebut, selectHeureDebut, inputFin, selectHeureFin) {
+  if (!inputDebut || !selectHeureDebut || !inputFin || !selectHeureFin || !inputDebut.value) return;
+  inputFin.min = inputDebut.value;
+  if (!inputFin.value || inputFin.value < inputDebut.value) inputFin.value = inputDebut.value;
+  if (inputFin.value !== inputDebut.value) return;
+
+  const duree = dureeEnHeures(inputDebut.value, selectHeureDebut.value, inputFin.value, selectHeureFin.value);
+  if (isFinite(duree) && duree > 0) return;
+  const prochain = Array.from(selectHeureFin.options).find((option) => option.value > selectHeureDebut.value);
+  if (prochain) {
+    selectHeureFin.value = prochain.value;
+    return;
+  }
+  // Cas limite : départ au dernier créneau de la journée. Le lendemain est
+  // la seule période positive possible ; on choisit le premier horaire admis.
+  const lendemain = new Date(`${inputDebut.value}T12:00:00`);
+  lendemain.setDate(lendemain.getDate() + 1);
+  inputFin.value = lendemain.toISOString().slice(0, 10);
+  if (selectHeureFin.options.length) selectHeureFin.value = selectHeureFin.options[0].value;
+}
+
 // L'ancienne horloge était une image de fond dessinée à l'intérieur du
-// <select>. Sur Safari iOS, elle partageait la même zone que le texte et le
-// contrôle natif, d'où le chevauchement à 375–430 px. L'icône vit désormais
-// dans un wrapper séparé ; le chevron natif du navigateur garde sa zone.
+// <select>. Elle est volontairement supprimée : Safari iOS garde ainsi une
+// seule zone pour le texte et son chevron natif, sans chevauchement.
 function initTimeSelects() {
   document.querySelectorAll(".datetime-group select").forEach((select) => {
     if (select.parentElement && select.parentElement.classList.contains("time-select-wrap")) return;
@@ -262,7 +296,7 @@ function initDateBar({ getData, onApply }) {
     textEl.textContent = t("{debut} → {fin} ({jours})", {
       debut: formatDateBar(d.dateDebut, d.heureDebut),
       fin: formatDateBar(d.dateFin, d.heureFin),
-      jours: libelleJours(d.jours)
+      jours: libelleDureeEtFacturation(d.dateDebut, d.heureDebut, d.dateFin, d.heureFin, d.jours)
     });
     inputDebut.value = d.dateDebut;
     selectHeureDebut.value = d.heureDebut;
@@ -286,9 +320,11 @@ function initDateBar({ getData, onApply }) {
   });
 
   inputDebut.addEventListener("change", () => {
-    if (inputFin.value < inputDebut.value) inputFin.value = inputDebut.value;
-    inputFin.min = inputDebut.value;
+    corrigerPeriodeFormulaire(inputDebut, selectHeureDebut, inputFin, selectHeureFin);
   });
+  [inputFin, selectHeureDebut, selectHeureFin].forEach((input) => input.addEventListener("change", () => {
+    corrigerPeriodeFormulaire(inputDebut, selectHeureDebut, inputFin, selectHeureFin);
+  }));
 
   applyBtn.addEventListener("click", () => {
     const dateDebut = inputDebut.value;
@@ -475,7 +511,7 @@ function initSearchForm() {
 
   inputDebut.min = todayISO();
   inputDebut.value = todayISO(2);
-  inputFin.min = todayISO(3);
+  inputFin.min = inputDebut.value;
   inputFin.value = todayISO(5);
   if (selectHeureDebut) selectHeureDebut.value = "10:00";
   if (selectHeureFin) selectHeureFin.value = "10:00";
@@ -483,28 +519,14 @@ function initSearchForm() {
     if (select) select.addEventListener("change", () => select.setCustomValidity(""));
   });
 
-  // Si la date/heure de retour tombe avant ou pile sur la date/heure de départ,
-  // on corrige automatiquement pour garantir une durée de location positive.
+  // Si le retour est identique ou antérieur au départ, on conserve la même
+  // date et propose le créneau suivant. Ce n'est que sans créneau restant
+  // dans la journée que le retour passe au lendemain.
   function corrigerFinSiNecessaire() {
-    const duree = dureeEnHeures(inputDebut.value, selectHeureDebut.value, inputFin.value, selectHeureFin.value);
-    if (duree <= 0) {
-      if (inputFin.value === inputDebut.value) {
-        const d = new Date(inputDebut.value);
-        d.setDate(d.getDate() + 1);
-        inputFin.value = d.toISOString().slice(0, 10);
-      } else {
-        selectHeureFin.value = selectHeureDebut.value;
-      }
-    }
+    corrigerPeriodeFormulaire(inputDebut, selectHeureDebut, inputFin, selectHeureFin);
   }
 
   inputDebut.addEventListener("change", () => {
-    const d = new Date(inputDebut.value);
-    d.setDate(d.getDate() + 1);
-    inputFin.min = d.toISOString().slice(0, 10);
-    if (inputFin.value < inputDebut.value) {
-      inputFin.value = inputDebut.value;
-    }
     corrigerFinSiNecessaire();
   });
   inputFin.addEventListener("change", corrigerFinSiNecessaire);
@@ -1321,7 +1343,7 @@ function initReservationPage() {
     routeDiv.textContent = `${libelleLieu(data.lieuPrise, data.adressePrise, data.lieuPriseType)} → ${libelleLieu(data.lieuRetour, data.adresseRetour, data.lieuRetourType)}`;
     const datesDiv = document.createElement("div");
     datesDiv.className = "hint-text";
-    datesDiv.textContent = `${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${libelleJours(data.jours)})`;
+    datesDiv.textContent = `${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${libelleDureeEtFacturation(data.dateDebut, data.heureDebut, data.dateFin, data.heureFin, data.jours)})`;
     infoDiv.append(nameDiv, routeDiv, datesDiv);
     vehicleBlock.appendChild(infoDiv);
     container.appendChild(vehicleBlock);
@@ -2534,7 +2556,7 @@ function renderConfirmationDetails(container, data) {
   routeDiv.textContent = `${libelleLieu(data.lieuPrise, data.adressePrise, data.lieuPriseType) || ""} → ${libelleLieu(data.lieuRetour, data.adresseRetour, data.lieuRetourType) || ""}`;
   const datesDiv = document.createElement("div");
   datesDiv.className = "hint-text";
-  datesDiv.textContent = `${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${libelleJours(data.jours)})`;
+  datesDiv.textContent = `${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)} (${libelleDureeEtFacturation(data.dateDebut, data.heureDebut, data.dateFin, data.heureFin, data.jours)})`;
   infoDiv.append(nameDiv, routeDiv, datesDiv);
   vehicleBlock.appendChild(infoDiv);
   container.appendChild(vehicleBlock);

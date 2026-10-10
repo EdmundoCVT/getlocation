@@ -108,6 +108,13 @@ test("hasOverlappingReservation : détecte un chevauchement sur le même véhicu
   );
 });
 
+test("hasOverlappingReservation : distingue les créneaux horaires du même jour", async () => {
+  const vehiculeId = `veh-same-day-${generateReservationId()}`;
+  await createReservation({ vehiculeId, periodeDebut: "2026-10-10T10:00:00.000Z", periodeFin: "2026-10-10T14:00:00.000Z" });
+  assert.equal(await hasOverlappingReservation(vehiculeId, "2026-10-10T15:00:00.000Z", "2026-10-10T20:00:00.000Z"), false);
+  assert.equal(await hasOverlappingReservation(vehiculeId, "2026-10-10T13:00:00.000Z", "2026-10-10T16:00:00.000Z"), true);
+});
+
 test("hasOverlappingReservation : une réservation annulée ne bloque pas", async () => {
   const vehiculeId = `veh-cancel-${generateReservationId()}`;
   const record = await createReservation({

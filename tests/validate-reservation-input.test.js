@@ -65,6 +65,12 @@ test("rejette une date de fin antérieure ou égale à la date de début", () =>
   assert.ok(errors.some((e) => e.includes("postérieure")));
 });
 
+test("accepte un retour le même jour uniquement s'il est après le départ", () => {
+  const meme = futureDate(30);
+  assert.equal(validateReservationInput(basePayload({ dateDebut: meme, heureDebut: "10:00", dateFin: meme, heureFin: "10:30" })).valid, true);
+  assert.equal(validateReservationInput(basePayload({ dateDebut: meme, heureDebut: "20:00", dateFin: meme, heureFin: "10:00" })).valid, false);
+});
+
 test("rejette des formats de date/heure invalides", () => {
   const { valid, errors } = validateReservationInput(basePayload({ dateDebut: "10/08/2026", heureDebut: "25:99" }));
   assert.equal(valid, false);

@@ -75,7 +75,7 @@ test("GETLOCATION ne propose plus d'agence physique et couvre les principales vi
   }
 });
 
-test("les horaires commencent à 07:00 et l'horloge est séparée du contrôle natif", () => {
+test("les horaires commencent à 07:00 et aucun pictogramme ne chevauche le contrôle natif", () => {
   const window = newWindow();
   const select = window.document.getElementById("heure-debut");
   const valeurs = [...select.options].map((option) => option.value);
@@ -92,8 +92,8 @@ test("le sélecteur d'heure conserve une largeur sûre à 375, 390 et 430 px", (
   const css = fs.readFileSync(path.join(__dirname, "..", "css", "style.css"), "utf8");
   assert.match(css, /grid-template-columns:\s*minmax\(0, 1\.35fr\) minmax\(108px, \.65fr\)/);
   assert.match(css, /@media \(max-width: 380px\)[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) 108px/);
-  assert.match(css, /\.time-select-wrap::before[\s\S]*pointer-events:\s*none/);
-  assert.match(css, /\.time-select-wrap select[\s\S]*padding-inline-start:\s*38px[\s\S]*padding-inline-end:\s*30px/);
+  assert.doesNotMatch(css, /\.time-select-wrap::before/);
+  assert.match(css, /\.time-select-wrap select[\s\S]*min-height:\s*44px[\s\S]*padding-inline-end:\s*34px[\s\S]*-webkit-appearance:\s*menulist/);
 
   [375, 390, 430].forEach((viewport) => {
     const available = viewport - 32;
@@ -101,6 +101,21 @@ test("le sélecteur d'heure conserve une largeur sûre à 375, 390 et 430 px", (
     assert.ok(timeColumn >= 108, `${viewport}px doit réserver au moins 108px à l'heure`);
     assert.ok(available - timeColumn >= 220, `${viewport}px doit garder une date lisible sans scroll horizontal`);
   });
+});
+
+test("le retour peut rester le même jour et passe au créneau suivant si nécessaire", () => {
+  const window = newWindow();
+  const document = window.document;
+  const startDate = "2099-10-10";
+  document.getElementById("date-debut").value = startDate;
+  document.getElementById("heure-debut").value = "10:00";
+  document.getElementById("date-fin").value = startDate;
+  document.getElementById("heure-fin").value = "10:00";
+  document.getElementById("date-debut").dispatchEvent(new window.Event("change", { bubbles: true }));
+
+  assert.equal(document.getElementById("date-fin").min, startDate);
+  assert.equal(document.getElementById("date-fin").value, startDate);
+  assert.equal(document.getElementById("heure-fin").value, "10:30");
 });
 
 test("le lieu de restitution est masqué par défaut, le bouton pour le révéler est visible", () => {

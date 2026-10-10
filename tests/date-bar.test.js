@@ -113,6 +113,24 @@ test("initReservationPage : la barre de dates refuse une date de retour avant le
   assert.equal(persisted.dateFin, "2026-08-12");
 });
 
+test("initReservationPage : la barre accepte une location de quelques heures le même jour", () => {
+  const window = newWindow(
+    `<div id="reservation-summary"></div><form id="driver-form"><input name="nom"><input name="prenom"><input name="email"><input name="telephone"><input name="naissance"><button type="submit">Continuer</button></form>${dateBarHtml()}`,
+    "https://getlocation.fr/reservation.html"
+  );
+  window.localStorage.setItem("gl_reservation", JSON.stringify({ vehiculeId: "opel-corsa", dateDebut: "2026-10-10", heureDebut: "10:00", dateFin: "2026-10-11", heureFin: "10:00", jours: 1, _savedAt: Date.now() }));
+  window.initReservationPage();
+  applyNewDates(window, { dateDebut: "2026-10-10", heureDebut: "10:00", dateFin: "2026-10-10", heureFin: "20:00" });
+
+  const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
+  assert.equal(window.document.getElementById("bar-date-fin").min, "2026-10-10");
+  assert.equal(window.document.getElementById("date-bar-error").textContent, "");
+  assert.match(window.document.getElementById("date-bar-text").textContent, /10 h — facturée comme 1 jour/);
+  assert.equal(persisted.dateFin, "2026-10-10");
+  assert.equal(persisted.heureFin, "20:00");
+  assert.equal(persisted.jours, 1);
+});
+
 test("initPaiementPage : la barre de dates recalcule le total à régler sans revenir en arrière", () => {
   const window = newWindow(
     `<div class="info-banner" id="info-banner"></div>

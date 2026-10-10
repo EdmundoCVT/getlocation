@@ -14,6 +14,14 @@ test("2 — 24 heures et une minute : deux journées facturées", () => {
   const quote = calculerPrixTotal({ ...base, heureFin: "14:01" });
   assert.equal(quote.jours, 2); assert.equal(quote.kmInclus, 400);
 });
+
+test("location de quelques heures : durée réelle positive, un jour facturé et 200 km inclus", () => {
+  const quote = calculerPrixTotal({ ...base, dateFin: base.dateDebut, heureFin: "20:00" });
+  assert.equal(dureeEnHeures(base.dateDebut, base.heureDebut, base.dateDebut, "20:00"), 6);
+  assert.equal(joursFacturablesPourPeriode(base.dateDebut, base.heureDebut, base.dateDebut, "20:00"), 1);
+  assert.equal(quote.jours, 1);
+  assert.equal(quote.kmInclus, 200);
+});
 test("3 — exactement 72 heures : trois journées facturées", () => {
   assert.equal(calculerPrixTotal({ ...base, dateFin: "2026-10-11", heureFin: "14:00" }).jours, 3);
 });

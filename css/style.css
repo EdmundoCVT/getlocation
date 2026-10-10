@@ -849,10 +849,9 @@ textarea:focus-visible,
   outline-offset: 2px;
 }
 
-/* Petits pictogrammes calendrier / horloge dans les champs date et heure,
-   pour un rendu plus moderne. Purement décoratifs (fond CSS), donc pas
-   besoin d'attribut alt/aria : le texte du <label> associé reste la seule
-   information portée pour les lecteurs d'écran. */
+/* Pictogramme calendrier uniquement. Safari iOS dessine déjà le chevron du
+   select : ne pas ajouter d'horloge dans le champ heure, sinon elle empiète
+   sur le texte et le contrôle natif sur les écrans étroits. */
 .datetime-group input[type="date"] {
   background-repeat: no-repeat;
   background-position: 11px center;
@@ -872,25 +871,15 @@ textarea:focus-visible,
   min-width: 0;
 }
 
-.time-select-wrap::before {
-  content: "";
-  position: absolute;
-  z-index: 1;
-  left: 12px;
-  top: 50%;
-  width: 16px;
-  height: 16px;
-  pointer-events: none;
-  transform: translateY(-50%);
-  background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b74' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 3'/%3E%3C/svg%3E");
-}
-
 .time-select-wrap select {
   width: 100%;
   min-width: 0;
-  padding-inline-start: 38px;
-  padding-inline-end: 30px;
+  min-height: 44px;
+  padding-inline-start: 12px;
+  padding-inline-end: 34px;
   background-image: none;
+  appearance: auto;
+  -webkit-appearance: menulist;
 }
 
 /* Bouton "Restituer à un endroit différent" : discret par défaut (lien avec
@@ -3487,8 +3476,7 @@ textarea:focus-visible,
 
 @media (max-width: 380px) {
   .datetime-group { grid-template-columns: minmax(0, 1fr) 108px; gap: 6px; }
-  .time-select-wrap select { padding-inline-start: 35px; padding-inline-end: 24px; }
-  .time-select-wrap::before { left: 10px; }
+  .time-select-wrap select { padding-inline-start: 10px; padding-inline-end: 28px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
