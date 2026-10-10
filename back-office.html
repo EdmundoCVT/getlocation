@@ -8,6 +8,7 @@
 <title>Espace GET LOCATION — GETLOCATION</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="stylesheet" href="css/style.css?v=40">
+<link rel="stylesheet" href="css/backoffice-shell.css?v=1">
 <style>
   /* Écran interne agence (Lot 4) : réutilise les classes partagées
      (.card/.field/.form-grid/.btn/.summary-row/.empty-state/.hint-text/
@@ -449,6 +450,7 @@
 <script src="js/pricing.js?v=1"></script>
 <script src="js/data.js?v=29"></script>
 <script src="js/agency-quote.js?v=1"></script>
+<script src="js/backoffice-shell.js?v=1"></script>
 <script>
 (function(){
 'use strict';
@@ -607,22 +609,25 @@ function showSection(id){
   document.querySelectorAll('[data-internal-view]').forEach(function(button){
     button.classList.toggle('is-active', button.dataset.internalView === id && button.closest('.internal-nav'));
   });
+  if(window.GETLOCATION_BACKOFFICE) window.GETLOCATION_BACKOFFICE.setActive(id);
 }
 
 function setSidebarOpen(open){
   document.getElementById('internalSidebar').classList.toggle('is-open', open);
   document.getElementById('sidebarBackdrop').classList.toggle('is-open', open);
-  document.getElementById('mobileNavToggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+  var toggle=document.getElementById('mobileNavToggle'); if(toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
 function sectionInitiale(){
-  return window.location.hash === '#clients' ? 'searchSection' : 'dashboardSection';
+  var routes={ '#clients':'searchSection','#locations':'searchSection','#planning':'planningSection','#livraisons':'deliveriesSection','#devis':'quoteSection','#edl':'inspectionsSection','#deposits':'depositsSection','#vehicules':'vehiclesSection','#statistiques':'statisticsSection','#parametres':'settingsSection' };
+  return routes[window.location.hash] || 'dashboardSection';
 }
 
 function afficherApresConnexion(operator){
   try { localStorage.setItem('getlocation_internal', '1'); } catch(_){ /* marqueur analytics non bloquant */ }
   document.getElementById('loginView').hidden = true;
   document.getElementById('mainView').hidden = false;
+  if(window.GETLOCATION_BACKOFFICE) window.GETLOCATION_BACKOFFICE.initBackoffice(sectionInitiale());
   initialiserDashboard(operator);
   showSection(sectionInitiale());
   chargerStatistiques(7);
@@ -784,6 +789,7 @@ document.querySelectorAll('[data-internal-view]').forEach(function(button){ butt
 }); });
 document.getElementById('mobileNavToggle').addEventListener('click', function(){ setSidebarOpen(!document.getElementById('internalSidebar').classList.contains('is-open')); });
 document.getElementById('sidebarBackdrop').addEventListener('click', function(){ setSidebarOpen(false); });
+document.addEventListener('getlocation:backoffice-navigate', function(event){ showSection(event.detail.section); setSidebarOpen(false); var hashes={searchSection:'#locations',planningSection:'#planning',deliveriesSection:'#livraisons',quoteSection:'#devis',inspectionsSection:'#edl',depositsSection:'#deposits',vehiclesSection:'#vehicules',statisticsSection:'#statistiques',settingsSection:'#parametres',dashboardSection:'#dashboard'}; history.replaceState(null,'',window.location.pathname+(hashes[event.detail.section]||'')); });
 
 function initSession(){
   apiGet('/api/agency-session').then(function(res){

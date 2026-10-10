@@ -6,6 +6,7 @@
 <meta name="robots" content="noindex, follow">
 <title>Contrat de location — GETLOCATION</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="css/backoffice-shell.css?v=1">
 <style>
   :root{
     /* Charte GETLOCATION : orange + bleu (logo). Noms de variables historiques
@@ -234,14 +235,6 @@
       <div class="info"><span class="details">Connecté : <strong id="agencyUserName"></strong></span></div>
       <div class="actions"><button type="button" class="btn" id="agencyLogoutBtn">Se déconnecter</button></div>
     </div>
-    <nav class="historique-row" aria-label="Navigation de l'espace GET LOCATION" style="margin-bottom:18px;">
-      <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap;">
-        <a class="btn" href="/back-office">Tableau de bord</a>
-        <a class="btn" href="/back-office#clients">Clients &amp; locations</a>
-        <a class="btn btn-primary" href="/contrat?view=list">Contrats</a>
-        <a class="btn" href="/back-office#statistiques">Statistiques</a>
-      </div>
-    </nav>
     <nav class="contract-section-nav" aria-label="Sections des contrats">
       <button type="button" class="contract-section-tab active" id="contractsListTab" aria-controls="existingContractsPanel" aria-selected="true">Contrats existants</button>
       <button type="button" class="contract-section-tab" id="contractsNewTab" aria-controls="newContractPanel" aria-selected="false">+ Nouveau contrat</button>
@@ -903,6 +896,7 @@
 <script src="js/pricing.js?v=1"></script>
 <script src="js/data.js?v=29"></script>
 <script src="js/contrat-en.js?v=4"></script>
+<script src="js/backoffice-shell.js?v=1"></script>
 <script>
 // VEHICULES, formatEUR, joursFacturablesDepuisHeures, getVehiculeParId et
 // getOptionParId viennent de js/data.js (chargé juste avant ce script) —
@@ -4986,6 +4980,7 @@ function afficherFormulaireAgence(){
   document.getElementById('agencyLoginView').classList.add('hidden');
   document.getElementById('ownerView').classList.remove('hidden');
   initOwnerView(prefillEncoded ? decodeData(prefillEncoded) : null);
+  if(window.GETLOCATION_BACKOFFICE) window.GETLOCATION_BACKOFFICE.initContracts();
 }
 
 function afficherEcranConnexion(messageErreur){
