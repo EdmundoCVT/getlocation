@@ -133,6 +133,11 @@
   .historique-groupe{margin-top:14px;font-size:12px;font-weight:700;color:#6b6478;text-transform:uppercase;letter-spacing:.04em;}
   .version-badge{display:inline-block;margin-left:5px;padding:2px 6px;border-radius:999px;background:var(--gris-clair);color:#514a60;font-size:11px;font-weight:700;vertical-align:middle;}
   .version-badge.archive{background:#f0e8e0;color:#765d4b;}
+  .consultation-overlay{position:fixed;inset:0;z-index:1000;background:rgba(24,20,31,.48);display:flex;align-items:flex-end;justify-content:center;padding:12px;}
+  .consultation-sheet{width:min(100%,520px);max-height:calc(100vh - 24px);overflow:auto;background:#fff;border-radius:16px;padding:18px;box-shadow:0 16px 42px rgba(24,20,31,.28);}
+  .consultation-sheet h3{margin:0 0 4px;font-size:16px;}.consultation-sheet p{margin:0 0 14px;color:#6b6478;font-size:13px;}
+  .consultation-sheet .sheet-actions{display:grid;gap:8px;}.consultation-sheet .sheet-actions .btn{width:100%;min-height:45px;text-align:left;}
+  .consultation-note{margin:0 0 10px;padding:9px 10px;border-radius:8px;background:var(--gris-clair);color:#6b6478;font-size:13px;}
   .contract-section-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 18px;}
   .contract-section-tab{min-height:46px;padding:10px 12px;border:1px solid var(--ligne);border-radius:10px;background:var(--blanc);font:inherit;font-size:14px;font-weight:700;color:#6b6478;cursor:pointer;}
   .contract-section-tab.active{background:var(--bleu-ocean);border-color:var(--bleu-ocean);color:#fff;}
@@ -4699,29 +4704,58 @@ function initOwnerView(prefill){
       actions.appendChild(driveDetailsBtn);
 
       function appelerLienAgence(ouvrir){
+        // Un window.open déclenché après le fetch est bloqué par Safari/iOS
+        // et certains navigateurs : réserver l'onglet pendant le geste.
+        var onglet = ouvrir ? window.open('about:blank', '_blank') : null;
+        if(ouvrir && !onglet) return Promise.reject(new Error('L’ouverture du dossier a été bloquée par le navigateur. Autorisez les fenêtres contextuelles puis réessayez.'));
         return fetch('/api/contract-agency-link', {
           method: 'POST', credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json', 'X-Agency-Csrf': agenceCsrfToken || '' },
           body: JSON.stringify({ id: entry.id })
         }).then(function(r){ return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || 'Erreur'); return body; }); })
-          .then(function(body){ if(ouvrir) window.open(body.agencyUrl, '_blank', 'noopener'); else afficherLienDossierAgence(row, body.agencyUrl); return body; });
+          .then(function(body){ if(ouvrir){ try { onglet.opener = null; } catch(e){} onglet.location.replace(body.agencyUrl); } else afficherLienDossierAgence(row, body.agencyUrl); return body; })
+          .catch(function(err){ if(onglet && !onglet.closed) onglet.close(); throw err; });
       }
 
-      function ajouterNouvelleVersion(){
-        var btn = document.createElement('button');
-        btn.type = 'button'; btn.className = 'btn'; btn.textContent = 'Nouvelle version';
-        btn.addEventListener('click', function(){
+      function ouvrirPdf(download){
+        // URL interne protégée par la session agence : aucune clé R2 n'est
+        // exposée. L'ouverture reste synchrone au clic et donc compatible iOS.
+        window.open('/api/agency-contract-pdf?id=' + encodeURIComponent(entry.id) + (download ? '&download=1' : ''), '_blank', 'noopener');
+      }
+
+      function ouvrirConsultation(){
+        var overlay = document.createElement('div'); overlay.className='consultation-overlay'; overlay.setAttribute('role','dialog'); overlay.setAttribute('aria-modal','true'); overlay.setAttribute('aria-label','Consulter le contrat');
+        var sheet = document.createElement('section'); sheet.className='consultation-sheet';
+        var titre = document.createElement('h3'); titre.textContent='Consulter le contrat'; sheet.appendChild(titre);
+        var sousTitre = document.createElement('p'); sousTitre.textContent=(entry.numero || 'Contrat') + ' · V' + ((entry.version && entry.version.version) || 1); sheet.appendChild(sousTitre);
+        var actionsSheet = document.createElement('div'); actionsSheet.className='sheet-actions'; sheet.appendChild(actionsSheet);
+        function ajouterAction(label, fn, primaire){ var b=document.createElement('button'); b.type='button'; b.className='btn' + (primaire ? ' btn-primary' : ''); b.textContent=label; b.addEventListener('click', function(){ overlay.remove(); fn(); }); actionsSheet.appendChild(b); }
+        var pdf = entry.pdf || {};
+        if(pdf.available){
+          ajouterAction(pdf.signed ? 'Voir le PDF signé' : 'Voir le PDF', function(){ ouvrirPdf(false); }, true);
+          ajouterAction(pdf.signed ? 'Télécharger le PDF signé' : 'Télécharger le PDF', function(){ ouvrirPdf(true); });
+        } else {
+          var note=document.createElement('p'); note.className='consultation-note'; note.textContent=estSigne ? 'PDF signé historique non archivé' : 'PDF non archivé'; sheet.insertBefore(note, actionsSheet);
+        }
+        if(entry.origine === 'manuel' && !estSigne){
+          ajouterAction('Modifier le contrat', function(){ remplirFormulaire(entry.rawData, true); entrerModeEdition(entry.id, entry.numero); mettreAJourLienCourt(entry.id, entry.rawData); });
+          ajouterAction('Dupliquer', function(){ sortirModeEdition(); remplirFormulaire(entry.rawData, false); });
+        }
+        ajouterAction('Ouvrir le dossier', function(){ appelerLienAgence(true).catch(function(err){ alert(err.message || "Le dossier n'a pas pu être ouvert."); }); });
+        if(entry.origine === 'reservation') ajouterAction('Renvoyer le lien agence', function(){ appelerLienAgence(false).catch(function(err){ alert(err.message || "Le lien n'a pas pu être généré."); }); });
+        if(estSigne) ajouterAction('Nouvelle version', function(){
           if(!confirm('Créer une nouvelle version modifiable de ce contrat signé ? La version actuelle restera archivée et consultable.')) return;
-          btn.disabled = true; btn.textContent = 'Création…';
+          var onglet = window.open('about:blank', '_blank');
+          if(!onglet){ alert('L’ouverture du nouveau dossier a été bloquée par le navigateur. Autorisez les fenêtres contextuelles puis réessayez.'); return; }
           fetch('/api/contracts-version', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken || ''}, body:JSON.stringify({id:entry.id}) })
             .then(function(r){ return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || 'Erreur'); return body; }); })
             .then(function(version){ return fetch('/api/contract-agency-link', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken || ''}, body:JSON.stringify({id:version.id}) }); })
             .then(function(r){ return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || 'Erreur'); return body; }); })
-            .then(function(body){ window.open(body.agencyUrl, '_blank', 'noopener'); chargerHistorique(); })
-            .catch(function(err){ alert(err.message || 'La nouvelle version n’a pas pu être créée.'); })
-            .finally(function(){ btn.disabled=false; btn.textContent='Nouvelle version'; });
+            .then(function(body){ try { onglet.opener=null; } catch(e){} onglet.location.replace(body.agencyUrl); chargerHistorique(); })
+            .catch(function(err){ if(!onglet.closed) onglet.close(); alert(err.message || 'La nouvelle version n’a pas pu être créée.'); });
         });
-        actions.appendChild(btn);
+        ajouterAction('Fermer', function(){}, false);
+        overlay.addEventListener('click', function(e){ if(e.target===overlay) overlay.remove(); }); overlay.appendChild(sheet); document.body.appendChild(overlay);
       }
 
       // Les contrats issus d'une réservation en ligne vivent dans le
@@ -4734,51 +4768,10 @@ function initOwnerView(prefill){
       // transmettre directement à Antonio le lien du dossier afin qu'il
       // complète l'état des lieux de retour depuis son téléphone.
       var estSigne = entry.version && (entry.version.status === 'signed' || entry.version.status === 'archived');
-      if(entry.origine === 'manuel' && !estSigne){
-        var ouvrirBtn = document.createElement('button');
-        ouvrirBtn.type = 'button'; ouvrirBtn.className = 'btn'; ouvrirBtn.textContent = 'Ouvrir';
-        ouvrirBtn.addEventListener('click', function(){
-          remplirFormulaire(entry.rawData, true);
-          entrerModeEdition(entry.id, entry.numero);
-          // Un lien court existe déjà pour ce contrat (émis lors de sa
-          // dernière génération) : le réémettre ici permet de le partager
-          // par WhatsApp/SMS tout de suite, sans attendre un nouveau clic
-          // sur "Mettre à jour le contrat" si rien n'a encore changé.
-          mettreAJourLienCourt(entry.id, entry.rawData);
-        });
-
-        var dupliquerBtn = document.createElement('button');
-        dupliquerBtn.type = 'button'; dupliquerBtn.className = 'btn'; dupliquerBtn.textContent = 'Dupliquer';
-        dupliquerBtn.addEventListener('click', function(){
-          sortirModeEdition();
-          remplirFormulaire(entry.rawData, false);
-        });
-
-        actions.appendChild(ouvrirBtn);
-        actions.appendChild(dupliquerBtn);
-      } else {
-        var ouvrirBtn = document.createElement('button');
-        ouvrirBtn.type = 'button'; ouvrirBtn.className = 'btn'; ouvrirBtn.textContent = 'Voir';
-        ouvrirBtn.addEventListener('click', function(){
-          ouvrirBtn.disabled = true; appelerLienAgence(true).catch(function(err){ alert(err.message || "Le contrat n'a pas pu être ouvert."); }).finally(function(){ ouvrirBtn.disabled = false; });
-        });
-        actions.appendChild(ouvrirBtn);
-      }
-      if(entry.origine === 'reservation'){
-        var lienBtn = document.createElement('button');
-        lienBtn.type = 'button'; lienBtn.className = 'btn'; lienBtn.textContent = 'Renvoyer le lien';
-        lienBtn.addEventListener('click', function(){
-          var texteInitial = lienBtn.textContent;
-          lienBtn.disabled = true; lienBtn.textContent = 'Génération…';
-          appelerLienAgence(false).catch(function(err){
-            alert(err.message || "Le lien n'a pas pu être généré.");
-          }).finally(function(){
-            lienBtn.disabled = false; lienBtn.textContent = texteInitial;
-          });
-        });
-        actions.appendChild(lienBtn);
-      }
-      if(estSigne) ajouterNouvelleVersion();
+      var consulterBtn = document.createElement('button');
+      consulterBtn.type='button'; consulterBtn.className='btn'; consulterBtn.textContent='Consulter';
+      consulterBtn.addEventListener('click', ouvrirConsultation);
+      actions.appendChild(consulterBtn);
       conteneur.appendChild(row);
     });
   }

@@ -22,6 +22,7 @@ const { handleContractsHistory } = require("./api/contracts-history.js");
 const { handleContractsVersion } = require("./api/contracts-version.js");
 const { handleAgencyDriveBackup } = require("./api/agency-drive-backup.js");
 const { handleAgencyDrivePdf } = require("./api/agency-drive-pdf.js");
+const { handleAgencyContractPdf } = require("./api/agency-contract-pdf.js");
 const { handleAgencyLogin } = require("./api/agency-login.js");
 const { handleAgencyLogout } = require("./api/agency-logout.js");
 const { handleAgencySession } = require("./api/agency-session.js");
@@ -63,6 +64,7 @@ const ROUTES = {
   "/api/contracts-version": handleContractsVersion,
   "/api/agency-drive-backup": handleAgencyDriveBackup,
   "/api/agency-drive-pdf": handleAgencyDrivePdf,
+  "/api/agency-contract-pdf": handleAgencyContractPdf,
   "/api/agency-login": handleAgencyLogin,
   "/api/agency-logout": handleAgencyLogout,
   "/api/agency-session": handleAgencySession,

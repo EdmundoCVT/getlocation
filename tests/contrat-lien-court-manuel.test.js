@@ -55,8 +55,8 @@ test("genererContratBtn : appelle mettreAJourLienCourt() après chaque générat
   assert.match(html, /mettreAJourLienCourt\(result\.id, rawData\);/);
 });
 
-test("historique 'Ouvrir' : réémet aussi le lien court pour un contrat manuel déjà généré", () => {
-  assert.match(html, /entrerModeEdition\(entry\.id, entry\.numero\);\s*\n(?:[^\n]*\n){0,4}[^\n]*mettreAJourLienCourt\(entry\.id, entry\.rawData\);/);
+test("historique 'Modifier le contrat' : réémet aussi le lien court pour un contrat manuel déjà généré", () => {
+  assert.match(html, /ajouterAction\('Modifier le contrat',[\s\S]{0,300}entrerModeEdition\(entry\.id, entry\.numero\);[\s\S]{0,160}mettreAJourLienCourt\(entry\.id, entry\.rawData\);/);
 });
 
 test("#manualToken= (fragment, jamais un paramètre de requête) déclenche initManualClientView, comme #agencyToken=/#clientToken=", () => {

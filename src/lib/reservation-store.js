@@ -456,8 +456,12 @@ async function listContractsHistory(env, limit = 30) {
 
   return avecNumero.slice(0, limit).map((r) => {
     const version = contractVersionInfo(r);
+    // Métadonnée de consultation seulement : jamais de clé R2 dans la liste
+    // navigateur. La route agence-contract-pdf relit et autorise le fichier.
+    const pdfKind = r.contractDossier && r.contractDossier.status === "signed" ? "contract-signed" : "contract-draft";
+    const pdf = { available: Array.isArray(r.drivePdfFiles) && r.drivePdfFiles.some((file) => file && file.sourceKey === `${pdfKind}-v${version.version}` && file.key), signed: pdfKind === "contract-signed" };
     if (r.status === "manual_contract" || r.contractSourceType === "manual") {
-      return { id: r.id, numero: r.contractNumero, origine: "manuel", createdAt: r.createdAt, rawData: r, version };
+      return { id: r.id, numero: r.contractNumero, origine: "manuel", createdAt: r.createdAt, rawData: r, version, pdf };
     }
     return {
       id: r.id,
@@ -471,7 +475,7 @@ async function listContractsHistory(env, limit = 30) {
         depart: r.periodeDebut || (r.dateDebut && r.heureDebut ? `${r.dateDebut}T${r.heureDebut}` : ""),
         statut: r.status,
         immatriculation: r.immatriculation || ""
-      }, version
+      }, version, pdf
     };
   });
 }
