@@ -95,9 +95,26 @@ function jobsForRecord(record) {
   for (const item of Array.isArray(record.drivePdfFiles) ? record.drivePdfFiles : []) if (item && item.key) jobs.push({ sourceKey: item.sourceKey, jobType: "r2", sourceR2Key: item.key, targetFolder: item.kind && item.kind.indexOf("edl-") === 0 ? "inspections" : "contracts", filename: `${safePart(record.contractNumero || record.id)}-V${item.version}-${item.kind === "contract-signed" ? "SIGNE" : item.kind === "contract-draft" ? "BROUILLON" : item.kind === "edl-depart" ? "EDL-DEPART" : "EDL-RETOUR"}.pdf`, contentType: "application/pdf", immutable: item.immutable ? 1 : 0 });
   return jobs;
 }
-async function prepareDriveJobs(env, record) {
+function driveJobsManifest(jobs) {
+  // Empreinte déterministe, uniquement destinée à éviter les UPSERT D1
+  // inutiles. Elle n'est ni une signature ni une donnée exposée à l'API.
+  const source = jobs.map((job) => [job.sourceKey, job.jobType, job.sourceR2Key || "", job.targetFolder, job.filename, job.contentType, job.immutable].join("\u001f")).sort().join("\u001e");
+  let hash = 2166136261;
+  for (let index = 0; index < source.length; index += 1) hash = Math.imul(hash ^ source.charCodeAt(index), 16777619);
+  return `v1-${(hash >>> 0).toString(16)}-${jobs.length}`;
+}
+function takeDriveJobs(rows, limit = DRIVE_BATCH_SIZE) {
+  return (rows || []).filter((job) => job.status === "pending" || job.status === "error").slice(0, limit);
+}
+async function prepareDriveJobs(env, record, outbox) {
+  const jobs = jobsForRecord(record);
+  const manifest = driveJobsManifest(jobs);
+  if (outbox && outbox.drive_jobs_manifest === manifest) return { prepared: false, jobs };
   const now = new Date().toISOString();
-  for (const job of jobsForRecord(record)) await env.AGENCY_DB.prepare("INSERT INTO drive_sync_jobs (reservation_id,source_key,job_type,source_r2_key,target_folder,filename,content_type,immutable,status,attempt_count,created_at,updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?) ON CONFLICT(reservation_id,source_key) DO UPDATE SET job_type=excluded.job_type, source_r2_key=excluded.source_r2_key, target_folder=excluded.target_folder, filename=excluded.filename, content_type=excluded.content_type, immutable=excluded.immutable, updated_at=excluded.updated_at").bind(record.id, job.sourceKey, job.jobType, job.sourceR2Key || null, job.targetFolder, job.filename, job.contentType, job.immutable, now, now).run();
+  const statements = jobs.map((job) => env.AGENCY_DB.prepare("INSERT INTO drive_sync_jobs (reservation_id,source_key,job_type,source_r2_key,target_folder,filename,content_type,immutable,status,attempt_count,created_at,updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?) ON CONFLICT(reservation_id,source_key) DO UPDATE SET job_type=excluded.job_type, source_r2_key=excluded.source_r2_key, target_folder=excluded.target_folder, filename=excluded.filename, content_type=excluded.content_type, immutable=excluded.immutable, updated_at=excluded.updated_at").bind(record.id, job.sourceKey, job.jobType, job.sourceR2Key || null, job.targetFolder, job.filename, job.contentType, job.immutable, now, now));
+  statements.push(env.AGENCY_DB.prepare("UPDATE drive_sync_outbox SET drive_jobs_manifest=?, updated_at=? WHERE reservation_id=?").bind(manifest, now, record.id));
+  await env.AGENCY_DB.batch(statements);
+  return { prepared: true, jobs };
 }
 async function progress(env, reservationId) {
   const rows = await env.AGENCY_DB.prepare("SELECT status, COUNT(*) AS count FROM drive_sync_jobs WHERE reservation_id = ? GROUP BY status").bind(reservationId).all();
@@ -119,13 +136,28 @@ function driveSyncDiagnostic(row, files, jobError = null) {
     // Une erreur de job précise est plus utile que le compteur conservé dans
     // l'outbox. Aucun détail d'authentification n'est stocké ni renvoyé.
     lastError: jobError || row.last_error || null,
-    syncedAt: row.synced_at || null
+    syncedAt: row.synced_at || null,
+    lastRun: parseLastRun(row.drive_last_run_json)
   };
+}
+function parseLastRun(value) {
+  try {
+    const run = JSON.parse(value || "null");
+    if (!run || typeof run !== "object") return null;
+    return {
+      stage: typeof run.stage === "string" ? run.stage.slice(0, 40) : null,
+      pendingBefore: Number(run.pendingBefore) || 0,
+      selected: Number(run.selected) || 0,
+      attempted: Number(run.attempted) || 0,
+      syncedThisRun: Number(run.syncedThisRun) || 0,
+      failedThisRun: Number(run.failedThisRun) || 0
+    };
+  } catch (e) { return null; }
 }
 async function ensureFolderStep(env, record, outbox, accessToken) {
   const ids = JSON.parse(outbox.drive_folders_json || "{}");
   const path = [["clients", env.GOOGLE_DRIVE_ROOT_FOLDER_ID, "DOSSIERS CLIENTS"], ["year", "clients", String(new Date(record.createdAt || Date.now()).getFullYear())], ["month", "year", `${String(new Date(record.createdAt || Date.now()).getMonth() + 1).padStart(2, "0")} - ${new Date(record.createdAt || Date.now()).toLocaleDateString("fr-FR", { month: "long" }).replace(/^./, (x) => x.toUpperCase())}`], ["root", "month", `${safePart(record.contractNumero || record.id)} - ${safePart(`${(record.conducteur || record).nom || ""} ${(record.conducteur || record).prenom || ""}`)}`], ["contracts", "root", "01 - Contrats"], ["inspections", "root", "02 - États des lieux"], ["documents", "root", "03 - Documents client"], ["deposit", "root", "04 - Dépôt de garantie"]];
-  for (const [key, parent, name] of path) if (!ids[key]) { const now = new Date().toISOString(); ids[key] = await folder(env, parent === env.GOOGLE_DRIVE_ROOT_FOLDER_ID ? parent : ids[parent], name, accessToken); await env.AGENCY_DB.prepare("UPDATE drive_sync_outbox SET status='processing', drive_folders_json=?, last_attempt_at=?, last_error=NULL, updated_at=? WHERE reservation_id=?").bind(JSON.stringify(ids), now, now, record.id).run(); return null; }
+  for (const [key, parent, name] of path) if (!ids[key]) { const now = new Date().toISOString(); ids[key] = await folder(env, parent === env.GOOGLE_DRIVE_ROOT_FOLDER_ID ? parent : ids[parent], name, accessToken); await env.AGENCY_DB.prepare("UPDATE drive_sync_outbox SET status='processing', drive_folders_json=?, last_attempt_at=?, last_error=NULL, drive_last_run_json=?, updated_at=? WHERE reservation_id=?").bind(JSON.stringify(ids), now, JSON.stringify({ stage: "folders", pendingBefore: 0, selected: 0, attempted: 0, syncedThisRun: 0, failedThisRun: 0 }), now, record.id).run(); return null; }
   return ids;
 }
 async function syncDriveBackup(env, reservationId, actor = null) {
@@ -148,33 +180,41 @@ async function syncDriveBackup(env, reservationId, actor = null) {
     const accessToken = await getAccessToken(env, DRIVE_SCOPE);
     const record = await getReservation(env, reservationId);
     if (!record) throw new DriveBackupError("Dossier introuvable");
-    await prepareDriveJobs(env, record);
     const outbox = await env.AGENCY_DB.prepare("SELECT * FROM drive_sync_outbox WHERE reservation_id=?").bind(record.id).first();
+    await prepareDriveJobs(env, record, outbox || {});
     const folders = await ensureFolderStep(env, record, outbox || {}, accessToken);
     if (!folders) return { ok: true, status: "processing", ...(await progress(env, record.id)) };
+    const before = await progress(env, record.id);
     const pending = await env.AGENCY_DB.prepare("SELECT * FROM drive_sync_jobs WHERE reservation_id=? AND status IN ('pending','error') ORDER BY updated_at ASC LIMIT ?").bind(record.id, DRIVE_BATCH_SIZE).all();
-    for (const job of pending.results || []) {
+    const selected = takeDriveJobs(pending.results);
+    let attempted = 0, syncedThisRun = 0, failedThisRun = 0;
+    const jobUpdates = [];
+    for (const job of selected) {
+      attempted += 1;
       try {
-        await env.AGENCY_DB.prepare("UPDATE drive_sync_jobs SET status='processing', updated_at=? WHERE reservation_id=? AND source_key=?").bind(now, record.id, job.source_key).run();
         const body = job.job_type === "snapshot" ? JSON.stringify(safeSnapshot(record), null, 2) : new Uint8Array(await (await env.DOCUMENTS_BUCKET.get(job.source_r2_key)).arrayBuffer());
         await upload(env, record.id, job.source_key, folders[job.target_folder], job.filename, body, job.content_type, Boolean(job.immutable), accessToken);
-        await env.AGENCY_DB.prepare("UPDATE drive_sync_jobs SET status='synced', attempt_count=attempt_count+1, last_error=NULL, synced_at=?, updated_at=? WHERE reservation_id=? AND source_key=?").bind(now, now, record.id, job.source_key).run();
-      } catch (jobError) { await env.AGENCY_DB.prepare("UPDATE drive_sync_jobs SET status='error', attempt_count=attempt_count+1, last_error=?, updated_at=? WHERE reservation_id=? AND source_key=?").bind(String(jobError.message || "Erreur Drive").slice(0, 500), now, record.id, job.source_key).run(); }
+        syncedThisRun += 1;
+        jobUpdates.push(env.AGENCY_DB.prepare("UPDATE drive_sync_jobs SET status='synced', attempt_count=attempt_count+1, last_error=NULL, synced_at=?, updated_at=? WHERE reservation_id=? AND source_key=?").bind(now, now, record.id, job.source_key));
+      } catch (jobError) { failedThisRun += 1; jobUpdates.push(env.AGENCY_DB.prepare("UPDATE drive_sync_jobs SET status='error', attempt_count=attempt_count+1, last_error=?, updated_at=? WHERE reservation_id=? AND source_key=?").bind(String(jobError.message || "Erreur Drive").slice(0, 500), now, record.id, job.source_key)); }
     }
+    if (jobUpdates.length) await env.AGENCY_DB.batch(jobUpdates);
     const state = await progress(env, record.id);
     const status = state.pending || state.processing ? "processing" : state.error ? "error" : "synced";
-    await env.AGENCY_DB.prepare("UPDATE drive_sync_outbox SET status=?, drive_folder_id=?, attempt_count=attempt_count+1, last_attempt_at=?, last_error=?, synced_at=?, updated_at=? WHERE reservation_id=?").bind(status, folders.root, now, state.error ? `${state.error} élément(s) en erreur` : null, status === "synced" ? now : null, now, record.id).run();
-    return { ok: status !== "error", folderId: folders.root, status, ...state };
+    const run = { stage: "files", pendingBefore: before.pending + before.error, selected: selected.length, attempted, syncedThisRun, failedThisRun };
+    await env.AGENCY_DB.prepare("UPDATE drive_sync_outbox SET status=?, drive_folder_id=?, attempt_count=attempt_count+1, last_attempt_at=?, last_error=?, drive_last_run_json=?, synced_at=?, updated_at=? WHERE reservation_id=?").bind(status, folders.root, now, state.error ? `${state.error} élément(s) en erreur` : null, JSON.stringify(run), status === "synced" ? now : null, now, record.id).run();
+    return { ok: status !== "error", folderId: folders.root, status, ...state, lastRun: run };
   } catch (err) {
     const reason = (err && err.message) || "Erreur Google Drive";
-    await env.AGENCY_DB.prepare("UPDATE drive_sync_outbox SET status='error', attempt_count=attempt_count+1, last_attempt_at=?, last_error=?, updated_at=? WHERE reservation_id=?").bind(now, reason.slice(0, 500), now, reservationId).run().catch(() => undefined);
+    const run = JSON.stringify({ stage: "global-error", pendingBefore: 0, selected: 0, attempted: 0, syncedThisRun: 0, failedThisRun: 0 });
+    await env.AGENCY_DB.prepare("UPDATE drive_sync_outbox SET status='error', attempt_count=attempt_count+1, last_attempt_at=?, last_error=?, drive_last_run_json=?, updated_at=? WHERE reservation_id=?").bind(now, reason.slice(0, 500), run, now, reservationId).run().catch(() => undefined);
     await recordAuditEvent(env, { actor, eventType: "drive_backup_failed", entityType: "contract", entityId: reservationId, metadata: { error: reason.slice(0, 180) } });
     return { ok: false, reason };
   }
 }
 async function getDriveSyncStatus(env, reservationId) {
   if (!env || !env.AGENCY_DB) return null;
-  const row = await env.AGENCY_DB.prepare("SELECT status, drive_folders_json, last_attempt_at, last_error, synced_at FROM drive_sync_outbox WHERE reservation_id=?").bind(reservationId).first();
+  const row = await env.AGENCY_DB.prepare("SELECT status, drive_folders_json, drive_last_run_json, last_attempt_at, last_error, synced_at FROM drive_sync_outbox WHERE reservation_id=?").bind(reservationId).first();
   if (!row) return null;
   const files = await progress(env, reservationId);
   const latest = await env.AGENCY_DB.prepare("SELECT last_error FROM drive_sync_jobs WHERE reservation_id=? AND status='error' AND last_error IS NOT NULL ORDER BY updated_at DESC LIMIT 1").bind(reservationId).first();
@@ -183,4 +223,4 @@ async function getDriveSyncStatus(env, reservationId) {
 // Le cron ne traite qu'un dossier par invocation : 3 opérations Drive au
 // maximum (ou une étape de dossier), jamais une boucle non bornée.
 async function retryPendingDriveSyncs(env) { if (!env || !env.AGENCY_DB) return; const rows = await env.AGENCY_DB.prepare("SELECT reservation_id FROM drive_sync_outbox WHERE status IN ('pending','processing','error') ORDER BY updated_at ASC LIMIT 1").all(); for (const row of rows.results || []) await syncDriveBackup(env, row.reservation_id, null); }
-module.exports = { driveConfigured, driveConfigurationChecks, enqueueDriveSync, syncDriveBackup, getDriveSyncStatus, retryPendingDriveSyncs, safeSnapshot, sharedDriveUrl, driveSyncDiagnostic };
+module.exports = { driveConfigured, driveConfigurationChecks, enqueueDriveSync, syncDriveBackup, getDriveSyncStatus, retryPendingDriveSyncs, safeSnapshot, sharedDriveUrl, driveSyncDiagnostic, driveJobsManifest, jobsForRecord, takeDriveJobs };

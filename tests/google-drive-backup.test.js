@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { safeSnapshot, driveConfigured, driveConfigurationChecks, sharedDriveUrl, syncDriveBackup, driveSyncDiagnostic } = require("../src/lib/google-drive-backup.js");
+const { safeSnapshot, driveConfigured, driveConfigurationChecks, sharedDriveUrl, syncDriveBackup, driveSyncDiagnostic, driveJobsManifest, takeDriveJobs } = require("../src/lib/google-drive-backup.js");
 
 test("sauvegarde Drive : le snapshot exclut les accès et données carte", () => {
   const snapshot = safeSnapshot({ id: "res_" + "a".repeat(32), contractNumero: "GL-20261009-0001", status: "paid", createdAt: "2026-10-09T10:00:00Z", conducteur: { prenom: "Amir", nom: "Fatkullin", cardNumber: "4111111111111111" }, contractAgencyAccess: { tokenHash: "secret" }, contractDossier: { status: "signed", signature: { imageDataUrl: "data:image/png;base64,x", signedAt: "2026-10-09" } } });
@@ -55,6 +55,20 @@ test("sauvegarde Drive : le diagnostic sépare dossiers, fichiers et erreur actu
 test("sauvegarde Drive : un progrès de dossier efface l'erreur précédente", () => {
   const source = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "src", "lib", "google-drive-backup.js"), "utf8");
   assert.match(source, /last_attempt_at=\?, last_error=NULL/);
+});
+
+test("sauvegarde Drive : 12 jobs reprennent par lots sans remettre les synchronisés en attente", () => {
+  const jobs = Array.from({ length: 12 }, (_, index) => ({ sourceKey: `file-${index}`, status: "pending" }));
+  const manifest = driveJobsManifest(jobs.map((job) => ({ ...job, jobType: "r2", sourceR2Key: job.sourceKey, targetFolder: "documents", filename: job.sourceKey, contentType: "image/jpeg", immutable: 0 })));
+  const progress = [];
+  for (let invocation = 0; invocation < 4; invocation += 1) {
+    const selected = takeDriveJobs(jobs);
+    assert.equal(selected.length, 3);
+    selected.forEach((job) => { job.status = "synced"; });
+    progress.push({ synced: jobs.filter((job) => job.status === "synced").length, pending: jobs.filter((job) => job.status === "pending").length });
+    assert.equal(driveJobsManifest(jobs.map((job) => ({ ...job, jobType: "r2", sourceR2Key: job.sourceKey, targetFolder: "documents", filename: job.sourceKey, contentType: "image/jpeg", immutable: 0 }))), manifest);
+  }
+  assert.deepEqual(progress, [{ synced: 3, pending: 9 }, { synced: 6, pending: 6 }, { synced: 9, pending: 3 }, { synced: 12, pending: 0 }]);
 });
 
 test("sauvegarde Drive : une configuration manquante transforme l'outbox en erreur", async () => {

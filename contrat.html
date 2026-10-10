@@ -4556,6 +4556,7 @@ function initOwnerView(prefill){
           'En erreur : ' + (files.error || 0),
           'Dernière tentative : ' + formatDateDrive(sync.lastAttemptAt)
         ];
+        if(sync.lastRun) lines.push('Dernier passage : ' + (sync.lastRun.selected || 0) + ' sélectionné(s), ' + (sync.lastRun.syncedThisRun || 0) + ' synchronisé(s)');
         if(sync.lastError) lines.push('Dernière erreur : ' + String(sync.lastError).slice(0, 160));
         driveDiagnostic.textContent = lines.join(' · ');
       }
