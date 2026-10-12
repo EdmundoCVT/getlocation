@@ -83,18 +83,19 @@
       }
       block(T("Dommages"),rows.length?rows.map(({mark,status},i)=>{
         const type=global.InspectionSketch.TYPES.find(t=>t.id===mark.type);
-        return (i+1)+". "+status+" - "+(type?type.label:mark.type)+" - "+global.InspectionSketch.labelFor(mark.surface||mark.view)+" : "+(mark.description||T("Sans description"));
+        const zone=mark.surface&&mark.view?mark.surface+":"+mark.view:(mark.surface||mark.view);
+        return (i+1)+". "+status+" - "+(type?type.label:mark.type)+" - "+global.InspectionSketch.labelFor(zone)+" : "+(mark.description||T("Sans description"));
       }):[T("Aucun dommage renseigne.")]);
       block(T("Remarques"),[stage.dommages||T("Aucune remarque.")]);
       async function sketch(title,value) {
         const utility = value.sketchVehicleType === "utility", surfaces = utility ? global.InspectionSketch.UTILITY_SURFACES : global.InspectionSketch.VIEWS;
         if (utility) {
-          for (const surface of surfaces) {
-            const {page}=make(title+" — "+surface.label), response=await fetch(surface.asset); if(!response.ok) throw new Error("Schéma utilitaire indisponible.");
-            // Une page dédiée par surface, avec des marges plus étroites que
-            // les vignettes voiture : aucun petit croquis isolé au milieu.
+          const utilityMarks=value.utilityMarks||[], legacy=value.utilitySketchVersion!=="views-v1"&&utilityMarks.length&&utilityMarks.every(mark=>!mark.view), utilityViews=legacy?global.InspectionSketch.LEGACY_UTILITY_SURFACES:surfaces;
+          for (const surface of utilityViews) {
+            const group=legacy?surface.label:(surface.surface==="utility-exterior"?"EXTÉRIEUR":"INTÉRIEUR");
+            const {page}=make(title+" — "+group+" — "+surface.label), response=await fetch(surface.asset); if(!response.ok) throw new Error("Schéma utilitaire indisponible.");
             const source=await pdf.embedPng(await response.arrayBuffer()), box=fit(source,22,105,W-44,600); page.drawImage(source,box);
-            (value.utilityMarks||[]).forEach((mark,index)=>{ if(mark.surface!==surface.key)return; const mx=box.x+Math.min(100,Math.max(0,Number(mark.x)||0))/100*box.width,my=box.y+(1-Math.min(100,Math.max(0,Number(mark.y)||0))/100)*box.height; page.drawCircle({x:mx,y:my,size:10,color:orange,borderColor:rgb(1,1,1),borderWidth:1});const number=String(index+1);page.drawText(number,{x:mx-bold.widthOfTextAtSize(number,8)/2,y:my-3,font:bold,size:8,color:rgb(1,1,1)}); });
+            utilityMarks.forEach((mark,index)=>{ if(legacy ? mark.surface!==surface.key : mark.surface!==surface.surface||mark.view!==surface.view)return; const mx=box.x+Math.min(100,Math.max(0,Number(mark.x)||0))/100*box.width,my=box.y+(1-Math.min(100,Math.max(0,Number(mark.y)||0))/100)*box.height; page.drawCircle({x:mx,y:my,size:10,color:orange,borderColor:rgb(1,1,1),borderWidth:1});const number=String(index+1);page.drawText(number,{x:mx-bold.widthOfTextAtSize(number,8)/2,y:my-3,font:bold,size:8,color:rgb(1,1,1)}); });
             write(page,regular,"Reperes numerotes correspondant a la liste des dommages.",M,70,8,muted);
           }
           return;

@@ -12,20 +12,35 @@
     { key: "rear", label: "Arrière", asset: "/images/inspection/vehicle-rear.png" },
     { key: "top", label: "Dessus", asset: "/images/inspection/vehicle-top.png" }
   ];
+  // Le premier format utilitaire utilisait deux montages. Il est conservé
+  // pour lire les dossiers déjà créés ; les nouveaux repères sont placés sur
+  // les dix vues découpées, chacune avec son propre référentiel x/y.
+  var LEGACY_UTILITY_SURFACES = [
+    { key: "utility-exterior", label: "Extérieur (ancien schéma)", asset: "/images/inspection/utility-exterior.png" },
+    { key: "utility-interior", label: "Intérieur (ancien schéma)", asset: "/images/inspection/utility-interior.png" }
+  ];
   var UTILITY_SURFACES = [
-    { key: "utility-exterior", label: "Extérieur", asset: "/images/inspection/utility-exterior.png" },
-    { key: "utility-interior", label: "Intérieur", asset: "/images/inspection/utility-interior.png" }
+    { key:"utility-exterior:left", surface:"utility-exterior", view:"left", label:"Profil conducteur", asset:"/images/inspection/utility-left.png" },
+    { key:"utility-exterior:front", surface:"utility-exterior", view:"front", label:"Avant", asset:"/images/inspection/utility-front.png" },
+    { key:"utility-exterior:top", surface:"utility-exterior", view:"top", label:"Dessus", asset:"/images/inspection/utility-top.png" },
+    { key:"utility-exterior:rear", surface:"utility-exterior", view:"rear", label:"Arrière", asset:"/images/inspection/utility-rear.png" },
+    { key:"utility-exterior:right", surface:"utility-exterior", view:"right", label:"Profil passager", asset:"/images/inspection/utility-right.png" },
+    { key:"utility-interior:floor", surface:"utility-interior", view:"floor", label:"Plancher", asset:"/images/inspection/utility-floor.png" },
+    { key:"utility-interior:cabin-partition", surface:"utility-interior", view:"cabin-partition", label:"Cloison cabine", asset:"/images/inspection/utility-cabin-partition.png" },
+    { key:"utility-interior:left-wall", surface:"utility-interior", view:"left-wall", label:"Paroi gauche", asset:"/images/inspection/utility-left-wall.png" },
+    { key:"utility-interior:right-wall", surface:"utility-interior", view:"right-wall", label:"Paroi droite", asset:"/images/inspection/utility-right-wall.png" },
+    { key:"utility-interior:rear-doors", surface:"utility-interior", view:"rear-doors", label:"Portes arrière", asset:"/images/inspection/utility-rear-doors.png" }
   ];
   function number(value, fallback) { value = Number(value); return Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value * 10) / 10)) : fallback; }
-  function normalize(marks, vehicleType) {
-    var surfaces = vehicleType === "utility" ? UTILITY_SURFACES : VIEWS;
+  function normalize(marks, vehicleType, utilityLegacy) {
+    var surfaces = vehicleType === "utility" ? (utilityLegacy ? LEGACY_UTILITY_SURFACES : UTILITY_SURFACES) : VIEWS;
     return (Array.isArray(marks) ? marks : []).slice(0, 200).map(function (mark, index) {
-      var key = vehicleType === "utility" ? mark && mark.surface : mark && mark.view;
-      var fallback = vehicleType === "utility" ? "utility-exterior" : "top";
+      var key = vehicleType === "utility" ? (utilityLegacy ? mark && mark.surface : (mark && mark.surface) + ":" + (mark && mark.view)) : mark && mark.view;
+      var fallback = vehicleType === "utility" ? (utilityLegacy ? "utility-exterior" : "utility-exterior:left") : "top";
       return {
         id: String(mark && mark.id || "m" + (index + 1)),
-        view: vehicleType === "utility" ? undefined : (surfaces.some(function (view) { return view.key === key; }) ? key : fallback),
-        surface: vehicleType === "utility" ? (surfaces.some(function (view) { return view.key === key; }) ? key : fallback) : undefined,
+        view: vehicleType === "utility" ? (!utilityLegacy ? (surfaces.find(function (view) { return view.key === key; }) || surfaces[0]).view : undefined) : (surfaces.some(function (view) { return view.key === key; }) ? key : fallback),
+        surface: vehicleType === "utility" ? (utilityLegacy ? (surfaces.some(function (view) { return view.key === key; }) ? key : fallback) : (surfaces.find(function (view) { return view.key === key; }) || surfaces[0]).surface) : undefined,
         type: TYPES.some(function (type) { return type.id === (mark && mark.type); }) ? mark.type : "rayure",
         x: number(mark && mark.x, 0), y: number(mark && mark.y, 0),
         description: typeof (mark && mark.description) === "string" ? mark.description.slice(0, 500) : ""
@@ -33,13 +48,13 @@
     });
   }
   function typeFor(mark) { return TYPES.find(function (type) { return type.id === mark.type; }) || TYPES[0]; }
-  function labelFor(viewKey) { var view = VIEWS.concat(UTILITY_SURFACES).find(function (item) { return item.key === viewKey; }); return view ? view.label : viewKey; }
-  global.InspectionSketch = { VIEWS: VIEWS, UTILITY_SURFACES: UTILITY_SURFACES, TYPES: TYPES, labelFor: labelFor };
+  function labelFor(viewKey) { var view = VIEWS.concat(UTILITY_SURFACES, LEGACY_UTILITY_SURFACES).find(function (item) { return item.key === viewKey; }); return view ? view.label : viewKey; }
+  global.InspectionSketch = { VIEWS: VIEWS, UTILITY_SURFACES: UTILITY_SURFACES, LEGACY_UTILITY_SURFACES: LEGACY_UTILITY_SURFACES, TYPES: TYPES, labelFor: labelFor };
   global.createInspectionSketch = function (container, options) {
     options = options || {};
-    var vehicleType = options.vehicleType === "utility" ? "utility" : "car", surfaces = vehicleType === "utility" ? UTILITY_SURFACES : VIEWS;
-    var marks = normalize(options.marks, vehicleType), current = "rayure", canvases = {};
-    function markSurface(mark) { return vehicleType === "utility" ? mark.surface : mark.view; }
+    var vehicleType = options.vehicleType === "utility" ? "utility" : "car", utilityLegacy = Boolean(options.utilityLegacy), surfaces = vehicleType === "utility" ? (utilityLegacy ? LEGACY_UTILITY_SURFACES : UTILITY_SURFACES) : VIEWS;
+    var marks = normalize(options.marks, vehicleType, utilityLegacy), current = "rayure", canvases = {};
+    function markSurface(mark) { return vehicleType === "utility" ? (utilityLegacy ? mark.surface : mark.surface + ":" + mark.view) : mark.view; }
     container.replaceChildren(); container.classList.add("inspection-sketch");
     function changed(reason) { if (options.onChange) options.onChange(reason); }
     function remove(id) { marks = marks.filter(function (mark) { return mark.id !== id; }); redraw(); changed(); }
@@ -71,13 +86,14 @@
     }
     var grid = document.createElement("div"); grid.className = "inspection-sketch-grid"; container.append(grid);
     surfaces.forEach(function (view) {
+      if (vehicleType === "utility" && !utilityLegacy && (view.key === "utility-exterior:left" || view.key === "utility-interior:floor")) { var group = document.createElement("h3"); group.className = "inspection-sketch-group"; group.textContent = view.surface === "utility-exterior" ? "Extérieur" : "Intérieur"; grid.append(group); }
       var wrap = document.createElement("section"), label = document.createElement("h3"), canvas = document.createElement("div");
       wrap.className = "inspection-sketch-view"; wrap.dataset.view = view.key; label.textContent = view.label; canvas.className = "inspection-sketch-canvas"; canvas.dataset.view = view.key;
       if (!options.readOnly) canvas.onclick = function (event) {
         if (event.target.closest(".inspection-sketch-mark") || marks.length >= 200) return;
         var rect = canvas.getBoundingClientRect(); if (!rect.width || !rect.height) return;
         var mark = { id: "m" + Date.now() + "-" + Math.random().toString(36).slice(2, 8), type: current, x: number((event.clientX - rect.left) / rect.width * 100, 0), y: number((event.clientY - rect.top) / rect.height * 100, 0), description: "" };
-        if (vehicleType === "utility") mark.surface = view.key; else mark.view = view.key;
+        if (vehicleType === "utility") { if (utilityLegacy) mark.surface = view.key; else { mark.surface = view.surface; mark.view = view.view; } } else mark.view = view.key;
         marks.push(mark);
         redraw(); changed();
       };
@@ -87,8 +103,8 @@
     });
     redraw();
     return {
-      getMarks: function () { return normalize(marks, vehicleType); },
-      setMarks: function (value) { marks = normalize(value, vehicleType); redraw(); },
+      getMarks: function () { return normalize(marks, vehicleType, utilityLegacy); },
+      setMarks: function (value) { marks = normalize(value, vehicleType, utilityLegacy); redraw(); },
       setDescription: function (id, description) {
         marks = marks.map(function (mark) { return mark.id === id ? Object.assign({}, mark, { description: String(description || "").slice(0, 500) }) : mark; });
         var mark = marks.find(function (item) { return item.id === id; });

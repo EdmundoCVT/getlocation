@@ -155,11 +155,13 @@ test("validateConditionReport : conserve les nouveaux relevés, croquis et signa
   assert.ok(data.signatures.client.signedAt);
 });
 
-test("validateConditionReport : sépare les surfaces d'un utilitaire des vues voiture", () => {
-  const data = validateConditionReport(etatValide({ sketchVehicleType: "utility", marks: [], utilityMarks: [{ id: "u1", surface: "utility-interior", type: "bosse", x: 43.22, y: 61.78 }] }));
+test("validateConditionReport : sépare les surfaces et vues d'un utilitaire des vues voiture", () => {
+  const data = validateConditionReport(etatValide({ sketchVehicleType: "utility", marks: [], utilityMarks: [{ id: "u1", surface: "utility-interior", view: "floor", type: "bosse", x: 43.22, y: 61.78 }] }));
   assert.equal(data.sketchVehicleType, "utility");
   assert.deepEqual(data.marks, []);
-  assert.deepEqual(data.utilityMarks, [{ id: "u1", surface: "utility-interior", type: "bosse", x: 43.2, y: 61.8, description: "" }]);
+  assert.deepEqual(data.utilityMarks, [{ id: "u1", surface: "utility-interior", view: "floor", type: "bosse", x: 43.2, y: 61.8, description: "" }]);
+  const legacy = validateConditionReport(etatValide({ sketchVehicleType: "utility", marks: [], utilityMarks: [{ id: "old", surface: "utility-exterior", type: "rayure", x: 20, y: 30 }] }));
+  assert.deepEqual(legacy.utilityMarks[0], { id: "old", surface: "utility-exterior", type: "rayure", x: 20, y: 30, description: "" });
 });
 
 test("validateConditionReport : rejette les croquis, propretés et signatures mal formés", () => {

@@ -43,11 +43,11 @@ test("V3 : retour affiche cinq vues modifiables et cinq vues de référence, coo
 });
 test("V3 : un utilitaire sélectionne les schémas extérieur et intérieur", async () => {
   const { dom, doc } = await view({ mode: "depart", family: "utility" });
-  assert.equal(doc.querySelectorAll("#sketch .inspection-sketch-view").length, 2);
+  assert.equal(doc.querySelectorAll("#sketch .inspection-sketch-view").length, 10);
   assert.equal(doc.querySelector('input[name="sketchVehicleType"][value="utility"]').checked, true);
-  assert.match(doc.querySelector("#sketch [data-view='utility-exterior'] img").src, /images\/inspection\/utility-exterior\.png/);
-  assert.match(doc.querySelector("#sketch [data-view='utility-interior'] img").src, /images\/inspection\/utility-interior\.png/);
-  assert.equal(doc.querySelectorAll("#sketch .inspection-sketch-zoom").length, 2);
+  assert.match(doc.querySelector("#sketch [data-view='utility-exterior:left'] img").src, /images\/inspection\/utility-left\.png/);
+  assert.match(doc.querySelector("#sketch [data-view='utility-interior:floor'] img").src, /images\/inspection\/utility-floor\.png/);
+  assert.equal(doc.querySelectorAll("#sketch .inspection-sketch-zoom").length, 10);
   dom.window.close();
 });
 test("V3 : propretés indépendantes avec sélection visible et chargement seulement pour utilitaire", async () => {

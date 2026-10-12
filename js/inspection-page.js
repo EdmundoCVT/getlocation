@@ -6,7 +6,7 @@
   const standaloneId = params.get("standalone") || "";
   const token = new URLSearchParams(location.hash.slice(1)).get("agencyToken");
   const $ = id => document.getElementById(id), M = window.InspectionMedia;
-  let dossier, reservation, family = "car", sketch, sketchVehicleType = "car", pads = {}, dirty = false, revision = 0, saving = false, pendingCount = 0, csrfToken = "";
+  let dossier, reservation, family = "car", sketch, sketchVehicleType = "car", utilitySketchLegacy = false, pads = {}, dirty = false, revision = 0, saving = false, pendingCount = 0, csrfToken = "";
   let media = { depart: [], retour: [] }, editableMedia = new Set(), queue = Promise.resolve();
   const scores = {};
   const api = (url, options = {}) => fetch(url, { ...options, credentials: "same-origin", headers: { ...(token ? { Authorization: "Bearer " + token } : {}), ...(standaloneId && csrfToken ? { "X-Agency-Csrf": csrfToken } : {}), ...options.headers } });
@@ -102,7 +102,8 @@
     rows.forEach((row, index) => {
       const item = document.createElement("div"); item.className = "damage-row";
       const info = window.InspectionSketch.TYPES.find(type => type.id === row.mark.type) || window.InspectionSketch.TYPES[0];
-      [[String(index + 1), "N°"], [row.status, "Statut"], [info.label, "Type"], [window.InspectionSketch.labelFor(row.mark.surface || row.mark.view), "Zone"]].forEach(([value, label]) => { const cell = document.createElement("div"); cell.className = "damage-cell"; cell.dataset.label = label; cell.textContent = value; item.append(cell); });
+      const zone = row.mark.surface && row.mark.view ? row.mark.surface + ":" + row.mark.view : (row.mark.surface || row.mark.view);
+      [[String(index + 1), "N°"], [row.status, "Statut"], [info.label, "Type"], [window.InspectionSketch.labelFor(zone), "Zone"]].forEach(([value, label]) => { const cell = document.createElement("div"); cell.className = "damage-cell"; cell.dataset.label = label; cell.textContent = value; item.append(cell); });
       if (row.readOnly) { const cell = document.createElement("div"); cell.className = "damage-cell"; cell.dataset.label = "Description"; cell.textContent = row.mark.description || "Non renseignée"; item.append(cell); }
       else {
         const label = document.createElement("label"), input = document.createElement("input"); label.className = "field damage-cell"; label.dataset.label = "Description"; input.type = "text"; input.maxLength = 500; input.placeholder = "Ex. Rayure porte avant gauche"; input.value = row.mark.description || ""; input.setAttribute("aria-label", "Description du dommage " + (index + 1));
@@ -170,7 +171,7 @@
     const old = dossier[mode] || {};
     return { dateHeure: $("dateHeure").value, km: Number($("km").value), carburant: Number($("carburant").value), cles: $("cles").value === "" ? null : Number($("cles").value), clesAccessoires: $("clesAccessoires").value, agent: $("agent").value, dommages: $("dommages").value,
       proprete: old.proprete || "", propreteExterieure: scores.propreteExterieure, propreteInterieure: scores.propreteInterieure, propreteChargement: family === "utility" ? scores.propreteChargement : old.propreteChargement || null,
-      photosRef: old.photosRef || "", sketchVehicleType, marks: sketchVehicleType === "car" ? sketch.getMarks() : (old.marks || []), utilityMarks: sketchVehicleType === "utility" ? sketch.getMarks() : (old.utilityMarks || []), clientSigne: pads.client.get() && pads.client.get().name || old.clientSigne || "", agenceSigne: pads.agence.get() && pads.agence.get().name || old.agenceSigne || "", signatures: { client: pads.client.get(), agence: pads.agence.get() } };
+      photosRef: old.photosRef || "", sketchVehicleType, utilitySketchVersion: sketchVehicleType === "utility" && !utilitySketchLegacy ? "views-v1" : (old.utilitySketchVersion || null), marks: sketchVehicleType === "car" ? sketch.getMarks() : (old.marks || []), utilityMarks: sketchVehicleType === "utility" ? sketch.getMarks() : (old.utilityMarks || []), clientSigne: pads.client.get() && pads.client.get().name || old.clientSigne || "", agenceSigne: pads.agence.get() && pads.agence.get().name || old.agenceSigne || "", signatures: { client: pads.client.get(), agence: pads.agence.get() } };
   }
   async function save(finalize) {
     if (saving || !$("form").reportValidity()) return false;
@@ -224,8 +225,9 @@
     $("km").closest("label").firstChild.textContent = "Kilométrage " + mode;
     $("legacyCleanliness").hidden = !stage.proprete; $("legacyCleanliness").textContent = "Propreté historique conservée : " + (stage.proprete || ""); cleanliness(stage);
     sketchVehicleType = stage.sketchVehicleType === "utility" ? "utility" : (stage.sketchVehicleType === "car" ? "car" : (family === "utility" ? "utility" : "car"));
+    utilitySketchLegacy = sketchVehicleType === "utility" && stage.utilitySketchVersion !== "views-v1" && Array.isArray(stage.utilityMarks) && stage.utilityMarks.length > 0 && stage.utilityMarks.every(mark => !mark.view);
     function mountSketch() {
-      sketch = window.createInspectionSketch($("sketch"), { vehicleType: sketchVehicleType, marks: sketchVehicleType === "utility" ? (stage.utilityMarks || []) : (stage.marks || []), onExpand: view => openPhoto(view.asset, "Schéma utilitaire — " + view.label), onChange: reason => { if (reason !== "description") renderDamageTable(); changed(); } });
+      sketch = window.createInspectionSketch($("sketch"), { vehicleType: sketchVehicleType, utilityLegacy: utilitySketchLegacy, marks: sketchVehicleType === "utility" ? (stage.utilityMarks || []) : (stage.marks || []), onExpand: view => openPhoto(view.asset, "Schéma utilitaire — " + view.label), onChange: reason => { if (reason !== "description") renderDamageTable(); changed(); } });
       document.querySelectorAll('input[name="sketchVehicleType"]').forEach(input => { input.checked = input.value === sketchVehicleType; });
     }
     document.querySelectorAll('input[name="sketchVehicleType"]').forEach(input => input.onchange = () => {
@@ -233,7 +235,7 @@
       const currentMarks = sketch.getMarks();
       if (currentMarks.length && !confirm("Changer le type de véhicule conserve les marques dans leur schéma d’origine. Continuer ?")) { input.checked = false; document.querySelector('input[name="sketchVehicleType"][value="' + sketchVehicleType + '"]').checked = true; return; }
       if (sketchVehicleType === "utility") stage.utilityMarks = currentMarks; else stage.marks = currentMarks;
-      sketchVehicleType = next; mountSketch(); renderDamageTable(); changed();
+      sketchVehicleType = next; utilitySketchLegacy = false; mountSketch(); renderDamageTable(); changed();
     });
     mountSketch();
     renderDamageTable();
@@ -243,7 +245,8 @@
       const depart = dossier.depart; $("departCompare").hidden = false;
       const values = [["Kilométrage départ", depart.km + " km"], ["Carburant départ", depart.carburant + " %"], ["Propreté extérieure", depart.propreteExterieure == null ? depart.proprete : depart.propreteExterieure + " / 5"], ["Propreté intérieure", depart.propreteInterieure == null ? depart.proprete : depart.propreteInterieure + " / 5"], ["Kilomètres parcourus", stage.km == null ? "—" : stage.km - depart.km + " km"]];
       fieldGrid($("departureValues"), values); $("departDamage").textContent = "Dommages déjà présents au départ : " + (depart.dommages || "Non renseignés");
-      window.createInspectionSketch($("departureSketch"), { vehicleType: depart.sketchVehicleType === "utility" ? "utility" : "car", marks: (depart.sketchVehicleType === "utility" ? depart.utilityMarks : depart.marks) || [], readOnly: true, onExpand: view => openPhoto(view.asset, "Schéma utilitaire — " + view.label) }); M.renderReadOnly($("departurePhotos"), media.depart, cache, openPhoto);
+      const departLegacy = depart.sketchVehicleType === "utility" && depart.utilitySketchVersion !== "views-v1" && Array.isArray(depart.utilityMarks) && depart.utilityMarks.length > 0 && depart.utilityMarks.every(mark => !mark.view);
+      window.createInspectionSketch($("departureSketch"), { vehicleType: depart.sketchVehicleType === "utility" ? "utility" : "car", utilityLegacy: departLegacy, marks: (depart.sketchVehicleType === "utility" ? depart.utilityMarks : depart.marks) || [], readOnly: true, onExpand: view => openPhoto(view.asset, "Schéma utilitaire — " + view.label) }); M.renderReadOnly($("departurePhotos"), media.depart, cache, openPhoto);
       $("km").addEventListener("input", () => { values[4][1] = $("km").value === "" ? "—" : Number($("km").value) - depart.km + " km"; fieldGrid($("departureValues"), values); });
     }
     renderPhotos(); renderComparison(); status();

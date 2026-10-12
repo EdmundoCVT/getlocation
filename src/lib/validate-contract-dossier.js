@@ -100,6 +100,10 @@ const NIVEAUX_CARBURANT_VALIDES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 const TYPES_DOMMAGE_VALIDES = new Set(["rayure", "bosse", "eclat"]);
 const VUES_DOMMAGE_VALIDES = new Set(["left", "front", "right", "rear", "top"]);
 const SURFACES_UTILITAIRE_VALIDES = new Set(["utility-exterior", "utility-interior"]);
+const VUES_UTILITAIRE = {
+  "utility-exterior": new Set(["left", "front", "top", "rear", "right"]),
+  "utility-interior": new Set(["floor", "cabin-partition", "left-wall", "right-wall", "rear-doors"])
+};
 
 function scoreProprete(value, label) {
   if (value === undefined || value === null || value === "") return null;
@@ -115,7 +119,8 @@ function validateMarks(value, vehicleType = "car") {
     if (!mark || typeof mark !== "object") throw new Error("Croquis de dommages invalide");
     const x = Number(mark.x), y = Number(mark.y);
     const key = vehicleType === "utility" ? mark.surface : mark.view;
-    if (!(vehicleType === "utility" ? SURFACES_UTILITAIRE_VALIDES : VUES_DOMMAGE_VALIDES).has(key) || !TYPES_DOMMAGE_VALIDES.has(mark.type) || !Number.isFinite(x) || !Number.isFinite(y)) throw new Error("Croquis de dommages invalide");
+    const validUtility = vehicleType !== "utility" || (SURFACES_UTILITAIRE_VALIDES.has(key) && (!mark.view || VUES_UTILITAIRE[key].has(mark.view)));
+    if (!(vehicleType === "utility" ? validUtility : VUES_DOMMAGE_VALIDES.has(key)) || !TYPES_DOMMAGE_VALIDES.has(mark.type) || !Number.isFinite(x) || !Number.isFinite(y)) throw new Error("Croquis de dommages invalide");
     const result = {
       id: typeof mark.id === "string" && mark.id.length <= 80 ? mark.id : `m${index + 1}`,
       type: mark.type,
@@ -125,7 +130,7 @@ function validateMarks(value, vehicleType = "car") {
       // historiques sans description restent inchangés.
       description: text(mark.description, "description du dommage", { required: false, max: 500 })
     };
-    if (vehicleType === "utility") result.surface = key; else result.view = key;
+    if (vehicleType === "utility") { result.surface = key; if (mark.view) result.view = mark.view; } else result.view = key;
     return result;
   });
 }
