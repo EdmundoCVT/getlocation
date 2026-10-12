@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { listInspectionRevisions, createInspectionRevision, revisionMediaPrefix, revisionPdfKey } = require("../src/lib/inspection-revisions.js");
+const { listInspectionRevisions, createInspectionRevision, updateInspectionRevisionDraft, setRevisionMedia, setRevisionPdf, finalizeInspectionRevision, revisionMediaPrefix, revisionPdfKey } = require("../src/lib/inspection-revisions.js");
 
 test("EDL historique finalisé est vu comme V1 et V2 conserve V1 immuable", () => {
   const stage = { completedAt: "2026-10-12T10:00:00Z", km: 12000, signatures: { client: { signedAt: "2026-10-12T10:00:00Z" } }, marks: [{ id: "a" }] };
@@ -18,4 +18,18 @@ test("clés média et PDF des nouvelles révisions sont versionnées", () => {
   assert.equal(revisionMediaPrefix("res_x", "depart", 2, false), "inspection/res_x/depart/v2/");
   assert.equal(revisionMediaPrefix("edl_x", "retour", 3, true), "inspection-standalone/edl_x/retour/v3/");
   assert.equal(revisionPdfKey("res_x", "depart", 2, false), "inspection-pdf/res_x/depart/v2.pdf");
+});
+
+test("V1 finalisée reste profondément inchangée pendant tout le cycle V2", () => {
+  const v1 = { revision: 1, status: "finalized", snapshot: { km: 100, marks: [{ id: "a" }], signatures: { client: { name: "A", signedAt: "2026-01-01T10:00:00Z" }, agence: { name: "B", signedAt: "2026-01-01T10:01:00Z" } } }, media: [{ key: "legacy/A.jpg" }], pdfKey: "legacy/v1.pdf" };
+  const document = { inspectionRevisions: { depart: [v1] } };
+  const before = JSON.parse(JSON.stringify(v1));
+  const created = createInspectionRevision(document, "depart", null, null, "agent", 1);
+  const changed = updateInspectionRevisionDraft({ inspectionRevisions: created.inspectionRevisions }, "depart", null, null, "agent", 2, { ...created.revision.snapshot, km: 150, signatures: { client: { name: "C", signedAt: "2026-01-02T10:00:00Z" }, agence: { name: "D", signedAt: "2026-01-02T10:01:00Z" } } });
+  const media = setRevisionMedia({ inspectionRevisions: changed.inspectionRevisions }, "depart", null, null, "agent", 2, [{ key: "inspection/x/depart/v2/B.jpg" }]);
+  const pdf = setRevisionPdf({ inspectionRevisions: media.inspectionRevisions }, "depart", null, null, "agent", 2, "inspection-pdf/x/depart/v2.pdf");
+  const finalized = finalizeInspectionRevision({ inspectionRevisions: pdf.inspectionRevisions }, "depart", null, null, "agent", 2);
+  assert.equal(finalized.revision.status, "finalized");
+  assert.deepEqual(finalized.inspectionRevisions.depart[0], before);
+  assert.deepEqual(document.inspectionRevisions.depart[0], before);
 });

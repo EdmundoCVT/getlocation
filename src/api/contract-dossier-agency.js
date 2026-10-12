@@ -29,7 +29,7 @@ const { hashContractAgencyToken, issueContractClientAccess } = require("../lib/c
 const { validateContractFields, champsManquantsAvantEnvoi, validateConditionReport } = require("../lib/validate-contract-dossier.js");
 const { resolveAgencySession } = require("../lib/agency-auth.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
-const { listInspectionRevisions, createInspectionRevision } = require("../lib/inspection-revisions.js");
+const { listInspectionRevisions, createInspectionRevision, updateInspectionRevisionDraft, finalizeInspectionRevision } = require("../lib/inspection-revisions.js");
 
 function corsHeaders(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -311,6 +311,10 @@ async function handlePost(request, env, headers) {
         );
       }
       case "update-depart": {
+        const revision = Number(payload.revision);
+        if (Number.isInteger(revision)) {
+          try { const previous = listInspectionRevisions(reservation, "depart", existing.depart, existing.media && existing.media.depart, null).find(item => item.revision === revision); const report = preserveInspectionSignatures(validateConditionReport(payload), previous && previous.snapshot); const result = payload.finalize ? finalizeInspectionRevision(reservation, "depart", existing.depart, existing.media && existing.media.depart, null, revision, report) : updateInspectionRevisionDraft(reservation, "depart", existing.depart, existing.media && existing.media.depart, null, revision, report); const updated = { ...reservation, inspectionRevisions: result.inspectionRevisions, updatedAt: new Date().toISOString() }; await env.RESERVATIONS_KV.put(reservation.id, JSON.stringify(updated)); await recordAuditEvent(env, { eventType: payload.finalize ? "inspection_revision_finalized" : "inspection_revision_updated", entityType: "contract", entityId: reservation.id, metadata: { stage: "depart", revision } }); return new Response(JSON.stringify({ ...buildDossierView(updated), revision: result.revision }), { status: 200, headers }); } catch (error) { return new Response(JSON.stringify({ error: error.message }), { status: error.status || 409, headers }); }
+        }
         const depart = { ...preserveInspectionSignatures(validateConditionReport(payload), existing.depart), completedAt: existing.depart && existing.depart.completedAt || new Date().toISOString(), finalizedAt: payload.finalize ? existing.depart && existing.depart.finalizedAt || new Date().toISOString() : existing.depart && existing.depart.finalizedAt || null };
         const updated = await updateContractDossier(env, reservation.id, {
           contractDossier: { ...existing, depart, updatedAt: new Date().toISOString() }
@@ -321,6 +325,10 @@ async function handlePost(request, env, headers) {
       case "update-retour": {
         if (!existing.depart || (reservation.status === "manual_contract" && !existing.depart.completedAt)) {
           return new Response(JSON.stringify({ error: "La remise du véhicule doit être complétée avant la restitution" }), { status: 400, headers });
+        }
+        const revision = Number(payload.revision);
+        if (Number.isInteger(revision)) {
+          try { const previous = listInspectionRevisions(reservation, "retour", existing.retour, existing.media && existing.media.retour, null).find(item => item.revision === revision); const report = preserveInspectionSignatures(validateConditionReport(payload), previous && previous.snapshot); const result = payload.finalize ? finalizeInspectionRevision(reservation, "retour", existing.retour, existing.media && existing.media.retour, null, revision, report) : updateInspectionRevisionDraft(reservation, "retour", existing.retour, existing.media && existing.media.retour, null, revision, report); const updated = { ...reservation, inspectionRevisions: result.inspectionRevisions, updatedAt: new Date().toISOString() }; await env.RESERVATIONS_KV.put(reservation.id, JSON.stringify(updated)); return new Response(JSON.stringify({ ...buildDossierView(updated), revision: result.revision }), { status: 200, headers }); } catch (error) { return new Response(JSON.stringify({ error: error.message }), { status: error.status || 409, headers }); }
         }
         const retour = { ...preserveInspectionSignatures(validateConditionReport(payload), existing.retour), completedAt: existing.retour && existing.retour.completedAt || new Date().toISOString(), finalizedAt: payload.finalize ? existing.retour && existing.retour.finalizedAt || new Date().toISOString() : existing.retour && existing.retour.finalizedAt || null };
         const jours = joursReservation(reservation);

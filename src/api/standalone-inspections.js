@@ -4,7 +4,7 @@ const { requireAgencySession } = require("../lib/agency-auth.js");
 const { listReservations, getReservation } = require("../lib/reservation-store.js");
 const { validateConditionReport } = require("../lib/validate-contract-dossier.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
-const { listInspectionRevisions, createInspectionRevision } = require("../lib/inspection-revisions.js");
+const { listInspectionRevisions, createInspectionRevision, updateInspectionRevisionDraft, finalizeInspectionRevision } = require("../lib/inspection-revisions.js");
 
 const PREFIX = "standalone-inspection:";
 const ID = /^edl_[a-f0-9-]{16,64}$/;
@@ -47,7 +47,7 @@ async function handleStandaloneInspections(request, env) {
   if (body.action === "create") {
     const mode = safeMode(body.mode); if (!mode) return json({ error: "Type d’état des lieux invalide" }, 400);
     const now = new Date().toISOString(), id = createId();
-    const record = { id, kind: "standalone-inspection", mode, client: { prenom: text(body.client && body.client.prenom, 100), nom: text(body.client && body.client.nom, 100), telephone: text(body.client && body.client.telephone, 40) }, vehicule: { nom: text(body.vehicule && body.vehicule.nom, 150), immatriculation: text(body.vehicule && body.vehicule.immatriculation, 40), vehicleFamily: body.vehicule && body.vehicule.vehicleFamily === "utility" ? "utility" : "car" }, linkedContractId: null, linkedContractNumero: null, internalNote: text(body.internalNote, 2000), dossier: { status: "draft", depart: null, retour: null, media: { depart: [], retour: [] } }, status: "draft", createdAt: now, updatedAt: now, createdBy: auth.session.operator || null };
+    const record = { id, kind: "standalone-inspection", mode, client: { prenom: text(body.client && body.client.prenom, 100), nom: text(body.client && body.client.nom, 100), telephone: text(body.client && body.client.telephone, 40) }, vehicule: { nom: text(body.vehicule && body.vehicule.nom, 150), immatriculation: text(body.vehicule && body.vehicule.immatriculation, 40), vehicleFamily: body.vehicule && body.vehicule.vehicleFamily === "utility" ? "utility" : "car" }, linkedContractId: null, linkedContractNumero: null, internalNote: text(body.internalNote, 2000), dossier: { status: "draft", depart: null, retour: null, media: { depart: [], retour: [] } }, inspectionRevisions: { [mode]: [{ revision: 1, status: "draft", snapshot: null, media: [], pdfKey: null, finalizedAt: null, createdAt: now, createdBy: auth.session.operator || null, basedOnRevision: null }] }, status: "draft", createdAt: now, updatedAt: now, createdBy: auth.session.operator || null };
     if (body.linkedContractId) { const contract = await getReservation(env, text(body.linkedContractId, 100)); if (!contract) return json({ error: "Contrat associé introuvable" }, 404); record.linkedContractId = contract.id; record.linkedContractNumero = contract.contractNumero || null; }
     await write(env, record); return json({ inspection: record }, 201);
   }
@@ -63,7 +63,15 @@ async function handleStandaloneInspections(request, env) {
     } catch (error) { return json({ error: error.message || "Révision impossible" }, 409); }
   }
   if (body.action === "update-stage") {
-    const stage = safeMode(record.mode), report = preserveInspectionSignatures(validateConditionReport(body.stage || {}), record.dossier[stage]);
+    const stage = safeMode(record.mode), revision = Number(body.revision), previous = Number.isInteger(revision) ? listInspectionRevisions(record, stage, record.dossier[stage], record.dossier.media && record.dossier.media[stage], record.createdBy).find(item => item.revision === revision) : record.dossier[stage], report = preserveInspectionSignatures(validateConditionReport(body.stage || {}), previous && previous.snapshot || previous);
+    if (Number.isInteger(revision)) {
+      try {
+        const result = body.finalize ? finalizeInspectionRevision(record, stage, record.dossier[stage], record.dossier.media && record.dossier.media[stage], auth.session.operator, revision, report) : updateInspectionRevisionDraft(record, stage, record.dossier[stage], record.dossier.media && record.dossier.media[stage], auth.session.operator, revision, report);
+        record.inspectionRevisions = result.inspectionRevisions; record.status = body.finalize ? "finalized" : record.status; await write(env, record);
+        await recordAuditEvent(env, { actor: auth.session.operator, eventType: body.finalize ? "inspection_revision_finalized" : "inspection_revision_updated", entityType: "standalone_inspection", entityId: record.id, metadata: { stage, revision } });
+        return json({ inspection: record, revision: result.revision });
+      } catch (error) { return json({ error: error.message }, error.status || 409); }
+    }
     record.dossier[stage] = { ...report, completedAt: record.dossier[stage] && record.dossier[stage].completedAt || new Date().toISOString(), finalizedAt: body.finalize ? record.dossier[stage] && record.dossier[stage].finalizedAt || new Date().toISOString() : record.dossier[stage] && record.dossier[stage].finalizedAt || null };
     record.status = body.finalize ? "finalized" : (record.status === "finalized" ? "finalized" : "draft"); await write(env, record); return json({ inspection: record });
   }

@@ -4,6 +4,7 @@
 const { resolveContractAgencyAccess } = require("./contract-dossier-agency.js");
 const { updateContractDossier } = require("../lib/reservation-store.js");
 const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
+const { getRevisionMedia, setRevisionMedia, revisionMediaPrefix } = require("../lib/inspection-revisions.js");
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const TYPES = new Set(["image/jpeg","image/png","image/webp","image/heic","image/heif"]);
@@ -33,51 +34,43 @@ async function handleUpload(request,env,reservation){
   if(!env.DOCUMENTS_BUCKET)return json({error:"Stockage photo indisponible"},503);
   const form=await request.formData();
   const stage=safeStage(form.get("stage"));
+  const revision=Number(form.get("revision"));
   const slot=safeSlot(form.get("slot"));
   const file=form.get("file");
-  if(!stage||!slot||!file||typeof file.arrayBuffer!=="function")return json({error:"Photo ou catégorie invalide"},400);
+  if(!stage||!Number.isInteger(revision)||revision<1||!slot||!file||typeof file.arrayBuffer!=="function")return json({error:"Photo, révision ou catégorie invalide"},400);
   if(!TYPES.has(file.type)||file.size<=0||file.size>MAX_BYTES)return json({error:"Format non accepté ou photo trop volumineuse (8 Mo max.)"},400);
-  const key=`inspection/${reservation.id}/${stage}/${Date.now()}-${uid()}.${ext(file.type)}`;
+  const key=`${revisionMediaPrefix(reservation.id,stage,revision,false)}${Date.now()}-${uid()}.${ext(file.type)}`;
   const bytes=await file.arrayBuffer();
   if(bytes.byteLength>MAX_BYTES)return json({error:"Photo trop volumineuse"},400);
   await env.DOCUMENTS_BUCKET.put(key,bytes,{httpMetadata:{contentType:file.type},customMetadata:{reservationId:reservation.id,stage,slot}});
   const existing=reservation.contractDossier||{status:"draft",fields:null,depart:null,retour:null,observations:""};
-  const media=existing.media&&typeof existing.media==="object"?existing.media:{depart:[],retour:[]};
-  const list=Array.isArray(media[stage])?media[stage].slice():[];
   const capturedAt=safeCapturedAt(form.get("capturedAt"));
   const item={key,slot,contentType:file.type,size:bytes.byteLength,createdAt:new Date().toISOString(),...(capturedAt?{capturedAt}:{})};
   list.push(item);
   // 30 photos max par phase, suffisant pour une inspection détaillée.
-  media[stage]=list.slice(-30);
-  const updated=await updateContractDossier(env,reservation.id,{contractDossier:{...existing,media,updatedAt:new Date().toISOString()}});
-  if(!updated){await env.DOCUMENTS_BUCKET.delete(key);return json({error:"Réservation introuvable"},404);}
-  enqueueDriveSync(env, updated.id).catch(()=>undefined);
+  try { const media=getRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision); const saved=setRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision,[...(media||[]),item].slice(-30)); const updated={...reservation,inspectionRevisions:saved.inspectionRevisions,updatedAt:new Date().toISOString()}; await env.RESERVATIONS_KV.put(reservation.id,JSON.stringify(updated)); enqueueDriveSync(env,updated.id).catch(()=>undefined); } catch(error) { await env.DOCUMENTS_BUCKET.delete(key); return json({error:error.message},error.status||409); }
   return json({ok:true,item});
 }
 
 async function handleCapturedAtUpdate(request,env,reservation){
   const body=await request.json().catch(()=>null);
-  const key=body&&typeof body.key==="string"?body.key:"";
+  const key=body&&typeof body.key==="string"?body.key:"", revision=Number(body&&body.revision), stage=safeStage(body&&body.stage);
   const prefix=`inspection/${reservation.id}/`;
-  if(!key.startsWith(prefix))return json({error:"Photo invalide"},400);
+  if(!key.startsWith(prefix)||!stage||!Number.isInteger(revision))return json({error:"Photo ou révision invalide"},400);
   const capturedAt=safeCapturedAt(body&&body.capturedAt);
   if(!capturedAt)return json({error:"Date/heure de prise de vue requise"},400);
   const existing=reservation.contractDossier||{};
-  const media=existing.media&&typeof existing.media==="object"?existing.media:{depart:[],retour:[]};
+  const list=getRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision)||[];
   let updatedItem=null;
-  for(const stage of ["depart","retour"]){
-    const list=Array.isArray(media[stage])?media[stage]:[];
-    media[stage]=list.map((item)=>{
+  const media=list.map((item)=>{
       if(!item||item.key!==key)return item;
       // Ne recopier que capturedAt : createdAt et les autres métadonnées de
       // l'upload restent strictement inchangées.
       updatedItem={...item,capturedAt};
       return updatedItem;
     });
-  }
   if(!updatedItem)return json({error:"Photo introuvable"},404);
-  const updated=await updateContractDossier(env,reservation.id,{contractDossier:{...existing,media,updatedAt:new Date().toISOString()}});
-  if(!updated)return json({error:"Réservation introuvable"},404);
+  const saved=setRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision,media); await env.RESERVATIONS_KV.put(reservation.id,JSON.stringify({...reservation,inspectionRevisions:saved.inspectionRevisions,updatedAt:new Date().toISOString()}));
   return json({ok:true,item:updatedItem});
 }
 
@@ -97,16 +90,13 @@ async function handleRead(request,env,reservation){
 
 async function handleDelete(request,env,reservation){
   const body=await request.json().catch(()=>null);
-  const key=body&&typeof body.key==="string"?body.key:"";
+  const key=body&&typeof body.key==="string"?body.key:"", revision=Number(body&&body.revision), stage=safeStage(body&&body.stage);
   const prefix=`inspection/${reservation.id}/`;
-  if(!key.startsWith(prefix))return json({error:"Photo invalide"},400);
+  if(!key.startsWith(prefix)||!stage||!Number.isInteger(revision))return json({error:"Photo ou révision invalide"},400);
   const existing=reservation.contractDossier||{};
-  const media=existing.media&&typeof existing.media==="object"?existing.media:{depart:[],retour:[]};
-  for(const stage of ["depart","retour"]){
-    media[stage]=(Array.isArray(media[stage])?media[stage]:[]).filter(x=>x&&x.key!==key);
-  }
-  await env.DOCUMENTS_BUCKET.delete(key);
-  await updateContractDossier(env,reservation.id,{contractDossier:{...existing,media,updatedAt:new Date().toISOString()}});
+  const media=getRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision)||[];
+  const saved=setRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision,media.filter(x=>x&&x.key!==key));
+  await env.RESERVATIONS_KV.put(reservation.id,JSON.stringify({...reservation,inspectionRevisions:saved.inspectionRevisions,updatedAt:new Date().toISOString()}));
   return json({ok:true});
 }
 
