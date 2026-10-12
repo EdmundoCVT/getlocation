@@ -134,6 +134,25 @@ test("contrat manuel moderne fusionné avec D1 : le km historique ne valide pas 
   assert.equal(items[0].openable, true);
 });
 
+test("GET view=inspection : conserve une version de contrat pertinente lorsqu'elle porte un EDL réel", async () => {
+  const env = makeAgencyEnv({ RESERVATIONS_KV: createFakeKv() });
+  const session = await loginAgency(env);
+  const version = await createManualContract(env, {
+    vehiculeId: "toyota-proace", depart: "2026-10-10T10:00", retour: "2026-10-11T10:00", prenom: "Nicholson", nom: "Joseph"
+  }, "Edmundo");
+  const stored = JSON.parse(await env.RESERVATIONS_KV.get(version.id));
+  stored.status = "contract_version";
+  stored.contractSourceType = "manual";
+  stored.contractDossier = { status: "signed", depart: { completedAt: "2026-10-10T10:30:00.000Z", marks: [{ x: 10, y: 10 }] }, retour: null };
+  stored.inspectionSchema = "modern";
+  await env.RESERVATIONS_KV.put(version.id, JSON.stringify(stored));
+  const response = await handleAgencyRentals(agencyRequest("https://getlocation.fr/api/agency-rentals?view=inspection", { session }), env);
+  const items = (await response.json()).rentals;
+  assert.equal(items.length, 1);
+  assert.equal(items[0].id, version.id);
+  assert.equal(items[0].inspection.depart, true);
+});
+
 test("POST create : 403 sans origine autorisée", async () => {
   const env = makeAgencyEnv();
   const session = await loginAgency(env);

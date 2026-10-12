@@ -185,6 +185,39 @@ test("bibliothèque EDL : recherche, filtre indépendant et tri couvrent toutes 
   assert.equal(window.document.querySelectorAll('#inspectionList .dashboard-card').length, 1);
 });
 
+test("bibliothèque EDL : l'activation directe de la section charge les deux sources et initialise les compteurs", async () => {
+  const window = buildWindow();
+  const calls = [];
+  window.fetch = async (url) => {
+    calls.push(String(url));
+    const standalone = String(url).includes("standalone-inspections");
+    return { ok: true, json: async () => standalone ? { inspections: [{ id: "edl_aaaaaaaaaaaaaaaa", mode: "depart", client: { prenom: "Nicholson", nom: "Test" }, vehicule: { nom: "Toyota Proace" }, status: "draft", updatedAt: "2026-10-12T10:00:00Z" }] } : { rentals: [{ id: "res_3008", client: { prenom: "Client", nom: "3008" }, vehicule: "Peugeot 3008", dateDebut: "2026-10-10", heureDebut: "10:00", dateFin: "2026-10-11", heureFin: "10:00", openable: true, inspection: { depart: true, retour: false, retourAvailable: true } }] } };
+  };
+  window.__backOffice.showInspectionSectionForTest();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.ok(calls.some((url) => url.includes("/api/agency-rentals?view=inspection")));
+  assert.ok(calls.some((url) => url.includes("/api/standalone-inspections")));
+  assert.match(window.document.querySelector('[data-inspection-filter="all"]').textContent, /Tous \(3\)/);
+  assert.match(window.document.getElementById("inspectionList").textContent, /Toyota Proace/);
+});
+
+test("bibliothèque EDL : conserve la source disponible et explique l'échec partiel", async () => {
+  const window = buildWindow();
+  window.fetch = async (url) => {
+    if (String(url).includes("agency-rentals?view=inspection")) return { ok: false, json: async () => ({ error: "indisponible" }) };
+    return { ok: true, json: async () => ({ inspections: [{ id: "edl_bbbbbbbbbbbbbbbb", mode: "retour", client: { prenom: "Nicholson", nom: "Test" }, vehicule: { nom: "Toyota Proace" }, status: "finalized", updatedAt: "2026-10-12T10:00:00Z" }] }) };
+  };
+  window.__backOffice.showInspectionSectionForTest();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const list = window.document.getElementById("inspectionList").textContent;
+  assert.match(list, /Toyota Proace/);
+  assert.match(list, /EDL liés aux contrats n’ont pas pu être chargés/);
+  assert.match(window.document.querySelector('[data-inspection-filter="all"]').textContent, /Tous \(1\)/);
+  assert.equal(window.document.querySelector('#inspectionList button').textContent, 'Réessayer');
+});
+
 test("chaque état des lieux historique terminé ouvre la vue legacy, jamais contrat.html", () => {
   const window = buildWindow();
   const popups=[];window.open=()=>{const popup={opener:window,document:{},location:{href:""}};popups.push(popup);return popup};

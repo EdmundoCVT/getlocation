@@ -72,6 +72,15 @@ function inspectionFlags({ depart, retour, media }) {
   return { depart: departDone, retour: retourDone, retourAvailable: departDone || retourDone };
 }
 
+function hasRealInspectionEvidence(record) {
+  const dossier = record && record.contractDossier || {};
+  return hasInspectionValue(record && record.etatDepart) || hasInspectionValue(record && record.etatRetour) ||
+    hasInspectionValue(dossier.depart) || hasInspectionValue(dossier.retour) ||
+    hasMediaForMode(record && record.photosEtatDesLieux, "depart") || hasMediaForMode(record && record.photosEtatDesLieux, "retour") ||
+    hasMediaForMode(dossier.media, "depart") || hasMediaForMode(dossier.media, "retour") ||
+    Boolean(record && record.inspectionSchema === "modern" && (dossier.depart || dossier.retour));
+}
+
 function reservationInspectionItem(reservation) {
   const vehicule = getVehiculeParId(reservation.vehiculeId);
   const dossier = reservation.contractDossier || {};
@@ -279,9 +288,10 @@ async function handleGet(request, env, headers) {
       listReservations(env),
       listRentalsForInspection(env)
     ]);
+    const inspectionReservations = reservations.filter((reservation) => reservation && ["paid", "manual_contract", "contract_version"].includes(reservation.status) && (reservation.status === "paid" || reservation.status === "manual_contract" || hasRealInspectionEvidence(reservation)));
     const items = deduplicateInspectionItems([
-      ...reservations.filter((reservation) => reservation && reservation.status === "paid").map(reservationInspectionItem),
-      ...reservations.filter((reservation) => reservation && reservation.status === "manual_contract").map(manualContractInspectionItem),
+      ...inspectionReservations.filter((reservation) => reservation.status === "manual_contract" || reservation.contractSourceType === "manual").map(manualContractInspectionItem),
+      ...inspectionReservations.filter((reservation) => reservation.status !== "manual_contract" && reservation.contractSourceType !== "manual").map(reservationInspectionItem),
       ...d1Rentals.map(d1RentalInspectionItem)
     ])
       .map(publicInspectionItem)
