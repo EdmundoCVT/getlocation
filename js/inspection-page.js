@@ -199,7 +199,8 @@
       if (response.revision) { inspectionRevision = response.revision.revision; dossier[mode] = response.revision.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: response.revision.media || [] }; }
       finalized = Boolean(response.revision ? response.revision.status === "finalized" : dossier[mode] && dossier[mode].finalizedAt);
       if (revision === version) { dirty = false; for (const role of ["client", "agence"]) pads[role].acknowledge(dossier[mode].signatures && dossier[mode].signatures[role]); }
-      $("reviewStatus").textContent = finalize && !dirty ? "État des lieux finalisé et enregistré. Une correction reste possible." : "État des lieux enregistré.";
+      $("reviewStatus").textContent = finalize && !dirty ? "État des lieux finalisé et enregistré." : "État des lieux enregistré.";
+      if (finalize && !dirty && !document.getElementById("backToInspections")) { var back=document.createElement("a"); back.id="backToInspections"; back.className="primary"; back.href="/back-office.html#edl"; back.textContent="Retour aux états des lieux"; $("reviewStatus").after(back); }
       message(dirty ? "Enregistrement effectué. Vos dernières modifications restent à enregistrer." : "État des lieux enregistré."); return true;
     } catch (error) { message(error.message); return false; }
     finally { saving = false; status(); }
