@@ -4,6 +4,8 @@ const { listInspectionRevisions, createInspectionRevision, updateInspectionRevis
 const { jobsForRecord } = require("../src/lib/google-drive-backup.js");
 const { finalizeRevisionWithPdf } = require("../src/lib/finalize-inspection-revision.js");
 const { build: inspectionModel } = require("../src/lib/inspection-document-model.js");
+const { generateInspectionPdf } = require("../src/lib/inspection-pdf-server.js");
+const { PDFDocument } = require("pdf-lib");
 
 test("EDL historique finalisé est vu comme V1 et V2 conserve V1 immuable", () => {
   const stage = { completedAt: "2026-10-12T10:00:00Z", km: 12000, signatures: { client: { signedAt: "2026-10-12T10:00:00Z" } }, marks: [{ id: "a" }] };
@@ -64,4 +66,12 @@ test("échec R2 conserve la révision au brouillon", async () => {
 test("modèle documentaire normalise les croquis, médias et dates de signature", () => {
   const model = inspectionModel({ id: "edl_1", stage: "depart", revision: 2, vehicleFamily: "utility", snapshot: { utilityMarks: [{ surface: "utility-exterior", view: "left", x: 25, y: 75 }], signatures: { client: { name: "A", signedAt: "technique", displaySignedAt: "affichée" } } }, media: [{ key: "legacy/photo.jpg", slot: "avant" }] });
   assert.equal(model.sketches.length, 10); assert.equal(model.sketches[0].marks.length, 1); assert.equal(model.photos[0].key, "legacy/photo.jpg"); assert.equal(model.signatures[0].displayedAt, "affichée");
+});
+
+test("grilles Worker : voiture une page croquis, utilitaire deux pages", async () => {
+  const env = { ASSETS: { async fetch() { return new Response("", { status: 404 }); } }, DOCUMENTS_BUCKET: { async get() { return null; } } };
+  const signatures = { client: { signedAt: "a" }, agence: { signedAt: "b" } };
+  const car = await PDFDocument.load(await generateInspectionPdf({ env, id: "car", stage: "depart", revision: 2, snapshot: { marks: [], signatures }, media: [], vehicleFamily: "car" }));
+  const utility = await PDFDocument.load(await generateInspectionPdf({ env, id: "van", stage: "depart", revision: 2, snapshot: { utilityMarks: [], signatures }, media: [], vehicleFamily: "utility" }));
+  assert.equal(car.getPageCount(), 2); assert.equal(utility.getPageCount(), 3);
 });
