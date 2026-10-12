@@ -91,6 +91,32 @@
         const utility = value.sketchVehicleType === "utility", surfaces = utility ? global.InspectionSketch.UTILITY_SURFACES : global.InspectionSketch.VIEWS;
         if (utility) {
           const utilityMarks=value.utilityMarks||[], legacy=value.utilitySketchVersion!=="views-v1"&&utilityMarks.length&&utilityMarks.every(mark=>!mark.view), utilityViews=legacy?global.InspectionSketch.LEGACY_UTILITY_SURFACES:surfaces;
+          if (!legacy) {
+            // Deux pages compactes : une grille extérieure et une grille
+            // intérieure. Les dimensions changent, jamais le repère x/y.
+            const layouts = {
+              "utility-exterior": [
+                { key:"left", x:M, top:680, width:245, height:150 }, { key:"front", x:M+265, top:680, width:245, height:150 },
+                { key:"right", x:M, top:475, width:245, height:150 }, { key:"rear", x:M+265, top:475, width:245, height:150 },
+                { key:"top", x:(W-180)/2, top:275, width:180, height:185 }
+              ],
+              "utility-interior": [
+                { key:"floor", x:M+35, top:675, width:150, height:190 }, { key:"cabin-partition", x:M+300, top:675, width:180, height:190 },
+                { key:"left-wall", x:M, top:440, width:245, height:145 }, { key:"right-wall", x:M+265, top:440, width:245, height:145 },
+                { key:"rear-doors", x:(W-205)/2, top:235, width:205, height:175 }
+              ]
+            };
+            for (const group of ["utility-exterior", "utility-interior"]) {
+              const {page}=make(title+" - "+(group==="utility-exterior"?"EXTÉRIEUR":"INTÉRIEUR"));
+              for (const slot of layouts[group]) {
+                const surface=utilityViews.find(item=>item.surface===group&&item.view===slot.key), response=await fetch(surface.asset); if(!response.ok) throw new Error("Schéma utilitaire indisponible.");
+                const source=await pdf.embedPng(await response.arrayBuffer()), box=fit(source,slot.x,slot.top-slot.height,slot.width,slot.height); page.drawImage(source,box); write(page,bold,surface.label,slot.x,slot.top+14,8.5,ink,slot.width);
+                utilityMarks.forEach((mark,index)=>{ if(mark.surface!==group||mark.view!==slot.key)return; const mx=box.x+Math.min(100,Math.max(0,Number(mark.x)||0))/100*box.width,my=box.y+(1-Math.min(100,Math.max(0,Number(mark.y)||0))/100)*box.height; page.drawCircle({x:mx,y:my,size:8,color:orange,borderColor:rgb(1,1,1),borderWidth:1});const number=String(index+1);page.drawText(number,{x:mx-bold.widthOfTextAtSize(number,7)/2,y:my-2.5,font:bold,size:7,color:rgb(1,1,1)}); });
+              }
+              write(page,regular,"Reperes numerotes correspondant a la liste des dommages.",M,56,8,muted);
+            }
+            return;
+          }
           for (const surface of utilityViews) {
             const group=legacy?surface.label:(surface.surface==="utility-exterior"?"EXTÉRIEUR":"INTÉRIEUR");
             const {page}=make(title+" — "+group+" — "+surface.label), response=await fetch(surface.asset); if(!response.ok) throw new Error("Schéma utilitaire indisponible.");
@@ -118,7 +144,11 @@
         write(page,regular,"Reperes numerotes correspondant a la liste des dommages.",M,61,8,muted);
       }
       await sketch(T("Schema annote - ")+modeLabel(snapshot.mode),stage);
-      if(snapshot.mode==="retour"&&snapshot.depart) await sketch(T("Schema de reference - depart"),snapshot.depart);
+      // Les utilitaires découpés regroupent déjà les dix vues sur deux
+      // pages. Ne pas doubler ces pages au retour : les dommages du départ
+      // restent dans la liste chronologique ci-dessus et les photos départ
+      // sont conservées dans leur section dédiée.
+      if(snapshot.mode==="retour"&&snapshot.depart&&stage.sketchVehicleType!=="utility") await sketch(T("Schema de reference - depart"),snapshot.depart);
       let photoPage=null, photoY=0, count=0;
       async function photos(items,title) {
         if(!items.length)return;

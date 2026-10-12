@@ -103,6 +103,13 @@ test("V3 : le document PDF dédié ne dépend plus de l'impression navigateur", 
   assert.match(css, /\.inspection-sketch-utility \.inspection-sketch-canvas[^}]*width:100%;max-width:none/);
   assert.match(css, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
 });
+test("PDF utilitaire : le renderer utilise deux grilles, jamais une page par vue", () => {
+  const source = fs.readFileSync(path.join(root, "js", "inspection-document.js"), "utf8");
+  assert.match(source, /for \(const group of \["utility-exterior", "utility-interior"\]\)/);
+  assert.match(source, /const layouts =/);
+  assert.match(source, /if \(!legacy\) \{/);
+  assert.match(source, /if\(snapshot\.mode==="retour"&&snapshot\.depart&&stage\.sketchVehicleType!=="utility"\)/);
+});
 test("V3 : tableau des dommages conserve une description facultative dans la marque existante", async () => {
   const { dom, doc } = await view({ mode: "depart" });
   const input = doc.querySelector("#damageTable input"); assert.ok(input); input.focus();
