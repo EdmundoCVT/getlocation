@@ -5,6 +5,7 @@ const { listReservations, getReservation } = require("../lib/reservation-store.j
 const { validateConditionReport } = require("../lib/validate-contract-dossier.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
 const { listInspectionRevisions, createInspectionRevision, updateInspectionRevisionDraft, finalizeInspectionRevision } = require("../lib/inspection-revisions.js");
+const { finalizeRevisionWithPdf } = require("../lib/finalize-inspection-revision.js");
 
 const PREFIX = "standalone-inspection:";
 const ID = /^edl_[a-f0-9-]{16,64}$/;
@@ -66,7 +67,7 @@ async function handleStandaloneInspections(request, env) {
     const stage = safeMode(record.mode), revision = Number(body.revision), previous = Number.isInteger(revision) ? listInspectionRevisions(record, stage, record.dossier[stage], record.dossier.media && record.dossier.media[stage], record.createdBy).find(item => item.revision === revision) : record.dossier[stage], report = preserveInspectionSignatures(validateConditionReport(body.stage || {}), previous && previous.snapshot || previous);
     if (Number.isInteger(revision)) {
       try {
-        const result = body.finalize ? finalizeInspectionRevision(record, stage, record.dossier[stage], record.dossier.media && record.dossier.media[stage], auth.session.operator, revision, report) : updateInspectionRevisionDraft(record, stage, record.dossier[stage], record.dossier.media && record.dossier.media[stage], auth.session.operator, revision, report);
+        const result = body.finalize ? await finalizeRevisionWithPdf({ env, record, stage, revision, snapshot: report, fallbackSnapshot: record.dossier[stage], fallbackMedia: record.dossier.media && record.dossier.media[stage], actor: auth.session.operator, standalone: true }) : updateInspectionRevisionDraft(record, stage, record.dossier[stage], record.dossier.media && record.dossier.media[stage], auth.session.operator, revision, report);
         record.inspectionRevisions = result.inspectionRevisions; record.status = body.finalize ? "finalized" : record.status; await write(env, record);
         await recordAuditEvent(env, { actor: auth.session.operator, eventType: body.finalize ? "inspection_revision_finalized" : "inspection_revision_updated", entityType: "standalone_inspection", entityId: record.id, metadata: { stage, revision } });
         return json({ inspection: record, revision: result.revision });

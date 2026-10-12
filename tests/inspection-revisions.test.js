@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { listInspectionRevisions, createInspectionRevision, updateInspectionRevisionDraft, setRevisionMedia, setRevisionPdf, finalizeInspectionRevision, revisionMediaPrefix, revisionPdfKey } = require("../src/lib/inspection-revisions.js");
 const { jobsForRecord } = require("../src/lib/google-drive-backup.js");
+const { finalizeRevisionWithPdf } = require("../src/lib/finalize-inspection-revision.js");
 
 test("EDL historique finalisé est vu comme V1 et V2 conserve V1 immuable", () => {
   const stage = { completedAt: "2026-10-12T10:00:00Z", km: 12000, signatures: { client: { signedAt: "2026-10-12T10:00:00Z" } }, marks: [{ id: "a" }] };
@@ -43,4 +44,18 @@ test("Drive crée des sources et noms distincts pour chaque révision EDL", () =
   assert.ok(jobs.some(job => job.sourceKey.endsWith("edl-depart-r1:pdf") && /EDL-DEPART-V1/.test(job.filename)));
   assert.ok(jobs.some(job => job.sourceKey.endsWith("edl-depart-r2:pdf") && /EDL-DEPART-V2/.test(job.filename)));
   assert.equal(new Set(jobs.map(job => job.sourceKey)).size, jobs.length);
+});
+
+test("finalisation serveur archive le PDF avant de finaliser, sans toucher V1", async () => {
+  const v1 = { revision: 1, status: "finalized", snapshot: { km: 1, signatures: { client: { signedAt: "a" }, agence: { signedAt: "b" } } }, media: [], pdfKey: "v1.pdf" }, v1Before = JSON.parse(JSON.stringify(v1));
+  const v2 = { revision: 2, status: "draft", snapshot: { km: 2, signatures: { client: { name: "C", signedAt: "a" }, agence: { name: "A", signedAt: "b" } } }, media: [], pdfKey: null };
+  const put = new Map(), env = { DOCUMENTS_BUCKET: { async put(key, value) { put.set(key, value); } } };
+  const out = await finalizeRevisionWithPdf({ env, record: { id: "res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", inspectionRevisions: { depart: [v1, v2] } }, stage: "depart", revision: 2, snapshot: v2.snapshot, fallbackSnapshot: null, fallbackMedia: [], standalone: false });
+  assert.equal(out.revision.status, "finalized"); assert.ok(out.revision.pdfKey); assert.ok(put.has(out.revision.pdfKey)); assert.deepEqual(out.inspectionRevisions.depart[0], v1Before);
+});
+
+test("échec R2 conserve la révision au brouillon", async () => {
+  const v2 = { revision: 2, status: "draft", snapshot: { signatures: { client: { signedAt: "a" }, agence: { signedAt: "b" } } }, media: [], pdfKey: null };
+  await assert.rejects(() => finalizeRevisionWithPdf({ env: { DOCUMENTS_BUCKET: { async put() { throw new Error("R2 indisponible"); } } }, record: { id: "res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", inspectionRevisions: { depart: [v2] } }, stage: "depart", revision: 2, snapshot: v2.snapshot, fallbackSnapshot: null, fallbackMedia: [], standalone: false }), /R2 indisponible/);
+  assert.equal(v2.status, "draft"); assert.equal(v2.pdfKey, null);
 });
