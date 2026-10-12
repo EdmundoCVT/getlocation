@@ -22,7 +22,9 @@ async function generateInspectionPdf({ env, id, stage, revision, snapshot, media
   async function drawSketchGrid(views, title) {
     if (!views.length) return;
     const sketch = pdf.addPage([595.28, 841.89]); sketch.drawText(title, { x: 40, y: 800, size: 14, font: bold });
-    const cells = views.length === 5 ? [[42,555,122,165],[174,555,122,165],[306,555,122,165],[438,555,122,165],[236,260,122,165]] : views.map((_, i) => [42 + (i % 4) * 132, 555 - Math.floor(i / 4) * 295, 122, 165]);
+    // Cinq vues en 3 + 2 : plus grandes et sans la zone blanche produite
+    // par l'ancienne ligne de quatre suivie d'une unique vue centrale.
+    const cells = views.length === 5 ? [[42,510,160,215],[218,510,160,215],[394,510,160,215],[130,210,160,215],[306,210,160,215]] : views.map((_, i) => [42 + (i % 4) * 132, 555 - Math.floor(i / 4) * 295, 122, 165]);
     for (const [index, view] of views.entries()) { const [cx,cy,cw,ch]=cells[index], bytes=await assetBytes(env,view.assetPath), image=bytes&&await embed(pdf,bytes,"image/png"); sketch.drawText(view.label,{x:cx,y:cy+ch+10,size:8,font:bold}); if(!image) continue; const scale=Math.min(cw/image.width,ch/image.height), box={x:cx+(cw-image.width*scale)/2,y:cy+(ch-image.height*scale)/2,width:image.width*scale,height:image.height*scale}; sketch.drawImage(image,box); view.marks.forEach((mark,markIndex)=>{const x=box.x+Number(mark.x||0)/100*box.width,y=box.y+(1-Number(mark.y||0)/100)*box.height;sketch.drawCircle({x,y,size:6,color:rgb(1,.42,0)});sketch.drawText(String(markIndex+1),{x:x-2,y:y-2.5,size:5.5,font:bold,color:rgb(1,1,1)});}); }
   }
   if (model.sketches.length === 5) await drawSketchGrid(model.sketches, "Croquis du véhicule");
