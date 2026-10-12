@@ -91,7 +91,9 @@
         if (utility) {
           for (const surface of surfaces) {
             const {page}=make(title+" — "+surface.label), response=await fetch(surface.asset); if(!response.ok) throw new Error("Schéma utilitaire indisponible.");
-            const source=await pdf.embedPng(await response.arrayBuffer()), box=fit(source,M,120,W-2*M,570); page.drawImage(source,box);
+            // Une page dédiée par surface, avec des marges plus étroites que
+            // les vignettes voiture : aucun petit croquis isolé au milieu.
+            const source=await pdf.embedPng(await response.arrayBuffer()), box=fit(source,22,105,W-44,600); page.drawImage(source,box);
             (value.utilityMarks||[]).forEach((mark,index)=>{ if(mark.surface!==surface.key)return; const mx=box.x+Math.min(100,Math.max(0,Number(mark.x)||0))/100*box.width,my=box.y+(1-Math.min(100,Math.max(0,Number(mark.y)||0))/100)*box.height; page.drawCircle({x:mx,y:my,size:10,color:orange,borderColor:rgb(1,1,1),borderWidth:1});const number=String(index+1);page.drawText(number,{x:mx-bold.widthOfTextAtSize(number,8)/2,y:my-3,font:bold,size:8,color:rgb(1,1,1)}); });
             write(page,regular,"Reperes numerotes correspondant a la liste des dommages.",M,70,8,muted);
           }

@@ -47,6 +47,7 @@ test("V3 : un utilitaire sélectionne les schémas extérieur et intérieur", as
   assert.equal(doc.querySelector('input[name="sketchVehicleType"][value="utility"]').checked, true);
   assert.match(doc.querySelector("#sketch [data-view='utility-exterior'] img").src, /images\/inspection\/utility-exterior\.png/);
   assert.match(doc.querySelector("#sketch [data-view='utility-interior'] img").src, /images\/inspection\/utility-interior\.png/);
+  assert.equal(doc.querySelectorAll("#sketch .inspection-sketch-zoom").length, 2);
   dom.window.close();
 });
 test("V3 : propretés indépendantes avec sélection visible et chargement seulement pour utilitaire", async () => {
@@ -95,6 +96,10 @@ test("V3 : le document PDF dédié ne dépend plus de l'impression navigateur", 
   assert.match(source, /async function sketch\(title,value\)/);
   assert.match(source, /if\(!items\.length\)return/);
   assert.doesNotMatch(source, /about:blank|\.print\(\)/);
+  assert.match(source, /value\.sketchVehicleType === "utility"/);
+  assert.match(source, /fit\(source,22,105,W-44,600\)/);
+  const css = fs.readFileSync(path.join(root, "css", "inspection.css"), "utf8");
+  assert.match(css, /\.inspection-sketch-utility \.inspection-sketch-canvas[^}]*width:100%;max-width:none/);
 });
 test("V3 : tableau des dommages conserve une description facultative dans la marque existante", async () => {
   const { dom, doc } = await view({ mode: "depart" });

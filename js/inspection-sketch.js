@@ -81,7 +81,9 @@
         marks.push(mark);
         redraw(); changed();
       };
-      wrap.append(label, canvas); grid.append(wrap); canvases[view.key] = canvas;
+      wrap.append(label, canvas);
+      if (vehicleType === "utility" && options.onExpand) { var zoom = document.createElement("button"); zoom.type = "button"; zoom.className = "inspection-sketch-zoom"; zoom.textContent = "Agrandir"; zoom.onclick = function () { options.onExpand(view); }; wrap.append(zoom); }
+      grid.append(wrap); canvases[view.key] = canvas;
     });
     redraw();
     return {

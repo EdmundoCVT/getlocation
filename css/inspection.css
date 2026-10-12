@@ -31,3 +31,11 @@
   .damage-row .field input{width:100%;min-width:0;min-height:48px}
 }
 @media print{.inspection,.lightbox,.signature-dialog{display:none!important}body:after{content:'Utilisez « Préparer le PDF » pour imprimer le document complet.';font:12pt system-ui,sans-serif;color:#172b43}}
+/* Les utilitaires ne sont pas des vignettes : chaque plan occupe la largeur
+   de la carte, indépendamment de la grille des cinq vues voiture. */
+.inspection-sketch-utility .inspection-sketch-grid{display:grid;grid-template-columns:minmax(0,1fr);width:100%;gap:28px}
+.inspection-sketch-utility .inspection-sketch-view,.inspection-sketch-utility .inspection-sketch-view:last-child{grid-column:1;justify-self:stretch;max-width:none;width:100%;margin:0}
+.inspection-sketch-utility .inspection-sketch-canvas,.inspection-sketch-utility .inspection-sketch-view:last-child .inspection-sketch-canvas{width:100%;max-width:none;overflow:visible}
+.inspection-sketch-utility .inspection-reference-image{width:100%;height:auto}
+.inspection-sketch-zoom{justify-self:start;min-height:44px;padding:8px 13px;border:1px solid var(--line);border-radius:9px;background:#fff;font-weight:700}
+@media(max-width:760px){.inspection-sketch-utility .inspection-sketch-grid{gap:22px}.inspection-sketch-utility .inspection-sketch-mark{min-width:46px;min-height:46px}}

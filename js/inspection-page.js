@@ -225,7 +225,7 @@
     $("legacyCleanliness").hidden = !stage.proprete; $("legacyCleanliness").textContent = "Propreté historique conservée : " + (stage.proprete || ""); cleanliness(stage);
     sketchVehicleType = stage.sketchVehicleType === "utility" ? "utility" : (stage.sketchVehicleType === "car" ? "car" : (family === "utility" ? "utility" : "car"));
     function mountSketch() {
-      sketch = window.createInspectionSketch($("sketch"), { vehicleType: sketchVehicleType, marks: sketchVehicleType === "utility" ? (stage.utilityMarks || []) : (stage.marks || []), onChange: reason => { if (reason !== "description") renderDamageTable(); changed(); } });
+      sketch = window.createInspectionSketch($("sketch"), { vehicleType: sketchVehicleType, marks: sketchVehicleType === "utility" ? (stage.utilityMarks || []) : (stage.marks || []), onExpand: view => openPhoto(view.asset, "Schéma utilitaire — " + view.label), onChange: reason => { if (reason !== "description") renderDamageTable(); changed(); } });
       document.querySelectorAll('input[name="sketchVehicleType"]').forEach(input => { input.checked = input.value === sketchVehicleType; });
     }
     document.querySelectorAll('input[name="sketchVehicleType"]').forEach(input => input.onchange = () => {
@@ -243,7 +243,7 @@
       const depart = dossier.depart; $("departCompare").hidden = false;
       const values = [["Kilométrage départ", depart.km + " km"], ["Carburant départ", depart.carburant + " %"], ["Propreté extérieure", depart.propreteExterieure == null ? depart.proprete : depart.propreteExterieure + " / 5"], ["Propreté intérieure", depart.propreteInterieure == null ? depart.proprete : depart.propreteInterieure + " / 5"], ["Kilomètres parcourus", stage.km == null ? "—" : stage.km - depart.km + " km"]];
       fieldGrid($("departureValues"), values); $("departDamage").textContent = "Dommages déjà présents au départ : " + (depart.dommages || "Non renseignés");
-      window.createInspectionSketch($("departureSketch"), { vehicleType: depart.sketchVehicleType === "utility" ? "utility" : "car", marks: (depart.sketchVehicleType === "utility" ? depart.utilityMarks : depart.marks) || [], readOnly: true }); M.renderReadOnly($("departurePhotos"), media.depart, cache, openPhoto);
+      window.createInspectionSketch($("departureSketch"), { vehicleType: depart.sketchVehicleType === "utility" ? "utility" : "car", marks: (depart.sketchVehicleType === "utility" ? depart.utilityMarks : depart.marks) || [], readOnly: true, onExpand: view => openPhoto(view.asset, "Schéma utilitaire — " + view.label) }); M.renderReadOnly($("departurePhotos"), media.depart, cache, openPhoto);
       $("km").addEventListener("input", () => { values[4][1] = $("km").value === "" ? "—" : Number($("km").value) - depart.km + " km"; fieldGrid($("departureValues"), values); });
     }
     renderPhotos(); renderComparison(); status();
