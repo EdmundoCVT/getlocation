@@ -29,6 +29,7 @@ const { hashContractAgencyToken, issueContractClientAccess } = require("../lib/c
 const { validateContractFields, champsManquantsAvantEnvoi, validateConditionReport } = require("../lib/validate-contract-dossier.js");
 const { resolveAgencySession } = require("../lib/agency-auth.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
+const { listInspectionRevisions, createInspectionRevision } = require("../lib/inspection-revisions.js");
 
 function corsHeaders(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -227,12 +228,27 @@ async function handlePost(request, env, headers) {
 
   // Le jeton agence d'un contrat manuel sert ici uniquement à l'inspection.
   // Le contrat manuel et son lien client gardent leur parcours séparé.
-  if (reservation.status === "manual_contract" && !["update-depart", "update-retour", "update-signature-display-time"].includes(payload.action)) {
+  if (reservation.status === "manual_contract" && !["update-depart", "update-retour", "update-signature-display-time", "list-inspection-revisions", "create-revision"].includes(payload.action)) {
     return new Response(JSON.stringify({ error: "Action indisponible pour un contrat manuel" }), { status: 400, headers });
   }
 
   try {
     switch (payload.action) {
+      case "list-inspection-revisions": {
+        if (!["depart", "retour"].includes(payload.mode)) return new Response(JSON.stringify({ error: "Type d’état des lieux invalide" }), { status: 400, headers });
+        return new Response(JSON.stringify({ revisions: listInspectionRevisions(reservation, payload.mode, existing[payload.mode], existing.media && existing.media[payload.mode], null) }), { status: 200, headers });
+      }
+      case "create-revision": {
+        if (!["depart", "retour"].includes(payload.mode)) return new Response(JSON.stringify({ error: "Type d’état des lieux invalide" }), { status: 400, headers });
+        const agencySession = await resolveAgencySession(request, env);
+        try {
+          const created = createInspectionRevision(reservation, payload.mode, existing[payload.mode], existing.media && existing.media[payload.mode], agencySession && agencySession.operator, payload.baseRevision);
+          const updated = { ...reservation, inspectionRevisions: { ...(reservation.inspectionRevisions || {}), [payload.mode]: created.revisions }, updatedAt: new Date().toISOString() };
+          await env.RESERVATIONS_KV.put(reservation.id, JSON.stringify(updated));
+          await recordAuditEvent(env, { actor: agencySession && agencySession.operator, eventType: "inspection_revision_created", entityType: "contract", entityId: reservation.id, metadata: { stage: payload.mode, basedOnRevision: created.revision.basedOnRevision, revision: created.revision.revision } });
+          return new Response(JSON.stringify({ ...buildDossierView(updated), revision: created.revision }), { status: 201, headers });
+        } catch (error) { return new Response(JSON.stringify({ error: error.message || "Révision impossible" }), { status: 409, headers }); }
+      }
       case "update-signature-display-time": {
         const role = payload.role === "agence" ? "agence" : payload.role === "client" ? "client" : null;
         if (!role || !["depart", "retour"].includes(payload.mode)) return new Response(JSON.stringify({ error: "Signature introuvable" }), { status: 400, headers });

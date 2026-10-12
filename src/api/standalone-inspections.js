@@ -4,6 +4,7 @@ const { requireAgencySession } = require("../lib/agency-auth.js");
 const { listReservations, getReservation } = require("../lib/reservation-store.js");
 const { validateConditionReport } = require("../lib/validate-contract-dossier.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
+const { listInspectionRevisions, createInspectionRevision } = require("../lib/inspection-revisions.js");
 
 const PREFIX = "standalone-inspection:";
 const ID = /^edl_[a-f0-9-]{16,64}$/;
@@ -30,7 +31,7 @@ async function handleStandaloneInspections(request, env) {
   if (request.method === "GET") {
     if (url.searchParams.get("contracts") === "1") return json({ contracts: await contracts(env, url.searchParams.get("q")) });
     const id = url.searchParams.get("id");
-    if (id) { const inspection = await read(env, id); return inspection ? json({ inspection }) : json({ error: "État des lieux introuvable" }, 404); }
+    if (id) { const inspection = await read(env, id); if (!inspection) return json({ error: "État des lieux introuvable" }, 404); const stage = safeMode(url.searchParams.get("stage")); if (stage && url.searchParams.get("history") === "1") return json({ revisions: listInspectionRevisions(inspection, stage, inspection.dossier && inspection.dossier[stage], inspection.dossier && inspection.dossier.media && inspection.dossier.media[stage], inspection.createdBy) }); return json({ inspection }); }
     const keyNames = [];
     let cursor;
     do {
@@ -51,6 +52,16 @@ async function handleStandaloneInspections(request, env) {
     await write(env, record); return json({ inspection: record }, 201);
   }
   const record = await read(env, body.id); if (!record) return json({ error: "État des lieux introuvable" }, 404);
+  if (body.action === "create-revision") {
+    const stage = safeMode(body.stage || record.mode); if (!stage) return json({ error: "Type d’état des lieux invalide" }, 400);
+    try {
+      const created = createInspectionRevision(record, stage, record.dossier && record.dossier[stage], record.dossier && record.dossier.media && record.dossier.media[stage], auth.session.operator, body.baseRevision);
+      record.inspectionRevisions = { ...(record.inspectionRevisions || {}), [stage]: created.revisions };
+      await write(env, record);
+      await recordAuditEvent(env, { actor: auth.session.operator, eventType: "inspection_revision_created", entityType: "standalone_inspection", entityId: record.id, metadata: { stage, basedOnRevision: created.revision.basedOnRevision, revision: created.revision.revision } });
+      return json({ inspection: record, revision: created.revision }, 201);
+    } catch (error) { return json({ error: error.message || "Révision impossible" }, 409); }
+  }
   if (body.action === "update-stage") {
     const stage = safeMode(record.mode), report = preserveInspectionSignatures(validateConditionReport(body.stage || {}), record.dossier[stage]);
     record.dossier[stage] = { ...report, completedAt: record.dossier[stage] && record.dossier[stage].completedAt || new Date().toISOString(), finalizedAt: body.finalize ? record.dossier[stage] && record.dossier[stage].finalizedAt || new Date().toISOString() : record.dossier[stage] && record.dossier[stage].finalizedAt || null };
