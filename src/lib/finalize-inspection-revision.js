@@ -9,7 +9,7 @@ async function finalizeRevisionWithPdf({ env, record, stage, revision, snapshot,
   if (!current) { const error = new Error("Révision introuvable"); error.status = 404; throw error; }
   if (current.status === "finalized") return { inspectionRevisions: record.inspectionRevisions, revision: current, idempotent: true };
   const key = revisionPdfKey(record.id, stage, revision, standalone);
-  const bytes = await generateInspectionPdf({ id: record.id, stage, revision, snapshot, media: current.media || [] });
+  const bytes = await generateInspectionPdf({ env, id: record.id, stage, revision, snapshot, media: current.media || [] });
   await env.DOCUMENTS_BUCKET.put(key, bytes, { httpMetadata: { contentType: "application/pdf" }, customMetadata: { inspectionId: record.id, stage, revision: String(revision) } });
   const withPdf = setRevisionPdf(record, stage, fallbackSnapshot, fallbackMedia, actor, revision, key);
   const finalized = finalizeInspectionRevision({ ...record, inspectionRevisions: withPdf.inspectionRevisions }, stage, fallbackSnapshot, fallbackMedia, actor, revision, snapshot);

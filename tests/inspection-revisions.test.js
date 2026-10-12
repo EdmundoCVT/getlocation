@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const { listInspectionRevisions, createInspectionRevision, updateInspectionRevisionDraft, setRevisionMedia, setRevisionPdf, finalizeInspectionRevision, revisionMediaPrefix, revisionPdfKey } = require("../src/lib/inspection-revisions.js");
 const { jobsForRecord } = require("../src/lib/google-drive-backup.js");
 const { finalizeRevisionWithPdf } = require("../src/lib/finalize-inspection-revision.js");
+const { build: inspectionModel } = require("../src/lib/inspection-document-model.js");
 
 test("EDL historique finalisé est vu comme V1 et V2 conserve V1 immuable", () => {
   const stage = { completedAt: "2026-10-12T10:00:00Z", km: 12000, signatures: { client: { signedAt: "2026-10-12T10:00:00Z" } }, marks: [{ id: "a" }] };
@@ -58,4 +59,9 @@ test("échec R2 conserve la révision au brouillon", async () => {
   const v2 = { revision: 2, status: "draft", snapshot: { signatures: { client: { signedAt: "a" }, agence: { signedAt: "b" } } }, media: [], pdfKey: null };
   await assert.rejects(() => finalizeRevisionWithPdf({ env: { DOCUMENTS_BUCKET: { async put() { throw new Error("R2 indisponible"); } } }, record: { id: "res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", inspectionRevisions: { depart: [v2] } }, stage: "depart", revision: 2, snapshot: v2.snapshot, fallbackSnapshot: null, fallbackMedia: [], standalone: false }), /R2 indisponible/);
   assert.equal(v2.status, "draft"); assert.equal(v2.pdfKey, null);
+});
+
+test("modèle documentaire normalise les croquis, médias et dates de signature", () => {
+  const model = inspectionModel({ id: "edl_1", stage: "depart", revision: 2, vehicleFamily: "utility", snapshot: { utilityMarks: [{ surface: "utility-exterior", view: "left", x: 25, y: 75 }], signatures: { client: { name: "A", signedAt: "technique", displaySignedAt: "affichée" } } }, media: [{ key: "legacy/photo.jpg", slot: "avant" }] });
+  assert.equal(model.sketches.length, 10); assert.equal(model.sketches[0].marks.length, 1); assert.equal(model.photos[0].key, "legacy/photo.jpg"); assert.equal(model.signatures[0].displayDate, "affichée");
 });
