@@ -197,7 +197,10 @@ function buildDossierView(reservation) {
       kilometrage,
       media: dossier && dossier.media ? dossier.media : { depart: [], retour: [] },
       observations: dossier ? dossier.observations || "" : ""
-    }
+    },
+    // La source moderne est versionnée. Les champs `dossier.depart/retour`
+    // restent seulement le fallback des dossiers historiques.
+    inspectionRevisions: reservation.inspectionRevisions || {}
   };
 }
 
@@ -252,6 +255,13 @@ async function handlePost(request, env, headers) {
       case "update-signature-display-time": {
         const role = payload.role === "agence" ? "agence" : payload.role === "client" ? "client" : null;
         if (!role || !["depart", "retour"].includes(payload.mode)) return new Response(JSON.stringify({ error: "Signature introuvable" }), { status: 400, headers });
+        const revision = Number(payload.revision);
+        if (Number.isInteger(revision)) {
+          const current = listInspectionRevisions(reservation, payload.mode, existing[payload.mode], existing.media && existing.media[payload.mode], null).find(item => item.revision === revision);
+          const signature = current && current.snapshot && current.snapshot.signatures && current.snapshot.signatures[role];
+          if (!signature || !signature.signedAt) return new Response(JSON.stringify({ error: "Signature introuvable" }), { status: 404, headers });
+          try { const displaySignedAt = displaySignatureTime(payload.displaySignedAt), snapshot = { ...current.snapshot, signatures: { ...current.snapshot.signatures, [role]: { ...signature, ...(displaySignedAt ? { displaySignedAt } : {}) } } }; if (!displaySignedAt) delete snapshot.signatures[role].displaySignedAt; const saved = updateInspectionRevisionDraft(reservation, payload.mode, existing[payload.mode], existing.media && existing.media[payload.mode], null, revision, snapshot); const updated = { ...reservation, inspectionRevisions: saved.inspectionRevisions, updatedAt: new Date().toISOString() }; await env.RESERVATIONS_KV.put(reservation.id, JSON.stringify(updated)); return new Response(JSON.stringify({ ...buildDossierView(updated), revision: saved.revision }), { status: 200, headers }); } catch (error) { return new Response(JSON.stringify({ error: error.message }), { status: error.status || 409, headers }); }
+        }
         const agencySession = await resolveAgencySession(request, env);
         const result = await updateInspectionSignatureDisplay(env, reservation.id, payload.mode, role, displaySignatureTime(payload.displaySignedAt), agencySession && agencySession.operator);
         if (!result) return new Response(JSON.stringify({ error: "Signature introuvable" }), { status: 404, headers });

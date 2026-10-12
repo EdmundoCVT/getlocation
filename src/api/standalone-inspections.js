@@ -77,6 +77,13 @@ async function handleStandaloneInspections(request, env) {
   }
   if (body.action === "update-signature-display-time") {
     const stage = safeMode(record.mode), role = body.role === "client" || body.role === "agence" ? body.role : null;
+    const revision = Number(body.revision);
+    if (Number.isInteger(revision)) {
+      const current = listInspectionRevisions(record, stage, record.dossier[stage], record.dossier.media && record.dossier.media[stage], record.createdBy).find(item => item.revision === revision);
+      const signature = current && current.snapshot && current.snapshot.signatures && current.snapshot.signatures[role];
+      if (!signature || !signature.signedAt) return json({ error: "Signature introuvable" }, 404);
+      try { const displaySignedAt = displaySignatureTime(body.displaySignedAt); const snapshot = { ...current.snapshot, signatures: { ...current.snapshot.signatures, [role]: { ...signature, ...(displaySignedAt ? { displaySignedAt } : {}) } } }; if (!displaySignedAt) delete snapshot.signatures[role].displaySignedAt; const saved = updateInspectionRevisionDraft(record, stage, record.dossier[stage], record.dossier.media && record.dossier.media[stage], auth.session.operator, revision, snapshot); record.inspectionRevisions = saved.inspectionRevisions; await write(env, record); return json({ inspection: record, revision: saved.revision }); } catch (error) { return json({ error: error.message }, error.status || 409); }
+    }
     const signature = stage && role && record.dossier[stage] && record.dossier[stage].signatures && record.dossier[stage].signatures[role];
     if (!signature || !signature.signedAt) return json({ error: "Signature introuvable" }, 404);
     let displaySignedAt;

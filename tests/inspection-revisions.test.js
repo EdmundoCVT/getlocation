@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { listInspectionRevisions, createInspectionRevision, updateInspectionRevisionDraft, setRevisionMedia, setRevisionPdf, finalizeInspectionRevision, revisionMediaPrefix, revisionPdfKey } = require("../src/lib/inspection-revisions.js");
+const { jobsForRecord } = require("../src/lib/google-drive-backup.js");
 
 test("EDL historique finalisé est vu comme V1 et V2 conserve V1 immuable", () => {
   const stage = { completedAt: "2026-10-12T10:00:00Z", km: 12000, signatures: { client: { signedAt: "2026-10-12T10:00:00Z" } }, marks: [{ id: "a" }] };
@@ -32,4 +33,14 @@ test("V1 finalisée reste profondément inchangée pendant tout le cycle V2", ()
   assert.equal(finalized.revision.status, "finalized");
   assert.deepEqual(finalized.inspectionRevisions.depart[0], before);
   assert.deepEqual(document.inspectionRevisions.depart[0], before);
+});
+
+test("Drive crée des sources et noms distincts pour chaque révision EDL", () => {
+  const jobs = jobsForRecord({ id: "res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", contractNumero: "GL-1", contractVersion: { version: 1 }, inspectionRevisions: { depart: [
+    { revision: 1, status: "finalized", pdfKey: "inspection-pdf/x/depart/v1.pdf", media: [{ key: "legacy/a.jpg", slot: "avant", contentType: "image/jpeg" }] },
+    { revision: 2, status: "finalized", pdfKey: "inspection-pdf/x/depart/v2.pdf", media: [{ key: "inspection/x/depart/v2/b.jpg", slot: "avant", contentType: "image/jpeg" }] }
+  ] } });
+  assert.ok(jobs.some(job => job.sourceKey.endsWith("edl-depart-r1:pdf") && /EDL-DEPART-V1/.test(job.filename)));
+  assert.ok(jobs.some(job => job.sourceKey.endsWith("edl-depart-r2:pdf") && /EDL-DEPART-V2/.test(job.filename)));
+  assert.equal(new Set(jobs.map(job => job.sourceKey)).size, jobs.length);
 });

@@ -1,12 +1,12 @@
 // Front-end V3 only. The existing agency dossier/media APIs remain authoritative.
 (function () {
   "use strict";
-  const params = new URLSearchParams(location.search), mode = params.get("mode") === "retour" ? "retour" : "depart";
+  const params = new URLSearchParams(location.search), mode = params.get("mode") === "retour" ? "retour" : "depart", requestedRevision = Number(params.get("revision"));
   const legacy = params.get("source") === "legacy", legacyId = params.get("legacyId") || "";
   const standaloneId = params.get("standalone") || "";
   const token = new URLSearchParams(location.hash.slice(1)).get("agencyToken");
   const $ = id => document.getElementById(id), M = window.InspectionMedia;
-  let dossier, reservation, family = "car", sketch, sketchVehicleType = "car", utilitySketchLegacy = false, pads = {}, dirty = false, revision = 0, saving = false, pendingCount = 0, csrfToken = "", finalized = false;
+  let dossier, reservation, family = "car", sketch, sketchVehicleType = "car", utilitySketchLegacy = false, pads = {}, dirty = false, revision = 0, inspectionRevision = 0, saving = false, pendingCount = 0, csrfToken = "", finalized = false;
   let media = { depart: [], retour: [] }, editableMedia = new Set(), queue = Promise.resolve();
   const scores = {};
   const api = (url, options = {}) => fetch(url, { ...options, credentials: "same-origin", headers: { ...(token ? { Authorization: "Bearer " + token } : {}), ...(standaloneId && csrfToken ? { "X-Agency-Csrf": csrfToken } : {}), ...options.headers } });
@@ -135,7 +135,7 @@
             if (media[mode].length + files.length > 30) throw new Error("Maximum 30 photos par état des lieux. Aucun ancien média ne sera supprimé.");
             for (const file of files) {
               message("Import de " + file.name + "…");
-              const form = new FormData(); form.append("stage", mode); form.append("slot", slot); form.append("capturedAt", M.local(new Date())); form.append("file", file);
+              const form = new FormData(); form.append("stage", mode); form.append("revision", String(inspectionRevision)); form.append("slot", slot); form.append("capturedAt", M.local(new Date())); form.append("file", file);
               const out = await json(await api(mediaUrl(), { method: "POST", body: form }));
               media[mode].push(out.item); editableMedia.add(out.item.key); rememberMedia(); renderPhotos(); renderComparison();
             }
@@ -150,7 +150,7 @@
           const previous = item.capturedAt, value = input.value; if (!value) { input.value = M.local(previous); message("Indiquez une date et une heure valides."); return; }
           input.disabled = true;
           mutation(async () => {
-            try { const out = await json(await api(mediaUrl(), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key, capturedAt: value }) })); Object.assign(item, out.item); message("Date/heure de la photo enregistrée."); }
+            try { const out = await json(await api(mediaUrl(), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key, stage: mode, revision: inspectionRevision, capturedAt: value }) })); Object.assign(item, out.item); message("Date/heure de la photo enregistrée."); }
             catch (error) { input.value = M.local(previous); throw error; }
             finally { input.disabled = false; }
           });
@@ -160,7 +160,7 @@
         actions.append(M.button("Agrandir", async () => { try { openPhoto(await cache.get(item), M.labels[slot]); } catch (error) { message(error.message); } }));
         if (editableMedia.has(item.key)) actions.append(M.button("Supprimer", () => {
           if (!confirm("Supprimer cette nouvelle photo ? Les médias historiques restent conservés.")) return;
-          mutation(async () => { await json(await api(mediaUrl(), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key }) })); media[mode] = media[mode].filter(photo => photo.key !== item.key); editableMedia.delete(item.key); rememberMedia(); cache.forget(item.key); renderPhotos(); renderComparison(); message("Nouvelle photo supprimée."); });
+          mutation(async () => { await json(await api(mediaUrl(), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key, stage: mode, revision: inspectionRevision }) })); media[mode] = media[mode].filter(photo => photo.key !== item.key); editableMedia.delete(item.key); rememberMedia(); cache.forget(item.key); renderPhotos(); renderComparison(); message("Nouvelle photo supprimée."); });
         }, "danger"));
         else { const note = document.createElement("small"); note.textContent = "Photo historique conservée"; actions.append(note); }
         photo.append(M.preview(item, cache, openPhoto), field, small, actions); card.append(photo);
@@ -175,11 +175,12 @@
   }
   async function correctSignatureDisplayTime(role, displaySignedAt) {
     if (finalized && !confirm("Modifier uniquement la date et l’heure affichées de cette signature ? L’heure réelle et la signature resteront inchangées.")) return false;
-    const body = { action: "update-signature-display-time", mode, role, displaySignedAt };
+    const body = { action: "update-signature-display-time", mode, revision: inspectionRevision, role, displaySignedAt };
     const response = standaloneId
       ? await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, id: standaloneId }) }))
       : await json(await api("/api/contract-dossier-agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
     dossier = standaloneId ? response.inspection.dossier : response.dossier;
+    if (response.revision) { inspectionRevision = response.revision.revision; dossier[mode] = response.revision.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: response.revision.media || [] }; }
     for (const currentRole of ["client", "agence"]) pads[currentRole] && pads[currentRole].acknowledge(dossier[mode].signatures && dossier[mode].signatures[currentRole]);
     message("Date et heure affichées de la signature enregistrées.");
     return true;
@@ -192,10 +193,11 @@
       await queue; await Promise.all(Object.values(pads).map(pad => pad.ready()));
       const version = revision, body = readStage();
       const response = standaloneId
-        ? await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update-stage", id: standaloneId, stage: body, finalize: Boolean(finalize) }) }))
-        : await json(await api("/api/contract-dossier-agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, action: "update-" + mode, finalize: Boolean(finalize) }) }));
+        ? await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update-stage", id: standaloneId, revision: inspectionRevision, stage: body, finalize: Boolean(finalize) }) }))
+        : await json(await api("/api/contract-dossier-agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, action: "update-" + mode, revision: inspectionRevision, finalize: Boolean(finalize) }) }));
       dossier = standaloneId ? response.inspection.dossier : response.dossier;
-      finalized = Boolean(dossier[mode] && dossier[mode].finalizedAt);
+      if (response.revision) { inspectionRevision = response.revision.revision; dossier[mode] = response.revision.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: response.revision.media || [] }; }
+      finalized = Boolean(response.revision ? response.revision.status === "finalized" : dossier[mode] && dossier[mode].finalizedAt);
       if (revision === version) { dirty = false; for (const role of ["client", "agence"]) pads[role].acknowledge(dossier[mode].signatures && dossier[mode].signatures[role]); }
       $("reviewStatus").textContent = finalize && !dirty ? "État des lieux finalisé et enregistré. Une correction reste possible." : "État des lieux enregistré.";
       message(dirty ? "Enregistrement effectué. Vos dernières modifications restent à enregistrer." : "État des lieux enregistré."); return true;
@@ -211,6 +213,7 @@
     form.append("id", reservation.id);
     form.append("kind", mode === "retour" ? "edl-return" : "edl-depart");
     form.append("version", String(version));
+    form.append("revision", String(inspectionRevision));
     form.append("file", new Blob([bytes], { type: "application/pdf" }), "etat-des-lieux-" + mode + ".pdf");
     const response = standaloneId
       ? await api("/api/standalone-inspection-pdf", { method: "POST", body: form })
@@ -285,12 +288,19 @@
       const standalone = view.inspection;
       if (standalone.mode !== mode) throw new Error("Type d’état des lieux incohérent.");
       dossier = standalone.dossier || { status: "draft", depart: null, retour: null, media: { depart: [], retour: [] } };
+      const revisions = standalone.inspectionRevisions && standalone.inspectionRevisions[mode] || [];
+      const current = revisions.find(item => item.revision === requestedRevision) || revisions[revisions.length - 1];
+      if (current) { inspectionRevision = current.revision; dossier[mode] = current.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: current.media || [] }; }
       if (standalone.status === "finalized" && dossier[mode] && !dossier[mode].finalizedAt) dossier[mode].finalizedAt = standalone.updatedAt || new Date().toISOString();
       reservation = { id: standalone.id, contractVersion: { version: 1 }, contractNumero: standalone.linkedContractNumero || null, vehicule: standalone.vehicule || {}, conducteur: standalone.client || {}, langue: "fr" };
       window.__standaloneInspection = standalone;
     } else {
       const view = await json(await api("/api/contract-dossier-agency")); dossier = view.dossier; reservation = view.reservation;
+      const revisions = view.inspectionRevisions && view.inspectionRevisions[mode] || [];
+      const current = revisions.find(item => item.revision === requestedRevision) || revisions[revisions.length - 1];
+      if (current) { inspectionRevision = current.revision; dossier[mode] = current.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: current.media || [] }; }
     }
+    if (!inspectionRevision) inspectionRevision = 1;
     media = { depart: dossier.media && dossier.media.depart || [], retour: dossier.media && dossier.media.retour || [] }; family = reservation.vehicule && reservation.vehicule.vehicleFamily === "utility" ? "utility" : "car";
     dirty = !dossier[mode];
     try { editableMedia = new Set(JSON.parse(sessionStorage.getItem(metadataKey()) || "[]")); } catch (_) { editableMedia = new Set(); }
