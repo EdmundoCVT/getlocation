@@ -28,8 +28,14 @@ async function handleStandaloneInspections(request, env) {
     if (url.searchParams.get("contracts") === "1") return json({ contracts: await contracts(env, url.searchParams.get("q")) });
     const id = url.searchParams.get("id");
     if (id) { const inspection = await read(env, id); return inspection ? json({ inspection }) : json({ error: "État des lieux introuvable" }, 404); }
-    const keys = await env.RESERVATIONS_KV.list({ prefix: PREFIX, limit: 200 });
-    const inspections = (await Promise.all(keys.keys.map(k => env.RESERVATIONS_KV.get(k.name)))).filter(Boolean).map(JSON.parse).map(publicItem).sort((a,b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+    const keyNames = [];
+    let cursor;
+    do {
+      const page = await env.RESERVATIONS_KV.list({ prefix: PREFIX, limit: 200, ...(cursor ? { cursor } : {}) });
+      keyNames.push(...page.keys.map(key => key.name));
+      cursor = page.list_complete ? null : page.cursor;
+    } while (cursor);
+    const inspections = (await Promise.all(keyNames.map(key => env.RESERVATIONS_KV.get(key)))).filter(Boolean).map(JSON.parse).map(publicItem).sort((a,b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
     return json({ inspections });
   }
   if (request.method !== "POST") return json({ error: "Méthode non autorisée" }, 405);

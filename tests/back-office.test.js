@@ -143,7 +143,7 @@ test("la navigation mobile ouvre et ferme la sidebar sans exposer de contenu sup
   assert.equal(toggle.getAttribute("aria-expanded"), "false");
 });
 
-test("états des lieux historiques terminés : les boutons restent cliquables, seul un retour futur reste désactivé", () => {
+test("bibliothèque EDL : les sources liées et historiques sont normalisées, sans rendre un retour futur consultable", () => {
   const window = buildWindow();
   window.__backOffice.renderInspectionListForTest([
     {
@@ -157,13 +157,32 @@ test("états des lieux historiques terminés : les boutons restent cliquables, s
       openable: true, historyMode: null, inspection: { depart: false, retour: false, retourAvailable: false }
     }
   ]);
-  const buttons = [...window.document.querySelectorAll("#inspectionList button")];
-  const departHistorique = buttons.find((b) => b.textContent === "Départ — ✓ Terminé");
-  const retourHistorique = buttons.find((b) => b.textContent === "Retour — ✓ Terminé");
-  const retourFutur = buttons.find((b) => b.textContent === "Retour — À venir");
-  assert.ok(departHistorique && !departHistorique.disabled);
-  assert.ok(retourHistorique && !retourHistorique.disabled);
-  assert.ok(retourFutur && retourFutur.disabled);
+  const cards = [...window.document.querySelectorAll("#inspectionList .dashboard-card")];
+  assert.equal(cards.length, 4);
+  const historical = cards.filter((card) => /Historique/.test(card.textContent));
+  assert.equal(historical.length, 2);
+  historical.forEach((card) => assert.equal(card.querySelector("button").disabled, false));
+  const retourFutur = cards.find((card) => /^Retour/.test(card.querySelector("h2").textContent));
+  assert.ok(retourFutur.querySelector("button").disabled);
+});
+
+test("bibliothèque EDL : recherche, filtre indépendant et tri couvrent toutes les sources", () => {
+  const window = buildWindow();
+  window.__backOffice.renderInspectionListForTest([{
+    id: "rental_1", client: { prenom: "Alice", nom: "Martin" }, vehicule: "Peugeot 208", immatriculation: "AA-123-AA", dateDebut: "2026-03-01", heureDebut: "10:00", dateFin: "2026-03-02", heureFin: "10:00", contractNumero: "GL-1", openable: true, inspection: { depart: true, retour: false, retourAvailable: true }
+  }], [{
+    id: "edl_aaaaaaaaaaaaaaaa", mode: "depart", client: { prenom: "Benoît", nom: "Durand" }, vehicule: { nom: "Renault Trafic", immatriculation: "BB-456-BB" }, linkedContractNumero: "GL-2", dateHeure: "2026-04-01T09:00", status: "draft"
+  }]);
+  assert.match(window.document.getElementById('inspectionList').textContent, /Alice/);
+  assert.match(window.document.getElementById('inspectionList').textContent, /Benoît/);
+  window.document.querySelector('[data-inspection-filter="standalone"]').click();
+  assert.equal(window.document.querySelectorAll('#inspectionList .dashboard-card').length, 1);
+  assert.match(window.document.getElementById('inspectionList').textContent, /Benoît/);
+  window.document.querySelector('[data-inspection-filter="all"]').click();
+  const search=window.document.getElementById('inspectionSearch'); search.value='AA-123-AA'; search.dispatchEvent(new window.Event('input'));
+  assert.equal(window.document.querySelectorAll('#inspectionList .dashboard-card').length, 2, 'départ et retour de la location sont recherchables par immatriculation');
+  search.value='Benoît'; search.dispatchEvent(new window.Event('input'));
+  assert.equal(window.document.querySelectorAll('#inspectionList .dashboard-card').length, 1);
 });
 
 test("chaque état des lieux historique terminé ouvre la vue legacy, jamais contrat.html", () => {
@@ -176,23 +195,22 @@ test("chaque état des lieux historique terminé ouvre la vue legacy, jamais con
     historique("res_kv","rental-record","rnt_fusionnee")
   ]);
   [...window.document.querySelectorAll("#inspectionList .dashboard-card")].forEach((card,index)=>{
-    const buttons=[...card.querySelectorAll("button")];
-    const depart=buttons.find(b=>b.textContent==="Départ — ✓ Terminé"),retour=buttons.find(b=>b.textContent==="Retour — ✓ Terminé");
-    assert.equal(depart.disabled,false);assert.equal(retour.disabled,false);
-    depart.click();retour.click();
-    const expectedId=["res_"+"a".repeat(32),"rnt_legacy","rnt_fusionnee"][index];
-    const departUrl=popups[index*2].location.href,retourUrl=popups[index*2+1].location.href;
-    assert.match(departUrl,new RegExp("^/etat-des-lieux\\.html\\?source=legacy&mode=depart&legacyId="+expectedId+"$"));
-    assert.match(retourUrl,new RegExp("^/etat-des-lieux\\.html\\?source=legacy&mode=retour&legacyId="+expectedId+"$"));
-    [departUrl,retourUrl].forEach(url=>{assert.ok(!url.includes("contrat.html"));assert.ok(!url.includes("manualToken"))});
+    const open=card.querySelector("button");
+    assert.equal(open.disabled,false);
+    open.click();
   });
+  const urls=popups.map(p=>p.location.href);
+  ["res_"+"a".repeat(32),"rnt_legacy","rnt_fusionnee"].forEach((expectedId)=>{
+    ['depart','retour'].forEach((mode)=>assert.ok(urls.includes('/etat-des-lieux.html?source=legacy&mode='+mode+'&legacyId='+expectedId)));
+  });
+  urls.forEach(url=>{assert.ok(!url.includes("contrat.html"));assert.ok(!url.includes("manualToken"))});
 });
 
 test("réservation KV moderne : conserve le workflow état des lieux sécurisé", async () => {
   const window=buildWindow(),popup={opener:window,document:{},location:{href:""}};window.open=()=>popup;
   window.fetch=async()=>({ok:true,json:async()=>({agencyUrl:"https://getlocation.fr/contrat.html#agencyToken="+"A".repeat(43)})});
   window.__backOffice.renderInspectionListForTest([{id:"res_"+"b".repeat(32),client:{prenom:"Jean",nom:"Dupont"},vehicule:"Opel Corsa",vehiculeId:"opel-corsa",immatriculation:"",dateDebut:"2027-01-01",heureDebut:"10:00",dateFin:"2027-01-02",heureFin:"10:00",contractNumero:null,openable:true,historyMode:null,historyId:null,inspection:{depart:false,retour:false,retourAvailable:false}}]);
-  window.document.querySelector("#inspectionList button").click();
+  [...window.document.querySelectorAll("#inspectionList .dashboard-card")].find(card=>/^Départ/.test(card.querySelector('h2').textContent)).querySelector('button').click();
   await new Promise(resolve=>setTimeout(resolve,0));
   assert.match(popup.location.href,/^\/etat-des-lieux\.html\?mode=depart#agencyToken=A{43}$/);
 });
@@ -213,8 +231,8 @@ test("contrat manuel moderne : Départ À faire ouvre l'EDL autonome avec lien a
     openable: true, historyMode: null, historyId: null,
     inspection: { depart: false, retour: false, retourAvailable: false }
   }]);
-  const depart = window.document.querySelector("#inspectionList button");
-  assert.equal(depart.textContent, "Départ — À faire");
+  const depart = [...window.document.querySelectorAll("#inspectionList .dashboard-card")].find(card=>/^Départ/.test(card.querySelector('h2').textContent)).querySelector('button');
+  assert.equal(depart.textContent, "Consulter");
   assert.equal(depart.disabled, false);
   depart.click();
   await new Promise((resolve) => setTimeout(resolve, 0));

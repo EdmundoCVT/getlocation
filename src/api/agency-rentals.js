@@ -285,8 +285,7 @@ async function handleGet(request, env, headers) {
       ...d1Rentals.map(d1RentalInspectionItem)
     ])
       .map(publicInspectionItem)
-      .sort((a, b) => `${b.dateDebut || ""} ${b.heureDebut || ""}`.localeCompare(`${a.dateDebut || ""} ${a.heureDebut || ""}`))
-      .slice(0, 200);
+      .sort((a, b) => `${b.dateDebut || ""} ${b.heureDebut || ""}`.localeCompare(`${a.dateDebut || ""} ${a.heureDebut || ""}`));
     return new Response(JSON.stringify({ rentals: items }), { status: 200, headers });
   }
   const id = url.searchParams.get("id");
