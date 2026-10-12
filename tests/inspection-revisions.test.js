@@ -63,5 +63,5 @@ test("échec R2 conserve la révision au brouillon", async () => {
 
 test("modèle documentaire normalise les croquis, médias et dates de signature", () => {
   const model = inspectionModel({ id: "edl_1", stage: "depart", revision: 2, vehicleFamily: "utility", snapshot: { utilityMarks: [{ surface: "utility-exterior", view: "left", x: 25, y: 75 }], signatures: { client: { name: "A", signedAt: "technique", displaySignedAt: "affichée" } } }, media: [{ key: "legacy/photo.jpg", slot: "avant" }] });
-  assert.equal(model.sketches.length, 10); assert.equal(model.sketches[0].marks.length, 1); assert.equal(model.photos[0].key, "legacy/photo.jpg"); assert.equal(model.signatures[0].displayDate, "affichée");
+  assert.equal(model.sketches.length, 10); assert.equal(model.sketches[0].marks.length, 1); assert.equal(model.photos[0].key, "legacy/photo.jpg"); assert.equal(model.signatures[0].displayedAt, "affichée");
 });

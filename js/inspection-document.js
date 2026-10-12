@@ -53,6 +53,9 @@
       }[value] || value);
       const modeLabel = mode => T(mode === "retour" ? "retour" : "depart");
       pdf.setTitle("Etat des lieux GET LOCATION - "+snapshot.reference); pdf.setAuthor("GET LOCATION");
+      // Le modèle partagé décide des signatures, médias et croquis à afficher;
+      // ce renderer conserve uniquement ses primitives DOM/canvas de dessin.
+      const documentModel = global.InspectionDocumentModel && global.InspectionDocumentModel.build({ id: snapshot.reference, stage: snapshot.mode, snapshot: snapshot.stage, media: snapshot.photos, vehicleFamily: snapshot.family });
       const date = global.InspectionMedia.date, stage = snapshot.stage, caption = snapshot.reference+" - "+modeLabel(snapshot.mode).toUpperCase();
       const make = (title, sub = caption) => {
         const page = pdf.addPage([W,H]);
@@ -174,11 +177,11 @@
       else {signPage=photoPage;signY=remaining-20;}
       write(signPage,bold,T("SIGNATURES - ")+modeLabel(snapshot.mode).toUpperCase(),M,signY,11,orange);
       for(const [index,role] of ["client","agence"].entries()) {
-        const value=stage.signatures&&stage.signatures[role],x=M+index*265,top=signY-18;
+        const value=documentModel&&documentModel.signatures[index]||stage.signatures&&stage.signatures[role],x=M+index*265,top=signY-18;
         signPage.drawRectangle({x,y:top-125,width:245,height:120,borderColor:line,borderWidth:1});
         write(signPage,bold,role==="client"?T("LOCATAIRE"):"GET LOCATION",x+9,top-18,9);
         write(signPage,regular,T("Nom : ")+(value&&value.name||T("Non renseigne")),x+9,top-35,8,ink,225);
-        write(signPage,regular,T("Date : ")+(value&&(value.displaySignedAt||value.signedAt)?date(value.displaySignedAt||value.signedAt):T("Non renseignee")),x+9,top-49,8,ink,225);
+        write(signPage,regular,T("Date : ")+(value&&value.displayedAt?date(value.displayedAt):value&&(value.displaySignedAt||value.signedAt)?date(value.displaySignedAt||value.signedAt):T("Non renseignee")),x+9,top-49,8,ink,225);
         if(value&&value.imageDataUrl){const image=await picture(pdf,value.imageDataUrl);signPage.drawImage(image,fit(image,x+9,top-116,227,61));}
       }
       pdf.getPages().forEach((page,index)=>{
