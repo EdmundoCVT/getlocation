@@ -16,10 +16,10 @@
   const cache = M.createCache(item => api(legacy ? "/api/legacy-inspection-media?id=" + encodeURIComponent(legacyId) + "&key=" + encodeURIComponent(item.key) : mediaReadUrl(item.key)));
   const message = value => { $("message").textContent = value; };
   function status() {
-    $("saveStatus").textContent = finalized ? "État des lieux finalisé — seule l’heure affichée des signatures reste modifiable." : pendingCount ? "Enregistrement des photos…" : saving ? "Enregistrement…" : dirty ? "Modifications non enregistrées" : "Modifications enregistrées";
+    $("saveStatus").textContent = finalized ? "État des lieux finalisé — consultation seule. Créez une nouvelle révision pour le corriger." : pendingCount ? "Enregistrement des photos…" : saving ? "Enregistrement…" : dirty ? "Modifications non enregistrées" : "Modifications enregistrées";
     $("saveStatus").classList.toggle("unsaved", dirty);
     $("save").disabled = saving || finalized; $("finalize").disabled = saving || finalized;
-    $("photos").querySelectorAll("input,button").forEach(control => { control.disabled = saving || pendingCount > 0; });
+    $("photos").querySelectorAll("input,button").forEach(control => { control.disabled = saving || pendingCount > 0 || finalized; });
   }
   function changed() { if (finalized) return; dirty = true; revision++; $("reviewStatus").textContent = "Modifications à enregistrer avant finalisation."; status(); }
   function metadataKey() { return "inspection-v3-new-media:" + reservation.id; }
@@ -158,12 +158,20 @@
         small.className = "imported"; small.textContent = item.createdAt ? "Importée le : " + M.date(item.createdAt) : "Date d’import non renseignée";
         actions.className = "photo-actions";
         actions.append(M.button("Agrandir", async () => { try { openPhoto(await cache.get(item), M.labels[slot]); } catch (error) { message(error.message); } }));
-        if (editableMedia.has(item.key)) actions.append(M.button("Supprimer", () => {
-          if (!confirm("Supprimer cette nouvelle photo ? Les médias historiques restent conservés.")) return;
-          mutation(async () => { await json(await api(mediaUrl(), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key, stage: mode, revision: inspectionRevision }) })); media[mode] = media[mode].filter(photo => photo.key !== item.key); editableMedia.delete(item.key); rememberMedia(); cache.forget(item.key); renderPhotos(); renderComparison(); message("Nouvelle photo supprimée."); });
+        const removeFromRevision = (label, confirmation) => actions.append(M.button(label, () => {
+          if (!confirm(confirmation)) return;
+          mutation(async () => { await json(await api(mediaUrl(), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key, stage: mode, revision: inspectionRevision }) })); media[mode] = media[mode].filter(photo => photo.key !== item.key); editableMedia.delete(item.key); rememberMedia(); cache.forget(item.key); renderPhotos(); renderComparison(); message("Photo retirée de cette révision."); });
         }, "danger"));
+        if (editableMedia.has(item.key)) removeFromRevision("Supprimer", "Supprimer cette nouvelle photo ? Les médias historiques restent conservés.");
         else { const note = document.createElement("small"); note.textContent = "Photo historique conservée"; actions.append(note); }
-        photo.append(M.preview(item, cache, openPhoto), field, small, actions); card.append(photo);
+        const onMissing = () => {
+          photo.classList.add("photo-missing");
+          if (!finalized && !actions.querySelector(".remove-missing-photo")) { const button = M.button("Retirer de cette révision", () => {
+            if (!confirm("Retirer uniquement cette référence de la révision en cours ?")) return;
+            mutation(async () => { await json(await api(mediaUrl(), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key, stage: mode, revision: inspectionRevision }) })); media[mode] = media[mode].filter(photo => photo.key !== item.key); cache.forget(item.key); renderPhotos(); renderComparison(); message("Photo introuvable retirée de cette révision."); });
+          }, "danger"); button.classList.add("remove-missing-photo"); actions.append(button); }
+        };
+        photo.append(M.preview(item, cache, openPhoto, onMissing), field, small, actions); card.append(photo);
       }); root.append(card);
     });
   }
@@ -228,8 +236,10 @@
       await queue; await Promise.all(Object.values(pads).map(pad => pad.ready()));
       if (dirty && !(await save(false))) throw new Error("Enregistrez les modifications avant de télécharger le PDF.");
       const bytes = await window.InspectionDocument.download({ mode, family, language: reservation.langue === "en" ? "en" : "fr", reference: reservation.contractNumero || reservation.id, summary: summaryEntries(reservation), stage: readStage(), depart: dossier.depart, photos: [...media[mode]], departPhotos: [...media.depart], dirty }, cache);
-      try { await archiverPdfInspection(bytes); message("PDF téléchargé, archivé et mis en attente de synchronisation Drive."); }
-      catch (archiveError) { message("PDF téléchargé. Archivage Drive à réessayer : " + archiveError.message); }
+      const missingPhotos = Number(window.InspectionDocument.lastMissingPhotoCount) || 0;
+      const warning = missingPhotos ? (missingPhotos === 1 ? " 1 photo référencée est introuvable et n'a pas été incluse dans le PDF." : " " + missingPhotos + " photos référencées sont introuvables et n'ont pas été incluses dans le PDF.") : "";
+      try { await archiverPdfInspection(bytes); message("PDF téléchargé, archivé et mis en attente de synchronisation Drive." + warning); }
+      catch (archiveError) { message("PDF téléchargé. Archivage Drive à réessayer : " + archiveError.message + warning); }
     } catch (error) { message("PDF non généré : " + error.message); }
     finally { $("pdf").disabled = false; }
   };

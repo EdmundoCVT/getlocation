@@ -152,16 +152,18 @@
       // restent dans la liste chronologique ci-dessus et les photos départ
       // sont conservées dans leur section dédiée.
       if(snapshot.mode==="retour"&&snapshot.depart&&stage.sketchVehicleType!=="utility") await sketch(T("Schema de reference - depart"),snapshot.depart);
-      let photoPage=null, photoY=0, count=0;
+      let photoPage=null, photoY=0, count=0, missingPhotos=0;
       async function photos(items,title) {
         if(!items.length)return;
         // A new stage always starts under its own heading; never mix departure
         // and return photos under a misleading page title.
         if(photoPage&&count){photoPage=null;count=0;}
         for(const item of items) {
+          let source;
+          try { source=await picture(pdf,await cache.get(item)); }
+          catch (_) { missingPhotos++; continue; }
           if(!photoPage||count>=9) {const sheet=make("Photos - "+title);photoPage=sheet.page;photoY=sheet.y;count=0;}
           const col=count%3,row=Math.floor(count/3),x=M+col*176,top=photoY-row*156;
-          const source=await picture(pdf,await cache.get(item));
           photoPage.drawRectangle({x,y:top-112,width:163,height:108,color:rgb(.96,.97,.98)});
           photoPage.drawImage(source,fit(source,x+2,top-110,159,104));
           write(photoPage,bold,(title+" - "+(global.InspectionMedia.labels[item.slot]||item.label||"Photo")),x,top-124,8,ink,160);
@@ -189,6 +191,7 @@
         page.drawText(T("GET LOCATION - Etat des lieux"),{x:M,y:16,font:regular,size:7,color:muted});
         page.drawText((index+1)+" / "+pdf.getPageCount(),{x:W-M-34,y:16,font:regular,size:7,color:muted});
       });
+      global.InspectionDocument.lastMissingPhotoCount=missingPhotos;
       return pdf.save();
     },
     async download(snapshot,cache) {

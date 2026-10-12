@@ -34,6 +34,10 @@ async function setup(e) {
   const issued = await issueContractAgencyAccess(e, reservation, new Date().toISOString());
   await updateReservationStatus(e, reservation.id, "paid", { contractAgencyAccess: issued.stored });
   await saveContractAgencyAccessIndex(e, reservation.id, issued.stored.tokenHash, issued.stored.expiresAt);
+  const stored = JSON.parse(await e.RESERVATIONS_KV.get(reservation.id));
+  stored.contractDossier = { depart: {}, retour: {}, media: { depart: [], retour: [] } };
+  stored.inspectionRevisions = { depart: [{ revision: 1, status: "draft", snapshot: {}, media: [], pdfKey: null }] };
+  await e.RESERVATIONS_KV.put(reservation.id, JSON.stringify(stored));
   return { reservationId: reservation.id, token: issued.token };
 }
 
@@ -47,6 +51,7 @@ test("photo inspection : createdAt reste immuable et capturedAt est modifiable p
   const { reservationId, token } = await setup(e);
   const form = new FormData();
   form.append("stage", "depart");
+  form.append("revision", "1");
   form.append("slot", "avant");
   form.append("capturedAt", "2026-10-01T09:45");
   form.append("file", new Blob(["image"], { type: "image/jpeg" }), "avant.jpg");
@@ -57,7 +62,7 @@ test("photo inspection : createdAt reste immuable et capturedAt est modifiable p
   assert.match(created.createdAt, /^\d{4}-\d{2}-\d{2}T/);
 
   const changed = await handleInspectionMedia(request("https://getlocation.fr/api/inspection-media", token, {
-    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: created.key, capturedAt: "2026-10-01T10:05" })
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: created.key, stage: "depart", revision: 1, capturedAt: "2026-10-01T10:05" })
   }), e);
   assert.equal(changed.status, 200);
   const updated = (await changed.json()).item;
@@ -65,19 +70,20 @@ test("photo inspection : createdAt reste immuable et capturedAt est modifiable p
   assert.equal(updated.capturedAt, "2026-10-01T10:05");
 
   const stored = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
-  assert.equal(stored.contractDossier.media.depart[0].createdAt, created.createdAt);
-  assert.equal(stored.contractDossier.media.depart[0].capturedAt, "2026-10-01T10:05", "la date métier est conservée après rechargement");
+  assert.equal(stored.inspectionRevisions.depart[0].media[0].createdAt, created.createdAt);
+  assert.equal(stored.inspectionRevisions.depart[0].media[0].capturedAt, "2026-10-01T10:05", "la date métier est conservée après rechargement");
 });
 
 test("photo inspection : une ancienne photo sans capturedAt reste compatible", async () => {
   const e = env();
   const { reservationId, token } = await setup(e);
   const stored = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
-  stored.contractDossier = { media: { depart: [{ key: `inspection/${reservationId}/depart/legacy.jpg`, slot: "avant", contentType: "image/jpeg", size: 1, createdAt: "2026-09-01T08:00:00.000Z" }], retour: [] } };
+  delete stored.inspectionRevisions;
+  stored.contractDossier = { depart: {}, media: { depart: [{ key: `inspection/${reservationId}/depart/legacy.jpg`, slot: "avant", contentType: "image/jpeg", size: 1, createdAt: "2026-09-01T08:00:00.000Z" }], retour: [] } };
   await e.RESERVATIONS_KV.put(reservationId, JSON.stringify(stored));
 
   const changed = await handleInspectionMedia(request("https://getlocation.fr/api/inspection-media", token, {
-    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: `inspection/${reservationId}/depart/legacy.jpg`, capturedAt: "2026-09-01T07:55" })
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: `inspection/${reservationId}/depart/legacy.jpg`, stage: "depart", revision: 1, capturedAt: "2026-09-01T07:55" })
   }), e);
   assert.equal(changed.status, 200);
   const updated = (await changed.json()).item;
@@ -90,7 +96,25 @@ test("photo inspection : le tableau de bord est un emplacement compatible avec l
   const { token } = await setup(e);
   const form = new FormData();
   form.append("stage", "depart"); form.append("slot", "tableau-de-bord"); form.append("capturedAt", "2026-10-01T09:45"); form.append("file", new Blob(["image"], { type: "image/jpeg" }), "dashboard.jpg");
+  form.append("revision", "1");
   const response = await handleInspectionMedia(request("https://getlocation.fr/api/inspection-media", token, { method: "POST", body: form }), e);
   assert.equal(response.status, 200);
   assert.equal((await response.json()).item.slot, "tableau-de-bord");
+});
+
+test("photo inspection : V2 draft est modifiable mais V1 finalisée renvoie 409", async () => {
+  const e = env();
+  const { reservationId, token } = await setup(e);
+  const stored = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
+  const v1 = { revision: 1, status: "finalized", snapshot: {}, media: [{ key: `inspection/${reservationId}/depart/v1.jpg`, slot: "avant", createdAt: "2026-10-01T09:00:00.000Z" }] };
+  const v2 = { revision: 2, status: "draft", snapshot: {}, media: [{ key: `inspection/${reservationId}/depart/v2.jpg`, slot: "avant", createdAt: "2026-10-02T09:00:00.000Z" }] };
+  stored.inspectionRevisions = { depart: [v1, v2] };
+  await e.RESERVATIONS_KV.put(reservationId, JSON.stringify(stored));
+  const finalized = await handleInspectionMedia(request("https://getlocation.fr/api/inspection-media", token, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: v1.media[0].key, stage: "depart", revision: 1, capturedAt: "2026-10-01T10:00" }) }), e);
+  assert.equal(finalized.status, 409);
+  const changed = await handleInspectionMedia(request("https://getlocation.fr/api/inspection-media", token, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: v2.media[0].key, stage: "depart", revision: 2, capturedAt: "2026-10-02T10:00" }) }), e);
+  assert.equal(changed.status, 200);
+  const persisted = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
+  assert.equal(persisted.inspectionRevisions.depart[1].media[0].createdAt, v2.media[0].createdAt);
+  assert.equal(persisted.inspectionRevisions.depart[1].media[0].capturedAt, "2026-10-02T10:00");
 });

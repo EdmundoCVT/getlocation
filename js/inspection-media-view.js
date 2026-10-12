@@ -45,7 +45,7 @@
     };
   }
   function button(text, action, className) { const el = document.createElement("button"); el.type = "button"; el.textContent = text; el.className = className || "outline"; el.onclick = action; return el; }
-  function preview(item, cache, open) {
+  function preview(item, cache, open, onMissing) {
     const wrap = document.createElement("div"); wrap.className = "photo-preview";
     const placeholder = document.createElement("p"); placeholder.className = "photo-placeholder"; placeholder.textContent = "Chargement de la photo…"; wrap.append(placeholder);
     const load = async () => {
@@ -53,7 +53,13 @@
       try {
         const url = await cache.get(item), image = new Image(); image.alt = labels[item.slot] || item.label || "Photo historique"; image.src = url; await decode(image);
         const zoom = button("", () => open(url, image.alt)); zoom.className = "photo-zoom"; zoom.setAttribute("aria-label", "Agrandir — " + image.alt); zoom.append(image); wrap.replaceChildren(zoom);
-      } catch (error) { placeholder.textContent = error.message; wrap.replaceChildren(placeholder, button("Réessayer", load)); }
+      } catch (error) {
+        const missing = /\b404\b|Référence photo absente|Photo inaccessible/.test(error && error.message || "");
+        placeholder.textContent = missing ? "Photo introuvable" : error.message;
+        wrap.classList.toggle("photo-missing", missing);
+        if (missing && onMissing) onMissing();
+        wrap.replaceChildren(placeholder, button("Réessayer", load));
+      }
     };
     load(); return wrap;
   }

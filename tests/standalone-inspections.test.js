@@ -11,9 +11,22 @@ test("EDL indépendant : création, association et photos R2 privées", async ()
   const create=await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections",{method:"POST",session,body:{action:"create",mode:"depart",client:{prenom:"Amir",nom:"Test"},vehicule:{nom:"Corsa",immatriculation:"AA-123-AA"},internalNote:"Sans contrat"}}),env);
   assert.equal(create.status,201); const inspection=(await create.json()).inspection; assert.match(inspection.id,/^edl_/); assert.equal(inspection.linkedContractId,null);
   const listed=await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections",{session}),env); assert.equal((await listed.json()).inspections.length,1);
-  const form=new FormData();form.set("stage","depart");form.set("slot","avant");form.set("file",new File(["image"],"a.jpg",{type:"image/jpeg"}));
+  const form=new FormData();form.set("stage","depart");form.set("revision","1");form.set("slot","avant");form.set("file",new File(["image"],"a.jpg",{type:"image/jpeg"}));
   const uploadRequest=new Request("https://getlocation.fr/api/standalone-inspection-media?id="+inspection.id,{method:"POST",headers:{origin:"https://getlocation.fr",cookie:"agency_session="+session.cookie,"x-agency-csrf":session.csrfToken},body:form});
   const uploaded=await handleStandaloneInspectionMedia(uploadRequest,env); assert.equal(uploaded.status,200); const photo=(await uploaded.json()).item; assert.match(photo.key,new RegExp("^inspection-standalone/"+inspection.id+"/depart/"));
+  const createdAt=photo.createdAt;
+  const patched=await handleStandaloneInspectionMedia(agencyRequest("https://getlocation.fr/api/standalone-inspection-media?id="+inspection.id,{method:"PATCH",session,body:{key:photo.key,stage:"depart",revision:1,capturedAt:"2026-10-12T17:00"}}),env);
+  assert.equal(patched.status,200); assert.equal((await patched.json()).item.createdAt,createdAt);
+  const reloaded=await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections?id="+inspection.id,{session}),env);
+  assert.equal((await reloaded.json()).inspection.inspectionRevisions.depart[0].media[0].capturedAt,"2026-10-12T17:00");
+  const stored=JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:"+inspection.id));
+  stored.inspectionRevisions.depart[0].status="finalized";
+  stored.inspectionRevisions.depart.push({revision:2,status:"draft",snapshot:{},media:[{...photo,key:photo.key+"-v2"}],pdfKey:null});
+  await env.RESERVATIONS_KV.put("standalone-inspection:"+inspection.id,JSON.stringify(stored));
+  const finalizedPatch=await handleStandaloneInspectionMedia(agencyRequest("https://getlocation.fr/api/standalone-inspection-media?id="+inspection.id,{method:"PATCH",session,body:{key:photo.key,stage:"depart",revision:1,capturedAt:"2026-10-12T18:00"}}),env);
+  assert.equal(finalizedPatch.status,409);
+  const v2Patch=await handleStandaloneInspectionMedia(agencyRequest("https://getlocation.fr/api/standalone-inspection-media?id="+inspection.id,{method:"PATCH",session,body:{key:photo.key+"-v2",stage:"depart",revision:2,capturedAt:"2026-10-12T18:00"}}),env);
+  assert.equal(v2Patch.status,200);
   const forbidden=await handleStandaloneInspectionMedia(agencyRequest("https://getlocation.fr/api/standalone-inspection-media?id="+inspection.id,{method:"GET",session}),env); assert.equal(forbidden.status,403);
 });
 

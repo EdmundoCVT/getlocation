@@ -103,6 +103,14 @@ test("V3 : le document PDF dédié ne dépend plus de l'impression navigateur", 
   assert.match(css, /\.inspection-sketch-utility \.inspection-sketch-canvas[^}]*width:100%;max-width:none/);
   assert.match(css, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
 });
+test("V3 : une photo R2 manquante est isolée du PDF au lieu d'annuler toute la génération", () => {
+  const source = fs.readFileSync(path.join(root, "js", "inspection-document.js"), "utf8");
+  assert.match(source, /catch \(_\) \{ missingPhotos\+\+; continue; \}/);
+  assert.match(source, /InspectionDocument\.lastMissingPhotoCount=missingPhotos/);
+  const editor = fs.readFileSync(path.join(root, "js", "inspection-page.js"), "utf8");
+  assert.match(editor, /photo référencée est introuvable/);
+  assert.match(editor, /Retirer de cette révision/);
+});
 test("PDF utilitaire : le renderer utilise deux grilles, jamais une page par vue", () => {
   const source = fs.readFileSync(path.join(root, "js", "inspection-document.js"), "utf8");
   assert.match(source, /for \(const group of \["utility-exterior", "utility-interior"\]\)/);

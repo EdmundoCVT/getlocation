@@ -46,7 +46,6 @@ async function handleUpload(request,env,reservation){
   const existing=reservation.contractDossier||{status:"draft",fields:null,depart:null,retour:null,observations:""};
   const capturedAt=safeCapturedAt(form.get("capturedAt"));
   const item={key,slot,contentType:file.type,size:bytes.byteLength,createdAt:new Date().toISOString(),...(capturedAt?{capturedAt}:{})};
-  list.push(item);
   // 30 photos max par phase, suffisant pour une inspection détaillée.
   try { const media=getRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision); const saved=setRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision,[...(media||[]),item].slice(-30)); const updated={...reservation,inspectionRevisions:saved.inspectionRevisions,updatedAt:new Date().toISOString()}; await env.RESERVATIONS_KV.put(reservation.id,JSON.stringify(updated)); enqueueDriveSync(env,updated.id).catch(()=>undefined); } catch(error) { await env.DOCUMENTS_BUCKET.delete(key); return json({error:error.message},error.status||409); }
   return json({ok:true,item});
@@ -104,11 +103,11 @@ async function handleInspectionMedia(request,env){
   const resolved=await resolveContractAgencyAccess(request,env);
   if(!resolved)return json({error:"Accès invalide ou expiré"},401);
   try{
-    if(request.method==="POST")return handleUpload(request,env,resolved.reservation);
-    if(request.method==="PATCH")return handleCapturedAtUpdate(request,env,resolved.reservation);
-    if(request.method==="GET")return handleRead(request,env,resolved.reservation);
-    if(request.method==="DELETE")return handleDelete(request,env,resolved.reservation);
+    if(request.method==="POST")return await handleUpload(request,env,resolved.reservation);
+    if(request.method==="PATCH")return await handleCapturedAtUpdate(request,env,resolved.reservation);
+    if(request.method==="GET")return await handleRead(request,env,resolved.reservation);
+    if(request.method==="DELETE")return await handleDelete(request,env,resolved.reservation);
     return json({error:"Méthode non autorisée"},405);
-  }catch(e){return json({error:e&&e.message?e.message:"Erreur lors du traitement de la photo"},400);}
+  }catch(e){return json({error:e&&e.message?e.message:"Erreur lors du traitement de la photo"},e&&e.status||400);}
 }
 module.exports={handleInspectionMedia};
