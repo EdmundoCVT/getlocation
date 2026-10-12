@@ -40,3 +40,16 @@
 .inspection-sketch-utility .inspection-reference-image{width:100%;height:auto}
 .inspection-sketch-zoom{justify-self:start;min-height:44px;padding:8px 13px;border:1px solid var(--line);border-radius:9px;background:#fff;font-weight:700}
 @media(max-width:760px){.inspection-sketch-utility .inspection-sketch-grid{grid-template-columns:1fr;gap:22px}.inspection-sketch-utility .inspection-sketch-mark{min-width:46px;min-height:46px}}
+/* Densité desktop propre aux dix vues découpées d'utilitaire. Les voitures
+   conservent leur grille historique. Les canvases restent proportionnels :
+   les coordonnées en pourcentage ne changent jamais. */
+@media(min-width:761px){
+  .inspection-sketch-utility .inspection-sketch-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 16px;align-items:start}
+  .inspection-sketch-utility .inspection-sketch-group{margin:4px 0 -5px;font-size:1rem}
+  .inspection-sketch-utility .inspection-sketch-view{gap:4px}
+  .inspection-sketch-utility .inspection-sketch-view h3{font-size:.86rem;text-align:center;min-height:1.2em}
+  .inspection-sketch-utility .inspection-sketch-utility-view-top{grid-column:2/span 2;max-width:170px;justify-self:center}
+  .inspection-sketch-utility .inspection-sketch-utility-view-floor{max-width:145px;justify-self:center}
+  .inspection-sketch-utility .inspection-sketch-utility-view-cabin-partition{max-width:190px;justify-self:center}
+  .inspection-sketch-utility .inspection-sketch-zoom{min-height:34px;padding:5px 9px;font-size:.78rem;justify-self:center}
+}

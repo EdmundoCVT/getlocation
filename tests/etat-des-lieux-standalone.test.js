@@ -48,6 +48,7 @@ test("V3 : un utilitaire sélectionne les schémas extérieur et intérieur", as
   assert.match(doc.querySelector("#sketch [data-view='utility-exterior:left'] img").src, /images\/inspection\/utility-left\.png/);
   assert.match(doc.querySelector("#sketch [data-view='utility-interior:floor'] img").src, /images\/inspection\/utility-floor\.png/);
   assert.equal(doc.querySelectorAll("#sketch .inspection-sketch-zoom").length, 10);
+  assert.equal(doc.querySelectorAll("#sketch .inspection-sketch-group").length, 2);
   dom.window.close();
 });
 test("V3 : propretés indépendantes avec sélection visible et chargement seulement pour utilitaire", async () => {
@@ -100,6 +101,7 @@ test("V3 : le document PDF dédié ne dépend plus de l'impression navigateur", 
   assert.match(source, /fit\(source,22,105,W-44,600\)/);
   const css = fs.readFileSync(path.join(root, "css", "inspection.css"), "utf8");
   assert.match(css, /\.inspection-sketch-utility \.inspection-sketch-canvas[^}]*width:100%;max-width:none/);
+  assert.match(css, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
 });
 test("V3 : tableau des dommages conserve une description facultative dans la marque existante", async () => {
   const { dom, doc } = await view({ mode: "depart" });

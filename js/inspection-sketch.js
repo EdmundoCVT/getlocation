@@ -22,9 +22,9 @@
   var UTILITY_SURFACES = [
     { key:"utility-exterior:left", surface:"utility-exterior", view:"left", label:"Profil conducteur", asset:"/images/inspection/utility-left.png" },
     { key:"utility-exterior:front", surface:"utility-exterior", view:"front", label:"Avant", asset:"/images/inspection/utility-front.png" },
-    { key:"utility-exterior:top", surface:"utility-exterior", view:"top", label:"Dessus", asset:"/images/inspection/utility-top.png" },
-    { key:"utility-exterior:rear", surface:"utility-exterior", view:"rear", label:"Arrière", asset:"/images/inspection/utility-rear.png" },
     { key:"utility-exterior:right", surface:"utility-exterior", view:"right", label:"Profil passager", asset:"/images/inspection/utility-right.png" },
+    { key:"utility-exterior:rear", surface:"utility-exterior", view:"rear", label:"Arrière", asset:"/images/inspection/utility-rear.png" },
+    { key:"utility-exterior:top", surface:"utility-exterior", view:"top", label:"Dessus", asset:"/images/inspection/utility-top.png" },
     { key:"utility-interior:floor", surface:"utility-interior", view:"floor", label:"Plancher", asset:"/images/inspection/utility-floor.png" },
     { key:"utility-interior:cabin-partition", surface:"utility-interior", view:"cabin-partition", label:"Cloison cabine", asset:"/images/inspection/utility-cabin-partition.png" },
     { key:"utility-interior:left-wall", surface:"utility-interior", view:"left-wall", label:"Paroi gauche", asset:"/images/inspection/utility-left-wall.png" },
@@ -88,7 +88,7 @@
     surfaces.forEach(function (view) {
       if (vehicleType === "utility" && !utilityLegacy && (view.key === "utility-exterior:left" || view.key === "utility-interior:floor")) { var group = document.createElement("h3"); group.className = "inspection-sketch-group"; group.textContent = view.surface === "utility-exterior" ? "Extérieur" : "Intérieur"; grid.append(group); }
       var wrap = document.createElement("section"), label = document.createElement("h3"), canvas = document.createElement("div");
-      wrap.className = "inspection-sketch-view"; wrap.dataset.view = view.key; label.textContent = view.label; canvas.className = "inspection-sketch-canvas"; canvas.dataset.view = view.key;
+      wrap.className = "inspection-sketch-view" + (vehicleType === "utility" && !utilityLegacy ? " inspection-sketch-utility-" + view.surface + " inspection-sketch-utility-view-" + view.view : ""); wrap.dataset.view = view.key; label.textContent = view.label; canvas.className = "inspection-sketch-canvas"; canvas.dataset.view = view.key;
       if (!options.readOnly) canvas.onclick = function (event) {
         if (event.target.closest(".inspection-sketch-mark") || marks.length >= 200) return;
         var rect = canvas.getBoundingClientRect(); if (!rect.width || !rect.height) return;

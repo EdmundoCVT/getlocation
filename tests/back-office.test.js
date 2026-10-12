@@ -108,6 +108,16 @@ test("chargement complet de la page sans exception (tous les écouteurs s'attach
   assert.doesNotThrow(() => buildWindow());
 });
 
+test("création EDL indépendante : réserve la fenêtre avant la requête puis la réutilise", () => {
+  const source = html.match(/function openStandaloneInspectionCreation\(\)[\s\S]*?\n}\n?document\.getElementById\('newStandaloneInspectionBtn'\)/)[0];
+  const openIndex = source.indexOf("window.open('about:blank','_blank')");
+  const postIndex = source.indexOf("apiPost('/api/standalone-inspections'");
+  assert.ok(openIndex >= 0 && postIndex > openIndex, "la fenêtre doit être réservée dans le clic, avant le POST");
+  assert.match(source, /if\(popup\)popup\.location\.href=url;else window\.location\.href=url/);
+  assert.match(source, /if\(popup\)popup\.close\(\)/);
+  assert.match(source, /create\.disabled=true/);
+});
+
 test("l'espace interne présente une navigation unique et un tableau de bord", () => {
   const window = buildWindow();
   assert.match(window.document.querySelector("#loginView h1").textContent, /Espace GET LOCATION/);
