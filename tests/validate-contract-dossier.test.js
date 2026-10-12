@@ -155,6 +155,13 @@ test("validateConditionReport : conserve les nouveaux relevés, croquis et signa
   assert.ok(data.signatures.client.signedAt);
 });
 
+test("validateConditionReport : sépare les surfaces d'un utilitaire des vues voiture", () => {
+  const data = validateConditionReport(etatValide({ sketchVehicleType: "utility", marks: [], utilityMarks: [{ id: "u1", surface: "utility-interior", type: "bosse", x: 43.22, y: 61.78 }] }));
+  assert.equal(data.sketchVehicleType, "utility");
+  assert.deepEqual(data.marks, []);
+  assert.deepEqual(data.utilityMarks, [{ id: "u1", surface: "utility-interior", type: "bosse", x: 43.2, y: 61.8, description: "" }]);
+});
+
 test("validateConditionReport : rejette les croquis, propretés et signatures mal formés", () => {
   assert.throws(() => validateConditionReport(etatValide({ propreteInterieure: 6 })), /Niveau de propreté invalide/);
   assert.throws(() => validateConditionReport(etatValide({ marks: [{ view: "unknown", type: "rayure", x: 0, y: 0 }] })), /Croquis de dommages invalide/);

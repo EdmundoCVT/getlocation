@@ -6,7 +6,7 @@ const { JSDOM } = require("jsdom");
 const root = path.join(__dirname, "..");
 const page = fs.readFileSync(path.join(root, "etat-des-lieux.html"), "utf8");
 
-async function view({ mode = "retour", legacy = false, family = "utility" } = {}) {
+async function view({ mode = "retour", legacy = false, family = "car" } = {}) {
   const requests = [];
   const dom = new JSDOM(page, {
     url: "https://getlocation.fr/etat-des-lieux.html?mode=" + mode + (legacy ? "&source=legacy&legacyId=res_fixture" : "#agencyToken=" + "a".repeat(43)),
@@ -41,8 +41,16 @@ test("V3 : retour affiche cinq vues modifiables et cinq vues de référence, coo
   assert.match(doc.querySelector("#sketch [data-view=left] img").src, /images\/inspection\/vehicle-left\.png/);
   dom.window.close();
 });
+test("V3 : un utilitaire sélectionne les schémas extérieur et intérieur", async () => {
+  const { dom, doc } = await view({ mode: "depart", family: "utility" });
+  assert.equal(doc.querySelectorAll("#sketch .inspection-sketch-view").length, 2);
+  assert.equal(doc.querySelector('input[name="sketchVehicleType"][value="utility"]').checked, true);
+  assert.match(doc.querySelector("#sketch [data-view='utility-exterior'] img").src, /images\/inspection\/utility-exterior\.png/);
+  assert.match(doc.querySelector("#sketch [data-view='utility-interior'] img").src, /images\/inspection\/utility-interior\.png/);
+  dom.window.close();
+});
 test("V3 : propretés indépendantes avec sélection visible et chargement seulement pour utilitaire", async () => {
-  const { dom, doc } = await view();
+  const { dom, doc } = await view({ family: "utility" });
   assert.equal(doc.querySelector("[data-field=propreteExterieure] [aria-pressed=true]").textContent, "2");
   assert.equal(doc.querySelector("[data-field=propreteInterieure] [aria-pressed=true]").textContent, "4");
   doc.querySelector("[data-field=propreteExterieure] [data-score='5']").click();

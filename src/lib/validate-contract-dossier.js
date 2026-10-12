@@ -99,6 +99,7 @@ function champsManquantsAvantEnvoi(fields) {
 const NIVEAUX_CARBURANT_VALIDES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 const TYPES_DOMMAGE_VALIDES = new Set(["rayure", "bosse", "eclat"]);
 const VUES_DOMMAGE_VALIDES = new Set(["left", "front", "right", "rear", "top"]);
+const SURFACES_UTILITAIRE_VALIDES = new Set(["utility-exterior", "utility-interior"]);
 
 function scoreProprete(value, label) {
   if (value === undefined || value === null || value === "") return null;
@@ -107,16 +108,16 @@ function scoreProprete(value, label) {
   return score;
 }
 
-function validateMarks(value) {
+function validateMarks(value, vehicleType = "car") {
   if (value === undefined || value === null) return [];
   if (!Array.isArray(value) || value.length > 200) throw new Error("Croquis de dommages invalide");
   return value.map((mark, index) => {
     if (!mark || typeof mark !== "object") throw new Error("Croquis de dommages invalide");
     const x = Number(mark.x), y = Number(mark.y);
-    if (!VUES_DOMMAGE_VALIDES.has(mark.view) || !TYPES_DOMMAGE_VALIDES.has(mark.type) || !Number.isFinite(x) || !Number.isFinite(y)) throw new Error("Croquis de dommages invalide");
-    return {
+    const key = vehicleType === "utility" ? mark.surface : mark.view;
+    if (!(vehicleType === "utility" ? SURFACES_UTILITAIRE_VALIDES : VUES_DOMMAGE_VALIDES).has(key) || !TYPES_DOMMAGE_VALIDES.has(mark.type) || !Number.isFinite(x) || !Number.isFinite(y)) throw new Error("Croquis de dommages invalide");
+    const result = {
       id: typeof mark.id === "string" && mark.id.length <= 80 ? mark.id : `m${index + 1}`,
-      view: mark.view,
       type: mark.type,
       x: Math.max(0, Math.min(100, Math.round(x * 10) / 10)),
       y: Math.max(0, Math.min(100, Math.round(y * 10) / 10)),
@@ -124,6 +125,8 @@ function validateMarks(value) {
       // historiques sans description restent inchangés.
       description: text(mark.description, "description du dommage", { required: false, max: 500 })
     };
+    if (vehicleType === "utility") result.surface = key; else result.view = key;
+    return result;
   });
 }
 
@@ -143,6 +146,7 @@ function validateConditionReport(body) {
   if (!Number.isFinite(km) || km < 0) throw new Error("Kilométrage invalide");
   const carburant = Number(body.carburant);
   if (!NIVEAUX_CARBURANT_VALIDES.includes(carburant)) throw new Error("Niveau de carburant invalide (doit être un multiple de 10, de 0 à 100)");
+  const sketchVehicleType = body.sketchVehicleType === "utility" ? "utility" : "car";
   return {
     dateHeure: text(body.dateHeure, "date et heure", { max: 40 }),
     km,
@@ -154,7 +158,11 @@ function validateConditionReport(body) {
     propreteInterieure: scoreProprete(body.propreteInterieure, "intérieur"),
     propreteChargement: scoreProprete(body.propreteChargement, "espace de chargement"),
     dommages: text(body.dommages, "dommages / observations", { required: false, max: 2000 }),
+    // Les marques voiture et utilitaire sont conservées séparément : un
+    // changement de type ne déplace ni ne détruit un dommage existant.
+    sketchVehicleType,
     marks: validateMarks(body.marks),
+    utilityMarks: validateMarks(body.utilityMarks, "utility"),
     photosRef: text(body.photosRef, "référence des photos", { required: false, max: 200 }),
     cles: body.cles === undefined || body.cles === null || body.cles === "" ? null : (() => {
       const count = Number(body.cles);
@@ -180,5 +188,6 @@ module.exports = {
   NIVEAUX_CARBURANT_VALIDES,
   TYPES_DOMMAGE_VALIDES,
   VUES_DOMMAGE_VALIDES,
+  SURFACES_UTILITAIRE_VALIDES,
   isDate
 };
