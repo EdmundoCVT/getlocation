@@ -39,6 +39,9 @@ const { handleAgencyAnalytics } = require("./api/agency-analytics.js");
 const { handleAgencyGoogleSheets } = require("./api/agency-google-sheets.js");
 const { handleAgencyDashboard } = require("./api/agency-dashboard.js");
 const { handleInspectionMedia } = require("./api/inspection-media.js");
+const { handleStandaloneInspections } = require("./api/standalone-inspections.js");
+const { handleStandaloneInspectionMedia } = require("./api/standalone-inspection-media.js");
+const { handleStandaloneInspectionPdf } = require("./api/standalone-inspection-pdf.js");
 const { handleLegacyInspectionAgency, handleLegacyInspectionMedia, handleLegacyInspectionDiagnostic } = require("./api/legacy-inspection-agency.js");
 const { handleZvezdanReturnMedia } = require("./api/zvezdan-return-media.js");
 const { runScheduledTasks } = require("./lib/scheduled-tasks.js");
@@ -81,6 +84,9 @@ const ROUTES = {
   "/api/agency-google-sheets": handleAgencyGoogleSheets,
   "/api/agency-dashboard": handleAgencyDashboard,
   "/api/inspection-media": handleInspectionMedia,
+  "/api/standalone-inspections": handleStandaloneInspections,
+  "/api/standalone-inspection-media": handleStandaloneInspectionMedia,
+  "/api/standalone-inspection-pdf": handleStandaloneInspectionPdf,
   "/api/legacy-inspection-agency": handleLegacyInspectionAgency,
   "/api/legacy-inspection-media": handleLegacyInspectionMedia,
   "/api/legacy-inspection-diagnostic": handleLegacyInspectionDiagnostic,

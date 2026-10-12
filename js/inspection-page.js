@@ -3,14 +3,17 @@
   "use strict";
   const params = new URLSearchParams(location.search), mode = params.get("mode") === "retour" ? "retour" : "depart";
   const legacy = params.get("source") === "legacy", legacyId = params.get("legacyId") || "";
+  const standaloneId = params.get("standalone") || "";
   const token = new URLSearchParams(location.hash.slice(1)).get("agencyToken");
   const $ = id => document.getElementById(id), M = window.InspectionMedia;
-  let dossier, reservation, family = "car", sketch, pads = {}, dirty = false, revision = 0, saving = false, pendingCount = 0;
+  let dossier, reservation, family = "car", sketch, pads = {}, dirty = false, revision = 0, saving = false, pendingCount = 0, csrfToken = "";
   let media = { depart: [], retour: [] }, editableMedia = new Set(), queue = Promise.resolve();
   const scores = {};
-  const api = (url, options = {}) => fetch(url, { ...options, credentials: "same-origin", headers: { ...(token ? { Authorization: "Bearer " + token } : {}), ...options.headers } });
+  const api = (url, options = {}) => fetch(url, { ...options, credentials: "same-origin", headers: { ...(token ? { Authorization: "Bearer " + token } : {}), ...(standaloneId && csrfToken ? { "X-Agency-Csrf": csrfToken } : {}), ...options.headers } });
+  const mediaUrl = () => standaloneId ? "/api/standalone-inspection-media?id=" + encodeURIComponent(standaloneId) : "/api/inspection-media";
+  const mediaReadUrl = key => mediaUrl() + (standaloneId ? "&" : "?") + "key=" + encodeURIComponent(key);
   const json = async response => { const body = await response.json(); if (!response.ok) throw new Error(body.error || "Une erreur est survenue."); return body; };
-  const cache = M.createCache(item => api(legacy ? "/api/legacy-inspection-media?id=" + encodeURIComponent(legacyId) + "&key=" + encodeURIComponent(item.key) : "/api/inspection-media?key=" + encodeURIComponent(item.key)));
+  const cache = M.createCache(item => api(legacy ? "/api/legacy-inspection-media?id=" + encodeURIComponent(legacyId) + "&key=" + encodeURIComponent(item.key) : mediaReadUrl(item.key)));
   const message = value => { $("message").textContent = value; };
   function status() {
     $("saveStatus").textContent = pendingCount ? "Enregistrement des photos…" : saving ? "Enregistrement…" : dirty ? "Modifications non enregistrées" : "Modifications enregistrées";
@@ -131,7 +134,7 @@
             for (const file of files) {
               message("Import de " + file.name + "…");
               const form = new FormData(); form.append("stage", mode); form.append("slot", slot); form.append("capturedAt", M.local(new Date())); form.append("file", file);
-              const out = await json(await api("/api/inspection-media", { method: "POST", body: form }));
+              const out = await json(await api(mediaUrl(), { method: "POST", body: form }));
               media[mode].push(out.item); editableMedia.add(out.item.key); rememberMedia(); renderPhotos(); renderComparison();
             }
             message("Photo(s) importée(s) et enregistrée(s).");
@@ -145,7 +148,7 @@
           const previous = item.capturedAt, value = input.value; if (!value) { input.value = M.local(previous); message("Indiquez une date et une heure valides."); return; }
           input.disabled = true;
           mutation(async () => {
-            try { const out = await json(await api("/api/inspection-media", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key, capturedAt: value }) })); Object.assign(item, out.item); message("Date/heure de la photo enregistrée."); }
+            try { const out = await json(await api(mediaUrl(), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key, capturedAt: value }) })); Object.assign(item, out.item); message("Date/heure de la photo enregistrée."); }
             catch (error) { input.value = M.local(previous); throw error; }
             finally { input.disabled = false; }
           });
@@ -155,7 +158,7 @@
         actions.append(M.button("Agrandir", async () => { try { openPhoto(await cache.get(item), M.labels[slot]); } catch (error) { message(error.message); } }));
         if (editableMedia.has(item.key)) actions.append(M.button("Supprimer", () => {
           if (!confirm("Supprimer cette nouvelle photo ? Les médias historiques restent conservés.")) return;
-          mutation(async () => { await json(await api("/api/inspection-media", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key }) })); media[mode] = media[mode].filter(photo => photo.key !== item.key); editableMedia.delete(item.key); rememberMedia(); cache.forget(item.key); renderPhotos(); renderComparison(); message("Nouvelle photo supprimée."); });
+          mutation(async () => { await json(await api(mediaUrl(), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key }) })); media[mode] = media[mode].filter(photo => photo.key !== item.key); editableMedia.delete(item.key); rememberMedia(); cache.forget(item.key); renderPhotos(); renderComparison(); message("Nouvelle photo supprimée."); });
         }, "danger"));
         else { const note = document.createElement("small"); note.textContent = "Photo historique conservée"; actions.append(note); }
         photo.append(M.preview(item, cache, openPhoto), field, small, actions); card.append(photo);
@@ -175,8 +178,10 @@
     try {
       await queue; await Promise.all(Object.values(pads).map(pad => pad.ready()));
       const version = revision, body = readStage();
-      const response = await json(await api("/api/contract-dossier-agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, action: "update-" + mode }) }));
-      dossier = response.dossier;
+      const response = standaloneId
+        ? await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update-stage", id: standaloneId, stage: body, finalize: Boolean(finalize) }) }))
+        : await json(await api("/api/contract-dossier-agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, action: "update-" + mode }) }));
+      dossier = standaloneId ? response.inspection.dossier : response.dossier;
       if (revision === version) { dirty = false; for (const role of ["client", "agence"]) pads[role].acknowledge(dossier[mode].signatures && dossier[mode].signatures[role]); }
       $("reviewStatus").textContent = finalize && !dirty ? "État des lieux finalisé et enregistré. Une correction reste possible." : "État des lieux enregistré.";
       message(dirty ? "Enregistrement effectué. Vos dernières modifications restent à enregistrer." : "État des lieux enregistré."); return true;
@@ -193,7 +198,9 @@
     form.append("kind", mode === "retour" ? "edl-return" : "edl-depart");
     form.append("version", String(version));
     form.append("file", new Blob([bytes], { type: "application/pdf" }), "etat-des-lieux-" + mode + ".pdf");
-    const response = await api("/api/agency-drive-pdf", { method: "POST", body: form });
+    const response = standaloneId
+      ? await api("/api/standalone-inspection-pdf", { method: "POST", body: form })
+      : await api("/api/agency-drive-pdf", { method: "POST", body: form });
     await json(response);
   }
   $("pdf").onclick = async () => {
@@ -228,14 +235,35 @@
     }
     renderPhotos(); renderComparison(); status();
   }
+  function standaloneControls(standalone) {
+    const summary = $("reservationSummary"); const box = document.createElement("section"); box.className = "card";
+    const heading = document.createElement("h2"), note = document.createElement("label"), actions = document.createElement("div");
+    heading.textContent = "Association et note interne"; note.className = "field"; note.textContent = "Remarque interne";
+    const area = document.createElement("textarea"); area.rows = 3; area.maxLength = 2000; area.value = standalone.internalNote || ""; note.append(area);
+    const saveNote = document.createElement("button"), associate = document.createElement("button"); saveNote.type = associate.type = "button"; saveNote.className = "secondary"; associate.className = "outline"; saveNote.textContent = "Enregistrer la remarque"; associate.textContent = standalone.linkedContractNumero ? "Changer le contrat associé" : "Associer à un contrat";
+    actions.className = "actions"; actions.append(saveNote, associate); box.append(heading, note, actions); summary.parentNode.insertBefore(box, summary.nextSibling);
+    saveNote.onclick = async () => { try { await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "note", id: standaloneId, internalNote: area.value }) })); message("Remarque interne enregistrée."); } catch (error) { message(error.message); } };
+    associate.onclick = async () => { try { const query = prompt("Rechercher un contrat par numéro, client, véhicule ou immatriculation :"); if (query === null) return; const found = await json(await api("/api/standalone-inspections?contracts=1&q=" + encodeURIComponent(query))); if (!found.contracts.length) throw new Error("Aucun contrat correspondant."); const choices = found.contracts.map((item, index) => (index + 1) + ". " + (item.contractNumero || item.id) + " — " + [item.client.prenom, item.client.nom].filter(Boolean).join(" ") + " — " + (item.immatriculation || item.vehiculeId || "")).join("\n"); const choice = Number(prompt("Choisissez le contrat :\n" + choices)); const contract = found.contracts[choice - 1]; if (!contract) return; const saved = await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "associate", id: standaloneId, linkedContractId: contract.id }) })); reservation.contractNumero = saved.inspection.linkedContractNumero || null; associate.textContent = "Changer le contrat associé"; message("Contrat " + (reservation.contractNumero || "") + " associé à l’état des lieux."); } catch (error) { message(error.message); } };
+  }
   async function start() {
     if (legacy) { await legacyView(); return; }
-    if (!token) throw new Error("Accès agence requis. Ouvrez l’état des lieux depuis le back-office.");
-    const view = await json(await api("/api/contract-dossier-agency")); dossier = view.dossier; reservation = view.reservation;
+    if (!token && !standaloneId) throw new Error("Accès agence requis. Ouvrez l’état des lieux depuis le back-office.");
+    if (standaloneId) {
+      const session = await json(await fetch("/api/agency-session", { credentials: "same-origin" })); csrfToken = session.csrfToken || "";
+      if (!csrfToken) throw new Error("Accès agence requis. Ouvrez l’état des lieux depuis le back-office.");
+      const view = await json(await api("/api/standalone-inspections?id=" + encodeURIComponent(standaloneId)));
+      const standalone = view.inspection;
+      if (standalone.mode !== mode) throw new Error("Type d’état des lieux incohérent.");
+      dossier = standalone.dossier || { status: "draft", depart: null, retour: null, media: { depart: [], retour: [] } };
+      reservation = { id: standalone.id, contractVersion: { version: 1 }, contractNumero: standalone.linkedContractNumero || null, vehicule: standalone.vehicule || {}, conducteur: standalone.client || {}, langue: "fr" };
+      window.__standaloneInspection = standalone;
+    } else {
+      const view = await json(await api("/api/contract-dossier-agency")); dossier = view.dossier; reservation = view.reservation;
+    }
     media = { depart: dossier.media && dossier.media.depart || [], retour: dossier.media && dossier.media.retour || [] }; family = reservation.vehicule && reservation.vehicule.vehicleFamily === "utility" ? "utility" : "car";
     dirty = !dossier[mode];
     try { editableMedia = new Set(JSON.parse(sessionStorage.getItem(metadataKey()) || "[]")); } catch (_) { editableMedia = new Set(); }
-    $("summary").textContent = "État des lieux de " + mode; fieldGrid($("reservationSummary"), summaryEntries(reservation)); $("form").hidden = false; fill();
+    $("summary").textContent = standaloneId ? "État des lieux indépendant de " + mode : "État des lieux de " + mode; fieldGrid($("reservationSummary"), standaloneId ? [["Client", [reservation.conducteur.prenom, reservation.conducteur.nom].filter(Boolean).join(" ")], ["Téléphone", reservation.conducteur.telephone], ["Véhicule", reservation.vehicule.nom], ["Immatriculation", reservation.vehicule.immatriculation], ["Contrat associé", reservation.contractNumero || "Non associé"], ["Référence EDL", reservation.id]] : summaryEntries(reservation)); if (standaloneId) standaloneControls(window.__standaloneInspection); $("form").hidden = false; fill();
   }
   start().catch(error => { $("summary").textContent = error.message; $("saveStatus").textContent = "Chargement impossible"; });
 }());
