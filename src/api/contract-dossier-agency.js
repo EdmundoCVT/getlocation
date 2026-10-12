@@ -21,12 +21,14 @@
 const { getVehiculeParId, calculerKilometrage, joursFacturablesDepuisHeures, joursFacturablesPourPeriode, KM_INCLUS_PAR_JOUR, SUPPLEMENT_KM_CENTIMES, getCglVersion, parseAdressePersonnalisee } = require("../../js/data.js");
 const {
   updateContractDossier,
-  findReservationByContractAgencyTokenHash, contractLanguage,
+  findReservationByContractAgencyTokenHash, contractLanguage, updateInspectionSignatureDisplay,
   saveContractClientAccessIndex
 } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { hashContractAgencyToken, issueContractClientAccess } = require("../lib/contract-dossier-token.js");
 const { validateContractFields, champsManquantsAvantEnvoi, validateConditionReport } = require("../lib/validate-contract-dossier.js");
+const { resolveAgencySession } = require("../lib/agency-auth.js");
+const { recordAuditEvent } = require("../lib/audit-log.js");
 
 function corsHeaders(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -77,6 +79,25 @@ function joursReservation(reservation) {
       ? (new Date(reservation.retour) - new Date(reservation.depart)) / (1000 * 60 * 60)
       : NaN;
   return joursFacturablesDepuisHeures(heures);
+}
+
+function displaySignatureTime(value) {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) throw new Error("Date et heure affichées invalides");
+  const [date, time] = value.split("T");
+  if (Number.isNaN(new Date(`${date}T${time}:00Z`).getTime())) throw new Error("Date et heure affichées invalides");
+  return value;
+}
+
+function preserveInspectionSignatures(report, previous) {
+  for (const role of ["client", "agence"]) {
+    const before = previous && previous.signatures && previous.signatures[role];
+    const next = report.signatures && report.signatures[role];
+    if (before && next && before.signedAt && before.imageDataUrl === next.imageDataUrl) {
+      report.signatures[role] = { ...next, signedAt: before.signedAt, ...(before.displaySignedAt ? { displaySignedAt: before.displaySignedAt } : {}) };
+    }
+  }
+  return report;
 }
 
 // Vue renvoyée à l'agence : uniquement ce qui est nécessaire à la
@@ -206,12 +227,21 @@ async function handlePost(request, env, headers) {
 
   // Le jeton agence d'un contrat manuel sert ici uniquement à l'inspection.
   // Le contrat manuel et son lien client gardent leur parcours séparé.
-  if (reservation.status === "manual_contract" && !["update-depart", "update-retour"].includes(payload.action)) {
+  if (reservation.status === "manual_contract" && !["update-depart", "update-retour", "update-signature-display-time"].includes(payload.action)) {
     return new Response(JSON.stringify({ error: "Action indisponible pour un contrat manuel" }), { status: 400, headers });
   }
 
   try {
     switch (payload.action) {
+      case "update-signature-display-time": {
+        const role = payload.role === "agence" ? "agence" : payload.role === "client" ? "client" : null;
+        if (!role || !["depart", "retour"].includes(payload.mode)) return new Response(JSON.stringify({ error: "Signature introuvable" }), { status: 400, headers });
+        const agencySession = await resolveAgencySession(request, env);
+        const result = await updateInspectionSignatureDisplay(env, reservation.id, payload.mode, role, displaySignatureTime(payload.displaySignedAt), agencySession && agencySession.operator);
+        if (!result) return new Response(JSON.stringify({ error: "Signature introuvable" }), { status: 404, headers });
+        await recordAuditEvent(env, { actor: agencySession && agencySession.operator, eventType: "inspection_signature_display_time_corrected", entityType: "contract", entityId: reservation.id, metadata: result.correction });
+        return new Response(JSON.stringify(buildDossierView(result.record)), { status: 200, headers });
+      }
       case "update-fields": {
         const fields = validateContractFields(payload);
         const language = payload.contractLanguage === "en" ? "en" : "fr";
@@ -265,7 +295,7 @@ async function handlePost(request, env, headers) {
         );
       }
       case "update-depart": {
-        const depart = { ...validateConditionReport(payload), completedAt: existing.depart && existing.depart.completedAt || new Date().toISOString() };
+        const depart = { ...preserveInspectionSignatures(validateConditionReport(payload), existing.depart), completedAt: existing.depart && existing.depart.completedAt || new Date().toISOString(), finalizedAt: payload.finalize ? existing.depart && existing.depart.finalizedAt || new Date().toISOString() : existing.depart && existing.depart.finalizedAt || null };
         const updated = await updateContractDossier(env, reservation.id, {
           contractDossier: { ...existing, depart, updatedAt: new Date().toISOString() }
         });
@@ -276,7 +306,7 @@ async function handlePost(request, env, headers) {
         if (!existing.depart || (reservation.status === "manual_contract" && !existing.depart.completedAt)) {
           return new Response(JSON.stringify({ error: "La remise du véhicule doit être complétée avant la restitution" }), { status: 400, headers });
         }
-        const retour = { ...validateConditionReport(payload), completedAt: existing.retour && existing.retour.completedAt || new Date().toISOString() };
+        const retour = { ...preserveInspectionSignatures(validateConditionReport(payload), existing.retour), completedAt: existing.retour && existing.retour.completedAt || new Date().toISOString(), finalizedAt: payload.finalize ? existing.retour && existing.retour.finalizedAt || new Date().toISOString() : existing.retour && existing.retour.finalizedAt || null };
         const jours = joursReservation(reservation);
         const kilometrage = calculerKilometrage({ kmDepart: existing.depart.km, kmRetour: retour.km, jours });
         if (!kilometrage.valid) {

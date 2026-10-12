@@ -6,7 +6,7 @@
   const standaloneId = params.get("standalone") || "";
   const token = new URLSearchParams(location.hash.slice(1)).get("agencyToken");
   const $ = id => document.getElementById(id), M = window.InspectionMedia;
-  let dossier, reservation, family = "car", sketch, sketchVehicleType = "car", utilitySketchLegacy = false, pads = {}, dirty = false, revision = 0, saving = false, pendingCount = 0, csrfToken = "";
+  let dossier, reservation, family = "car", sketch, sketchVehicleType = "car", utilitySketchLegacy = false, pads = {}, dirty = false, revision = 0, saving = false, pendingCount = 0, csrfToken = "", finalized = false;
   let media = { depart: [], retour: [] }, editableMedia = new Set(), queue = Promise.resolve();
   const scores = {};
   const api = (url, options = {}) => fetch(url, { ...options, credentials: "same-origin", headers: { ...(token ? { Authorization: "Bearer " + token } : {}), ...(standaloneId && csrfToken ? { "X-Agency-Csrf": csrfToken } : {}), ...options.headers } });
@@ -16,12 +16,12 @@
   const cache = M.createCache(item => api(legacy ? "/api/legacy-inspection-media?id=" + encodeURIComponent(legacyId) + "&key=" + encodeURIComponent(item.key) : mediaReadUrl(item.key)));
   const message = value => { $("message").textContent = value; };
   function status() {
-    $("saveStatus").textContent = pendingCount ? "Enregistrement des photos…" : saving ? "Enregistrement…" : dirty ? "Modifications non enregistrées" : "Modifications enregistrées";
+    $("saveStatus").textContent = finalized ? "État des lieux finalisé — seule l’heure affichée des signatures reste modifiable." : pendingCount ? "Enregistrement des photos…" : saving ? "Enregistrement…" : dirty ? "Modifications non enregistrées" : "Modifications enregistrées";
     $("saveStatus").classList.toggle("unsaved", dirty);
-    $("save").disabled = saving; $("finalize").disabled = saving;
+    $("save").disabled = saving || finalized; $("finalize").disabled = saving || finalized;
     $("photos").querySelectorAll("input,button").forEach(control => { control.disabled = saving || pendingCount > 0; });
   }
-  function changed() { dirty = true; revision++; $("reviewStatus").textContent = "Modifications à enregistrer avant finalisation."; status(); }
+  function changed() { if (finalized) return; dirty = true; revision++; $("reviewStatus").textContent = "Modifications à enregistrer avant finalisation."; status(); }
   function metadataKey() { return "inspection-v3-new-media:" + reservation.id; }
   function rememberMedia() { try { sessionStorage.setItem(metadataKey(), JSON.stringify([...editableMedia])); } catch (_) { /* Storage may be unavailable; old media stay protected. */ } }
   function mutation(task) {
@@ -173,6 +173,17 @@
       proprete: old.proprete || "", propreteExterieure: scores.propreteExterieure, propreteInterieure: scores.propreteInterieure, propreteChargement: family === "utility" ? scores.propreteChargement : old.propreteChargement || null,
       photosRef: old.photosRef || "", sketchVehicleType, utilitySketchVersion: sketchVehicleType === "utility" && !utilitySketchLegacy ? "views-v1" : (old.utilitySketchVersion || null), marks: sketchVehicleType === "car" ? sketch.getMarks() : (old.marks || []), utilityMarks: sketchVehicleType === "utility" ? sketch.getMarks() : (old.utilityMarks || []), clientSigne: pads.client.get() && pads.client.get().name || old.clientSigne || "", agenceSigne: pads.agence.get() && pads.agence.get().name || old.agenceSigne || "", signatures: { client: pads.client.get(), agence: pads.agence.get() } };
   }
+  async function correctSignatureDisplayTime(role, displaySignedAt) {
+    if (finalized && !confirm("Modifier uniquement la date et l’heure affichées de cette signature ? L’heure réelle et la signature resteront inchangées.")) return false;
+    const body = { action: "update-signature-display-time", mode, role, displaySignedAt };
+    const response = standaloneId
+      ? await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, id: standaloneId }) }))
+      : await json(await api("/api/contract-dossier-agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
+    dossier = standaloneId ? response.inspection.dossier : response.dossier;
+    for (const currentRole of ["client", "agence"]) pads[currentRole] && pads[currentRole].acknowledge(dossier[mode].signatures && dossier[mode].signatures[currentRole]);
+    message("Date et heure affichées de la signature enregistrées.");
+    return true;
+  }
   async function save(finalize) {
     if (saving || !$("form").reportValidity()) return false;
     if (mode === "retour" && (!dossier.depart || Number($("km").value) < dossier.depart.km)) { message(!dossier.depart ? "Enregistrez d’abord l’état des lieux de départ." : "Le kilométrage retour ne peut pas être inférieur au départ."); return false; }
@@ -182,8 +193,9 @@
       const version = revision, body = readStage();
       const response = standaloneId
         ? await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update-stage", id: standaloneId, stage: body, finalize: Boolean(finalize) }) }))
-        : await json(await api("/api/contract-dossier-agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, action: "update-" + mode }) }));
+        : await json(await api("/api/contract-dossier-agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, action: "update-" + mode, finalize: Boolean(finalize) }) }));
       dossier = standaloneId ? response.inspection.dossier : response.dossier;
+      finalized = Boolean(dossier[mode] && dossier[mode].finalizedAt);
       if (revision === version) { dirty = false; for (const role of ["client", "agence"]) pads[role].acknowledge(dossier[mode].signatures && dossier[mode].signatures[role]); }
       $("reviewStatus").textContent = finalize && !dirty ? "État des lieux finalisé et enregistré. Une correction reste possible." : "État des lieux enregistré.";
       message(dirty ? "Enregistrement effectué. Vos dernières modifications restent à enregistrer." : "État des lieux enregistré."); return true;
@@ -239,7 +251,9 @@
     });
     mountSketch();
     renderDamageTable();
-    for (const role of ["client", "agence"]) pads[role] = window.createInspectionSignature($("signatures"), { role, title: role === "client" ? "Signature client" : "Signature agence", value: stage.signatures && stage.signatures[role], onChange: changed });
+    finalized = Boolean(stage.finalizedAt);
+    for (const role of ["client", "agence"]) pads[role] = window.createInspectionSignature($("signatures"), { role, title: role === "client" ? "Signature client" : "Signature agence", value: stage.signatures && stage.signatures[role], locked: finalized, onChange: changed, onDisplayChange: value => correctSignatureDisplayTime(role, value), onError: error => message(error.message || "Impossible d’enregistrer la date affichée.") });
+    if (finalized) $("form").querySelectorAll("#information input,#vehicle input,#vehicle select,#dommages,#sketch input,.cleanliness-buttons button").forEach(control => { control.disabled = true; });
     $("form").querySelectorAll("#information input,#vehicle input,#vehicle select,#dommages").forEach(input => input.addEventListener("input", changed));
     if (mode === "retour" && dossier.depart) {
       const depart = dossier.depart; $("departCompare").hidden = false;
@@ -271,6 +285,7 @@
       const standalone = view.inspection;
       if (standalone.mode !== mode) throw new Error("Type d’état des lieux incohérent.");
       dossier = standalone.dossier || { status: "draft", depart: null, retour: null, media: { depart: [], retour: [] } };
+      if (standalone.status === "finalized" && dossier[mode] && !dossier[mode].finalizedAt) dossier[mode].finalizedAt = standalone.updatedAt || new Date().toISOString();
       reservation = { id: standalone.id, contractVersion: { version: 1 }, contractNumero: standalone.linkedContractNumero || null, vehicule: standalone.vehicule || {}, conducteur: standalone.client || {}, langue: "fr" };
       window.__standaloneInspection = standalone;
     } else {

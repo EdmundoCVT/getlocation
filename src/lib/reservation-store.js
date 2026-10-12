@@ -362,6 +362,34 @@ async function updateContractDossier(env, id, extra) {
   return updated;
 }
 
+// Correction administrative limitée à l'horodatage affiché d'une signature
+// EDL. Elle reste autorisée après signature/finalisation, sans jamais
+// toucher au binaire, au nom ni à `signedAt` de la signature d'origine.
+async function updateInspectionSignatureDisplay(env, id, mode, role, displaySignedAt, correctedBy = null) {
+  if (!["depart", "retour"].includes(mode) || !["client", "agence"].includes(role)) return null;
+  const record = await getReservation(env, id);
+  if (!record || !["paid", "manual_contract", "contract_version"].includes(record.status)) return null;
+  const dossier = record.contractDossier || {};
+  const stage = dossier[mode];
+  const signature = stage && stage.signatures && stage.signatures[role];
+  if (!signature || !signature.signedAt) return null;
+  const previousDisplaySignedAt = signature.displaySignedAt || null;
+  const correctedAt = new Date().toISOString();
+  const correction = { role, previousDisplaySignedAt, newDisplaySignedAt: displaySignedAt || null, correctedAt, correctedBy: correctedBy || null };
+  const nextSignature = { ...signature };
+  if (displaySignedAt) nextSignature.displaySignedAt = displaySignedAt;
+  else delete nextSignature.displaySignedAt;
+  const nextStage = {
+    ...stage,
+    signatures: { ...stage.signatures, [role]: nextSignature },
+    signatureDisplayCorrections: [...(Array.isArray(stage.signatureDisplayCorrections) ? stage.signatureDisplayCorrections : []), correction].slice(-50)
+  };
+  const updated = { ...record, contractDossier: { ...dossier, [mode]: nextStage, updatedAt: correctedAt }, updatedAt: correctedAt };
+  await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
+  try { require("./google-drive-backup.js").enqueueDriveSync(env, id).catch(() => undefined); } catch (e) { /* module facultatif */ }
+  return { record: updated, correction };
+}
+
 function contractVersionInfo(record) {
   const legacy = record && record.contractVersion;
   const dossier = record && record.contractDossier || {};
@@ -554,6 +582,7 @@ module.exports = {
   setContractAgencyAccess,
   setDrivePdfFile,
   updateContractDossier,
+  updateInspectionSignatureDisplay,
   listReservations,
   hasOverlappingReservation,
   generateReservationId,

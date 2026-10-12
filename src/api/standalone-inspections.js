@@ -3,12 +3,15 @@
 const { requireAgencySession } = require("../lib/agency-auth.js");
 const { listReservations, getReservation } = require("../lib/reservation-store.js");
 const { validateConditionReport } = require("../lib/validate-contract-dossier.js");
+const { recordAuditEvent } = require("../lib/audit-log.js");
 
 const PREFIX = "standalone-inspection:";
 const ID = /^edl_[a-f0-9-]{16,64}$/;
 function json(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }); }
 function text(value, max = 300) { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
 function safeMode(value) { return value === "retour" ? "retour" : value === "depart" ? "depart" : null; }
+function displaySignatureTime(value) { if (value === null || value === undefined || value === "") return null; if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value) || Number.isNaN(new Date(value + ":00Z").getTime())) throw new Error("Date et heure affichées invalides"); return value; }
+function preserveInspectionSignatures(report, previous) { ["client", "agence"].forEach(role => { const before = previous && previous.signatures && previous.signatures[role], next = report.signatures && report.signatures[role]; if (before && next && before.signedAt && before.imageDataUrl === next.imageDataUrl) report.signatures[role] = { ...next, signedAt: before.signedAt, ...(before.displaySignedAt ? { displaySignedAt: before.displaySignedAt } : {}) }; }); return report; }
 function publicItem(record) {
   return { id: record.id, mode: record.mode, client: record.client || {}, vehicule: record.vehicule || {}, linkedContractId: record.linkedContractId || null, linkedContractNumero: record.linkedContractNumero || null, dateHeure: record.dossier && record.dossier[record.mode] && record.dossier[record.mode].dateHeure || record.createdAt, status: record.status || "draft", pdf: record.pdf || null, updatedAt: record.updatedAt };
 }
@@ -49,9 +52,24 @@ async function handleStandaloneInspections(request, env) {
   }
   const record = await read(env, body.id); if (!record) return json({ error: "État des lieux introuvable" }, 404);
   if (body.action === "update-stage") {
-    const stage = safeMode(record.mode), report = validateConditionReport(body.stage || {});
-    record.dossier[stage] = { ...report, completedAt: record.dossier[stage] && record.dossier[stage].completedAt || new Date().toISOString() };
-    record.status = body.finalize ? "finalized" : "draft"; await write(env, record); return json({ inspection: record });
+    const stage = safeMode(record.mode), report = preserveInspectionSignatures(validateConditionReport(body.stage || {}), record.dossier[stage]);
+    record.dossier[stage] = { ...report, completedAt: record.dossier[stage] && record.dossier[stage].completedAt || new Date().toISOString(), finalizedAt: body.finalize ? record.dossier[stage] && record.dossier[stage].finalizedAt || new Date().toISOString() : record.dossier[stage] && record.dossier[stage].finalizedAt || null };
+    record.status = body.finalize ? "finalized" : (record.status === "finalized" ? "finalized" : "draft"); await write(env, record); return json({ inspection: record });
+  }
+  if (body.action === "update-signature-display-time") {
+    const stage = safeMode(record.mode), role = body.role === "client" || body.role === "agence" ? body.role : null;
+    const signature = stage && role && record.dossier[stage] && record.dossier[stage].signatures && record.dossier[stage].signatures[role];
+    if (!signature || !signature.signedAt) return json({ error: "Signature introuvable" }, 404);
+    let displaySignedAt;
+    try { displaySignedAt = displaySignatureTime(body.displaySignedAt); } catch (error) { return json({ error: error.message }, 400); }
+    const correctedAt = new Date().toISOString(), previousDisplaySignedAt = signature.displaySignedAt || null;
+    const correction = { role, previousDisplaySignedAt, newDisplaySignedAt: displaySignedAt, correctedAt, correctedBy: auth.session.operator || null };
+    const nextSignature = { ...signature }; if (displaySignedAt) nextSignature.displaySignedAt = displaySignedAt; else delete nextSignature.displaySignedAt;
+    const current = record.dossier[stage];
+    record.dossier[stage] = { ...current, signatures: { ...current.signatures, [role]: nextSignature }, signatureDisplayCorrections: [...(Array.isArray(current.signatureDisplayCorrections) ? current.signatureDisplayCorrections : []), correction].slice(-50) };
+    await write(env, record);
+    await recordAuditEvent(env, { actor: auth.session.operator, eventType: "inspection_signature_display_time_corrected", entityType: "standalone_inspection", entityId: record.id, metadata: correction });
+    return json({ inspection: record });
   }
   if (body.action === "associate") {
     const contract = body.linkedContractId ? await getReservation(env, text(body.linkedContractId, 100)) : null;

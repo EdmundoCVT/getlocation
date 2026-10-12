@@ -178,7 +178,7 @@
         signPage.drawRectangle({x,y:top-125,width:245,height:120,borderColor:line,borderWidth:1});
         write(signPage,bold,role==="client"?T("LOCATAIRE"):"GET LOCATION",x+9,top-18,9);
         write(signPage,regular,T("Nom : ")+(value&&value.name||T("Non renseigne")),x+9,top-35,8,ink,225);
-        write(signPage,regular,T("Date : ")+(value&&value.signedAt?date(value.signedAt):T("Non renseignee")),x+9,top-49,8,ink,225);
+        write(signPage,regular,T("Date : ")+(value&&(value.displaySignedAt||value.signedAt)?date(value.displaySignedAt||value.signedAt):T("Non renseignee")),x+9,top-49,8,ink,225);
         if(value&&value.imageDataUrl){const image=await picture(pdf,value.imageDataUrl);signPage.drawImage(image,fit(image,x+9,top-116,227,61));}
       }
       pdf.getPages().forEach((page,index)=>{
