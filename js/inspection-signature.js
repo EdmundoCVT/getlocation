@@ -84,7 +84,7 @@
       } catch (error) { display.value = global.InspectionMedia.local(previous || signedAt); if (options.onError) options.onError(error); }
       finally { update(); }
     };
-    if (options.locked) { name.disabled = true; canvas.style.pointerEvents = "none"; canvas.setAttribute("aria-disabled", "true"); expand.disabled = true; clear.disabled = true; }
+    if (options.locked) { name.disabled = true; canvas.style.pointerEvents = "none"; canvas.setAttribute("aria-disabled", "true"); expand.disabled = true; clear.disabled = true; display.disabled = true; displayLabel.title = "Version finalisée : créez une nouvelle révision pour modifier cette date."; }
     update();
     return {
       ready: () => ready,

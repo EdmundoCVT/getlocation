@@ -174,7 +174,7 @@
       photosRef: old.photosRef || "", sketchVehicleType, utilitySketchVersion: sketchVehicleType === "utility" && !utilitySketchLegacy ? "views-v1" : (old.utilitySketchVersion || null), marks: sketchVehicleType === "car" ? sketch.getMarks() : (old.marks || []), utilityMarks: sketchVehicleType === "utility" ? sketch.getMarks() : (old.utilityMarks || []), clientSigne: pads.client.get() && pads.client.get().name || old.clientSigne || "", agenceSigne: pads.agence.get() && pads.agence.get().name || old.agenceSigne || "", signatures: { client: pads.client.get(), agence: pads.agence.get() } };
   }
   async function correctSignatureDisplayTime(role, displaySignedAt) {
-    if (finalized && !confirm("Modifier uniquement la date et l’heure affichées de cette signature ? L’heure réelle et la signature resteront inchangées.")) return false;
+    if (finalized) { message("Cette version est finalisée. Créez une nouvelle révision depuis le back-office pour la corriger."); return false; }
     const body = { action: "update-signature-display-time", mode, revision: inspectionRevision, role, displaySignedAt };
     const response = standaloneId
       ? await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, id: standaloneId }) }))
