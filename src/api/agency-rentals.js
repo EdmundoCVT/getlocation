@@ -109,6 +109,7 @@ function reservationInspectionItem(reservation) {
     openable: true,
     historyMode: null,
     historyId: null,
+    inspectionRevisions: reservation.inspectionRevisions || {},
     relatedIds: [reservation.rentalId, reservation.rental_id]
   };
 }
@@ -143,6 +144,7 @@ function manualContractInspectionItem(contract) {
     openable: !historical,
     historyMode: historical ? "manual-contract" : null,
     historyId: historical ? contract.id : null,
+    inspectionRevisions: contract.inspectionRevisions || {},
     relatedIds: [contract.rentalId, contract.rental_id]
   };
 }

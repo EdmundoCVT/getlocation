@@ -301,6 +301,13 @@
       if (current) { inspectionRevision = current.revision; dossier[mode] = current.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: current.media || [] }; }
     }
     if (!inspectionRevision) inspectionRevision = 1;
+    var revisionMeta = standaloneId ? (window.__standaloneInspection.inspectionRevisions && window.__standaloneInspection.inspectionRevisions[mode] || []).find(function(item){ return item.revision === inspectionRevision; }) : null;
+    if (revisionMeta) {
+      finalized = revisionMeta.status === "finalized";
+      document.querySelector("h1").textContent = "État des lieux — V" + inspectionRevision + (finalized ? " — Finalisée" : " — Brouillon de correction");
+      $("finalize").textContent = "Finaliser V" + inspectionRevision;
+      $("reviewStatus").textContent = revisionMeta.basedOnRevision ? "Basée sur V" + revisionMeta.basedOnRevision : "Version en cours";
+    }
     media = { depart: dossier.media && dossier.media.depart || [], retour: dossier.media && dossier.media.retour || [] }; family = reservation.vehicule && reservation.vehicule.vehicleFamily === "utility" ? "utility" : "car";
     dirty = !dossier[mode];
     try { editableMedia = new Set(JSON.parse(sessionStorage.getItem(metadataKey()) || "[]")); } catch (_) { editableMedia = new Set(); }
