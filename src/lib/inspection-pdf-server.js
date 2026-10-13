@@ -13,7 +13,7 @@ async function generateInspectionPdf({ env, id, stage, revision, snapshot, media
   const page = pdf.addPage([595.28, 841.89]); let y = 800;
   const line = (label, value) => { page.drawText(`${label}: ${clean(value) || "—"}`, { x: 40, y, size: 10, font: regular, color: rgb(.08,.13,.2) }); y -= 18; };
   page.drawText("GET LOCATION", { x: 40, y, size: 18, font: bold, color: rgb(1,.42,0) }); y -= 30;
-  page.drawText(`État des lieux ${stage === "retour" ? "retour" : "départ"} — V${revision}`, { x: 40, y, size: 14, font: bold }); y -= 28;
+  page.drawText(`État des lieux ${stage === "retour" ? "retour" : "départ"}`, { x: 40, y, size: 14, font: bold }); y -= 28;
   line("Référence", model.header.reference); line("Date du constat", model.condition.dateHeure); line("Kilométrage", model.condition.km); line("Carburant", model.condition.carburant); line("Clés", model.condition.cles); line("Dommages", model.condition.remarques); line("Médias référencés", model.photos.length);
   y -= 8; page.drawText("Signatures", { x: 40, y, size: 12, font: bold }); y -= 20;
   for (const value of model.signatures) { line(value.role === "client" ? "Client" : "Agence", `${value.name || "—"} — ${value.displayedAt || "—"}`); const data = dataImage(value.imageDataUrl); const image = data && await embed(pdf, data.bytes, data.type); if (image) { const scale = Math.min(180 / image.width, 55 / image.height); page.drawImage(image, { x: 280, y: y + 3, width: image.width * scale, height: image.height * scale }); } y -= 48; }

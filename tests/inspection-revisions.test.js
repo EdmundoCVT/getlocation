@@ -39,6 +39,18 @@ test("V1 finalisée reste profondément inchangée pendant tout le cycle V2", ()
   assert.deepEqual(document.inspectionRevisions.depart[0], before);
 });
 
+test("les sauvegardes successives d'un brouillon ne créent ni PDF ni archive", () => {
+  const v1 = { revision: 1, status: "finalized", snapshot: { km: 100, signatures: { client: { signedAt: "a" }, agence: { signedAt: "b" } } }, media: [], pdfKey: "v1.pdf" };
+  const first = createInspectionRevision({ inspectionRevisions: { depart: [v1] } }, "depart", null, null, "agent", 1);
+  const second = updateInspectionRevisionDraft({ inspectionRevisions: first.inspectionRevisions }, "depart", null, null, "agent", 2, { ...first.revision.snapshot, km: 120 });
+  const third = updateInspectionRevisionDraft({ inspectionRevisions: second.inspectionRevisions }, "depart", null, null, "agent", 2, { ...second.revision.snapshot, km: 130 });
+  assert.equal(third.revision.status, "draft");
+  assert.equal(third.revision.pdfKey, null);
+  assert.equal(third.inspectionRevisions.depart.length, 2);
+  assert.equal(third.inspectionRevisions.depart[0].pdfKey, "v1.pdf");
+  assert.equal(third.revision.snapshot.km, 130);
+});
+
 test("Drive crée des sources et noms distincts pour chaque révision EDL", () => {
   const jobs = jobsForRecord({ id: "res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", contractNumero: "GL-1", contractVersion: { version: 1 }, inspectionRevisions: { depart: [
     { revision: 1, status: "finalized", pdfKey: "inspection-pdf/x/depart/v1.pdf", media: [{ key: "legacy/a.jpg", slot: "avant", contentType: "image/jpeg" }] },
@@ -55,6 +67,17 @@ test("finalisation serveur archive le PDF avant de finaliser, sans toucher V1", 
   const put = new Map(), env = { DOCUMENTS_BUCKET: { async put(key, value) { put.set(key, value); } } };
   const out = await finalizeRevisionWithPdf({ env, record: { id: "res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", inspectionRevisions: { depart: [v1, v2] } }, stage: "depart", revision: 2, snapshot: v2.snapshot, fallbackSnapshot: null, fallbackMedia: [], standalone: false });
   assert.equal(out.revision.status, "finalized"); assert.ok(out.revision.pdfKey); assert.ok(put.has(out.revision.pdfKey)); assert.deepEqual(out.inspectionRevisions.depart[0], v1Before);
+});
+
+test("finalisation remplace un ancien PDF navigateur sur un brouillon sans toucher V1", async () => {
+  const v1 = { revision: 1, status: "finalized", snapshot: { signatures: { client: { signedAt: "a" }, agence: { signedAt: "b" } } }, media: [], pdfKey: "v1.pdf" };
+  const v2 = { revision: 2, status: "draft", snapshot: { signatures: { client: { signedAt: "a" }, agence: { signedAt: "b" } } }, media: [], pdfKey: "inspection-pdf/res/depart/v2.pdf", pdfArchivedAt: "old" };
+  const put = new Map(), env = { DOCUMENTS_BUCKET: { async put(key, value) { put.set(key, value); } } };
+  const out = await finalizeRevisionWithPdf({ env, record: { id: "res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", inspectionRevisions: { depart: [v1, v2] } }, stage: "depart", revision: 2, snapshot: v2.snapshot, fallbackSnapshot: null, fallbackMedia: [], standalone: false });
+  assert.equal(out.revision.status, "finalized");
+  assert.equal(out.revision.pdfKey, "inspection-pdf/res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/depart/v2.pdf");
+  assert.equal(out.inspectionRevisions.depart[0].pdfKey, "v1.pdf");
+  assert.ok(put.has(out.revision.pdfKey));
 });
 
 test("échec R2 conserve la révision au brouillon", async () => {
@@ -74,4 +97,11 @@ test("grilles Worker : voiture une page croquis, utilitaire deux pages", async (
   const car = await PDFDocument.load(await generateInspectionPdf({ env, id: "car", stage: "depart", revision: 2, snapshot: { marks: [], signatures }, media: [], vehicleFamily: "car" }));
   const utility = await PDFDocument.load(await generateInspectionPdf({ env, id: "van", stage: "depart", revision: 2, snapshot: { utilityMarks: [], signatures }, media: [], vehicleFamily: "utility" }));
   assert.equal(car.getPageCount(), 2); assert.equal(utility.getPageCount(), 3);
+});
+
+test("PDF officiel n'expose pas le numéro interne de révision", async () => {
+  const env = { ASSETS: { async fetch() { return new Response("", { status: 404 }); } }, DOCUMENTS_BUCKET: { async get() { return null; } } };
+  const bytes = await generateInspectionPdf({ env, id: "res_test", stage: "depart", revision: 3, snapshot: { signatures: { client: { signedAt: "a" }, agence: { signedAt: "b" } } }, media: [], vehicleFamily: "car" });
+  assert.ok(bytes.length > 0);
+  assert.doesNotMatch(require("node:fs").readFileSync(require.resolve("../src/lib/inspection-pdf-server.js"), "utf8"), /État des lieux \$\{stage === "retour" \? "retour" : "départ"\} — V\$\{revision\}/);
 });

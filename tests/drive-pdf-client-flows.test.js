@@ -11,8 +11,10 @@ test("PDF contrat : le binaire signé immédiat est archivé, jamais une régén
   assert.match(contract, /Object\.prototype\.hasOwnProperty\.call\(payload, 'driveArchiveKind'\) && !payload\.driveArchiveKind/);
 });
 
-test("PDF EDL : départ et retour sont envoyés vers l'archive sécurisée", () => {
-  assert.match(inspection, /kind", mode === "retour" \? "edl-return" : "edl-depart"/);
-  assert.match(inspection, /api\("\/api\/agency-drive-pdf", \{ method: "POST", body: form \}\)/);
-  assert.match(inspection, /new Blob\(\[bytes\], \{ type: "application\/pdf" \}\)/);
+test("PDF EDL : seul le PDF officiel finalisé est consulté, sans archive navigateur", () => {
+  assert.match(inspection, /function officialPdfUrl\(\)/);
+  assert.match(inspection, /\/api\/agency-inspection-pdf\?/);
+  assert.match(inspection, /\/api\/standalone-inspection-pdf\?/);
+  assert.match(inspection, /PDF officiel après finalisation/);
+  assert.doesNotMatch(inspection, /archiverPdfInspection|agency-drive-pdf", \{ method: "POST"/);
 });

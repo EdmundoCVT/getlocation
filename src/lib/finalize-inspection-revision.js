@@ -11,8 +11,13 @@ async function finalizeRevisionWithPdf({ env, record, stage, revision, snapshot,
   const key = revisionPdfKey(record.id, stage, revision, standalone);
   const bytes = await generateInspectionPdf({ env, id: record.id, stage, revision, snapshot, media: current.media || [] });
   await env.DOCUMENTS_BUCKET.put(key, bytes, { httpMetadata: { contentType: "application/pdf" }, customMetadata: { inspectionId: record.id, stage, revision: String(revision) } });
-  const withPdf = setRevisionPdf(record, stage, fallbackSnapshot, fallbackMedia, actor, revision, key);
-  const finalized = finalizeInspectionRevision({ ...record, inspectionRevisions: withPdf.inspectionRevisions }, stage, fallbackSnapshot, fallbackMedia, actor, revision, snapshot);
+  // Répare les brouillons produits avant la séparation des flux : ils pouvaient
+  // contenir un PDF navigateur provisoire. Un brouillon n'est jamais une archive
+  // officielle; le renderer Worker le remplace donc lors de la finalisation.
+  const revisions = (record.inspectionRevisions && record.inspectionRevisions[stage] || []).map(item => item.revision === Number(revision) && item.status === "draft" ? { ...item, pdfKey: null, pdfArchivedAt: null } : item);
+  const normalized = current.pdfKey ? { ...record, inspectionRevisions: { ...(record.inspectionRevisions || {}), [stage]: revisions } } : record;
+  const withPdf = setRevisionPdf(normalized, stage, fallbackSnapshot, fallbackMedia, actor, revision, key);
+  const finalized = finalizeInspectionRevision({ ...normalized, inspectionRevisions: withPdf.inspectionRevisions }, stage, fallbackSnapshot, fallbackMedia, actor, revision, snapshot);
   return { ...finalized, pdfKey: key, idempotent: false };
 }
 module.exports = { finalizeRevisionWithPdf };

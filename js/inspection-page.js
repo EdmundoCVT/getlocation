@@ -20,6 +20,8 @@
     $("saveStatus").classList.toggle("unsaved", dirty);
     $("save").disabled = saving || finalized; $("finalize").disabled = saving || finalized;
     $("stickySaveActions").hidden = finalized; $("stickySave").disabled = saving || finalized; $("stickyFinalize").disabled = saving || finalized;
+    $("pdf").disabled = saving || !finalized;
+    $("pdf").textContent = finalized ? "Voir le PDF officiel" : "PDF officiel après finalisation";
     $("photos").querySelectorAll("input,button").forEach(control => { control.disabled = saving || pendingCount > 0 || finalized; });
   }
   function scheduleAutosave() { clearTimeout(autosaveTimer); autosaveTimer = setTimeout(() => { if (dirty && !saving && !finalized) save(false); }, 1400); }
@@ -220,32 +222,16 @@
   $("finalize").onclick = () => save(true);
   $("stickySave").onclick = () => save(false);
   $("stickyFinalize").onclick = () => save(true);
-  async function archiverPdfInspection(bytes) {
-    const version = Number(reservation.contractVersion && reservation.contractVersion.version) || 1;
-    const form = new FormData();
-    form.append("id", reservation.id);
-    form.append("kind", mode === "retour" ? "edl-return" : "edl-depart");
-    form.append("version", String(version));
-    form.append("revision", String(inspectionRevision));
-    form.append("file", new Blob([bytes], { type: "application/pdf" }), "etat-des-lieux-" + mode + ".pdf");
-    const response = standaloneId
-      ? await api("/api/standalone-inspection-pdf", { method: "POST", body: form })
-      : await api("/api/agency-drive-pdf", { method: "POST", body: form });
-    await json(response);
+  function officialPdfUrl() {
+    const query = new URLSearchParams({ id: standaloneId || reservation.id, revision: String(inspectionRevision) });
+    if (!standaloneId) query.set("stage", mode);
+    return (standaloneId ? "/api/standalone-inspection-pdf?" : "/api/agency-inspection-pdf?") + query;
   }
-  $("pdf").onclick = async () => {
-    if (!dossier) return;
-    $("pdf").disabled = true; message("Création du PDF et chargement de toutes les photos…");
-    try {
-      await queue; await Promise.all(Object.values(pads).map(pad => pad.ready()));
-      if (dirty && !(await save(false))) throw new Error("Enregistrez les modifications avant de télécharger le PDF.");
-      const bytes = await window.InspectionDocument.download({ mode, family, language: reservation.langue === "en" ? "en" : "fr", reference: reservation.contractNumero || reservation.id, summary: summaryEntries(reservation), stage: readStage(), depart: dossier.depart, photos: [...media[mode]], departPhotos: [...media.depart], dirty }, cache);
-      const missingPhotos = Number(window.InspectionDocument.lastMissingPhotoCount) || 0;
-      const warning = missingPhotos ? (missingPhotos === 1 ? " 1 photo référencée est introuvable et n'a pas été incluse dans le PDF." : " " + missingPhotos + " photos référencées sont introuvables et n'ont pas été incluses dans le PDF.") : "";
-      try { await archiverPdfInspection(bytes); message("PDF téléchargé, archivé et mis en attente de synchronisation Drive." + warning); }
-      catch (archiveError) { message("PDF téléchargé. Archivage Drive à réessayer : " + archiveError.message + warning); }
-    } catch (error) { message("PDF non généré : " + error.message); }
-    finally { $("pdf").disabled = false; }
+  $("pdf").onclick = () => {
+    if (!finalized) { message("Le PDF officiel sera disponible après la finalisation de cette révision."); return; }
+    // Navigation directe depuis le geste utilisateur : Safari peut ouvrir le PDF
+    // dans son lecteur sans bloquer une fenêtre créée après une promesse.
+    window.open(officialPdfUrl(), "_blank", "noopener");
   };
   function fill() {
     const stage = dossier[mode] || {};

@@ -14,3 +14,8 @@ test("archive PDF Drive : endpoint agence uniquement, PDF borné et signé immua
   assert.match(source, /resolveContractClientAccess/);
   assert.match(source, /Seul le PDF signé peut être archivé depuis le lien client/);
 });
+
+test("archive PDF Drive : un PDF EDL navigateur est refusé avant toute archive", () => {
+  assert.match(source, /Le PDF officiel des états des lieux est généré uniquement lors de la finalisation/);
+  assert.doesNotMatch(source, /setRevisionPdf/);
+});

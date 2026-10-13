@@ -108,8 +108,8 @@ test("V3 : une photo R2 manquante est isolée du PDF au lieu d'annuler toute la 
   assert.match(source, /catch \(_\) \{ missingPhotos\+\+; continue; \}/);
   assert.match(source, /InspectionDocument\.lastMissingPhotoCount=missingPhotos/);
   const editor = fs.readFileSync(path.join(root, "js", "inspection-page.js"), "utf8");
-  assert.match(editor, /photo référencée est introuvable/);
   assert.match(editor, /Retirer de cette révision/);
+  assert.match(editor, /PDF officiel sera disponible après la finalisation/);
 });
 test("V3 : brouillon EDL possède une sauvegarde explicite, différée et visible", () => {
   const source = fs.readFileSync(path.join(root, "js", "inspection-page.js"), "utf8");
