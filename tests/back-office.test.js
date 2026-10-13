@@ -203,6 +203,23 @@ test("bibliothèque EDL : Tous exclut strictement les archives et le filtre Arch
   assert.match(window.document.getElementById('inspectionList').textContent, /Archivé/);
 });
 
+test("bibliothèque EDL : filtre type se combine avec statut, archive et recherche", () => {
+  const window = buildWindow();
+  window.__backOffice.renderInspectionListForTest([{
+    id: "res_types", client: { prenom: "Joseph", nom: "Nicholson" }, vehicule: "Toyota Proace", dateDebut: "2026-03-01", heureDebut: "10:00", dateFin: "2026-03-02", heureFin: "10:00", openable: true,
+    inspection: { depart: true, retour: true, retourAvailable: true }, inspectionRevisions: { depart: [{ revision: 1, status: "draft" }], retour: [{ revision: 1, status: "finalized" }] }, inspectionArchives: { retour: { archivedAt: "2026-10-13T10:00:00Z" } }
+  }]);
+  window.document.querySelector('[data-inspection-mode-filter="depart"]').click();
+  assert.equal(window.document.querySelectorAll('#inspectionList .dashboard-card').length, 1);
+  assert.match(window.document.getElementById('inspectionList').textContent, /DÉPART/);
+  window.document.querySelector('[data-inspection-filter="archived"]').click();
+  window.document.querySelector('[data-inspection-mode-filter="retour"]').click();
+  assert.equal(window.document.querySelectorAll('#inspectionList .dashboard-card').length, 1);
+  assert.match(window.document.getElementById('inspectionList').textContent, /RETOUR/);
+  const search = window.document.getElementById('inspectionSearch'); search.value = 'Nicholson'; search.dispatchEvent(new window.Event('input'));
+  assert.equal(window.document.querySelectorAll('#inspectionList .dashboard-card').length, 1);
+});
+
 test("bibliothèque EDL : l'activation directe de la section charge les deux sources et initialise les compteurs", async () => {
   const window = buildWindow();
   const calls = [];
