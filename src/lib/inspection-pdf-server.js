@@ -3,6 +3,15 @@
 const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
 const { build } = require("./inspection-document-model.js");
 const clean = value => String(value == null ? "" : value).replace(/[\r\n\t]+/g, " ").slice(0, 1500);
+function formatClientDate(value) {
+  if (!value) return "Date non renseignée";
+  // Les valeurs datetime-local représentent déjà une heure métier : ne pas les
+  // décaler en les convertissant implicitement dans un autre fuseau.
+  const local = /^(\d{4})-(\d\d)-(\d\d)[T ](\d\d):(\d\d)(?::\d\d(?:\.\d+)?)?$/.exec(String(value));
+  if (local) return `${local[3]}/${local[2]}/${local[1]} ${local[4]}:${local[5]}`;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? clean(value) : date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
+}
 async function assetBytes(env, path) { if (!env.ASSETS) return null; const response = await env.ASSETS.fetch(new Request(`https://getlocation.local${path}`)); return response.ok ? new Uint8Array(await response.arrayBuffer()) : null; }
 async function r2Image(env, item) { try { const object = await env.DOCUMENTS_BUCKET.get(item.key); if (!object) return null; const type = (object.httpMetadata && object.httpMetadata.contentType) || item.contentType || ""; if (!/^image\/(jpeg|png)$/i.test(type)) return null; return { bytes: new Uint8Array(await object.arrayBuffer()), type }; } catch (_) { return null; } }
 async function embed(pdf, bytes, type) { try { return /png/i.test(type || "") ? await pdf.embedPng(bytes) : await pdf.embedJpg(bytes); } catch (_) { return null; } }
@@ -15,8 +24,6 @@ async function generateInspectionPdf({ env, id, stage, revision, snapshot, media
   page.drawText("GET LOCATION", { x: 40, y, size: 18, font: bold, color: rgb(1,.42,0) }); y -= 30;
   page.drawText(`État des lieux ${stage === "retour" ? "retour" : "départ"}`, { x: 40, y, size: 14, font: bold }); y -= 28;
   line("Référence", model.header.reference); line("Date du constat", model.condition.dateHeure); line("Kilométrage", model.condition.km); line("Carburant", model.condition.carburant); line("Clés", model.condition.cles); line("Dommages", model.condition.remarques); line("Médias référencés", model.photos.length);
-  y -= 8; page.drawText("Signatures", { x: 40, y, size: 12, font: bold }); y -= 20;
-  for (const value of model.signatures) { line(value.role === "client" ? "Client" : "Agence", `${value.name || "—"} — ${value.displayedAt || "—"}`); const data = dataImage(value.imageDataUrl); const image = data && await embed(pdf, data.bytes, data.type); if (image) { const scale = Math.min(180 / image.width, 55 / image.height); page.drawImage(image, { x: 280, y: y + 3, width: image.width * scale, height: image.height * scale }); } y -= 48; }
   // Croquis : une grille par groupe, jamais une page par vue. Les marks sont
   // calculés sur la boîte réelle après conservation du ratio de l'asset.
   async function drawSketchGrid(views, title) {
@@ -29,9 +36,40 @@ async function generateInspectionPdf({ env, id, stage, revision, snapshot, media
   }
   if (model.sketches.length === 5) await drawSketchGrid(model.sketches, "Croquis du véhicule");
   else { await drawSketchGrid(model.sketches.filter(view=>view.surface === "utility-exterior"), "Croquis utilitaire — extérieur"); await drawSketchGrid(model.sketches.filter(view=>view.surface === "utility-interior"), "Croquis utilitaire — intérieur"); }
-  // Photos référencées par la révision, sans fallback legacy implicite.
-  for (let i=0;i<model.photos.length;i+=6) { const p=pdf.addPage([595.28,841.89]); p.drawText("Photos",{x:40,y:800,size:14,font:bold}); for (const [index,item] of model.photos.slice(i,i+6).entries()) { const source=await r2Image(env,item), image=source&&await embed(pdf,source.bytes,source.type); if(!image)continue; const col=index%2,row=Math.floor(index/2),x=45+col*255,top=760-row*225,scale=Math.min(240/image.width,180/image.height); p.drawImage(image,{x,y:top-image.height*scale,width:image.width*scale,height:image.height*scale}); p.drawText(clean(item.slot||"Photo"),{x,y:top-195,size:8,font:regular}); } }
-  page.drawText(`Archive générée côté serveur le ${new Date().toISOString()}`, { x: 40, y: 35, size: 8, font: regular, color: rgb(.35,.4,.48) });
+  // Photos référencées par la révision, sans fallback legacy implicite. Une
+  // référence R2 absente est ignorée sans empêcher la finalisation du PDF.
+  const photos = [];
+  for (const item of model.photos) { const source = await r2Image(env, item), image = source && await embed(pdf, source.bytes, source.type); if (image) photos.push({ item, image }); }
+  let lastPhotoPage = null, lastPhotoRows = 0;
+  const stageLabel = stage === "retour" ? "Retour" : "Départ";
+  for (let i=0;i<photos.length;i+=6) {
+    const batch=photos.slice(i,i+6), p=pdf.addPage([595.28,841.89]); p.drawText("Photos",{x:40,y:800,size:14,font:bold});
+    for (const [index,entry] of batch.entries()) {
+      const { item, image } = entry, col=index%2,row=Math.floor(index/2),x=45+col*255,top=760-row*225,scale=Math.min(240/image.width,165/image.height),height=image.height*scale;
+      p.drawImage(image,{x,y:top-height,width:image.width*scale,height});
+      p.drawText(clean(`${stageLabel} — ${item.label || "Photo"}`),{x,y:top-height-13,size:8,font:bold});
+      // capturedAt est la date métier corrigeable; createdAt ne sert qu'aux
+      // médias historiques qui ne possèdent aucune date métier.
+      p.drawText(formatClientDate(item.capturedAt || item.createdAt),{x,y:top-height-25,size:8,font:regular,color:rgb(.35,.4,.48)});
+    }
+    lastPhotoPage=p; lastPhotoRows=Math.ceil(batch.length/2);
+  }
+  async function drawSignatures(signaturePage, signatureY) {
+    signaturePage.drawText(`SIGNATURES — ${stageLabel.toUpperCase()}`, { x: 40, y: signatureY, size: 13, font: bold });
+    for (const [index, value] of model.signatures.entries()) {
+      const x = index === 0 ? 40 : 310, label = value.role === "client" ? "LOCATAIRE" : "GET LOCATION";
+      signaturePage.drawText(label, { x, y: signatureY - 23, size: 10, font: bold });
+      signaturePage.drawText(`Nom : ${clean(value.name) || "—"}`, { x, y: signatureY - 39, size: 9, font: regular });
+      signaturePage.drawText(`Date : ${formatClientDate(value.displayedAt)}`, { x, y: signatureY - 54, size: 9, font: regular });
+      const data = dataImage(value.imageDataUrl), image = data && await embed(pdf, data.bytes, data.type);
+      if (image) { const scale = Math.min(220 / image.width, 80 / image.height); signaturePage.drawImage(image, { x, y: signatureY - 150, width: image.width * scale, height: image.height * scale }); }
+    }
+    signaturePage.drawText(`Archive générée côté serveur le ${new Date().toISOString()}`, { x: 40, y: 35, size: 8, font: regular, color: rgb(.35,.4,.48) });
+  }
+  // Deux rangées de photos laissent une zone de signature confortable. Avec
+  // davantage de photos, une page dédiée conserve les proportions des images.
+  if (lastPhotoPage && lastPhotoRows <= 2) await drawSignatures(lastPhotoPage, lastPhotoRows === 1 ? 505 : 280);
+  else { const signatures = pdf.addPage([595.28,841.89]); await drawSignatures(signatures, 800); }
   return pdf.save();
 }
 module.exports = { generateInspectionPdf };

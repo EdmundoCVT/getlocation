@@ -87,8 +87,11 @@ test("échec R2 conserve la révision au brouillon", async () => {
 });
 
 test("modèle documentaire normalise les croquis, médias et dates de signature", () => {
-  const model = inspectionModel({ id: "edl_1", stage: "depart", revision: 2, vehicleFamily: "utility", snapshot: { utilityMarks: [{ surface: "utility-exterior", view: "left", x: 25, y: 75 }], signatures: { client: { name: "A", signedAt: "technique", displaySignedAt: "affichée" } } }, media: [{ key: "legacy/photo.jpg", slot: "avant" }] });
+  const model = inspectionModel({ id: "edl_1", stage: "depart", revision: 2, vehicleFamily: "utility", snapshot: { utilityMarks: [{ surface: "utility-exterior", view: "left", x: 25, y: 75 }], signatures: { client: { name: "A", signedAt: "technique", displaySignedAt: "affichée" } } }, media: [{ key: "legacy/photo.jpg", slot: "avant", capturedAt: "2026-09-04T23:34", createdAt: "2026-10-12T23:41:45" }] });
   assert.equal(model.sketches.length, 10); assert.equal(model.sketches[0].marks.length, 1); assert.equal(model.photos[0].key, "legacy/photo.jpg"); assert.equal(model.signatures[0].displayedAt, "affichée");
+  assert.equal(model.photos[0].label, "Avant");
+  assert.equal(model.photos[0].capturedAt, "2026-09-04T23:34");
+  assert.equal(model.photos[0].createdAt, "2026-10-12T23:41:45");
 });
 
 test("grilles Worker : voiture une page croquis, utilitaire deux pages", async () => {
@@ -96,12 +99,16 @@ test("grilles Worker : voiture une page croquis, utilitaire deux pages", async (
   const signatures = { client: { signedAt: "a" }, agence: { signedAt: "b" } };
   const car = await PDFDocument.load(await generateInspectionPdf({ env, id: "car", stage: "depart", revision: 2, snapshot: { marks: [], signatures }, media: [], vehicleFamily: "car" }));
   const utility = await PDFDocument.load(await generateInspectionPdf({ env, id: "van", stage: "depart", revision: 2, snapshot: { utilityMarks: [], signatures }, media: [], vehicleFamily: "utility" }));
-  assert.equal(car.getPageCount(), 2); assert.equal(utility.getPageCount(), 3);
+  assert.equal(car.getPageCount(), 3); assert.equal(utility.getPageCount(), 4);
 });
 
-test("PDF officiel n'expose pas le numéro interne de révision", async () => {
+test("PDF officiel n'expose pas le numéro interne de révision et place les signatures après les photos", async () => {
   const env = { ASSETS: { async fetch() { return new Response("", { status: 404 }); } }, DOCUMENTS_BUCKET: { async get() { return null; } } };
   const bytes = await generateInspectionPdf({ env, id: "res_test", stage: "depart", revision: 3, snapshot: { signatures: { client: { signedAt: "a" }, agence: { signedAt: "b" } } }, media: [], vehicleFamily: "car" });
   assert.ok(bytes.length > 0);
-  assert.doesNotMatch(require("node:fs").readFileSync(require.resolve("../src/lib/inspection-pdf-server.js"), "utf8"), /État des lieux \$\{stage === "retour" \? "retour" : "départ"\} — V\$\{revision\}/);
+  const source = require("node:fs").readFileSync(require.resolve("../src/lib/inspection-pdf-server.js"), "utf8");
+  assert.doesNotMatch(source, /État des lieux \$\{stage === "retour" \? "retour" : "départ"\} — V\$\{revision\}/);
+  assert.ok(source.indexOf("const photos = []") < source.indexOf("async function drawSignatures"));
+  assert.match(source, /item\.capturedAt \|\| item\.createdAt/);
+  assert.match(source, /SIGNATURES —/);
 });
