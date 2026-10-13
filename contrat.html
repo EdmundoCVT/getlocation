@@ -549,9 +549,11 @@
         <h2 id="genererContratTitre">Générer le contrat officiel</h2>
         <p class="lead" style="margin-bottom:10px;" id="genererContratLead">Attribue un numéro de contrat unique, enregistre le contrat (pour l'historique et la duplication) et télécharge le PDF final.</p>
         <p class="meta-line hidden" id="modeEditionMsg" style="color:var(--bleu-ocean);font-weight:600;"></p>
+        <button type="button" class="btn btn-primary hidden" id="saveDraftBtn">💾 Sauvegarder le brouillon</button>
         <button type="button" class="btn btn-primary" id="genererContratBtn">📄 Générer le contrat officiel</button>
         <button type="button" class="btn btn-ghost hidden" id="annulerEditionBtn" style="margin-top:8px;">Annuler la modification</button>
         <p class="meta-line hidden" id="numeroGenereMsg"></p>
+        <p class="meta-line hidden" id="contractSaveStatus" role="status" aria-live="polite"></p>
       </div>
 
       <div class="card">
@@ -4413,6 +4415,17 @@ function initOwnerView(prefill){
   // le bouton principal crée un nouveau contrat manuel (nouveau numéro) ou
   // met à jour l'existant en place (même numéro, même id).
   var contratEnCoursId = null;
+  var contratDirty = false, contratSaving = false, contratAutosaveTimer = null;
+  function afficherStatutSauvegardeContrat(texte){ var node=document.getElementById('contractSaveStatus'); node.textContent=texte; node.classList.remove('hidden'); }
+  function sauvegarderBrouillonContrat(){
+    if(!contratEnCoursId || contratSaving || !contratDirty) return Promise.resolve(false);
+    contratSaving=true; document.getElementById('saveDraftBtn').disabled=true; afficherStatutSauvegardeContrat('Enregistrement…');
+    return appelApiContrat('/api/contracts-manual-update',{id:contratEnCoursId,rawData:lireDonneesFormulaire()}).then(function(result){
+      contratDirty=false; afficherStatutSauvegardeContrat('Modifications enregistrées · Dernière sauvegarde : '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})); mettreAJourLienCourt(result.id,lireDonneesFormulaire()); return true;
+    }).catch(function(err){ afficherStatutSauvegardeContrat('Échec de la sauvegarde. Vos modifications sont encore présentes sur cet écran.'); return false;
+    }).finally(function(){ contratSaving=false; document.getElementById('saveDraftBtn').disabled=false; });
+  }
+  function modificationBrouillonContrat(){ if(!contratEnCoursId)return; contratDirty=true; afficherStatutSauvegardeContrat('Modifications non enregistrées'); clearTimeout(contratAutosaveTimer); contratAutosaveTimer=setTimeout(sauvegarderBrouillonContrat,1400); }
 
   // Lien COURT (jeton) le plus récent obtenu pour ce contrat, tant que les
   // données du formulaire n'ont pas changé depuis son émission — voir
@@ -4447,6 +4460,7 @@ function initOwnerView(prefill){
     document.getElementById('genererContratTitre').textContent = 'Mettre à jour le contrat ' + numero;
     document.getElementById('genererContratLead').textContent = 'Complétez ou corrigez les informations, puis enregistrez : le numéro et l\'identifiant du contrat sont conservés.';
     document.getElementById('genererContratBtn').textContent = '💾 Mettre à jour le contrat';
+    document.getElementById('saveDraftBtn').classList.remove('hidden');
     document.getElementById('annulerEditionBtn').classList.remove('hidden');
     document.getElementById('modeEditionMsg').classList.add('hidden');
   }
@@ -4455,9 +4469,15 @@ function initOwnerView(prefill){
     document.getElementById('genererContratTitre').textContent = 'Générer le contrat officiel';
     document.getElementById('genererContratLead').textContent = 'Attribue un numéro de contrat unique, enregistre le contrat (pour l\'historique et la duplication) et télécharge le PDF final.';
     document.getElementById('genererContratBtn').textContent = '📄 Générer le contrat officiel';
+    document.getElementById('saveDraftBtn').classList.add('hidden');
+    contratDirty=false; clearTimeout(contratAutosaveTimer);
     document.getElementById('annulerEditionBtn').classList.add('hidden');
   }
   document.getElementById('annulerEditionBtn').addEventListener('click', sortirModeEdition);
+  document.getElementById('saveDraftBtn').addEventListener('click', sauvegarderBrouillonContrat);
+  document.getElementById('ownerForm').addEventListener('input', modificationBrouillonContrat);
+  document.getElementById('ownerForm').addEventListener('change', modificationBrouillonContrat);
+  window.addEventListener('beforeunload', function(event){ if(contratDirty||contratSaving){ event.preventDefault(); event.returnValue=''; } });
 
   // Message d'erreur qui expose la vraie cause (statut HTTP + message
   // serveur) au lieu d'un "problème réseau" générique qui masque, par
@@ -4764,7 +4784,7 @@ function initOwnerView(prefill){
       var estSigne = entry.version && (entry.version.status === 'signed' || entry.version.status === 'archived');
       var consulterBtn = document.createElement('button');
       consulterBtn.type='button'; consulterBtn.className='btn'; consulterBtn.textContent='Consulter';
-      consulterBtn.addEventListener('click', ouvrirConsultation);
+      consulterBtn.addEventListener('click', function(){ appelerLienAgence(true).catch(function(err){ alert(err.message || 'Le contrat n’a pas pu être ouvert.'); }); });
       actions.appendChild(consulterBtn);
       conteneur.appendChild(row);
     });

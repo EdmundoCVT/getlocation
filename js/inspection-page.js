@@ -6,7 +6,7 @@
   const standaloneId = params.get("standalone") || "";
   const token = new URLSearchParams(location.hash.slice(1)).get("agencyToken");
   const $ = id => document.getElementById(id), M = window.InspectionMedia;
-  let dossier, reservation, family = "car", sketch, sketchVehicleType = "car", utilitySketchLegacy = false, pads = {}, dirty = false, revision = 0, inspectionRevision = 0, saving = false, pendingCount = 0, csrfToken = "", finalized = false;
+  let dossier, reservation, family = "car", sketch, sketchVehicleType = "car", utilitySketchLegacy = false, pads = {}, dirty = false, revision = 0, inspectionRevision = 0, saving = false, pendingCount = 0, csrfToken = "", finalized = false, autosaveTimer = null, saveFailed = false, lastSavedAt = null;
   let media = { depart: [], retour: [] }, editableMedia = new Set(), queue = Promise.resolve();
   const scores = {};
   const api = (url, options = {}) => fetch(url, { ...options, credentials: "same-origin", headers: { ...(token ? { Authorization: "Bearer " + token } : {}), ...(standaloneId && csrfToken ? { "X-Agency-Csrf": csrfToken } : {}), ...options.headers } });
@@ -16,12 +16,14 @@
   const cache = M.createCache(item => api(legacy ? "/api/legacy-inspection-media?id=" + encodeURIComponent(legacyId) + "&key=" + encodeURIComponent(item.key) : mediaReadUrl(item.key)));
   const message = value => { $("message").textContent = value; };
   function status() {
-    $("saveStatus").textContent = finalized ? "État des lieux finalisé — consultation seule. Créez une nouvelle révision pour le corriger." : pendingCount ? "Enregistrement des photos…" : saving ? "Enregistrement…" : dirty ? "Modifications non enregistrées" : "Modifications enregistrées";
+    $("saveStatus").textContent = finalized ? "État des lieux finalisé — consultation seule. Créez une nouvelle révision pour le corriger." : pendingCount ? "Enregistrement des photos…" : saving ? "Enregistrement…" : saveFailed ? "Échec de la sauvegarde — réessayez" : dirty ? "Modifications non enregistrées" : "Modifications enregistrées" + (lastSavedAt ? " · Dernière sauvegarde : " + lastSavedAt : "");
     $("saveStatus").classList.toggle("unsaved", dirty);
     $("save").disabled = saving || finalized; $("finalize").disabled = saving || finalized;
+    $("stickySaveActions").hidden = finalized; $("stickySave").disabled = saving || finalized; $("stickyFinalize").disabled = saving || finalized;
     $("photos").querySelectorAll("input,button").forEach(control => { control.disabled = saving || pendingCount > 0 || finalized; });
   }
-  function changed() { if (finalized) return; dirty = true; revision++; $("reviewStatus").textContent = "Modifications à enregistrer avant finalisation."; status(); }
+  function scheduleAutosave() { clearTimeout(autosaveTimer); autosaveTimer = setTimeout(() => { if (dirty && !saving && !finalized) save(false); }, 1400); }
+  function changed() { if (finalized) return; dirty = true; saveFailed = false; revision++; $("reviewStatus").textContent = "Modifications à enregistrer avant finalisation."; status(); scheduleAutosave(); }
   function metadataKey() { return "inspection-v3-new-media:" + reservation.id; }
   function rememberMedia() { try { sessionStorage.setItem(metadataKey(), JSON.stringify([...editableMedia])); } catch (_) { /* Storage may be unavailable; old media stay protected. */ } }
   function mutation(task) {
@@ -206,16 +208,18 @@
       dossier = standaloneId ? response.inspection.dossier : response.dossier;
       if (response.revision) { inspectionRevision = response.revision.revision; dossier[mode] = response.revision.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: response.revision.media || [] }; }
       finalized = Boolean(response.revision ? response.revision.status === "finalized" : dossier[mode] && dossier[mode].finalizedAt);
-      if (revision === version) { dirty = false; for (const role of ["client", "agence"]) pads[role].acknowledge(dossier[mode].signatures && dossier[mode].signatures[role]); }
+      if (revision === version) { dirty = false; saveFailed = false; lastSavedAt = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); for (const role of ["client", "agence"]) pads[role].acknowledge(dossier[mode].signatures && dossier[mode].signatures[role]); }
       $("reviewStatus").textContent = finalize && !dirty ? "État des lieux finalisé et enregistré." : "État des lieux enregistré.";
       if (finalize && !dirty && !document.getElementById("backToInspections")) { var back=document.createElement("a"); back.id="backToInspections"; back.className="primary"; back.href="/back-office.html#edl"; back.textContent="Retour aux états des lieux"; $("reviewStatus").after(back); }
       message(dirty ? "Enregistrement effectué. Vos dernières modifications restent à enregistrer." : "État des lieux enregistré."); return true;
-    } catch (error) { message(error.message); return false; }
-    finally { saving = false; status(); }
+    } catch (error) { saveFailed = true; message("Échec de la sauvegarde. Vos modifications sont encore présentes sur cet écran. " + error.message); return false; }
+    finally { saving = false; status(); if (dirty && !finalized && !saveFailed) scheduleAutosave(); }
   }
   $("form").onsubmit = event => { event.preventDefault(); save(false); };
   document.addEventListener("inspection-signature-accepted", () => { save(false); });
   $("finalize").onclick = () => save(true);
+  $("stickySave").onclick = () => save(false);
+  $("stickyFinalize").onclick = () => save(true);
   async function archiverPdfInspection(bytes) {
     const version = Number(reservation.contractVersion && reservation.contractVersion.version) || 1;
     const form = new FormData();

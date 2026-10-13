@@ -111,6 +111,14 @@ test("V3 : une photo R2 manquante est isolée du PDF au lieu d'annuler toute la 
   assert.match(editor, /photo référencée est introuvable/);
   assert.match(editor, /Retirer de cette révision/);
 });
+test("V3 : brouillon EDL possède une sauvegarde explicite, différée et visible", () => {
+  const source = fs.readFileSync(path.join(root, "js", "inspection-page.js"), "utf8");
+  assert.match(source, /setTimeout\(\(\) => \{ if \(dirty && !saving && !finalized\) save\(false\); \}, 1400\)/);
+  assert.match(source, /Échec de la sauvegarde\. Vos modifications sont encore présentes/);
+  assert.match(source, /Dernière sauvegarde/);
+  assert.match(source, /\$\("stickySave"\)\.onclick = \(\) => save\(false\)/);
+  assert.match(page, /id="stickySaveActions"/);
+});
 test("PDF utilitaire : le renderer utilise deux grilles, jamais une page par vue", () => {
   const source = fs.readFileSync(path.join(root, "js", "inspection-document.js"), "utf8");
   assert.match(source, /for \(const group of \["utility-exterior", "utility-interior"\]\)/);

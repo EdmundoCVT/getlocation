@@ -25,3 +25,11 @@ test("historique contrats : recherche, statut, année, mois et tri restent dispo
   });
   assert.match(html, /mettreAJourFiltresHistorique/);
 });
+
+test("contrat en édition : sauvegarde explicite et autosave ne créent pas une nouvelle version", () => {
+  assert.match(html, /id="saveDraftBtn"/);
+  assert.match(html, /function sauvegarderBrouillonContrat\(\)/);
+  assert.match(html, /\/api\/contracts-manual-update/);
+  assert.match(html, /setTimeout\(sauvegarderBrouillonContrat,1400\)/);
+  assert.match(html, /Échec de la sauvegarde\. Vos modifications sont encore présentes/);
+});
