@@ -84,7 +84,7 @@ test("GET view=inspection : agrège KV/D1, reconnaît l'historique et ne renvoie
   assert.equal(unauthenticated.status, 401);
   const body = await (await handleAgencyRentals(agencyRequest("https://getlocation.fr/api/agency-rentals?view=inspection", { session }), env)).json();
   assert.equal(body.rentals.length, 4, "KV payé, contrat manuel et locations D1 sont présents, sans doublon");
-  assert.deepEqual(Object.keys(body.rentals[0]).sort(), ["client", "contractNumero", "dateDebut", "dateFin", "heureDebut", "heureFin", "historyId", "historyMode", "id", "immatriculation", "inspection", "openable", "source", "vehicule", "vehiculeId"].sort());
+  assert.deepEqual(Object.keys(body.rentals[0]).sort(), ["client", "contractNumero", "dateDebut", "dateFin", "heureDebut", "heureFin", "historyId", "historyMode", "id", "immatriculation", "inspection", "inspectionArchives", "inspectionRevisions", "openable", "source", "vehicule", "vehiculeId"].sort());
   const sansEtatDesLieux = body.rentals.find((rental) => rental.id === webSansEtat.id);
   assert.deepEqual(sansEtatDesLieux.inspection, { depart: false, retour: false, retourAvailable: false });
   assert.equal(sansEtatDesLieux.openable, true);
@@ -151,6 +151,25 @@ test("GET view=inspection : conserve une version de contrat pertinente lorsqu'el
   assert.equal(items.length, 1);
   assert.equal(items[0].id, version.id);
   assert.equal(items[0].inspection.depart, true);
+});
+
+test("GET view=inspection : transmet toutes les métadonnées de révision liées sans snapshot", async () => {
+  const env = makeAgencyEnv({ RESERVATIONS_KV: createFakeKv() });
+  const session = await loginAgency(env);
+  const reservation = await createReservation(env, { vehiculeId: "opel-corsa", dateDebut: "2026-10-10", heureDebut: "10:00", dateFin: "2026-10-11", heureFin: "10:00", conducteur: { prenom: "Linked", nom: "Versions" } });
+  await updateReservationStatus(env, reservation.id, "paid");
+  const stored = JSON.parse(await env.RESERVATIONS_KV.get(reservation.id));
+  stored.inspectionSchema = "modern";
+  stored.contractDossier = { depart: { completedAt: "2026-10-10T10:00:00Z" }, retour: null, media: { depart: [], retour: [] } };
+  stored.inspectionRevisions = { depart: [1, 2, 3].map((revision) => ({ revision, status: revision === 3 ? "draft" : "finalized", createdAt: `2026-10-0${revision}T10:00:00Z`, finalizedAt: revision === 3 ? null : `2026-10-0${revision}T11:00:00Z`, basedOnRevision: revision === 1 ? null : revision - 1, pdfKey: revision === 3 ? null : `inspection-pdf/${reservation.id}/depart/v${revision}.pdf`, snapshot: { signatures: { client: { imageDataUrl: "data:image/png;base64,heavy" } } }, media: [{ key: "private-photo" }] })) };
+  await env.RESERVATIONS_KV.put(reservation.id, JSON.stringify(stored));
+  const response = await handleAgencyRentals(agencyRequest("https://getlocation.fr/api/agency-rentals?view=inspection", { session }), env);
+  const item = (await response.json()).rentals.find((rental) => rental.id === reservation.id);
+  assert.deepEqual(item.inspectionRevisions.depart.map((revision) => revision.revision), [1, 2, 3]);
+  assert.equal(item.inspectionRevisions.depart[2].status, "draft");
+  assert.equal(JSON.stringify(item.inspectionRevisions).includes("snapshot"), false);
+  assert.equal(JSON.stringify(item.inspectionRevisions).includes("imageDataUrl"), false);
+  assert.equal(JSON.stringify(item.inspectionRevisions).includes("media"), false);
 });
 
 test("POST create : 403 sans origine autorisée", async () => {

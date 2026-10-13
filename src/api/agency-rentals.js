@@ -13,6 +13,7 @@ const { recordAuditEvent } = require("../lib/audit-log.js");
 const { attemptSync, getSyncStatusForRental } = require("../lib/sheet-sync-outbox.js");
 const { listReservations } = require("../lib/reservation-store.js");
 const { getVehiculeParId } = require("../../js/data.js");
+const { summarizeInspectionRevisions } = require("../lib/inspection-revision-summary.js");
 
 function corsHeaders(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -277,7 +278,7 @@ function publicInspectionItem(item) {
     openable: item.openable,
     historyMode: item.historyMode,
     historyId: item.historyId,
-    inspectionRevisions: item.inspectionRevisions || {},
+    inspectionRevisions: summarizeInspectionRevisions(item.inspectionRevisions),
     inspectionArchives: item.inspectionArchives || {}
   };
 }

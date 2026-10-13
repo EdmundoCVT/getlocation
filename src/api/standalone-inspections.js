@@ -6,6 +6,7 @@ const { validateConditionReport } = require("../lib/validate-contract-dossier.js
 const { recordAuditEvent } = require("../lib/audit-log.js");
 const { listInspectionRevisions, createInspectionRevision, updateInspectionRevisionDraft, finalizeInspectionRevision } = require("../lib/inspection-revisions.js");
 const { finalizeRevisionWithPdf } = require("../lib/finalize-inspection-revision.js");
+const { summarizeInspectionRevisions } = require("../lib/inspection-revision-summary.js");
 
 const PREFIX = "standalone-inspection:";
 const ID = /^edl_[a-f0-9-]{16,64}$/;
@@ -15,7 +16,7 @@ function safeMode(value) { return value === "retour" ? "retour" : value === "dep
 function displaySignatureTime(value) { if (value === null || value === undefined || value === "") return null; if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value) || Number.isNaN(new Date(value + ":00Z").getTime())) throw new Error("Date et heure affichées invalides"); return value; }
 function preserveInspectionSignatures(report, previous) { ["client", "agence"].forEach(role => { const before = previous && previous.signatures && previous.signatures[role], next = report.signatures && report.signatures[role]; if (before && next && before.signedAt && before.imageDataUrl === next.imageDataUrl) report.signatures[role] = { ...next, signedAt: before.signedAt, ...(before.displaySignedAt ? { displaySignedAt: before.displaySignedAt } : {}) }; }); return report; }
 function publicItem(record) {
-  return { id: record.id, mode: record.mode, client: record.client || {}, vehicule: record.vehicule || {}, linkedContractId: record.linkedContractId || null, linkedContractNumero: record.linkedContractNumero || null, dateHeure: record.dossier && record.dossier[record.mode] && record.dossier[record.mode].dateHeure || record.createdAt, status: record.status || "draft", pdf: record.pdf || null, archivedAt: record.archivedAt || null, archivedBy: record.archivedBy || null, updatedAt: record.updatedAt };
+  return { id: record.id, mode: record.mode, client: record.client || {}, vehicule: record.vehicule || {}, linkedContractId: record.linkedContractId || null, linkedContractNumero: record.linkedContractNumero || null, dateHeure: record.dossier && record.dossier[record.mode] && record.dossier[record.mode].dateHeure || record.createdAt, status: record.status || "draft", pdf: record.pdf || null, inspectionRevisions: summarizeInspectionRevisions(record.inspectionRevisions), archivedAt: record.archivedAt || null, archivedBy: record.archivedBy || null, updatedAt: record.updatedAt };
 }
 async function read(env, id) { const raw = ID.test(id || "") && await env.RESERVATIONS_KV.get(PREFIX + id); return raw ? JSON.parse(raw) : null; }
 async function write(env, record) { record.updatedAt = new Date().toISOString(); await env.RESERVATIONS_KV.put(PREFIX + record.id, JSON.stringify(record)); return record; }

@@ -220,6 +220,32 @@ test("bibliothèque EDL : filtre type se combine avec statut, archive et recherc
   assert.equal(window.document.querySelectorAll('#inspectionList .dashboard-card').length, 1);
 });
 
+test("bibliothèque EDL : V3 brouillon est la version courante, visible et ouvrable sans créer V4", () => {
+  const window = buildWindow();
+  window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  window.__backOffice.renderInspectionListForTest([], [{
+    id: "edl_versions", mode: "depart", client: { prenom: "Amir", nom: "Fatkullin" }, vehicule: { nom: "Toyota Proace" }, updatedAt: "2026-10-13T10:00:00Z",
+    inspectionRevisions: { depart: [
+      { revision: 1, status: "finalized", pdfKey: "v1.pdf" },
+      { revision: 2, status: "finalized", basedOnRevision: 1, pdfKey: "v2.pdf" },
+      { revision: 3, status: "draft", basedOnRevision: 2, pdfKey: null }
+    ] }
+  }]);
+  const card = window.document.querySelector("#inspectionList .dashboard-card");
+  assert.match(card.textContent, /V3 — Brouillon de correction/);
+  assert.match(card.textContent, /V1 ✓/);
+  assert.match(card.textContent, /V2 ✓/);
+  assert.match(card.textContent, /V3 Brouillon/);
+  const modify = [...card.querySelectorAll("a")].find((link) => link.textContent === "Modifier V3");
+  assert.match(modify.href, /revision=3/);
+  [...card.querySelectorAll("button")].find((button) => button.textContent === "Historique").click();
+  const history = window.document.querySelector("dialog .inspection-history");
+  assert.equal(history.querySelectorAll("article").length, 3);
+  assert.match(history.textContent, /V3 — Brouillon/);
+  assert.match(history.textContent, /V2 — Finalisée/);
+  assert.match(history.textContent, /V1 — Finalisée/);
+});
+
 test("bibliothèque EDL : l'activation directe de la section charge les deux sources et initialise les compteurs", async () => {
   const window = buildWindow();
   const calls = [];

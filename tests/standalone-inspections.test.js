@@ -80,3 +80,18 @@ test("EDL indépendant finalisé : V2 reste un brouillon modifiable et copie les
   assert.equal(stored.inspectionRevisions.depart[0].snapshot.dateHeure, "2026-10-13T10:00");
   assert.equal(stored.inspectionRevisions.depart[0].snapshot.signatures.client.displaySignedAt, "2026-10-13T09:30");
 });
+
+test("liste standalone : transmet V1/V2/V3 en métadonnées légères", async () => {
+  const env = makeAgencyEnv({ DOCUMENTS_BUCKET: bucket(), RESERVATIONS_KV: createFakeKv() }), session = await loginAgency(env);
+  const id = "edl_cccccccccccccccc";
+  const revisions = [1, 2, 3].map((revision) => ({ revision, status: revision === 3 ? "draft" : "finalized", createdAt: `2026-10-0${revision}T10:00:00Z`, finalizedAt: revision === 3 ? null : `2026-10-0${revision}T11:00:00Z`, basedOnRevision: revision === 1 ? null : revision - 1, pdfKey: revision === 3 ? null : `inspection-pdf/${id}/depart/v${revision}.pdf`, snapshot: { signatures: { client: { imageDataUrl: "data:image/png;base64,heavy" } } }, media: [{ key: `inspection/${id}/depart/v${revision}/photo.jpg` }] }));
+  await env.RESERVATIONS_KV.put("standalone-inspection:" + id, JSON.stringify({ id, mode: "depart", client: {}, vehicule: {}, dossier: { depart: revisions[2].snapshot }, inspectionRevisions: { depart: revisions }, updatedAt: "2026-10-13T12:00:00Z" }));
+  const response = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { session }), env);
+  const item = (await response.json()).inspections[0];
+  assert.deepEqual(item.inspectionRevisions.depart.map((revision) => revision.revision), [1, 2, 3]);
+  assert.equal(item.inspectionRevisions.depart[2].basedOnRevision, 2);
+  assert.equal(item.inspectionRevisions.depart[1].pdfKey, `inspection-pdf/${id}/depart/v2.pdf`);
+  assert.equal(JSON.stringify(item.inspectionRevisions).includes("snapshot"), false);
+  assert.equal(JSON.stringify(item.inspectionRevisions).includes("imageDataUrl"), false);
+  assert.equal(JSON.stringify(item.inspectionRevisions).includes("media"), false);
+});
