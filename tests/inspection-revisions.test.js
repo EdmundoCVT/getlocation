@@ -51,6 +51,20 @@ test("les sauvegardes successives d'un brouillon ne créent ni PDF ni archive", 
   assert.equal(third.revision.snapshot.km, 130);
 });
 
+test("une seule correction brouillon est autorisée et une ancienne version finalisée peut servir de base", () => {
+  const v1 = { revision: 1, status: "finalized", snapshot: { km: 100, signatures: { client: { signedAt: "a" }, agence: { signedAt: "b" } } }, media: [{ key: "v1.jpg" }], pdfKey: "v1.pdf" };
+  const v2 = { revision: 2, status: "finalized", snapshot: { km: 200, signatures: { client: { signedAt: "c" }, agence: { signedAt: "d" } } }, media: [{ key: "v2.jpg" }], pdfKey: "v2.pdf" };
+  const created = createInspectionRevision({ inspectionRevisions: { depart: [v1, v2] } }, "depart", null, null, "agent", 1);
+  assert.equal(created.revision.revision, 3);
+  assert.equal(created.revision.basedOnRevision, 1);
+  assert.equal(created.revision.snapshot.km, 100);
+  assert.deepEqual(created.revision.media, [{ key: "v1.jpg" }]);
+  assert.deepEqual(created.revision.snapshot.signatures, { client: null, agence: null });
+  assert.throws(() => createInspectionRevision({ inspectionRevisions: created.inspectionRevisions }, "depart", null, null, "agent", 2), /Une correction est déjà en cours : V3/);
+  assert.equal(created.inspectionRevisions.depart[0].snapshot.km, 100);
+  assert.equal(created.inspectionRevisions.depart[1].snapshot.km, 200);
+});
+
 test("Drive crée des sources et noms distincts pour chaque révision EDL", () => {
   const jobs = jobsForRecord({ id: "res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", contractNumero: "GL-1", contractVersion: { version: 1 }, inspectionRevisions: { depart: [
     { revision: 1, status: "finalized", pdfKey: "inspection-pdf/x/depart/v1.pdf", media: [{ key: "legacy/a.jpg", slot: "avant", contentType: "image/jpeg" }] },

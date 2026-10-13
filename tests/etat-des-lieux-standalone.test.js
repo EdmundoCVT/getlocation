@@ -119,6 +119,14 @@ test("V3 : brouillon EDL possède une sauvegarde explicite, différée et visibl
   assert.match(source, /\$\("stickySave"\)\.onclick = \(\) => save\(false\)/);
   assert.match(page, /id="stickySaveActions"/);
 });
+test("V3 : une version finalisée propose directement une correction, sans créer deux brouillons", () => {
+  const source = fs.readFileSync(path.join(root, "js", "inspection-page.js"), "utf8");
+  assert.match(page, /id="createRevision"/);
+  assert.match(source, /function createOrResumeRevision\(\)/);
+  assert.match(source, /Une correction est déjà en cours/);
+  assert.match(source, /action: "create-revision"/);
+  assert.match(source, /Retirer de cette version/);
+});
 test("PDF utilitaire : le renderer utilise deux grilles, jamais une page par vue", () => {
   const source = fs.readFileSync(path.join(root, "js", "inspection-document.js"), "utf8");
   assert.match(source, /for \(const group of \["utility-exterior", "utility-interior"\]\)/);

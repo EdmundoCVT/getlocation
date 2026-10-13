@@ -6,7 +6,7 @@
   const standaloneId = params.get("standalone") || "";
   const token = new URLSearchParams(location.hash.slice(1)).get("agencyToken");
   const $ = id => document.getElementById(id), M = window.InspectionMedia;
-  let dossier, reservation, family = "car", sketch, sketchVehicleType = "car", utilitySketchLegacy = false, pads = {}, dirty = false, revision = 0, inspectionRevision = 0, saving = false, pendingCount = 0, csrfToken = "", finalized = false, autosaveTimer = null, saveFailed = false, lastSavedAt = null;
+  let dossier, reservation, family = "car", sketch, sketchVehicleType = "car", utilitySketchLegacy = false, pads = {}, dirty = false, revision = 0, inspectionRevision = 0, saving = false, pendingCount = 0, csrfToken = "", finalized = false, autosaveTimer = null, saveFailed = false, lastSavedAt = null, revisionList = [];
   let media = { depart: [], retour: [] }, editableMedia = new Set(), queue = Promise.resolve();
   const scores = {};
   const api = (url, options = {}) => fetch(url, { ...options, credentials: "same-origin", headers: { ...(token ? { Authorization: "Bearer " + token } : {}), ...(standaloneId && csrfToken ? { "X-Agency-Csrf": csrfToken } : {}), ...options.headers } });
@@ -22,6 +22,8 @@
     $("stickySaveActions").hidden = finalized; $("stickySave").disabled = saving || finalized; $("stickyFinalize").disabled = saving || finalized;
     $("pdf").disabled = saving || !finalized;
     $("pdf").textContent = finalized ? "Voir le PDF officiel" : "PDF officiel après finalisation";
+    $("createRevision").hidden = !finalized;
+    if (finalized) { const draft = revisionList.find(item => item.status === "draft"); $("createRevision").disabled = saving; $("createRevision").textContent = draft ? "Reprendre V" + draft.revision : "Créer une nouvelle version"; }
     $("photos").querySelectorAll("input,button").forEach(control => { control.disabled = saving || pendingCount > 0 || finalized; });
   }
   function scheduleAutosave() { clearTimeout(autosaveTimer); autosaveTimer = setTimeout(() => { if (dirty && !saving && !finalized) save(false); }, 1400); }
@@ -166,7 +168,7 @@
           if (!confirm(confirmation)) return;
           mutation(async () => { await json(await api(mediaUrl(), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key, stage: mode, revision: inspectionRevision }) })); media[mode] = media[mode].filter(photo => photo.key !== item.key); editableMedia.delete(item.key); rememberMedia(); cache.forget(item.key); renderPhotos(); renderComparison(); message("Photo retirée de cette révision."); });
         }, "danger"));
-        if (editableMedia.has(item.key)) removeFromRevision("Supprimer", "Supprimer cette nouvelle photo ? Les médias historiques restent conservés.");
+        if (!finalized) removeFromRevision(editableMedia.has(item.key) ? "Supprimer" : "Retirer de cette version", editableMedia.has(item.key) ? "Supprimer cette nouvelle photo ?" : "Retirer uniquement cette photo de la révision en cours ? La version historique reste inchangée.");
         else { const note = document.createElement("small"); note.textContent = "Photo historique conservée"; actions.append(note); }
         const onMissing = () => {
           photo.classList.add("photo-missing");
@@ -192,7 +194,7 @@
       ? await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, id: standaloneId }) }))
       : await json(await api("/api/contract-dossier-agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
     dossier = standaloneId ? response.inspection.dossier : response.dossier;
-    if (response.revision) { inspectionRevision = response.revision.revision; dossier[mode] = response.revision.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: response.revision.media || [] }; }
+    if (response.revision) { inspectionRevision = response.revision.revision; revisionList = revisionList.map(item => item.revision === inspectionRevision ? { ...item, ...response.revision } : item); dossier[mode] = response.revision.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: response.revision.media || [] }; }
     for (const currentRole of ["client", "agence"]) pads[currentRole] && pads[currentRole].acknowledge(dossier[mode].signatures && dossier[mode].signatures[currentRole]);
     message("Date et heure affichées de la signature enregistrées.");
     return true;
@@ -208,7 +210,7 @@
         ? await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update-stage", id: standaloneId, revision: inspectionRevision, stage: body, finalize: Boolean(finalize) }) }))
         : await json(await api("/api/contract-dossier-agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, action: "update-" + mode, revision: inspectionRevision, finalize: Boolean(finalize) }) }));
       dossier = standaloneId ? response.inspection.dossier : response.dossier;
-      if (response.revision) { inspectionRevision = response.revision.revision; dossier[mode] = response.revision.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: response.revision.media || [] }; }
+      if (response.revision) { inspectionRevision = response.revision.revision; revisionList = revisionList.map(item => item.revision === inspectionRevision ? { ...item, ...response.revision } : item); dossier[mode] = response.revision.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: response.revision.media || [] }; }
       finalized = Boolean(response.revision ? response.revision.status === "finalized" : dossier[mode] && dossier[mode].finalizedAt);
       if (revision === version) { dirty = false; saveFailed = false; lastSavedAt = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); for (const role of ["client", "agence"]) pads[role].acknowledge(dossier[mode].signatures && dossier[mode].signatures[role]); }
       $("reviewStatus").textContent = finalize && !dirty ? "État des lieux finalisé et enregistré." : "État des lieux enregistré.";
@@ -222,6 +224,21 @@
   $("finalize").onclick = () => save(true);
   $("stickySave").onclick = () => save(false);
   $("stickyFinalize").onclick = () => save(true);
+  function revisionUrl(nextRevision) { const url = new URL(location.href); url.searchParams.set("revision", String(nextRevision)); return url.pathname + url.search + url.hash; }
+  async function createOrResumeRevision() {
+    const draft = revisionList.find(item => item.status === "draft");
+    if (draft) { message("Une correction est déjà en cours : V" + draft.revision + ". Ouverture de ce brouillon."); location.href = revisionUrl(draft.revision); return; }
+    const button = $("createRevision"); button.disabled = true; button.textContent = "Création…";
+    try {
+      const response = standaloneId
+        ? await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create-revision", id: standaloneId, stage: mode, baseRevision: inspectionRevision }) }))
+        : await json(await api("/api/contract-dossier-agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create-revision", mode, baseRevision: inspectionRevision }) }));
+      const next = response.revision && response.revision.revision;
+      if (!Number.isInteger(next)) throw new Error("Nouvelle révision introuvable.");
+      location.href = revisionUrl(next);
+    } catch (error) { button.disabled = false; button.textContent = "Créer une nouvelle version"; message(error.message); }
+  }
+  $("createRevision").onclick = createOrResumeRevision;
   function officialPdfUrl() {
     const query = new URLSearchParams({ id: standaloneId || reservation.id, revision: String(inspectionRevision) });
     if (!standaloneId) query.set("stage", mode);
@@ -255,7 +272,7 @@
     });
     mountSketch();
     renderDamageTable();
-    finalized = Boolean(stage.finalizedAt);
+    finalized = finalized || Boolean(stage.finalizedAt);
     for (const role of ["client", "agence"]) pads[role] = window.createInspectionSignature($("signatures"), { role, title: role === "client" ? "Signature client" : "Signature agence", value: stage.signatures && stage.signatures[role], locked: finalized, onChange: changed, onDisplayChange: value => correctSignatureDisplayTime(role, value), onError: error => message(error.message || "Impossible d’enregistrer la date affichée.") });
     if (finalized) $("form").querySelectorAll("#information input,#vehicle input,#vehicle select,#dommages,#sketch input,.cleanliness-buttons button").forEach(control => { control.disabled = true; });
     $("form").querySelectorAll("#information input,#vehicle input,#vehicle select,#dommages").forEach(input => input.addEventListener("input", changed));
@@ -276,6 +293,7 @@
     const area = document.createElement("textarea"); area.rows = 3; area.maxLength = 2000; area.value = standalone.internalNote || ""; note.append(area);
     const saveNote = document.createElement("button"), associate = document.createElement("button"); saveNote.type = associate.type = "button"; saveNote.className = "secondary"; associate.className = "outline"; saveNote.textContent = "Enregistrer la remarque"; associate.textContent = standalone.linkedContractNumero ? "Changer le contrat associé" : "Associer à un contrat";
     actions.className = "actions"; actions.append(saveNote, associate); box.append(heading, note, actions); summary.parentNode.insertBefore(box, summary.nextSibling);
+    if (finalized) { area.disabled = true; saveNote.disabled = true; associate.disabled = true; }
     saveNote.onclick = async () => { try { await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "note", id: standaloneId, internalNote: area.value }) })); message("Remarque interne enregistrée."); } catch (error) { message(error.message); } };
     associate.onclick = async () => { try { const query = prompt("Rechercher un contrat par numéro, client, véhicule ou immatriculation :"); if (query === null) return; const found = await json(await api("/api/standalone-inspections?contracts=1&q=" + encodeURIComponent(query))); if (!found.contracts.length) throw new Error("Aucun contrat correspondant."); const choices = found.contracts.map((item, index) => (index + 1) + ". " + (item.contractNumero || item.id) + " — " + [item.client.prenom, item.client.nom].filter(Boolean).join(" ") + " — " + (item.immatriculation || item.vehiculeId || "")).join("\n"); const choice = Number(prompt("Choisissez le contrat :\n" + choices)); const contract = found.contracts[choice - 1]; if (!contract) return; const saved = await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "associate", id: standaloneId, linkedContractId: contract.id }) })); reservation.contractNumero = saved.inspection.linkedContractNumero || null; associate.textContent = "Changer le contrat associé"; message("Contrat " + (reservation.contractNumero || "") + " associé à l’état des lieux."); } catch (error) { message(error.message); } };
   }
@@ -289,7 +307,7 @@
       const standalone = view.inspection;
       if (standalone.mode !== mode) throw new Error("Type d’état des lieux incohérent.");
       dossier = standalone.dossier || { status: "draft", depart: null, retour: null, media: { depart: [], retour: [] } };
-      const revisions = standalone.inspectionRevisions && standalone.inspectionRevisions[mode] || [];
+      const revisions = standalone.inspectionRevisions && standalone.inspectionRevisions[mode] || []; revisionList = revisions;
       const current = revisions.find(item => item.revision === requestedRevision) || revisions[revisions.length - 1];
       if (current) { inspectionRevision = current.revision; dossier[mode] = current.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: current.media || [] }; }
       if (standalone.status === "finalized" && dossier[mode] && !dossier[mode].finalizedAt) dossier[mode].finalizedAt = standalone.updatedAt || new Date().toISOString();
@@ -297,17 +315,17 @@
       window.__standaloneInspection = standalone;
     } else {
       const view = await json(await api("/api/contract-dossier-agency")); dossier = view.dossier; reservation = view.reservation;
-      const revisions = view.inspectionRevisions && view.inspectionRevisions[mode] || [];
+      const revisions = view.inspectionRevisions && view.inspectionRevisions[mode] || []; revisionList = revisions;
       const current = revisions.find(item => item.revision === requestedRevision) || revisions[revisions.length - 1];
       if (current) { inspectionRevision = current.revision; dossier[mode] = current.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: current.media || [] }; }
     }
     if (!inspectionRevision) inspectionRevision = 1;
-    var revisionMeta = standaloneId ? (window.__standaloneInspection.inspectionRevisions && window.__standaloneInspection.inspectionRevisions[mode] || []).find(function(item){ return item.revision === inspectionRevision; }) : null;
+    var revisionMeta = revisionList.find(function(item){ return item.revision === inspectionRevision; }) || null;
     if (revisionMeta) {
       finalized = revisionMeta.status === "finalized";
       document.querySelector("h1").textContent = "État des lieux — V" + inspectionRevision + (finalized ? " — Finalisée" : " — Brouillon de correction");
       $("finalize").textContent = "Finaliser V" + inspectionRevision;
-      $("reviewStatus").textContent = revisionMeta.basedOnRevision ? "Basée sur V" + revisionMeta.basedOnRevision : "Version en cours";
+      $("reviewStatus").textContent = finalized ? "Cette version est finalisée. Créez une nouvelle révision pour apporter une correction." : (revisionMeta.basedOnRevision ? "Basée sur V" + revisionMeta.basedOnRevision : "Version en cours");
     }
     media = { depart: dossier.media && dossier.media.depart || [], retour: dossier.media && dossier.media.retour || [] }; family = reservation.vehicule && reservation.vehicule.vehicleFamily === "utility" ? "utility" : "car";
     dirty = !dossier[mode];

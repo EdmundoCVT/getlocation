@@ -46,3 +46,18 @@ test("EDL indépendant : la liste parcourt toutes les pages KV", async () => {
   assert.equal(body.inspections.length, 2);
   assert.ok(body.inspections.some((item) => item.id === "edl_bbbbbbbbbbbbbbbb" && item.status === "finalized"));
 });
+
+test("EDL indépendant : une correction reprend le brouillon existant et peut repartir d'une ancienne version", async () => {
+  const env = makeAgencyEnv({ DOCUMENTS_BUCKET: bucket(), RESERVATIONS_KV: createFakeKv() }), session = await loginAgency(env);
+  const id = "edl_aaaaaaaaaaaaaaaa";
+  const v1 = { revision: 1, status: "finalized", snapshot: { km: 100, signatures: { client: { signedAt: "a" }, agence: { signedAt: "b" } } }, media: [{ key: "inspection-standalone/edl_aaaaaaaaaaaaaaaa/depart/v1/photo.jpg" }], pdfKey: "v1.pdf" };
+  const v2 = { revision: 2, status: "draft", snapshot: { km: 120, signatures: { client: null, agence: null } }, media: [], pdfKey: null };
+  await env.RESERVATIONS_KV.put("standalone-inspection:" + id, JSON.stringify({ id, mode: "depart", dossier: { depart: v1.snapshot, media: { depart: v1.media } }, inspectionRevisions: { depart: [v1, v2] }, createdAt: "2026-10-01", updatedAt: "2026-10-01" }));
+  const blocked = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create-revision", id, stage: "depart", baseRevision: 1 } }), env);
+  assert.equal(blocked.status, 409);
+  assert.match((await blocked.json()).error, /V2/);
+  const stored = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + id)); stored.inspectionRevisions.depart[1].status = "finalized"; stored.inspectionRevisions.depart[1].pdfKey = "v2.pdf"; await env.RESERVATIONS_KV.put("standalone-inspection:" + id, JSON.stringify(stored));
+  const created = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create-revision", id, stage: "depart", baseRevision: 1 } }), env);
+  assert.equal(created.status, 201); const revision = (await created.json()).revision;
+  assert.equal(revision.revision, 3); assert.equal(revision.basedOnRevision, 1); assert.equal(revision.snapshot.km, 100); assert.equal(revision.pdfKey, null);
+});
