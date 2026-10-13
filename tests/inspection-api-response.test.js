@@ -15,10 +15,10 @@ test("réponse HTML d'une API photo devient une erreur explicite sans exposer le
   const response = new Response("<!DOCTYPE html><html><body>secret interne</body></html>", { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } });
   Object.defineProperty(response, "url", { value: "https://getlocation.fr/api/standalone-inspection-media?id=edl_secret" });
   await assert.rejects(() => media.parseApiResponse(response), (error) => {
-    assert.match(error.message, /enregistrement de la photo/);
+    assert.match(error.message, /Upload photo impossible/);
     assert.match(error.message, /HTTP 404/);
     assert.match(error.message, /\/api\/standalone-inspection-media/);
-    assert.match(error.message, /page HTML/);
+    assert.match(error.message, /HTML au lieu de JSON/);
     assert.doesNotMatch(error.message, /DOCTYPE|secret interne|Unexpected token/);
     return true;
   });
