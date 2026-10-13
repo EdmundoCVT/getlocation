@@ -12,6 +12,24 @@
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") + "T" + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
   }
   function date(value) { if (!value) return "Non renseignée"; const d = new Date(value); return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString("fr-FR"); }
+  async function parseApiResponse(response) {
+    const contentType = response && response.headers && typeof response.headers.get === "function" ? response.headers.get("content-type") || "" : "";
+    const responseUrl = response && response.url || "";
+    let path = "la route API";
+    try { path = new URL(responseUrl || "/api/inconnue", global.location && global.location.href || "https://getlocation.fr").pathname; } catch (_) { /* URL de diagnostic facultative. */ }
+    if (contentType && !/\b(?:application|text)\/(?:[a-z0-9.+-]*\+)?json\b/i.test(contentType)) {
+      // Consommer la réponse sans jamais exposer son contenu HTML au client.
+      if (response && typeof response.text === "function") await response.text().catch(() => "");
+      const isHtml = /text\/html/i.test(contentType);
+      const context = /inspection-media/.test(path) ? " lors de l’enregistrement de la photo" : "";
+      throw new Error("Erreur serveur" + context + " (HTTP " + (response.status || 0) + "). " + path + " a retourné " + (isHtml ? "une page HTML" : "un format non JSON") + ".");
+    }
+    let body;
+    try { body = await response.json(); }
+    catch (_) { throw new Error("Erreur serveur (HTTP " + (response.status || 0) + "). " + path + " n’a pas retourné une réponse JSON valide."); }
+    if (!response.ok) throw new Error(body && body.error || "Une erreur est survenue (HTTP " + response.status + ").");
+    return body;
+  }
   function decode(image) {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("Délai de chargement de la photo dépassé.")), 20000);
@@ -72,5 +90,5 @@
       figure.append(preview(item, cache, open), caption); root.append(figure);
     });
   }
-  global.InspectionMedia = { labels, slots: Object.keys(labels), local, date, decode, createCache, preview, renderReadOnly, button };
+  global.InspectionMedia = { labels, slots: Object.keys(labels), local, date, parseApiResponse, decode, createCache, preview, renderReadOnly, button };
 }(window));

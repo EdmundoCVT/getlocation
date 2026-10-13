@@ -246,6 +246,21 @@ test("bibliothèque EDL : V3 brouillon est la version courante, visible et ouvra
   assert.match(history.textContent, /V1 — Finalisée/);
 });
 
+test("bibliothèque EDL : une V4 finalisée propose directement Créer V5 avec onglet pré-réservé", () => {
+  const window = buildWindow();
+  window.__backOffice.renderInspectionListForTest([], [{
+    id: "edl_finalized", mode: "depart", client: { prenom: "Client", nom: "V4" }, vehicule: { nom: "Toyota Proace" },
+    inspectionRevisions: { depart: [1, 2, 3, 4].map((revision) => ({ revision, status: "finalized", basedOnRevision: revision > 1 ? revision - 1 : null, pdfKey: "v" + revision + ".pdf" })) }
+  }]);
+  const card = window.document.querySelector("#inspectionList .dashboard-card");
+  assert.match(card.textContent, /V4 — Finalisée/);
+  assert.ok([...card.querySelectorAll("button")].some((button) => button.textContent === "Créer V5"));
+  assert.doesNotMatch(card.textContent, /Modifier V4/);
+  const source = html.match(/function inspectionCorrect\(item,baseRevision\)[\s\S]*?\nfunction inspectionPdfUrl/)[0];
+  assert.ok(source.indexOf("window.open('about:blank','_blank')") < source.indexOf("apiPost('/api/standalone-inspections'"), "Safari reçoit l’onglet avant la requête create-revision");
+  assert.match(source, /baseRevision=baseRevision\|\|item\.revisions\.latestFinalizedRevision/);
+});
+
 test("bibliothèque EDL : l'activation directe de la section charge les deux sources et initialise les compteurs", async () => {
   const window = buildWindow();
   const calls = [];

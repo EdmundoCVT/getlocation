@@ -118,3 +118,18 @@ test("photo inspection : V2 draft est modifiable mais V1 finalisée renvoie 409"
   assert.equal(persisted.inspectionRevisions.depart[1].media[0].createdAt, v2.media[0].createdAt);
   assert.equal(persisted.inspectionRevisions.depart[1].media[0].capturedAt, "2026-10-02T10:00");
 });
+
+test("photo inspection liée : une photo V5 utilise la clé et les médias de V5 uniquement", async () => {
+  const e = env();
+  const { reservationId, token } = await setup(e);
+  const stored = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
+  stored.inspectionRevisions = { depart: [1, 2, 3, 4, 5].map((revision) => ({ revision, status: revision === 5 ? "draft" : "finalized", snapshot: {}, media: [{ key: `inspection/${reservationId}/depart/v${revision}/historique.jpg`, slot: "avant" }], pdfKey: revision === 5 ? null : `v${revision}.pdf` })) };
+  await e.RESERVATIONS_KV.put(reservationId, JSON.stringify(stored));
+  const form = new FormData(); form.set("stage", "depart"); form.set("revision", "5"); form.set("slot", "avant"); form.set("capturedAt", "2026-10-13T12:00"); form.set("file", new File(["image-v5"], "v5.jpg", { type: "image/jpeg" }));
+  const response = await handleInspectionMedia(request("https://getlocation.fr/api/inspection-media", token, { method: "POST", body: form }), e);
+  assert.equal(response.status, 200); assert.match(response.headers.get("content-type"), /application\/json/);
+  const photo = (await response.json()).item; assert.match(photo.key, /\/depart\/v5\//);
+  const persisted = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
+  assert.equal(persisted.inspectionRevisions.depart[3].media.length, 1, "V4 reste inchangée");
+  assert.equal(persisted.inspectionRevisions.depart[4].media.length, 2, "la photo est ajoutée uniquement à V5");
+});

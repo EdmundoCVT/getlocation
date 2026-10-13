@@ -7,7 +7,7 @@ function json(body,status=200){return new Response(JSON.stringify(body),{status,
 function ext(type){return type === "image/png" ? "png" : type === "image/webp" ? "webp" : type === "image/heic" ? "heic" : type === "image/heif" ? "heif" : "jpg";}
 function stage(v){return v === "depart" || v === "retour" ? v : null;}
 async function authRecord(request,env,write){const auth=await requireAgencySession(request,env,write?{requireCsrf:true,requireOrigin:true}:{});if(auth.error)return{error:auth.error};const id=new URL(request.url).searchParams.get("id") || ""; const record=await readStandaloneInspection(env,id);return record?{record}:{error:json({error:"État des lieux introuvable"},404)};}
-async function handleStandaloneInspectionMedia(request,env){
+async function handleStandaloneInspectionMediaRequest(request,env){
   if(!env.DOCUMENTS_BUCKET)return json({error:"Stockage photo indisponible"},503);
   const resolved=await authRecord(request,env,request.method!=="GET"); if(resolved.error)return resolved.error; const record=resolved.record, prefix=`inspection-standalone/${record.id}/`;
   if(request.method === "GET"){const key=new URL(request.url).searchParams.get("key")||"";if(!key.startsWith(prefix))return new Response(null,{status:403});const obj=await env.DOCUMENTS_BUCKET.get(key);if(!obj)return new Response(null,{status:404});const headers=new Headers();obj.writeHttpMetadata(headers);headers.set("Cache-Control","private, max-age=300");headers.set("X-Content-Type-Options","nosniff");return new Response(obj.body,{headers});}
@@ -15,5 +15,13 @@ async function handleStandaloneInspectionMedia(request,env){
   if(request.method === "PATCH"){const body=await request.json().catch(()=>null),key=body&&body.key||"",capturedAt=body&&body.capturedAt,s=stage(body&&body.stage)||record.mode,revision=Number(body&&body.revision);if(!key.startsWith(prefix)||!Number.isInteger(revision)||revision<1||typeof capturedAt!=="string"||!/^\d{4}-\d\d-\d\dT\d\d:\d\d/.test(capturedAt))return json({error:"Date, photo ou révision invalide"},400);try{const media=getRevisionMedia(record,s,record.dossier[s],record.dossier.media&&record.dossier.media[s],record.createdBy,revision)||[];let item=null;const updated=media.map(x=>x&&x.key===key?(item={...x,capturedAt},item):x);if(!item)return json({error:"Photo introuvable"},404);const saved=setRevisionMedia(record,s,record.dossier[s],record.dossier.media&&record.dossier.media[s],record.createdBy,revision,updated);record.inspectionRevisions=saved.inspectionRevisions;await writeStandaloneInspection(env,record);return json({ok:true,item});}catch(error){return json({error:error.message},error.status||409);}}
   if(request.method === "DELETE"){const body=await request.json().catch(()=>null), key=body&&body.key||"", s=stage(body&&body.stage)||record.mode, revision=Number(body&&body.revision);if(!key.startsWith(prefix)||!Number.isInteger(revision))return json({error:"Photo ou révision invalide"},400);try{const media=getRevisionMedia(record,s,record.dossier[s],record.dossier.media&&record.dossier.media[s],record.createdBy,revision)||[];const saved=setRevisionMedia(record,s,record.dossier[s],record.dossier.media&&record.dossier.media[s],record.createdBy,revision,media.filter(item=>item.key!==key));record.inspectionRevisions=saved.inspectionRevisions;await writeStandaloneInspection(env,record);return json({ok:true});}catch(error){return json({error:error.message},error.status||409);}}
   return json({error:"Méthode non autorisée"},405);
+}
+async function handleStandaloneInspectionMedia(request,env){
+  try { return await handleStandaloneInspectionMediaRequest(request,env); }
+  catch(error) {
+    const status = Number.isInteger(error && error.status) ? error.status : 500;
+    console.error("standalone_inspection_media_error", { method: request.method, pathname: new URL(request.url).pathname, status, name: error && error.name || "Error" });
+    return json({ error: status >= 500 ? "Erreur serveur lors du traitement de la photo" : error && error.message || "Photo invalide" }, status);
+  }
 }
 module.exports={handleStandaloneInspectionMedia};

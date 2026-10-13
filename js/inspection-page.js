@@ -12,7 +12,7 @@
   const api = (url, options = {}) => fetch(url, { ...options, credentials: "same-origin", headers: { ...(token ? { Authorization: "Bearer " + token } : {}), ...(standaloneId && csrfToken ? { "X-Agency-Csrf": csrfToken } : {}), ...options.headers } });
   const mediaUrl = () => standaloneId ? "/api/standalone-inspection-media?id=" + encodeURIComponent(standaloneId) : "/api/inspection-media";
   const mediaReadUrl = key => mediaUrl() + (standaloneId ? "&" : "?") + "key=" + encodeURIComponent(key);
-  const json = async response => { const body = await response.json(); if (!response.ok) throw new Error(body.error || "Une erreur est survenue."); return body; };
+  const json = M.parseApiResponse;
   const cache = M.createCache(item => api(legacy ? "/api/legacy-inspection-media?id=" + encodeURIComponent(legacyId) + "&key=" + encodeURIComponent(item.key) : mediaReadUrl(item.key)));
   const message = value => { $("message").textContent = value; };
   function status() {

@@ -10,7 +10,7 @@ function summarizeRevision(revision) {
     createdBy: revision.createdBy || null,
     finalizedAt: revision.finalizedAt || null,
     finalizedBy: revision.finalizedBy || null,
-    basedOnRevision: Number.isInteger(Number(revision.basedOnRevision)) ? Number(revision.basedOnRevision) : null,
+    basedOnRevision: revision.basedOnRevision === null || revision.basedOnRevision === undefined || revision.basedOnRevision === "" ? null : (Number.isInteger(Number(revision.basedOnRevision)) ? Number(revision.basedOnRevision) : null),
     pdfKey: revision.pdfKey || null
   };
 }

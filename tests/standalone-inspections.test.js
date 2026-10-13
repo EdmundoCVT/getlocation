@@ -5,7 +5,7 @@ const { handleStandaloneInspectionMedia } = require("../src/api/standalone-inspe
 const { makeAgencyEnv, loginAgency, agencyRequest } = require("./helpers/agency-session.js");
 const { createFakeKv } = require("./helpers/fake-kv.js");
 
-function bucket(){const map=new Map();return{async put(key,value,meta){map.set(key,{value,meta});},async get(key){const x=map.get(key);return x&&{body:x.value,writeHttpMetadata(h){h.set("Content-Type",x.meta.httpMetadata.contentType);}}},async delete(key){map.delete(key);}};}
+function bucket(){const map=new Map();return{objects:map,async put(key,value,meta){map.set(key,{value,meta});},async get(key){const x=map.get(key);return x&&{body:x.value,writeHttpMetadata(h){h.set("Content-Type",x.meta.httpMetadata.contentType);}}},async delete(key){map.delete(key);}};}
 test("EDL indépendant : création, association et photos R2 privées", async () => {
   const env=makeAgencyEnv({DOCUMENTS_BUCKET:bucket(),RESERVATIONS_KV:createFakeKv()}), session=await loginAgency(env);
   const create=await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections",{method:"POST",session,body:{action:"create",mode:"depart",client:{prenom:"Amir",nom:"Test"},vehicule:{nom:"Corsa",immatriculation:"AA-123-AA"},internalNote:"Sans contrat"}}),env);
@@ -94,4 +94,41 @@ test("liste standalone : transmet V1/V2/V3 en métadonnées légères", async ()
   assert.equal(JSON.stringify(item.inspectionRevisions).includes("snapshot"), false);
   assert.equal(JSON.stringify(item.inspectionRevisions).includes("imageDataUrl"), false);
   assert.equal(JSON.stringify(item.inspectionRevisions).includes("media"), false);
+});
+
+test("EDL standalone : upload et capturedAt restent versionnés sur V4 puis V5", async () => {
+  const storage = bucket(), env = makeAgencyEnv({ DOCUMENTS_BUCKET: storage, RESERVATIONS_KV: createFakeKv() }), session = await loginAgency(env);
+  const id = "edl_dddddddddddddddd", prefix = `inspection-standalone/${id}/depart/`;
+  const revisions = [1, 2, 3].map((revision) => ({ revision, status: "finalized", snapshot: { km: revision }, media: [{ key: `${prefix}v${revision}/historique-${revision}.jpg`, slot: "avant" }], pdfKey: `v${revision}.pdf`, basedOnRevision: revision > 1 ? revision - 1 : null }));
+  await env.RESERVATIONS_KV.put("standalone-inspection:" + id, JSON.stringify({ id, mode: "depart", dossier: { depart: revisions[2].snapshot, media: { depart: revisions[2].media } }, inspectionRevisions: { depart: revisions }, createdAt: "2026-10-01", updatedAt: "2026-10-01" }));
+  const createV4 = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create-revision", id, stage: "depart", baseRevision: 3 } }), env);
+  assert.equal(createV4.status, 201); assert.equal((await createV4.json()).revision.basedOnRevision, 3);
+  const upload = async (revision, name) => {
+    const form = new FormData(); form.set("stage", "depart"); form.set("revision", String(revision)); form.set("slot", "avant"); form.set("capturedAt", "2026-10-13T10:00"); form.set("file", new File([name], name + ".jpg", { type: "image/jpeg" }));
+    return handleStandaloneInspectionMedia(new Request("https://getlocation.fr/api/standalone-inspection-media?id=" + id, { method: "POST", headers: { origin: "https://getlocation.fr", cookie: "agency_session=" + session.cookie, "x-agency-csrf": session.csrfToken }, body: form }), env);
+  };
+  const uploadedV4 = await upload(4, "photo-v4");
+  assert.equal(uploadedV4.status, 200); assert.match(uploadedV4.headers.get("content-type"), /application\/json/);
+  const photoV4 = (await uploadedV4.json()).item; assert.match(photoV4.key, /\/depart\/v4\//);
+  const patched = await handleStandaloneInspectionMedia(agencyRequest("https://getlocation.fr/api/standalone-inspection-media?id=" + id, { method: "PATCH", session, body: { key: photoV4.key, stage: "depart", revision: 4, capturedAt: "2026-10-13T11:15" } }), env);
+  assert.equal(patched.status, 200);
+  let stored = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + id));
+  assert.equal(stored.inspectionRevisions.depart[2].media.length, 1, "V3 reste inchangée");
+  assert.equal(stored.inspectionRevisions.depart[3].media.find((item) => item.key === photoV4.key).capturedAt, "2026-10-13T11:15");
+  stored.inspectionRevisions.depart[3].status = "finalized"; stored.inspectionRevisions.depart[3].pdfKey = "v4.pdf";
+  await env.RESERVATIONS_KV.put("standalone-inspection:" + id, JSON.stringify(stored));
+  const createV5 = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create-revision", id, stage: "depart", baseRevision: 4 } }), env);
+  assert.equal(createV5.status, 201); assert.equal((await createV5.json()).revision.basedOnRevision, 4);
+  const uploadedV5 = await upload(5, "photo-v5"); assert.equal(uploadedV5.status, 200); assert.match((await uploadedV5.json()).item.key, /\/depart\/v5\//);
+  stored = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + id));
+  assert.equal(stored.inspectionRevisions.depart[3].media.length, 2, "V4 conserve ses médias hérités et sa photo");
+  assert.equal(stored.inspectionRevisions.depart[4].media.length, 3, "V5 hérite de V4 puis reçoit sa propre photo");
+});
+
+test("EDL standalone : une panne R2 renvoie toujours du JSON, jamais une page HTML", async () => {
+  const env = makeAgencyEnv({ DOCUMENTS_BUCKET: { async put() { throw new Error("R2 indisponible"); } }, RESERVATIONS_KV: createFakeKv() }), session = await loginAgency(env), id = "edl_eeeeeeeeeeeeeeee";
+  await env.RESERVATIONS_KV.put("standalone-inspection:" + id, JSON.stringify({ id, mode: "depart", dossier: { depart: {}, media: { depart: [] } }, inspectionRevisions: { depart: [{ revision: 1, status: "draft", snapshot: {}, media: [] }] } }));
+  const form = new FormData(); form.set("stage", "depart"); form.set("revision", "1"); form.set("slot", "avant"); form.set("file", new File(["x"], "x.jpg", { type: "image/jpeg" }));
+  const response = await handleStandaloneInspectionMedia(new Request("https://getlocation.fr/api/standalone-inspection-media?id=" + id, { method: "POST", headers: { origin: "https://getlocation.fr", cookie: "agency_session=" + session.cookie, "x-agency-csrf": session.csrfToken }, body: form }), env);
+  assert.equal(response.status, 500); assert.match(response.headers.get("content-type"), /application\/json/); assert.match((await response.json()).error, /traitement de la photo/);
 });

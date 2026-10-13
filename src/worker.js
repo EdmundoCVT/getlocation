@@ -191,6 +191,9 @@ export default {
       const pageAnglaise = await servirPageAnglaise(request, env, url);
       if (pageAnglaise) return withClientUX(pageAnglaise, url.pathname);
     }
+    // Une faute de route API ne doit jamais tomber sur le fallback HTML des
+    // assets : le front doit toujours recevoir une erreur JSON diagnostiquable.
+    if (url.pathname.startsWith("/api/")) return new Response(JSON.stringify({ error: "Route API introuvable" }), { status: 404, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
     return withClientUX(await env.ASSETS.fetch(request), url.pathname);
   },
   async scheduled(controller, env, ctx) {
