@@ -94,7 +94,9 @@ async function generateInspectionPdf({ env, id, stage, revision, snapshot, media
     page.drawLine({ start: { x: MARGIN, y: 789 }, end: { x: PAGE[0] - MARGIN, y: 789 }, thickness: 2.5, color: ORANGE });
     if (first) {
       text(page, model.header.reference, MARGIN, 767, 9, bold);
-      text(page, `V${revision}  •  ${phase}`, 463, 767, 9, bold, ORANGE);
+      // Le numéro de révision reste une métadonnée interne (R2, Drive,
+      // historique) et ne doit jamais apparaître dans le document client.
+      text(page, phase, phase === "RETOUR" ? 500 : 494, 767, 9, bold, ORANGE);
       if (model.condition.dateHeure) text(page, `Constat du ${formatClientDate(model.condition.dateHeure)}`, MARGIN, 752, 8, regular, MUTED);
       return { page, y: model.condition.dateHeure ? 725 : 739 };
     }

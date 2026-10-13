@@ -61,6 +61,13 @@ test("le Worker route l'archivage administratif des états des lieux", () => {
   assert.match(worker, /"\/api\/agency-inspection-archive"\s*:\s*handleAgencyInspectionArchive/);
 });
 
+test("le Worker route les EDL autonomes avant le fallback HTML", () => {
+  const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
+  assert.match(worker, /"\/api\/standalone-inspections"\s*:\s*handleStandaloneInspections/);
+  assert.ok(worker.indexOf("const route = ROUTES[url.pathname]") < worker.indexOf("env.ASSETS.fetch(request)"));
+  assert.match(worker, /url\.pathname\.startsWith\("\/api\/"\)[\s\S]*Content-Type": "application\/json"/);
+});
+
 test("le Worker route la redirection privée de consultation EDL", () => {
   const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
   assert.match(worker, /"\/api\/agency-open-inspection"\s*:\s*handleAgencyOpenInspection/);

@@ -2,6 +2,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const os = require("node:os");
+const { execFileSync } = require("node:child_process");
 const { PDFDocument } = require("pdf-lib");
 const { generateInspectionPdf } = require("../src/lib/inspection-pdf-server.js");
 
@@ -19,6 +21,18 @@ const signatures = {
   client: { name: "Client Test", signedAt: "2026-10-13T10:00", displaySignedAt: "2026-10-13T09:30", imageDataUrl },
   agence: { name: "GET LOCATION", signedAt: "2026-10-13T10:05", imageDataUrl }
 };
+
+function extractPdfText(file) {
+  try {
+    return execFileSync("pdftotext", [file, "-"], { encoding: "utf8" });
+  } catch (error) {
+    // Some restricted test runners report EPERM after the child process has
+    // nevertheless completed successfully and returned its stdout.
+    if (error?.status === 0 && error.stdout) return String(error.stdout);
+    throw error;
+  }
+}
+
 function scenario(count, family, stage) {
   return {
     env, id: "edl_test", stage, revision: 5,
@@ -54,4 +68,19 @@ test("une photo R2 manquante n'empêche pas le PDF officiel", async () => {
   input.env = { ...env, DOCUMENTS_BUCKET: { async get(key) { return key === "photo-1" ? null : env.DOCUMENTS_BUCKET.get(key); } } };
   const pdf = await PDFDocument.load(await generateInspectionPdf(input));
   assert.equal(pdf.getPageCount(), 3);
+});
+
+test("les PDF clients départ V2 et retour V3 masquent toute indication de version", async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "inspection-pdf-version-"));
+  try {
+    for (const [stage, revision, phase] of [["depart", 2, "DÉPART"], ["retour", 3, "RETOUR"]]) {
+      const input = scenario(0, "car", stage); input.revision = revision;
+      const file = path.join(directory, `${stage}-v${revision}.pdf`);
+      fs.writeFileSync(file, await generateInspectionPdf(input));
+      const content = extractPdfText(file);
+      assert.match(content, new RegExp(phase));
+      assert.doesNotMatch(content, /\bV[1-4]\b/);
+      assert.doesNotMatch(content, /\b(?:Version|Révision)\b/i);
+    }
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });

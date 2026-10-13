@@ -5,10 +5,11 @@ const { handleStandaloneInspectionMedia } = require("../src/api/standalone-inspe
 const { makeAgencyEnv, loginAgency, agencyRequest } = require("./helpers/agency-session.js");
 const { createFakeKv } = require("./helpers/fake-kv.js");
 
-function bucket(){const map=new Map();return{objects:map,async put(key,value,meta){map.set(key,{value,meta});},async get(key){const x=map.get(key);return x&&{body:x.value,writeHttpMetadata(h){h.set("Content-Type",x.meta.httpMetadata.contentType);}}},async delete(key){map.delete(key);}};}
-function report(km) { return { dateHeure: "2026-10-13T18:00", km, carburant: 80, propreteExterieure: 4, propreteInterieure: 4, cles: 2, clesAccessoires: "Deux clés", agent: "Edmundo", dommages: "", sketchVehicleType: "car", marks: [], utilityMarks: [], signatures: { client: { name: "Client" }, agence: { name: "Agence" } } }; }
+function bucket(){const map=new Map();return{objects:map,async put(key,value,meta){map.set(key,{value,meta});},async get(key){const x=map.get(key);return x&&{body:x.value,httpMetadata:x.meta&&x.meta.httpMetadata,async arrayBuffer(){if(x.value instanceof ArrayBuffer)return x.value;if(ArrayBuffer.isView(x.value))return x.value.buffer.slice(x.value.byteOffset,x.value.byteOffset+x.value.byteLength);return new Uint8Array(x.value).buffer;},writeHttpMetadata(h){h.set("Content-Type",x.meta.httpMetadata.contentType);}}},async delete(key){map.delete(key);}};}
+const signaturePng = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+function report(km) { return { dateHeure: "2026-10-13T18:00", km, carburant: 80, propreteExterieure: 4, propreteInterieure: 4, cles: 2, clesAccessoires: "Deux clés", agent: "Edmundo", dommages: "", sketchVehicleType: "car", marks: [], utilityMarks: [], signatures: { client: { name: "Client", imageDataUrl: signaturePng }, agence: { name: "Agence", imageDataUrl: signaturePng } } }; }
 
-test("EDL retour autonome : création sans départ, finalisation V1 et correction V2", async () => {
+test("EDL retour autonome : V1/V2 complètes sans départ, médias, signatures et PDF immuables", async () => {
   const storage = bucket(), env = makeAgencyEnv({ DOCUMENTS_BUCKET: storage, RESERVATIONS_KV: createFakeKv() }), session = await loginAgency(env);
   const created = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create", mode: "retour", client: { prenom: "Retour", nom: "Autonome" }, vehicule: { nom: "Toyota Proace", immatriculation: "AA-123-AA" } } }), env);
   assert.equal(created.status, 201);
@@ -16,20 +17,42 @@ test("EDL retour autonome : création sans départ, finalisation V1 et correctio
   assert.equal(inspection.mode, "retour");
   assert.equal(inspection.dossier.depart, null);
   assert.equal(inspection.inspectionRevisions.retour[0].status, "draft");
+  const upload = async (revision, name) => {
+    const form = new FormData(); form.set("stage", "retour"); form.set("revision", String(revision)); form.set("slot", "dommage"); form.set("capturedAt", "2026-10-13T17:30"); form.set("file", new File([name], name + ".jpg", { type: "image/jpeg" }));
+    return handleStandaloneInspectionMedia(new Request("https://getlocation.fr/api/standalone-inspection-media?id=" + inspection.id, { method: "POST", headers: { origin: "https://getlocation.fr", cookie: "agency_session=" + session.cookie, "x-agency-csrf": session.csrfToken }, body: form }), env);
+  };
+  assert.equal((await upload(1, "retour-v1")).status, 200);
   const finalized = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "update-stage", id: inspection.id, revision: 1, stage: report(42500), finalize: true } }), env);
   assert.equal(finalized.status, 200);
+  assert.match(finalized.headers.get("content-type"), /application\/json/);
   const v1 = (await finalized.json()).revision;
   assert.equal(v1.status, "finalized");
   assert.match(v1.pdfKey, new RegExp(`inspection-pdf-standalone/${inspection.id}/retour/v1\\.pdf$`));
+  const v1Before = structuredClone(v1);
   const correction = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create-revision", id: inspection.id, stage: "retour", baseRevision: 1, revisionReason: "Correction retour autonome" } }), env);
   assert.equal(correction.status, 201);
   assert.equal((await correction.json()).revision.revision, 2);
-  const saved = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "update-stage", id: inspection.id, revision: 2, stage: report(42510), finalize: false } }), env);
+  assert.equal((await upload(2, "retour-v2")).status, 200);
+  const v2Report = report(42510); v2Report.carburant = 60; v2Report.propreteExterieure = 3; v2Report.propreteInterieure = 2;
+  const saved = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "update-stage", id: inspection.id, revision: 2, stage: v2Report, finalize: false } }), env);
   assert.equal(saved.status, 200);
-  const stored = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + inspection.id));
+  assert.match(saved.headers.get("content-type"), /application\/json/);
+  let stored = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + inspection.id));
   assert.equal(stored.dossier.depart, null);
-  assert.equal(stored.inspectionRevisions.retour[0].snapshot.km, 42500);
+  assert.deepEqual(stored.inspectionRevisions.retour[0], v1Before);
   assert.equal(stored.inspectionRevisions.retour[1].snapshot.km, 42510);
+  assert.equal(stored.inspectionRevisions.retour[1].snapshot.carburant, 60);
+  assert.equal(stored.inspectionRevisions.retour[1].media.length, 2, "V2 conserve la photo héritée et ajoute sa propre photo");
+  assert.equal(stored.inspectionRevisions.retour[1].pdfKey, null);
+  const finalizedV2 = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "update-stage", id: inspection.id, revision: 2, stage: v2Report, finalize: true } }), env);
+  assert.equal(finalizedV2.status, 200);
+  assert.match(finalizedV2.headers.get("content-type"), /application\/json/);
+  const v2 = (await finalizedV2.json()).revision;
+  assert.equal(v2.status, "finalized");
+  assert.notEqual(v2.pdfKey, v1.pdfKey);
+  assert.ok(storage.objects.has(v2.pdfKey));
+  stored = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + inspection.id));
+  assert.deepEqual(stored.inspectionRevisions.retour[0], v1Before, "la sauvegarde et la finalisation V2 ne modifient jamais V1");
   assert.ok(storage.objects.has(v1.pdfKey));
 });
 
@@ -46,6 +69,34 @@ test("EDL indépendants : un départ créé après le retour peut être associé
   assert.equal(storedDepart.pairedInspectionId, retour.id);
   const invalid = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "associate-inspection", id: depart.id, pairedInspectionId: depart.id } }), env);
   assert.equal(invalid.status, 404);
+});
+
+test("EDL retour V2 : une signature historique inchangée est conservée et toute erreur reste JSON", async () => {
+  const env = makeAgencyEnv({ DOCUMENTS_BUCKET: bucket(), RESERVATIONS_KV: createFakeKv() }), session = await loginAgency(env);
+  const id = "edl_ffffffffffffffff", historicalImage = "data:image/png;base64," + "A".repeat(70004);
+  const base = report(1000); base.signatures.client = { name: "Client", imageDataUrl: historicalImage, signedAt: "2026-10-12T10:00:00Z" }; base.signatures.agence = { name: "Agence", imageDataUrl: historicalImage, signedAt: "2026-10-12T10:01:00Z" };
+  const v1 = { revision: 1, status: "finalized", snapshot: structuredClone(base), media: [], pdfKey: "inspection-pdf-standalone/edl_ffffffffffffffff/retour/v1.pdf", finalizedAt: "2026-10-12T10:02:00Z" };
+  const v2 = { revision: 2, status: "draft", snapshot: structuredClone(base), media: [], pdfKey: null, basedOnRevision: 1 };
+  await env.RESERVATIONS_KV.put("standalone-inspection:" + id, JSON.stringify({ id, mode: "retour", dossier: { depart: null, retour: null, media: { depart: [], retour: [] } }, inspectionRevisions: { retour: [v1, v2] }, status: "finalized" }));
+  const saved = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "update-stage", id, revision: 2, stage: { ...base, km: 1010 }, finalize: false } }), env);
+  assert.equal(saved.status, 200);
+  assert.match(saved.headers.get("content-type"), /application\/json/);
+  const stored = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + id));
+  assert.equal(stored.inspectionRevisions.retour[1].snapshot.signatures.client.imageDataUrl, historicalImage);
+  assert.deepEqual(stored.inspectionRevisions.retour[0], v1);
+
+  const invalid = report(1020); invalid.carburant = 75;
+  const rejected = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "update-stage", id, revision: 2, stage: invalid, finalize: false } }), env);
+  assert.equal(rejected.status, 400);
+  assert.match(rejected.headers.get("content-type"), /application\/json/);
+  assert.match((await rejected.json()).error, /carburant/i);
+});
+
+test("EDL autonome : un binding KV absent retourne une erreur JSON diagnostiquable", async () => {
+  const response = await handleStandaloneInspections(new Request("https://getlocation.fr/api/standalone-inspections"), {});
+  assert.equal(response.status, 503);
+  assert.match(response.headers.get("content-type"), /application\/json/);
+  assert.match((await response.json()).error, /stockage/i);
 });
 test("EDL indépendant : création, association et photos R2 privées", async () => {
   const env=makeAgencyEnv({DOCUMENTS_BUCKET:bucket(),RESERVATIONS_KV:createFakeKv()}), session=await loginAgency(env);

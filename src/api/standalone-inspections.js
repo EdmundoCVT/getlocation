@@ -4,7 +4,7 @@ const { requireAgencySession } = require("../lib/agency-auth.js");
 const { listReservations, getReservation } = require("../lib/reservation-store.js");
 const { validateConditionReport } = require("../lib/validate-contract-dossier.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
-const { listInspectionRevisions, createInspectionRevision, updateInspectionRevisionDraft, finalizeInspectionRevision } = require("../lib/inspection-revisions.js");
+const { listInspectionRevisions, createInspectionRevision, updateInspectionRevisionDraft } = require("../lib/inspection-revisions.js");
 const { finalizeRevisionWithPdf } = require("../lib/finalize-inspection-revision.js");
 const { summarizeInspectionRevisions } = require("../lib/inspection-revision-summary.js");
 
@@ -15,6 +15,29 @@ function text(value, max = 300) { return typeof value === "string" ? value.trim(
 function safeMode(value) { return value === "retour" ? "retour" : value === "depart" ? "depart" : null; }
 function displaySignatureTime(value) { if (value === null || value === undefined || value === "") return null; if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value) || Number.isNaN(new Date(value + ":00Z").getTime())) throw new Error("Date et heure affichées invalides"); return value; }
 function preserveInspectionSignatures(report, previous) { ["client", "agence"].forEach(role => { const before = previous && previous.signatures && previous.signatures[role], next = report.signatures && report.signatures[role]; if (before && next && before.signedAt && before.imageDataUrl === next.imageDataUrl) report.signatures[role] = { ...next, signedAt: before.signedAt, ...(before.displaySignedAt ? { displaySignedAt: before.displaySignedAt } : {}) }; }); return report; }
+function validateRevisionReport(value, previous) {
+  const source = value && typeof value === "object" ? value : {};
+  const candidate = { ...source, signatures: { ...((source && source.signatures) || {}) } };
+  const trusted = {};
+  // Une correction hérite des signatures historiques. Si leur binaire est
+  // renvoyé inchangé, il est déjà approuvé et stocké côté serveur : ne pas le
+  // soumettre à nouveau à la limite réservée aux nouvelles images. Cela rend
+  // notamment modifiables les V2 issues d'anciennes V1 plus volumineuses.
+  for (const role of ["client", "agence"]) {
+    const before = previous && previous.signatures && previous.signatures[role];
+    const next = candidate.signatures[role];
+    if (before && next && before.signedAt && before.imageDataUrl && next.imageDataUrl === before.imageDataUrl) {
+      trusted[role] = before;
+      candidate.signatures[role] = { ...next, imageDataUrl: "data:image/png;base64,AA==" };
+    }
+  }
+  const report = preserveInspectionSignatures(validateConditionReport(candidate), previous);
+  for (const role of Object.keys(trusted)) {
+    const before = trusted[role], next = report.signatures[role] || {};
+    report.signatures[role] = { ...next, imageDataUrl: before.imageDataUrl, signedAt: before.signedAt, ...(before.displaySignedAt ? { displaySignedAt: before.displaySignedAt } : {}) };
+  }
+  return report;
+}
 function publicItem(record) {
   return { id: record.id, mode: record.mode, client: record.client || {}, vehicule: record.vehicule || {}, linkedContractId: record.linkedContractId || null, linkedContractNumero: record.linkedContractNumero || null, pairedInspectionId: record.pairedInspectionId || null, pairedAt: record.pairedAt || null, pairedBy: record.pairedBy || null, dateHeure: record.dossier && record.dossier[record.mode] && record.dossier[record.mode].dateHeure || record.createdAt, status: record.status || "draft", pdf: record.pdf || null, inspectionRevisions: summarizeInspectionRevisions(record.inspectionRevisions), archivedAt: record.archivedAt || null, archivedBy: record.archivedBy || null, updatedAt: record.updatedAt };
 }
@@ -26,7 +49,8 @@ async function contracts(env, needle) {
   const records = await listReservations(env);
   return records.filter(r => r && ["paid", "manual_contract", "contract_version"].includes(r.status)).filter(r => !q || [r.contractNumero, r.id, r.nom, r.prenom, r.immat, r.immatriculation, r.conducteur && r.conducteur.nom, r.conducteur && r.conducteur.prenom].join(" ").toLocaleLowerCase("fr-FR").includes(q)).slice(0, 30).map(r => ({ id: r.id, contractNumero: r.contractNumero || null, client: r.conducteur ? { prenom: r.conducteur.prenom || "", nom: r.conducteur.nom || "" } : { prenom: r.prenom || "", nom: r.nom || "" }, vehiculeId: r.vehiculeId || "", immatriculation: r.immatriculation || r.immat || "" }));
 }
-async function handleStandaloneInspections(request, env) {
+async function handleStandaloneInspectionsRequest(request, env) {
+  if (!env.RESERVATIONS_KV) return json({ error: "Stockage des états des lieux indisponible" }, 503);
   const auth = await requireAgencySession(request, env, request.method === "GET" ? {} : { requireCsrf: true, requireOrigin: true });
   if (auth.error) return auth.error;
   const url = new URL(request.url);
@@ -97,14 +121,29 @@ async function handleStandaloneInspections(request, env) {
     } catch (error) { return json({ error: error.message || "Révision impossible" }, 409); }
   }
   if (body.action === "update-stage") {
-    const stage = safeMode(record.mode), revision = Number(body.revision), previous = Number.isInteger(revision) ? listInspectionRevisions(record, stage, record.dossier[stage], record.dossier.media && record.dossier.media[stage], record.createdBy).find(item => item.revision === revision) : record.dossier[stage], report = preserveInspectionSignatures(validateConditionReport(body.stage || {}), previous && previous.snapshot || previous);
+    const stage = safeMode(record.mode);
+    if (!stage) return json({ error: "Type d’état des lieux invalide" }, 400);
+    const revision = Number(body.revision);
+    const dossier = record.dossier && typeof record.dossier === "object" ? record.dossier : { status: "draft", depart: null, retour: null, media: { depart: [], retour: [] } };
+    dossier.media = dossier.media && typeof dossier.media === "object" ? dossier.media : { depart: [], retour: [] };
+    record.dossier = dossier;
+    const previous = Number.isInteger(revision)
+      ? listInspectionRevisions(record, stage, dossier[stage], dossier.media[stage], record.createdBy).find(item => item.revision === revision)
+      : dossier[stage];
+    let report;
+    try { report = validateRevisionReport(body.stage, previous && previous.snapshot || previous); }
+    catch (error) { return json({ error: error.message || "État des lieux invalide" }, 400); }
     if (Number.isInteger(revision)) {
       try {
-        const result = body.finalize ? await finalizeRevisionWithPdf({ env, record, stage, revision, snapshot: report, fallbackSnapshot: record.dossier[stage], fallbackMedia: record.dossier.media && record.dossier.media[stage], actor: auth.session.operator, standalone: true }) : updateInspectionRevisionDraft(record, stage, record.dossier[stage], record.dossier.media && record.dossier.media[stage], auth.session.operator, revision, report);
+        const result = body.finalize ? await finalizeRevisionWithPdf({ env, record, stage, revision, snapshot: report, fallbackSnapshot: dossier[stage], fallbackMedia: dossier.media[stage], actor: auth.session.operator, standalone: true }) : updateInspectionRevisionDraft(record, stage, dossier[stage], dossier.media[stage], auth.session.operator, revision, report);
         record.inspectionRevisions = result.inspectionRevisions; record.status = body.finalize ? "finalized" : record.status; await write(env, record);
         await recordAuditEvent(env, { actor: auth.session.operator, eventType: body.finalize ? "inspection_revision_finalized" : "inspection_revision_updated", entityType: "standalone_inspection", entityId: record.id, metadata: { stage, revision } });
         return json({ inspection: record, revision: result.revision });
-      } catch (error) { return json({ error: error.message }, error.status || 409); }
+      } catch (error) {
+        const status = Number.isInteger(error && error.status) ? error.status : 500;
+        if (status >= 500) console.error("standalone_inspection_update_error", { action: body.finalize ? "finalize" : "save", stage, revision, status, name: error && error.name || "Error" });
+        return json({ error: status >= 500 ? "Erreur serveur lors de l’enregistrement de l’état des lieux" : error && error.message || "Enregistrement impossible" }, status);
+      }
     }
     record.dossier[stage] = { ...report, completedAt: record.dossier[stage] && record.dossier[stage].completedAt || new Date().toISOString(), finalizedAt: body.finalize ? record.dossier[stage] && record.dossier[stage].finalizedAt || new Date().toISOString() : record.dossier[stage] && record.dossier[stage].finalizedAt || null };
     record.status = body.finalize ? "finalized" : (record.status === "finalized" ? "finalized" : "draft"); await write(env, record); return json({ inspection: record });
@@ -139,5 +178,13 @@ async function handleStandaloneInspections(request, env) {
   }
   if (body.action === "note") { record.internalNote = text(body.internalNote, 2000); await write(env, record); return json({ inspection: record }); }
   return json({ error: "Action inconnue" }, 400);
+}
+async function handleStandaloneInspections(request, env) {
+  try { return await handleStandaloneInspectionsRequest(request, env); }
+  catch (error) {
+    const status = Number.isInteger(error && error.status) ? error.status : 500;
+    console.error("standalone_inspections_error", { method: request.method, pathname: new URL(request.url).pathname, status, name: error && error.name || "Error" });
+    return json({ error: status >= 500 ? "Erreur serveur lors du traitement de l’état des lieux" : error && error.message || "Requête invalide" }, status);
+  }
 }
 module.exports = { handleStandaloneInspections, PREFIX, readStandaloneInspection: read, writeStandaloneInspection: write };
