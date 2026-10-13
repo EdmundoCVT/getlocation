@@ -197,6 +197,44 @@ test("update-retour avant update-depart est refusé", async () => {
   assert.equal(res.status, 400);
 });
 
+test("initialize-inspection : crée une V1 retour liée sans altérer le départ et reste idempotent", async () => {
+  const e = env();
+  const { agencyToken, reservationId } = await envoyerDossierComplet(e);
+  const first = await handleContractDossierAgency(agencyPost(agencyToken, { action: "initialize-inspection", mode: "retour" }), e);
+  assert.equal(first.status, 201);
+  const firstBody = await first.json();
+  assert.equal(firstBody.created, true);
+  assert.equal(firstBody.revision.revision, 1);
+  assert.equal(firstBody.revision.status, "draft");
+
+  const second = await handleContractDossierAgency(agencyPost(agencyToken, { action: "initialize-inspection", mode: "retour" }), e);
+  assert.equal(second.status, 200);
+  const secondBody = await second.json();
+  assert.equal(secondBody.created, false);
+  const stored = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
+  assert.equal(stored.inspectionRevisions.retour.length, 1);
+  assert.equal(stored.inspectionRevisions.depart, undefined);
+});
+
+test("EDL liés versionnés : le retour relit le départ moderne sans dépendre du fallback legacy", async () => {
+  const e = env();
+  const { agencyToken, reservationId } = await envoyerDossierComplet(e);
+  await handleContractDossierAgency(agencyPost(agencyToken, { action: "initialize-inspection", mode: "depart" }), e);
+  const savedDepart = await handleContractDossierAgency(agencyPost(agencyToken, { action: "update-depart", revision: 1, dateHeure: "2026-09-01T10:00", km: 15000, carburant: 100, agent: "Jean" }), e);
+  assert.equal(savedDepart.status, 200);
+  assert.equal((await savedDepart.json()).dossier.depart.km, 15000);
+  await handleContractDossierAgency(agencyPost(agencyToken, { action: "initialize-inspection", mode: "retour" }), e);
+  const savedReturn = await handleContractDossierAgency(agencyPost(agencyToken, { action: "update-retour", revision: 1, dateHeure: "2026-09-04T10:00", km: 15400, carburant: 80, agent: "Jean" }), e);
+  assert.equal(savedReturn.status, 200);
+  const body = await savedReturn.json();
+  assert.equal(body.dossier.depart.km, 15000);
+  assert.equal(body.dossier.retour.km, 15400);
+  const stored = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
+  assert.equal(stored.contractDossier.depart, null, "aucun second stockage legacy n’est créé");
+  assert.equal(stored.inspectionRevisions.depart[0].snapshot.km, 15000);
+  assert.equal(stored.inspectionRevisions.retour[0].snapshot.km, 15400);
+});
+
 test("kilométrage : sans dépassement, le supplément est nul et le message est explicite", async () => {
   const e = env();
   const { agencyToken } = await envoyerDossierComplet(e);

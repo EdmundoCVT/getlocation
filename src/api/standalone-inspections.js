@@ -16,7 +16,7 @@ function safeMode(value) { return value === "retour" ? "retour" : value === "dep
 function displaySignatureTime(value) { if (value === null || value === undefined || value === "") return null; if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value) || Number.isNaN(new Date(value + ":00Z").getTime())) throw new Error("Date et heure affichées invalides"); return value; }
 function preserveInspectionSignatures(report, previous) { ["client", "agence"].forEach(role => { const before = previous && previous.signatures && previous.signatures[role], next = report.signatures && report.signatures[role]; if (before && next && before.signedAt && before.imageDataUrl === next.imageDataUrl) report.signatures[role] = { ...next, signedAt: before.signedAt, ...(before.displaySignedAt ? { displaySignedAt: before.displaySignedAt } : {}) }; }); return report; }
 function publicItem(record) {
-  return { id: record.id, mode: record.mode, client: record.client || {}, vehicule: record.vehicule || {}, linkedContractId: record.linkedContractId || null, linkedContractNumero: record.linkedContractNumero || null, dateHeure: record.dossier && record.dossier[record.mode] && record.dossier[record.mode].dateHeure || record.createdAt, status: record.status || "draft", pdf: record.pdf || null, inspectionRevisions: summarizeInspectionRevisions(record.inspectionRevisions), archivedAt: record.archivedAt || null, archivedBy: record.archivedBy || null, updatedAt: record.updatedAt };
+  return { id: record.id, mode: record.mode, client: record.client || {}, vehicule: record.vehicule || {}, linkedContractId: record.linkedContractId || null, linkedContractNumero: record.linkedContractNumero || null, pairedInspectionId: record.pairedInspectionId || null, pairedAt: record.pairedAt || null, pairedBy: record.pairedBy || null, dateHeure: record.dossier && record.dossier[record.mode] && record.dossier[record.mode].dateHeure || record.createdAt, status: record.status || "draft", pdf: record.pdf || null, inspectionRevisions: summarizeInspectionRevisions(record.inspectionRevisions), archivedAt: record.archivedAt || null, archivedBy: record.archivedBy || null, updatedAt: record.updatedAt };
 }
 async function read(env, id) { const raw = ID.test(id || "") && await env.RESERVATIONS_KV.get(PREFIX + id); return raw ? JSON.parse(raw) : null; }
 async function write(env, record) { record.updatedAt = new Date().toISOString(); await env.RESERVATIONS_KV.put(PREFIX + record.id, JSON.stringify(record)); return record; }
@@ -54,6 +54,29 @@ async function handleStandaloneInspections(request, env) {
     await write(env, record); return json({ inspection: record }, 201);
   }
   const record = await read(env, body.id); if (!record) return json({ error: "État des lieux introuvable" }, 404);
+  if (body.action === "associate-inspection") {
+    const pairId = text(body.pairedInspectionId, 100);
+    const previousPair = record.pairedInspectionId ? await read(env, record.pairedInspectionId) : null;
+    if (!pairId) {
+      if (previousPair && previousPair.pairedInspectionId === record.id) { delete previousPair.pairedInspectionId; delete previousPair.pairedAt; delete previousPair.pairedBy; await write(env, previousPair); }
+      delete record.pairedInspectionId; delete record.pairedAt; delete record.pairedBy; await write(env, record);
+      return json({ inspection: record, pairedInspection: null });
+    }
+    const pair = await read(env, pairId);
+    if (!pair || pair.id === record.id) return json({ error: "État des lieux à associer introuvable" }, 404);
+    if (safeMode(pair.mode) === safeMode(record.mode)) return json({ error: "L’association doit relier un départ et un retour" }, 400);
+    if (previousPair && previousPair.id !== pair.id && previousPair.pairedInspectionId === record.id) { delete previousPair.pairedInspectionId; delete previousPair.pairedAt; delete previousPair.pairedBy; await write(env, previousPair); }
+    if (pair.pairedInspectionId && pair.pairedInspectionId !== record.id) {
+      const displaced = await read(env, pair.pairedInspectionId);
+      if (displaced && displaced.pairedInspectionId === pair.id) { delete displaced.pairedInspectionId; delete displaced.pairedAt; delete displaced.pairedBy; await write(env, displaced); }
+    }
+    const pairedAt = new Date().toISOString(), pairedBy = auth.session.operator || null;
+    record.pairedInspectionId = pair.id; record.pairedAt = pairedAt; record.pairedBy = pairedBy;
+    pair.pairedInspectionId = record.id; pair.pairedAt = pairedAt; pair.pairedBy = pairedBy;
+    await write(env, pair); await write(env, record);
+    await recordAuditEvent(env, { actor: auth.session.operator, eventType: "standalone_inspections_paired", entityType: "standalone_inspection", entityId: record.id, metadata: { pairedInspectionId: pair.id, stages: [record.mode, pair.mode] } });
+    return json({ inspection: record, pairedInspection: publicItem(pair) });
+  }
   if (body.action === "set-archived") {
     const archived = body.archived === true;
     const now = new Date().toISOString();

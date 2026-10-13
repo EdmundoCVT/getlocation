@@ -24,6 +24,7 @@ const { handleAgencyDriveBackup } = require("./api/agency-drive-backup.js");
 const { handleAgencyDrivePdf } = require("./api/agency-drive-pdf.js");
 const { handleAgencyContractPdf } = require("./api/agency-contract-pdf.js");
 const { handleAgencyInspectionPdf } = require("./api/agency-inspection-pdf.js");
+const { handleAgencyInspectionComparison } = require("./api/agency-inspection-comparison.js");
 const { handleAgencyInspectionArchive } = require("./api/agency-inspection-archive.js");
 const { handleAgencyOpenInspection } = require("./api/agency-open-inspection.js");
 const { handleAgencyLogin } = require("./api/agency-login.js");
@@ -72,6 +73,7 @@ const ROUTES = {
   "/api/agency-drive-pdf": handleAgencyDrivePdf,
   "/api/agency-contract-pdf": handleAgencyContractPdf,
   "/api/agency-inspection-pdf": handleAgencyInspectionPdf,
+  "/api/agency-inspection-comparison": handleAgencyInspectionComparison,
   "/api/agency-inspection-archive": handleAgencyInspectionArchive,
   "/api/agency-open-inspection": handleAgencyOpenInspection,
   "/api/agency-login": handleAgencyLogin,

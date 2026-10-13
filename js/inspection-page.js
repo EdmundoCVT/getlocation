@@ -201,7 +201,7 @@
   }
   async function save(finalize) {
     if (saving || !$("form").reportValidity()) return false;
-    if (mode === "retour" && (!dossier.depart || Number($("km").value) < dossier.depart.km)) { message(!dossier.depart ? "Enregistrez d’abord l’état des lieux de départ." : "Le kilométrage retour ne peut pas être inférieur au départ."); return false; }
+    if (!standaloneId && mode === "retour" && (!dossier.depart || Number($("km").value) < dossier.depart.km)) { message(!dossier.depart ? "Enregistrez d’abord l’état des lieux de départ." : "Le kilométrage retour ne peut pas être inférieur au départ."); return false; }
     saving = true; status();
     try {
       await queue; await Promise.all(Object.values(pads).map(pad => pad.ready()));

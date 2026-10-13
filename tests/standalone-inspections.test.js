@@ -6,6 +6,47 @@ const { makeAgencyEnv, loginAgency, agencyRequest } = require("./helpers/agency-
 const { createFakeKv } = require("./helpers/fake-kv.js");
 
 function bucket(){const map=new Map();return{objects:map,async put(key,value,meta){map.set(key,{value,meta});},async get(key){const x=map.get(key);return x&&{body:x.value,writeHttpMetadata(h){h.set("Content-Type",x.meta.httpMetadata.contentType);}}},async delete(key){map.delete(key);}};}
+function report(km) { return { dateHeure: "2026-10-13T18:00", km, carburant: 80, propreteExterieure: 4, propreteInterieure: 4, cles: 2, clesAccessoires: "Deux clés", agent: "Edmundo", dommages: "", sketchVehicleType: "car", marks: [], utilityMarks: [], signatures: { client: { name: "Client" }, agence: { name: "Agence" } } }; }
+
+test("EDL retour autonome : création sans départ, finalisation V1 et correction V2", async () => {
+  const storage = bucket(), env = makeAgencyEnv({ DOCUMENTS_BUCKET: storage, RESERVATIONS_KV: createFakeKv() }), session = await loginAgency(env);
+  const created = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create", mode: "retour", client: { prenom: "Retour", nom: "Autonome" }, vehicule: { nom: "Toyota Proace", immatriculation: "AA-123-AA" } } }), env);
+  assert.equal(created.status, 201);
+  const inspection = (await created.json()).inspection;
+  assert.equal(inspection.mode, "retour");
+  assert.equal(inspection.dossier.depart, null);
+  assert.equal(inspection.inspectionRevisions.retour[0].status, "draft");
+  const finalized = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "update-stage", id: inspection.id, revision: 1, stage: report(42500), finalize: true } }), env);
+  assert.equal(finalized.status, 200);
+  const v1 = (await finalized.json()).revision;
+  assert.equal(v1.status, "finalized");
+  assert.match(v1.pdfKey, new RegExp(`inspection-pdf-standalone/${inspection.id}/retour/v1\\.pdf$`));
+  const correction = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create-revision", id: inspection.id, stage: "retour", baseRevision: 1, revisionReason: "Correction retour autonome" } }), env);
+  assert.equal(correction.status, 201);
+  assert.equal((await correction.json()).revision.revision, 2);
+  const saved = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "update-stage", id: inspection.id, revision: 2, stage: report(42510), finalize: false } }), env);
+  assert.equal(saved.status, 200);
+  const stored = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + inspection.id));
+  assert.equal(stored.dossier.depart, null);
+  assert.equal(stored.inspectionRevisions.retour[0].snapshot.km, 42500);
+  assert.equal(stored.inspectionRevisions.retour[1].snapshot.km, 42510);
+  assert.ok(storage.objects.has(v1.pdfKey));
+});
+
+test("EDL indépendants : un départ créé après le retour peut être associé bidirectionnellement", async () => {
+  const env = makeAgencyEnv({ DOCUMENTS_BUCKET: bucket(), RESERVATIONS_KV: createFakeKv() }), session = await loginAgency(env);
+  const create = async (mode) => (await (await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create", mode, client: { prenom: "Couple", nom: "EDL" }, vehicule: { nom: "Peugeot 3008" } } }), env)).json()).inspection;
+  const retour = await create("retour");
+  const depart = await create("depart");
+  const paired = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "associate-inspection", id: retour.id, pairedInspectionId: depart.id } }), env);
+  assert.equal(paired.status, 200);
+  const storedRetour = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + retour.id));
+  const storedDepart = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + depart.id));
+  assert.equal(storedRetour.pairedInspectionId, depart.id);
+  assert.equal(storedDepart.pairedInspectionId, retour.id);
+  const invalid = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "associate-inspection", id: depart.id, pairedInspectionId: depart.id } }), env);
+  assert.equal(invalid.status, 404);
+});
 test("EDL indépendant : création, association et photos R2 privées", async () => {
   const env=makeAgencyEnv({DOCUMENTS_BUCKET:bucket(),RESERVATIONS_KV:createFakeKv()}), session=await loginAgency(env);
   const create=await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections",{method:"POST",session,body:{action:"create",mode:"depart",client:{prenom:"Amir",nom:"Test"},vehicule:{nom:"Corsa",immatriculation:"AA-123-AA"},internalNote:"Sans contrat"}}),env);

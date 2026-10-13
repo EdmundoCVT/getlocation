@@ -1,10 +1,21 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { listInspectionRevisions, createInspectionRevision, updateInspectionRevisionDraft, setRevisionMedia, setRevisionPdf, finalizeInspectionRevision, revisionMediaPrefix, revisionPdfKey } = require("../src/lib/inspection-revisions.js");
+const { listInspectionRevisions, initializeInspectionRevision, createInspectionRevision, updateInspectionRevisionDraft, setRevisionMedia, setRevisionPdf, finalizeInspectionRevision, revisionMediaPrefix, revisionPdfKey } = require("../src/lib/inspection-revisions.js");
 const { jobsForRecord } = require("../src/lib/google-drive-backup.js");
 const { finalizeRevisionWithPdf } = require("../src/lib/finalize-inspection-revision.js");
 const { build: inspectionModel } = require("../src/lib/inspection-document-model.js");
 const { generateInspectionPdf } = require("../src/lib/inspection-pdf-server.js");
+
+test("initialisation EDL : crée V1 une seule fois pour départ ou retour", () => {
+  const first = initializeInspectionRevision({}, "retour", null, [], "Edmundo");
+  assert.equal(first.created, true);
+  assert.equal(first.revision.revision, 1);
+  assert.equal(first.revision.status, "draft");
+  const second = initializeInspectionRevision({ inspectionRevisions: first.inspectionRevisions }, "retour", null, [], "Edmundo");
+  assert.equal(second.created, false);
+  assert.equal(second.revisions.length, 1);
+  assert.deepEqual(second.revision, first.revision);
+});
 const { PDFDocument } = require("pdf-lib");
 const fs = require("node:fs");
 const path = require("node:path");

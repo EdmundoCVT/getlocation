@@ -131,9 +131,19 @@ test("création EDL indépendante : réserve la fenêtre avant la requête puis 
   const openIndex = source.indexOf("window.open('about:blank','_blank')");
   const postIndex = source.indexOf("apiPost('/api/standalone-inspections'");
   assert.ok(openIndex >= 0 && postIndex > openIndex, "la fenêtre doit être réservée dans le clic, avant le POST");
-  assert.match(source, /if\(popup\)popup\.location\.href=url;else window\.location\.href=url/);
+  assert.match(source, /if\(popup\)popup\.location\.href=result\.url;else window\.location\.href=result\.url/);
   assert.match(source, /if\(popup\)popup\.close\(\)/);
   assert.match(source, /create\.disabled=true/);
+});
+
+test("création EDL : propose explicitement départ/retour et lié/indépendant", () => {
+  const window = buildWindow();
+  window.__backOffice.openStandaloneInspectionCreationForTest();
+  const dialog = window.document.getElementById("standaloneInspectionDialog");
+  assert.deepEqual([...dialog.querySelectorAll('select[name="mode"] option')].map((option) => option.value), ["depart", "retour"]);
+  assert.deepEqual([...dialog.querySelectorAll('select[name="sourceMode"] option')].map((option) => option.value), ["standalone", "linked"]);
+  assert.equal(dialog.querySelector("[data-standalone]").hidden, false);
+  assert.equal(dialog.querySelector("[data-linked]").hidden, true);
 });
 
 test("l'espace interne présente une navigation unique et un tableau de bord", () => {
@@ -236,6 +246,26 @@ test("bibliothèque EDL : filtre type se combine avec statut, archive et recherc
   assert.match(window.document.getElementById('inspectionList').textContent, /RETOUR/);
   const search = window.document.getElementById('inspectionSearch'); search.value = 'Nicholson'; search.dispatchEvent(new window.Event('input'));
   assert.equal(window.document.querySelectorAll('#inspectionList .dashboard-card').length, 1);
+});
+
+test("bibliothèque EDL : Comparatif apparaît uniquement pour un couple finalisé cohérent", () => {
+  const window = buildWindow();
+  window.__backOffice.renderInspectionListForTest([{
+    id: "res_compare", client: { prenom: "Jeanne", nom: "Martin" }, vehicule: "Peugeot 3008", openable: true,
+    dateDebut: "2026-10-10", dateFin: "2026-10-11", inspection: { depart: true, retour: true, retourAvailable: true },
+    inspectionRevisions: { depart: [{ revision: 1, status: "finalized", pdfKey: "depart.pdf" }], retour: [{ revision: 1, status: "finalized", pdfKey: "retour.pdf" }] }
+  }], [{
+    id: "edl_unpaired", mode: "retour", client: { prenom: "Libre", nom: "Retour" }, vehicule: { nom: "Toyota Proace" },
+    inspectionRevisions: { retour: [{ revision: 1, status: "finalized", pdfKey: "standalone-retour.pdf" }] }
+  }]);
+  const linkedCards = [...window.document.querySelectorAll("#inspectionList .dashboard-card")].filter((card) => /Jeanne Martin/.test(card.textContent));
+  assert.equal(linkedCards.length, 2);
+  linkedCards.forEach((card) => {
+    const link = [...card.querySelectorAll("a")].find((item) => item.textContent === "Comparatif");
+    assert.match(link.href, /agency-inspection-comparison\?source=linked&id=res_compare$/);
+  });
+  const standalone = [...window.document.querySelectorAll("#inspectionList .dashboard-card")].find((card) => /Libre Retour/.test(card.textContent));
+  assert.equal([...standalone.querySelectorAll("a")].some((item) => item.textContent === "Comparatif"), false);
 });
 
 test("bibliothèque EDL : V3 brouillon est la version courante, visible et ouvrable sans créer V4", () => {

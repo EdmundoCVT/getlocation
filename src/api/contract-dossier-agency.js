@@ -29,7 +29,7 @@ const { hashContractAgencyToken, issueContractClientAccess } = require("../lib/c
 const { validateContractFields, champsManquantsAvantEnvoi, validateConditionReport } = require("../lib/validate-contract-dossier.js");
 const { resolveAgencySession } = require("../lib/agency-auth.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
-const { listInspectionRevisions, createInspectionRevision, updateInspectionRevisionDraft, finalizeInspectionRevision } = require("../lib/inspection-revisions.js");
+const { listInspectionRevisions, initializeInspectionRevision, createInspectionRevision, updateInspectionRevisionDraft, finalizeInspectionRevision } = require("../lib/inspection-revisions.js");
 const { finalizeRevisionWithPdf } = require("../lib/finalize-inspection-revision.js");
 
 function corsHeaders(request, env) {
@@ -102,6 +102,11 @@ function preserveInspectionSignatures(report, previous) {
   return report;
 }
 
+function activeInspectionRevision(reservation, dossier, stage) {
+  const revisions = listInspectionRevisions(reservation, stage, dossier && dossier[stage], dossier && dossier.media && dossier.media[stage], null);
+  return revisions.slice().reverse().find(item => item.status === "finalized") || revisions[revisions.length - 1] || null;
+}
+
 // Vue renvoyée à l'agence : uniquement ce qui est nécessaire à la
 // préparation du contrat et à l'état des lieux — jamais les champs les plus
 // sensibles hors de propos ici (cf. reservation-status.js, même principe de
@@ -114,8 +119,16 @@ function buildDossierView(reservation) {
   const vehicule = getVehiculeParId(reservation.vehiculeId);
   const jours = joursReservation(reservation);
   const dossier = reservation.contractDossier || null;
-  const depart = dossier && dossier.depart ? dossier.depart : null;
-  const retour = dossier && dossier.retour ? dossier.retour : null;
+  const departRevision = activeInspectionRevision(reservation, dossier, "depart");
+  const retourRevision = activeInspectionRevision(reservation, dossier, "retour");
+  const depart = departRevision && departRevision.snapshot || dossier && dossier.depart || null;
+  const retour = retourRevision && retourRevision.snapshot || dossier && dossier.retour || null;
+  const legacyMedia = dossier && dossier.media || { depart: [], retour: [] };
+  const inspectionMedia = {
+    ...legacyMedia,
+    depart: departRevision && Array.isArray(departRevision.media) ? departRevision.media : legacyMedia.depart || [],
+    retour: retourRevision && Array.isArray(retourRevision.media) ? retourRevision.media : legacyMedia.retour || []
+  };
   const kilometrage = depart && retour
     ? calculerKilometrage({ kmDepart: depart.km, kmRetour: retour.km, jours })
     : null;
@@ -196,7 +209,7 @@ function buildDossierView(reservation) {
       depart,
       retour,
       kilometrage,
-      media: dossier && dossier.media ? dossier.media : { depart: [], retour: [] },
+      media: inspectionMedia,
       observations: dossier ? dossier.observations || "" : ""
     },
     // La source moderne est versionnée. Les champs `dossier.depart/retour`
@@ -232,7 +245,7 @@ async function handlePost(request, env, headers) {
 
   // Le jeton agence d'un contrat manuel sert ici uniquement à l'inspection.
   // Le contrat manuel et son lien client gardent leur parcours séparé.
-  if (reservation.status === "manual_contract" && !["update-depart", "update-retour", "update-signature-display-time", "list-inspection-revisions", "create-revision"].includes(payload.action)) {
+  if (reservation.status === "manual_contract" && !["update-depart", "update-retour", "update-signature-display-time", "list-inspection-revisions", "initialize-inspection", "create-revision"].includes(payload.action)) {
     return new Response(JSON.stringify({ error: "Action indisponible pour un contrat manuel" }), { status: 400, headers });
   }
 
@@ -241,6 +254,15 @@ async function handlePost(request, env, headers) {
       case "list-inspection-revisions": {
         if (!["depart", "retour"].includes(payload.mode)) return new Response(JSON.stringify({ error: "Type d’état des lieux invalide" }), { status: 400, headers });
         return new Response(JSON.stringify({ revisions: listInspectionRevisions(reservation, payload.mode, existing[payload.mode], existing.media && existing.media[payload.mode], null) }), { status: 200, headers });
+      }
+      case "initialize-inspection": {
+        if (!["depart", "retour"].includes(payload.mode)) return new Response(JSON.stringify({ error: "Type d’état des lieux invalide" }), { status: 400, headers });
+        const agencySession = await resolveAgencySession(request, env);
+        const initialized = initializeInspectionRevision(reservation, payload.mode, existing[payload.mode], existing.media && existing.media[payload.mode], agencySession && agencySession.operator);
+        const updated = { ...reservation, inspectionSchema: "modern", inspectionRevisions: initialized.inspectionRevisions, updatedAt: new Date().toISOString() };
+        await env.RESERVATIONS_KV.put(reservation.id, JSON.stringify(updated));
+        if (initialized.created) await recordAuditEvent(env, { actor: agencySession && agencySession.operator, eventType: "inspection_revision_initialized", entityType: "contract", entityId: reservation.id, metadata: { stage: payload.mode, revision: initialized.revision.revision } });
+        return new Response(JSON.stringify({ ...buildDossierView(updated), revision: initialized.revision, created: initialized.created }), { status: initialized.created ? 201 : 200, headers });
       }
       case "create-revision": {
         if (!["depart", "retour"].includes(payload.mode)) return new Response(JSON.stringify({ error: "Type d’état des lieux invalide" }), { status: 400, headers });
@@ -334,7 +356,10 @@ async function handlePost(request, env, headers) {
         return new Response(JSON.stringify(buildDossierView(updated)), { status: 200, headers });
       }
       case "update-retour": {
-        if (!existing.depart || (reservation.status === "manual_contract" && !existing.depart.completedAt)) {
+        const departureRevision = activeInspectionRevision(reservation, existing, "depart");
+        const departureSnapshot = departureRevision && departureRevision.snapshot || existing.depart;
+        const departureCompleted = departureRevision && departureRevision.status === "finalized" || departureSnapshot && departureSnapshot.completedAt;
+        if (!departureSnapshot || (reservation.status === "manual_contract" && !departureCompleted)) {
           return new Response(JSON.stringify({ error: "La remise du véhicule doit être complétée avant la restitution" }), { status: 400, headers });
         }
         const revision = Number(payload.revision);
@@ -343,7 +368,7 @@ async function handlePost(request, env, headers) {
         }
         const retour = { ...preserveInspectionSignatures(validateConditionReport(payload), existing.retour), completedAt: existing.retour && existing.retour.completedAt || new Date().toISOString(), finalizedAt: payload.finalize ? existing.retour && existing.retour.finalizedAt || new Date().toISOString() : existing.retour && existing.retour.finalizedAt || null };
         const jours = joursReservation(reservation);
-        const kilometrage = calculerKilometrage({ kmDepart: existing.depart.km, kmRetour: retour.km, jours });
+        const kilometrage = calculerKilometrage({ kmDepart: departureSnapshot.km, kmRetour: retour.km, jours });
         if (!kilometrage.valid) {
           return new Response(JSON.stringify({ error: kilometrage.error }), { status: 400, headers });
         }

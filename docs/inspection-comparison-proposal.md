@@ -1,16 +1,21 @@
-# Comparatif départ / retour — proposition séparée
+# Comparatif départ / retour — document séparé
 
-Le comparatif joint sert de référence fonctionnelle, mais n'est pas généré dans cette PR. Le PDF officiel d'une révision reste un document individuel et immuable.
+Le comparatif est généré uniquement à la demande depuis le back-office. Le PDF officiel d'une révision reste un document individuel et immuable : la génération du comparatif n'écrit aucune clé R2, ne modifie aucun `pdfKey` et ne remplace aucune archive.
 
 ## Sources et choix de versions
 
-- Lire les deux constats finalisés via l'adaptateur `inspectionRevisions`, avec une révision de départ et une révision de retour **explicites**. Ne pas remplacer silencieusement une version absente par la dernière.
+- Sans sélection explicite, lire la dernière version finalisée de chaque constat via l'adaptateur `inspectionRevisions`.
+- Si `departRevision` et `retourRevision` sont fournis, exiger exactement ces versions finalisées. Ne jamais remplacer silencieusement une version absente.
 - Comparer uniquement les valeurs enregistrées : date, kilométrage, carburant/charge, propreté, clés, accessoires et dommages. Afficher « non renseigné » lorsque la valeur manque, distinct de zéro.
 - Pour les dommages, distinguer les repères observés au départ et au retour sans déduire une responsabilité. Toute différence calculée doit être présentée comme factuelle.
 - Garder les photos des deux étapes dans deux sections séparées, avec leur légende et date, à partir de leurs listes de médias respectives.
 
-## Route et stockage à examiner dans une autre intervention
+## Route et stockage
 
-Une route agence authentifiée pourrait accepter `id`, `departRevision` et `retourRevision`, valider que les deux révisions appartiennent au même dossier et sont finalisées, puis produire un PDF comparatif à la demande. Si le comparatif doit être archivé, lui attribuer une clé R2 **distincte** contenant les deux numéros de révision, sans modifier `pdfKey` ni les PDF individuels. Décider séparément si l'archive est immuable et si Drive doit la sauvegarder.
+La route agence authentifiée `GET /api/agency-inspection-comparison` produit le PDF à la demande :
 
-Cette conception nécessite un cadrage de l'API, de l'authentification, du stockage, de la politique d'archivage et des tests avant implémentation. Aucune route, donnée ni clé R2 de comparatif n'est ajoutée ici.
+- EDL liés : `source=linked&id=...` ; le départ et le retour sont ceux du même dossier.
+- EDL indépendants : `source=standalone&departId=...&retourId=...` ; l'association bidirectionnelle enregistrée est obligatoire.
+- Versions optionnelles : `departRevision=N&retourRevision=N`.
+
+Le document affiche une synthèse factuelle en colonnes Départ / Retour / Différence puis deux sections de photos distinctes. Il ne déduit aucune responsabilité. Le stockage ou la sauvegarde Drive d'un comparatif pourra être décidé ultérieurement sans modifier les PDF individuels.
