@@ -56,6 +56,11 @@ test("le Worker route la lecture privée des médias historiques d'état des lie
   assert.match(worker, /"\/api\/legacy-inspection-media"\s*:\s*handleLegacyInspectionMedia/);
 });
 
+test("le Worker route l'archivage administratif des états des lieux", () => {
+  const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
+  assert.match(worker, /"\/api\/agency-inspection-archive"\s*:\s*handleAgencyInspectionArchive/);
+});
+
 test("le Worker route le diagnostic historique Zvezdan, limité à une lecture agence", () => {
   const worker = fs.readFileSync(path.join(__dirname, "..", "src/worker.js"), "utf8");
   assert.match(worker, /"\/api\/legacy-inspection-diagnostic"\s*:\s*handleLegacyInspectionDiagnostic/);

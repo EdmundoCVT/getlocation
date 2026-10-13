@@ -185,6 +185,24 @@ test("bibliothèque EDL : recherche, filtre indépendant et tri couvrent toutes 
   assert.equal(window.document.querySelectorAll('#inspectionList .dashboard-card').length, 1);
 });
 
+test("bibliothèque EDL : Tous exclut strictement les archives et le filtre Archivés les isole", () => {
+  const window = buildWindow();
+  window.__backOffice.renderInspectionListForTest([{
+    id: "res_archive", client: { prenom: "Active", nom: "Client" }, vehicule: "Peugeot 208", dateDebut: "2026-03-01", heureDebut: "10:00", dateFin: "2026-03-02", heureFin: "10:00", openable: true,
+    inspection: { depart: true, retour: true, retourAvailable: true }, inspectionRevisions: { depart: [{ revision: 1, status: "finalized" }], retour: [{ revision: 1, status: "draft" }] }, inspectionArchives: { depart: { archivedAt: "2026-10-13T10:00:00Z", archivedBy: "Edmundo" } }
+  }], [{ id: "edl_archive", mode: "depart", client: { prenom: "Ancien", nom: "Test" }, vehicule: { nom: "Toyota Proace" }, status: "finalized", archivedAt: "2026-10-13T10:00:00Z", archivedBy: "Edmundo" }]);
+  assert.match(window.document.querySelector('[data-inspection-filter="all"]').textContent, /Tous \(1\)/);
+  assert.match(window.document.querySelector('[data-inspection-filter="archived"]').textContent, /Archivés \(2\)/);
+  assert.equal(window.document.querySelectorAll('#inspectionList .dashboard-card').length, 1);
+  assert.match(window.document.getElementById('inspectionList').textContent, /Active/);
+  const search = window.document.getElementById('inspectionSearch'); search.value = 'Ancien'; search.dispatchEvent(new window.Event('input'));
+  assert.equal(window.document.querySelectorAll('#inspectionList .dashboard-card').length, 0, "un archivé ne réapparaît jamais dans Tous par recherche");
+  window.document.querySelector('[data-inspection-filter="archived"]').click();
+  assert.equal(window.document.querySelectorAll('#inspectionList .dashboard-card').length, 1);
+  assert.match(window.document.getElementById('inspectionList').textContent, /Ancien/);
+  assert.match(window.document.getElementById('inspectionList').textContent, /Archivé/);
+});
+
 test("bibliothèque EDL : l'activation directe de la section charge les deux sources et initialise les compteurs", async () => {
   const window = buildWindow();
   const calls = [];

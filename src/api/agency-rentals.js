@@ -110,6 +110,7 @@ function reservationInspectionItem(reservation) {
     historyMode: null,
     historyId: null,
     inspectionRevisions: reservation.inspectionRevisions || {},
+    inspectionArchives: reservation.inspectionArchives || {},
     relatedIds: [reservation.rentalId, reservation.rental_id]
   };
 }
@@ -145,6 +146,7 @@ function manualContractInspectionItem(contract) {
     historyMode: historical ? "manual-contract" : null,
     historyId: historical ? contract.id : null,
     inspectionRevisions: contract.inspectionRevisions || {},
+    inspectionArchives: contract.inspectionArchives || {},
     relatedIds: [contract.rentalId, contract.rental_id]
   };
 }
@@ -274,7 +276,9 @@ function publicInspectionItem(item) {
     source: item.source,
     openable: item.openable,
     historyMode: item.historyMode,
-    historyId: item.historyId
+    historyId: item.historyId,
+    inspectionRevisions: item.inspectionRevisions || {},
+    inspectionArchives: item.inspectionArchives || {}
   };
 }
 
@@ -291,12 +295,24 @@ async function handleGet(request, env, headers) {
       listRentalsForInspection(env)
     ]);
     const inspectionReservations = reservations.filter((reservation) => reservation && ["paid", "manual_contract", "contract_version"].includes(reservation.status) && (reservation.status === "paid" || reservation.status === "manual_contract" || hasRealInspectionEvidence(reservation)));
-    const items = deduplicateInspectionItems([
+    const rawItems = deduplicateInspectionItems([
       ...inspectionReservations.filter((reservation) => reservation.status === "manual_contract" || reservation.contractSourceType === "manual").map(manualContractInspectionItem),
       ...inspectionReservations.filter((reservation) => reservation.status !== "manual_contract" && reservation.contractSourceType !== "manual").map(reservationInspectionItem),
       ...d1Rentals.map(d1RentalInspectionItem)
-    ])
-      .map(publicInspectionItem)
+    ]);
+    const items = (await Promise.all(rawItems.map(async (item) => {
+      // Les sources D1 historiques n'ont pas de record réservation à enrichir.
+      // Le marqueur KV permet seulement leur archivage logique.
+      if (!item.inspectionArchives && item.historyMode) {
+        const inspectionArchives = {};
+        await Promise.all(["depart", "retour"].map(async (stage) => {
+          const raw = await env.RESERVATIONS_KV.get(`inspection-archive:${item.id}:${stage}`);
+          if (raw) try { inspectionArchives[stage] = JSON.parse(raw); } catch (_) { /* marqueur invalide ignoré */ }
+        }));
+        return { ...item, inspectionArchives };
+      }
+      return item;
+    }))).map(publicInspectionItem)
       .sort((a, b) => `${b.dateDebut || ""} ${b.heureDebut || ""}`.localeCompare(`${a.dateDebut || ""} ${a.heureDebut || ""}`));
     return new Response(JSON.stringify({ rentals: items }), { status: 200, headers });
   }
