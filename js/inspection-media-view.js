@@ -17,17 +17,18 @@
     const responseUrl = response && response.url || "";
     let path = "la route API";
     try { path = new URL(responseUrl || "/api/inconnue", global.location && global.location.href || "https://getlocation.fr").pathname; } catch (_) { /* URL de diagnostic facultative. */ }
+    const mediaRequest = /inspection-media/.test(path);
+    const prefix = mediaRequest ? "Upload photo impossible" : "Requête impossible";
     if (contentType && !/\b(?:application|text)\/(?:[a-z0-9.+-]*\+)?json\b/i.test(contentType)) {
       // Consommer la réponse sans jamais exposer son contenu HTML au client.
       if (response && typeof response.text === "function") await response.text().catch(() => "");
       const isHtml = /text\/html/i.test(contentType);
-      const context = /inspection-media/.test(path) ? " lors de l’enregistrement de la photo" : "";
-      throw new Error("Erreur serveur" + context + " (HTTP " + (response.status || 0) + "). " + path + " a retourné " + (isHtml ? "une page HTML" : "un format non JSON") + ".");
+      throw new Error(prefix + " : HTTP " + (response.status || 0) + " — " + path + " a retourné " + (isHtml ? "du HTML au lieu de JSON" : "un format non JSON") + ".");
     }
     let body;
     try { body = await response.json(); }
-    catch (_) { throw new Error("Erreur serveur (HTTP " + (response.status || 0) + "). " + path + " n’a pas retourné une réponse JSON valide."); }
-    if (!response.ok) throw new Error(body && body.error || "Une erreur est survenue (HTTP " + response.status + ").");
+    catch (_) { throw new Error(prefix + " : HTTP " + (response.status || 0) + " — " + path + " n’a pas retourné une réponse JSON valide."); }
+    if (!response.ok) throw new Error(prefix + " : HTTP " + response.status + " — " + (body && body.error || "erreur serveur"));
     return body;
   }
   function decode(image) {

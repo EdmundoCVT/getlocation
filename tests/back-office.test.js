@@ -38,9 +38,27 @@ function buildWindow() {
   // et interromprait le reste du script (jamais le cas dans un vrai
   // navigateur, où fetch existe toujours) — voir apiGet/initSession.
   dom.window.fetch = () => Promise.reject(new Error("fetch désactivé dans les tests"));
+  dom.window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  dom.window.HTMLDialogElement.prototype.close = function () { this.open = false; };
   dom.window.eval(dataJsSource);
   dom.window.eval(extractInlineScript());
   return dom.window;
+}
+
+function apiResponse(status, body, url = "https://getlocation.fr/api/test") {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    url,
+    headers: { get: (name) => name.toLowerCase() === "content-type" ? "application/json; charset=utf-8" : null },
+    json: async () => body,
+    text: async () => JSON.stringify(body)
+  };
+}
+
+async function flushAsync() {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 test("escapeHtml : neutralise les caractères HTML dangereux", () => {
@@ -159,11 +177,11 @@ test("bibliothèque EDL : les sources liées et historiques sont normalisées, s
   ]);
   const cards = [...window.document.querySelectorAll("#inspectionList .dashboard-card")];
   assert.equal(cards.length, 4);
-  const historical = cards.filter((card) => /Historique/.test(card.textContent));
+  const historical = cards.filter((card) => /· Historique ·/.test(card.textContent));
   assert.equal(historical.length, 2);
-  historical.forEach((card) => assert.equal(card.querySelector("button").disabled, false));
-  const retourFutur = cards.find((card) => /^Retour/.test(card.querySelector("h2").textContent));
-  assert.ok(retourFutur.querySelector("button").disabled);
+  historical.forEach((card) => assert.match(card.querySelector(".btn-primary").href, /etat-des-lieux\.html\?source=legacy/));
+  const retourFutur = cards.find((card) => card.querySelector(".inspection-mode-badge").textContent === "RETOUR" && /Jean Dupont/.test(card.textContent));
+  assert.ok(retourFutur.querySelector(".btn-primary").disabled);
 });
 
 test("bibliothèque EDL : recherche, filtre indépendant et tri couvrent toutes les sources", () => {
@@ -244,9 +262,10 @@ test("bibliothèque EDL : V3 brouillon est la version courante, visible et ouvra
   assert.match(history.textContent, /V3 — Brouillon/);
   assert.match(history.textContent, /V2 — Finalisée/);
   assert.match(history.textContent, /V1 — Finalisée/);
+  assert.ok([...history.querySelectorAll("button")].filter((button) => button.textContent === "Modifier V3").length >= 2, "un brouillon existant est repris, jamais remplacé par V4");
 });
 
-test("bibliothèque EDL : une V4 finalisée propose directement Créer V5 avec onglet pré-réservé", () => {
+test("bibliothèque EDL : une V4 finalisée propose directement Créer V5 avec motif", () => {
   const window = buildWindow();
   window.__backOffice.renderInspectionListForTest([], [{
     id: "edl_finalized", mode: "depart", client: { prenom: "Client", nom: "V4" }, vehicule: { nom: "Toyota Proace" },
@@ -260,7 +279,107 @@ test("bibliothèque EDL : une V4 finalisée propose directement Créer V5 avec o
   assert.ok(source.indexOf("window.open('about:blank','_blank')") < source.indexOf("apiPost('/api/standalone-inspections'"), "Safari reçoit l’onglet avant la requête create-revision");
   assert.match(source, /baseRevision=Number\(baseRevision\|\|item\.revisions\.latestFinalizedRevision\)/);
   assert.match(source, /revisionReason/);
-  assert.match(source, /Pourquoi créez-vous une nouvelle version/);
+  assert.match(source, /Motif de la nouvelle version/);
+  assert.match(source, /required placeholder=/);
+});
+
+test("bibliothèque EDL : Créer V4 standalone depuis la carte envoie motif/base et ouvre exactement V4", async () => {
+  const window = buildWindow(), calls = [], popups = [];
+  window.open = () => { const popup = { closed: false, document: {}, location: { href: "about:blank" }, close() { this.closed = true; } }; popups.push(popup); return popup; };
+  window.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    if (String(url) === "/api/standalone-inspections" && options.method === "POST") return apiResponse(201, { revision: { revision: 4 } }, String(url));
+    if (String(url).includes("agency-rentals")) return apiResponse(200, { rentals: [] }, String(url));
+    return apiResponse(200, { inspections: [] }, String(url));
+  };
+  window.__backOffice.renderInspectionListForTest([], [{
+    id: "edl_direct_v4", mode: "depart", client: { prenom: "Amir", nom: "Fatkullin" }, vehicule: { nom: "Toyota Proace" },
+    inspectionRevisions: { depart: [1, 2, 3].map((revision) => ({ revision, status: "finalized", basedOnRevision: revision > 1 ? revision - 1 : null, pdfKey: "v" + revision + ".pdf" })) }
+  }]);
+  [...window.document.querySelectorAll("#inspectionList button")].find((button) => button.textContent === "Créer V4").click();
+  assert.equal(popups.length, 0, "aucun onglet vide avant que le motif soit validé");
+  const dialog = window.document.querySelector("dialog"), form = dialog.querySelector("form");
+  form.elements.revisionReason.value = "Ajout des photos manquantes";
+  form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  await flushAsync();
+  const create = calls.find((call) => call.url === "/api/standalone-inspections" && call.options.method === "POST");
+  assert.deepEqual(JSON.parse(create.options.body), { action: "create-revision", baseRevision: 3, revisionReason: "Ajout des photos manquantes", id: "edl_direct_v4", stage: "depart" });
+  assert.equal(popups.length, 1);
+  assert.equal(popups[0].location.href, "/etat-des-lieux.html?standalone=edl_direct_v4&mode=depart&revision=4");
+});
+
+test("bibliothèque EDL : Créer V3 lié depuis la carte utilise latestFinalizedRevision et ouvre V3", async () => {
+  const window = buildWindow(), calls = [], popup = { closed: false, document: {}, location: { href: "about:blank" }, close() { this.closed = true; } };
+  window.open = () => popup;
+  window.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    if (String(url) === "/api/contract-agency-link") return apiResponse(200, { agencyUrl: "https://getlocation.fr/contrat.html#agencyToken=" + "A".repeat(43) }, String(url));
+    if (String(url) === "/api/contract-dossier-agency") return apiResponse(201, { revision: { revision: 3 } }, String(url));
+    if (String(url).includes("agency-rentals")) return apiResponse(200, { rentals: [] }, String(url));
+    return apiResponse(200, { inspections: [] }, String(url));
+  };
+  window.__backOffice.renderInspectionListForTest([{
+    id: "res_linked_v3", client: { prenom: "Jane", nom: "Doe" }, vehicule: "Peugeot 3008", openable: true,
+    dateDebut: "2026-10-10", dateFin: "2026-10-11", inspection: { depart: true, retour: false, retourAvailable: true },
+    inspectionRevisions: { depart: [{ revision: 1, status: "finalized" }, { revision: 2, status: "finalized", basedOnRevision: 1 }] }
+  }]);
+  const card = [...window.document.querySelectorAll("#inspectionList .dashboard-card")].find((item) => item.querySelector(".inspection-mode-badge").textContent === "DÉPART");
+  [...card.querySelectorAll("button")].find((button) => button.textContent === "Créer V3").click();
+  const form = window.document.querySelector("dialog form");
+  form.elements.revisionReason.value = "Correction kilométrage";
+  form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  await flushAsync();
+  const create = calls.find((call) => call.url === "/api/contract-dossier-agency");
+  assert.deepEqual(JSON.parse(create.options.body), { action: "create-revision", baseRevision: 2, revisionReason: "Correction kilométrage", mode: "depart" });
+  assert.equal(create.options.headers.Authorization, "Bearer " + "A".repeat(43));
+  assert.equal(popup.location.href, "/api/agency-open-inspection?id=res_linked_v3&stage=depart&revision=3");
+});
+
+test("bibliothèque EDL : l'historique peut créer V4 à partir de V1 avec son motif", async () => {
+  const window = buildWindow(), calls = [], popup = { closed: false, document: {}, location: { href: "about:blank" }, close() { this.closed = true; } };
+  window.open = () => popup;
+  window.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    if (String(url) === "/api/standalone-inspections" && options.method === "POST") return apiResponse(201, { revision: { revision: 4 } }, String(url));
+    if (String(url).includes("agency-rentals")) return apiResponse(200, { rentals: [] }, String(url));
+    return apiResponse(200, { inspections: [] }, String(url));
+  };
+  window.__backOffice.renderInspectionListForTest([], [{
+    id: "edl_history_base", mode: "depart", client: {}, vehicule: { nom: "Toyota Proace" },
+    inspectionRevisions: { depart: [1, 2, 3].map((revision) => ({ revision, status: "finalized", basedOnRevision: revision > 1 ? revision - 1 : null })) }
+  }]);
+  [...window.document.querySelectorAll("#inspectionList button")].find((button) => button.textContent === "Historique").click();
+  [...window.document.querySelectorAll(".inspection-history button")].find((button) => button.textContent === "Créer une nouvelle version à partir de V1").click();
+  const form = window.document.querySelector("dialog form");
+  form.elements.revisionReason.value = "Retour aux données initiales";
+  form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  await flushAsync();
+  const body = JSON.parse(calls.find((call) => call.url === "/api/standalone-inspections" && call.options.method === "POST").options.body);
+  assert.equal(body.baseRevision, 1);
+  assert.equal(body.revisionReason, "Retour aux données initiales");
+  assert.match(popup.location.href, /revision=4$/);
+});
+
+test("bibliothèque EDL : une réponse HTML create-revision expose HTTP, source et base sans Unexpected token", async () => {
+  const window = buildWindow(), alerts = [], popup = { closed: false, document: {}, location: { href: "about:blank" }, close() { this.closed = true; } };
+  window.open = () => popup;
+  window.alert = (message) => alerts.push(String(message));
+  window.fetch = async (url, options = {}) => {
+    if (String(url) === "/api/standalone-inspections" && options.method === "POST") return { ok: false, status: 404, url: String(url), headers: { get: () => "text/html" }, text: async () => "<!doctype html><p>interne</p>" };
+    return apiResponse(200, { rentals: [], inspections: [] }, String(url));
+  };
+  window.__backOffice.renderInspectionListForTest([], [{ id: "edl_error", mode: "depart", client: {}, vehicule: { nom: "Toyota Proace" }, inspectionRevisions: { depart: [{ revision: 1, status: "finalized" }] } }]);
+  [...window.document.querySelectorAll("#inspectionList button")].find((button) => button.textContent === "Créer V2").click();
+  const form = window.document.querySelector("dialog form");
+  form.elements.revisionReason.value = "Test erreur";
+  form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  await flushAsync();
+  assert.match(alerts[0], /source standalone/);
+  assert.match(alerts[0], /base V1/);
+  assert.match(alerts[0], /HTTP 404/);
+  assert.match(alerts[0], /HTML au lieu de JSON/);
+  assert.doesNotMatch(alerts[0], /Unexpected token|doctype|interne/);
+  assert.equal(popup.closed, true);
 });
 
 test("bibliothèque EDL : Historique affiche le motif interne de chaque révision", () => {
@@ -305,43 +424,28 @@ test("bibliothèque EDL : conserve la source disponible et explique l'échec par
 
 test("chaque état des lieux historique terminé ouvre la vue legacy, jamais contrat.html", () => {
   const window = buildWindow();
-  const popups=[];window.open=()=>{const popup={opener:window,document:{},location:{href:""}};popups.push(popup);return popup};
   const historique=(id,historyMode,historyId)=>({id,client:{prenom:"Israa",nom:"Benzaama"},vehicule:"Opel Corsa",vehiculeId:"opel-corsa",immatriculation:"AB-123-CD",dateDebut:"2026-08-13",heureDebut:"10:00",dateFin:"2026-08-15",heureFin:"10:00",contractNumero:"GL-20260813-0001",openable:false,historyMode,historyId,inspection:{depart:true,retour:true,retourAvailable:true}});
   window.__backOffice.renderInspectionListForTest([
     historique("res_"+"a".repeat(32),"manual-contract","res_"+"a".repeat(32)),
     historique("rnt_legacy","rental-record","rnt_legacy"),
     historique("res_kv","rental-record","rnt_fusionnee")
   ]);
-  [...window.document.querySelectorAll("#inspectionList .dashboard-card")].forEach((card,index)=>{
-    const open=card.querySelector("button");
-    assert.equal(open.disabled,false);
-    open.click();
-  });
-  const urls=popups.map(p=>p.location.href);
+  const urls=[...window.document.querySelectorAll("#inspectionList .dashboard-card .btn-primary")].map(link=>new URL(link.href).pathname+new URL(link.href).search);
   ["res_"+"a".repeat(32),"rnt_legacy","rnt_fusionnee"].forEach((expectedId)=>{
     ['depart','retour'].forEach((mode)=>assert.ok(urls.includes('/etat-des-lieux.html?source=legacy&mode='+mode+'&legacyId='+expectedId)));
   });
   urls.forEach(url=>{assert.ok(!url.includes("contrat.html"));assert.ok(!url.includes("manualToken"))});
 });
 
-test("réservation KV moderne : conserve le workflow état des lieux sécurisé", async () => {
-  const window=buildWindow(),popup={opener:window,document:{},location:{href:""}};window.open=()=>popup;
-  window.fetch=async()=>({ok:true,json:async()=>({agencyUrl:"https://getlocation.fr/contrat.html#agencyToken="+"A".repeat(43)})});
+test("réservation KV moderne : conserve le workflow état des lieux sécurisé", () => {
+  const window=buildWindow();
   window.__backOffice.renderInspectionListForTest([{id:"res_"+"b".repeat(32),client:{prenom:"Jean",nom:"Dupont"},vehicule:"Opel Corsa",vehiculeId:"opel-corsa",immatriculation:"",dateDebut:"2027-01-01",heureDebut:"10:00",dateFin:"2027-01-02",heureFin:"10:00",contractNumero:null,openable:true,historyMode:null,historyId:null,inspection:{depart:false,retour:false,retourAvailable:false}}]);
-  [...window.document.querySelectorAll("#inspectionList .dashboard-card")].find(card=>/^Départ/.test(card.querySelector('h2').textContent)).querySelector('button').click();
-  await new Promise(resolve=>setTimeout(resolve,0));
-  assert.match(popup.location.href,/^\/etat-des-lieux\.html\?mode=depart#agencyToken=A{43}$/);
+  const open=[...window.document.querySelectorAll("#inspectionList .dashboard-card")].find(card=>card.querySelector('.inspection-mode-badge').textContent==='DÉPART').querySelector('.btn-primary');
+  assert.match(open.href,/\/api\/agency-open-inspection\?id=res_b{32}&stage=depart&revision=1$/);
 });
 
-test("contrat manuel moderne : Départ À faire ouvre l'EDL autonome avec lien agence", async () => {
+test("contrat manuel moderne : Départ À faire ouvre la route agence sécurisée", () => {
   const window = buildWindow();
-  const popup = { opener: window, document: {}, location: { href: "" } };
-  window.open = () => popup;
-  let requestedId = null;
-  window.fetch = async (_url, options) => {
-    requestedId = JSON.parse(options.body).id;
-    return { ok: true, json: async () => ({ agencyUrl: "https://getlocation.fr/etat-des-lieux.html#agencyToken=" + "B".repeat(43) }) };
-  };
   window.__backOffice.renderInspectionListForTest([{
     id: "res_manual_modern", client: { prenom: "Anne", nom: "Martin" }, vehicule: "Opel Corsa",
     vehiculeId: "opel-corsa", immatriculation: "AA-123-BB", dateDebut: "2026-10-10",
@@ -349,13 +453,9 @@ test("contrat manuel moderne : Départ À faire ouvre l'EDL autonome avec lien a
     openable: true, historyMode: null, historyId: null,
     inspection: { depart: false, retour: false, retourAvailable: false }
   }]);
-  const depart = [...window.document.querySelectorAll("#inspectionList .dashboard-card")].find(card=>/^Départ/.test(card.querySelector('h2').textContent)).querySelector('button');
-  assert.equal(depart.textContent, "Consulter");
-  assert.equal(depart.disabled, false);
-  depart.click();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.equal(requestedId, "res_manual_modern");
-  assert.match(popup.location.href, /^\/etat-des-lieux\.html\?mode=depart#agencyToken=B{43}$/);
+  const depart = [...window.document.querySelectorAll("#inspectionList .dashboard-card")].find(card=>card.querySelector('.inspection-mode-badge').textContent==='DÉPART').querySelector('.btn-primary');
+  assert.equal(depart.textContent, "Consulter V1");
+  assert.match(depart.href,/\/api\/agency-open-inspection\?id=res_manual_modern&stage=depart&revision=1$/);
 });
 
 // Régression Lot 5 : renderSyncStatus utilisait row(), qui échappe

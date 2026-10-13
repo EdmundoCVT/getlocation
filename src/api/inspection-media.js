@@ -42,7 +42,7 @@ async function handleUpload(request,env,reservation){
   const key=`${revisionMediaPrefix(reservation.id,stage,revision,false)}${Date.now()}-${uid()}.${ext(file.type)}`;
   const bytes=await file.arrayBuffer();
   if(bytes.byteLength>MAX_BYTES)return json({error:"Photo trop volumineuse"},400);
-  await env.DOCUMENTS_BUCKET.put(key,bytes,{httpMetadata:{contentType:file.type},customMetadata:{reservationId:reservation.id,stage,slot}});
+  await env.DOCUMENTS_BUCKET.put(key,bytes,{httpMetadata:{contentType:file.type},customMetadata:{reservationId:reservation.id,stage,revision:String(revision),slot}});
   const existing=reservation.contractDossier||{status:"draft",fields:null,depart:null,retour:null,observations:""};
   const capturedAt=safeCapturedAt(form.get("capturedAt"));
   const item={key,slot,contentType:file.type,size:bytes.byteLength,createdAt:new Date().toISOString(),...(capturedAt?{capturedAt}:{})};
