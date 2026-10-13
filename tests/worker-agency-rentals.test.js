@@ -161,12 +161,13 @@ test("GET view=inspection : transmet toutes les métadonnées de révision liée
   const stored = JSON.parse(await env.RESERVATIONS_KV.get(reservation.id));
   stored.inspectionSchema = "modern";
   stored.contractDossier = { depart: { completedAt: "2026-10-10T10:00:00Z" }, retour: null, media: { depart: [], retour: [] } };
-  stored.inspectionRevisions = { depart: [1, 2, 3].map((revision) => ({ revision, status: revision === 3 ? "draft" : "finalized", createdAt: `2026-10-0${revision}T10:00:00Z`, finalizedAt: revision === 3 ? null : `2026-10-0${revision}T11:00:00Z`, basedOnRevision: revision === 1 ? null : revision - 1, pdfKey: revision === 3 ? null : `inspection-pdf/${reservation.id}/depart/v${revision}.pdf`, snapshot: { signatures: { client: { imageDataUrl: "data:image/png;base64,heavy" } } }, media: [{ key: "private-photo" }] })) };
+  stored.inspectionRevisions = { depart: [1, 2, 3].map((revision) => ({ revision, status: revision === 3 ? "draft" : "finalized", createdAt: `2026-10-0${revision}T10:00:00Z`, finalizedAt: revision === 3 ? null : `2026-10-0${revision}T11:00:00Z`, basedOnRevision: revision === 1 ? null : revision - 1, revisionReason: revision === 3 ? "Correction kilométrage" : null, pdfKey: revision === 3 ? null : `inspection-pdf/${reservation.id}/depart/v${revision}.pdf`, snapshot: { signatures: { client: { imageDataUrl: "data:image/png;base64,heavy" } } }, media: [{ key: "private-photo" }] })) };
   await env.RESERVATIONS_KV.put(reservation.id, JSON.stringify(stored));
   const response = await handleAgencyRentals(agencyRequest("https://getlocation.fr/api/agency-rentals?view=inspection", { session }), env);
   const item = (await response.json()).rentals.find((rental) => rental.id === reservation.id);
   assert.deepEqual(item.inspectionRevisions.depart.map((revision) => revision.revision), [1, 2, 3]);
   assert.equal(item.inspectionRevisions.depart[2].status, "draft");
+  assert.equal(item.inspectionRevisions.depart[2].revisionReason, "Correction kilométrage");
   assert.equal(JSON.stringify(item.inspectionRevisions).includes("snapshot"), false);
   assert.equal(JSON.stringify(item.inspectionRevisions).includes("imageDataUrl"), false);
   assert.equal(JSON.stringify(item.inspectionRevisions).includes("media"), false);

@@ -66,10 +66,10 @@ async function handleStandaloneInspections(request, env) {
   if (body.action === "create-revision") {
     const stage = safeMode(body.stage || record.mode); if (!stage) return json({ error: "Type d’état des lieux invalide" }, 400);
     try {
-      const created = createInspectionRevision(record, stage, record.dossier && record.dossier[stage], record.dossier && record.dossier.media && record.dossier.media[stage], auth.session.operator, body.baseRevision);
+      const created = createInspectionRevision(record, stage, record.dossier && record.dossier[stage], record.dossier && record.dossier.media && record.dossier.media[stage], auth.session.operator, body.baseRevision, body.revisionReason);
       record.inspectionRevisions = { ...(record.inspectionRevisions || {}), [stage]: created.revisions };
       await write(env, record);
-      await recordAuditEvent(env, { actor: auth.session.operator, eventType: "inspection_revision_created", entityType: "standalone_inspection", entityId: record.id, metadata: { stage, basedOnRevision: created.revision.basedOnRevision, revision: created.revision.revision } });
+      await recordAuditEvent(env, { actor: auth.session.operator, eventType: "inspection_revision_created", entityType: "standalone_inspection", entityId: record.id, metadata: { stage, basedOnRevision: created.revision.basedOnRevision, revision: created.revision.revision, revisionReason: created.revision.revisionReason } });
       return json({ inspection: record, revision: created.revision }, 201);
     } catch (error) { return json({ error: error.message || "Révision impossible" }, 409); }
   }

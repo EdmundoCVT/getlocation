@@ -84,12 +84,13 @@ test("EDL indépendant finalisé : V2 reste un brouillon modifiable et copie les
 test("liste standalone : transmet V1/V2/V3 en métadonnées légères", async () => {
   const env = makeAgencyEnv({ DOCUMENTS_BUCKET: bucket(), RESERVATIONS_KV: createFakeKv() }), session = await loginAgency(env);
   const id = "edl_cccccccccccccccc";
-  const revisions = [1, 2, 3].map((revision) => ({ revision, status: revision === 3 ? "draft" : "finalized", createdAt: `2026-10-0${revision}T10:00:00Z`, finalizedAt: revision === 3 ? null : `2026-10-0${revision}T11:00:00Z`, basedOnRevision: revision === 1 ? null : revision - 1, pdfKey: revision === 3 ? null : `inspection-pdf/${id}/depart/v${revision}.pdf`, snapshot: { signatures: { client: { imageDataUrl: "data:image/png;base64,heavy" } } }, media: [{ key: `inspection/${id}/depart/v${revision}/photo.jpg` }] }));
+  const revisions = [1, 2, 3].map((revision) => ({ revision, status: revision === 3 ? "draft" : "finalized", createdAt: `2026-10-0${revision}T10:00:00Z`, finalizedAt: revision === 3 ? null : `2026-10-0${revision}T11:00:00Z`, basedOnRevision: revision === 1 ? null : revision - 1, revisionReason: revision === 3 ? "Ajout dommage" : null, pdfKey: revision === 3 ? null : `inspection-pdf/${id}/depart/v${revision}.pdf`, snapshot: { signatures: { client: { imageDataUrl: "data:image/png;base64,heavy" } } }, media: [{ key: `inspection/${id}/depart/v${revision}/photo.jpg` }] }));
   await env.RESERVATIONS_KV.put("standalone-inspection:" + id, JSON.stringify({ id, mode: "depart", client: {}, vehicule: {}, dossier: { depart: revisions[2].snapshot }, inspectionRevisions: { depart: revisions }, updatedAt: "2026-10-13T12:00:00Z" }));
   const response = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { session }), env);
   const item = (await response.json()).inspections[0];
   assert.deepEqual(item.inspectionRevisions.depart.map((revision) => revision.revision), [1, 2, 3]);
   assert.equal(item.inspectionRevisions.depart[2].basedOnRevision, 2);
+  assert.equal(item.inspectionRevisions.depart[2].revisionReason, "Ajout dommage");
   assert.equal(item.inspectionRevisions.depart[1].pdfKey, `inspection-pdf/${id}/depart/v2.pdf`);
   assert.equal(JSON.stringify(item.inspectionRevisions).includes("snapshot"), false);
   assert.equal(JSON.stringify(item.inspectionRevisions).includes("imageDataUrl"), false);
@@ -101,8 +102,8 @@ test("EDL standalone : upload et capturedAt restent versionnés sur V4 puis V5",
   const id = "edl_dddddddddddddddd", prefix = `inspection-standalone/${id}/depart/`;
   const revisions = [1, 2, 3].map((revision) => ({ revision, status: "finalized", snapshot: { km: revision }, media: [{ key: `${prefix}v${revision}/historique-${revision}.jpg`, slot: "avant" }], pdfKey: `v${revision}.pdf`, basedOnRevision: revision > 1 ? revision - 1 : null }));
   await env.RESERVATIONS_KV.put("standalone-inspection:" + id, JSON.stringify({ id, mode: "depart", dossier: { depart: revisions[2].snapshot, media: { depart: revisions[2].media } }, inspectionRevisions: { depart: revisions }, createdAt: "2026-10-01", updatedAt: "2026-10-01" }));
-  const createV4 = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create-revision", id, stage: "depart", baseRevision: 3 } }), env);
-  assert.equal(createV4.status, 201); assert.equal((await createV4.json()).revision.basedOnRevision, 3);
+  const createV4 = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create-revision", id, stage: "depart", baseRevision: 3, revisionReason: "Ajout des photos manquantes" } }), env);
+  assert.equal(createV4.status, 201); const createdV4 = (await createV4.json()).revision; assert.equal(createdV4.basedOnRevision, 3); assert.equal(createdV4.revisionReason, "Ajout des photos manquantes");
   const upload = async (revision, name) => {
     const form = new FormData(); form.set("stage", "depart"); form.set("revision", String(revision)); form.set("slot", "avant"); form.set("capturedAt", "2026-10-13T10:00"); form.set("file", new File([name], name + ".jpg", { type: "image/jpeg" }));
     return handleStandaloneInspectionMedia(new Request("https://getlocation.fr/api/standalone-inspection-media?id=" + id, { method: "POST", headers: { origin: "https://getlocation.fr", cookie: "agency_session=" + session.cookie, "x-agency-csrf": session.csrfToken }, body: form }), env);
@@ -110,10 +111,16 @@ test("EDL standalone : upload et capturedAt restent versionnés sur V4 puis V5",
   const uploadedV4 = await upload(4, "photo-v4");
   assert.equal(uploadedV4.status, 200); assert.match(uploadedV4.headers.get("content-type"), /application\/json/);
   const photoV4 = (await uploadedV4.json()).item; assert.match(photoV4.key, /\/depart\/v4\//);
+  const uploadedSecondV4 = await upload(4, "photo-b-v4"); assert.equal(uploadedSecondV4.status, 200);
   const patched = await handleStandaloneInspectionMedia(agencyRequest("https://getlocation.fr/api/standalone-inspection-media?id=" + id, { method: "PATCH", session, body: { key: photoV4.key, stage: "depart", revision: 4, capturedAt: "2026-10-13T11:15" } }), env);
   assert.equal(patched.status, 200);
   let stored = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + id));
+  const inheritedKey = stored.inspectionRevisions.depart[3].media[0].key;
+  const removed = await handleStandaloneInspectionMedia(agencyRequest("https://getlocation.fr/api/standalone-inspection-media?id=" + id, { method: "DELETE", session, body: { key: inheritedKey, stage: "depart", revision: 4 } }), env);
+  assert.equal(removed.status, 200);
+  stored = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + id));
   assert.equal(stored.inspectionRevisions.depart[2].media.length, 1, "V3 reste inchangée");
+  assert.equal(stored.inspectionRevisions.depart[3].media.length, 2, "V4 conserve ses deux nouveaux médias après retrait de l'hérité");
   assert.equal(stored.inspectionRevisions.depart[3].media.find((item) => item.key === photoV4.key).capturedAt, "2026-10-13T11:15");
   stored.inspectionRevisions.depart[3].status = "finalized"; stored.inspectionRevisions.depart[3].pdfKey = "v4.pdf";
   await env.RESERVATIONS_KV.put("standalone-inspection:" + id, JSON.stringify(stored));
@@ -121,7 +128,7 @@ test("EDL standalone : upload et capturedAt restent versionnés sur V4 puis V5",
   assert.equal(createV5.status, 201); assert.equal((await createV5.json()).revision.basedOnRevision, 4);
   const uploadedV5 = await upload(5, "photo-v5"); assert.equal(uploadedV5.status, 200); assert.match((await uploadedV5.json()).item.key, /\/depart\/v5\//);
   stored = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + id));
-  assert.equal(stored.inspectionRevisions.depart[3].media.length, 2, "V4 conserve ses médias hérités et sa photo");
+  assert.equal(stored.inspectionRevisions.depart[3].media.length, 2, "V4 reste inchangée");
   assert.equal(stored.inspectionRevisions.depart[4].media.length, 3, "V5 hérite de V4 puis reçoit sa propre photo");
 });
 
@@ -131,4 +138,16 @@ test("EDL standalone : une panne R2 renvoie toujours du JSON, jamais une page HT
   const form = new FormData(); form.set("stage", "depart"); form.set("revision", "1"); form.set("slot", "avant"); form.set("file", new File(["x"], "x.jpg", { type: "image/jpeg" }));
   const response = await handleStandaloneInspectionMedia(new Request("https://getlocation.fr/api/standalone-inspection-media?id=" + id, { method: "POST", headers: { origin: "https://getlocation.fr", cookie: "agency_session=" + session.cookie, "x-agency-csrf": session.csrfToken }, body: form }), env);
   assert.equal(response.status, 500); assert.match(response.headers.get("content-type"), /application\/json/); assert.match((await response.json()).error, /traitement de la photo/);
+});
+
+test("EDL standalone : les uploads ciblent explicitement V2, V3, V4 et V5", async () => {
+  for (const revision of [2, 3, 4, 5]) {
+    const env = makeAgencyEnv({ DOCUMENTS_BUCKET: bucket(), RESERVATIONS_KV: createFakeKv() }), session = await loginAgency(env), id = `edl_${String(revision).repeat(16)}`;
+    const revisions = Array.from({ length: revision }, (_, index) => ({ revision: index + 1, status: index + 1 === revision ? "draft" : "finalized", snapshot: {}, media: [], pdfKey: index + 1 === revision ? null : `v${index + 1}.pdf` }));
+    await env.RESERVATIONS_KV.put("standalone-inspection:" + id, JSON.stringify({ id, mode: "depart", dossier: { depart: {}, media: { depart: [] } }, inspectionRevisions: { depart: revisions } }));
+    const form = new FormData(); form.set("stage", "depart"); form.set("revision", String(revision)); form.set("slot", "dommage"); form.set("file", new File([`v${revision}`], `v${revision}.jpg`, { type: "image/jpeg" }));
+    const response = await handleStandaloneInspectionMedia(new Request("https://getlocation.fr/api/standalone-inspection-media?id=" + id, { method: "POST", headers: { origin: "https://getlocation.fr", cookie: "agency_session=" + session.cookie, "x-agency-csrf": session.csrfToken }, body: form }), env);
+    assert.equal(response.status, 200, `upload standalone V${revision}`);
+    assert.match((await response.json()).item.key, new RegExp(`/depart/v${revision}/`));
+  }
 });

@@ -353,6 +353,24 @@ test("agence : récupère l'image de signature une fois le contrat signé par le
   assert.equal(body.dossier.signature.imageDataUrl, sigPng);
 });
 
+test("agence : create-revision liée conserve base et motif propres à V4", async () => {
+  const e = env();
+  const { agencyToken, reservationId } = await setupReservationPayee(e);
+  const record = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
+  record.contractDossier = { depart: { km: 300 }, media: { depart: [], retour: [] } };
+  record.inspectionRevisions = { depart: [1, 2, 3].map(revision => ({ revision, status: "finalized", snapshot: { km: revision * 100 }, media: [], pdfKey: `v${revision}.pdf`, basedOnRevision: revision > 1 ? revision - 1 : null })) };
+  await e.RESERVATIONS_KV.put(reservationId, JSON.stringify(record));
+  const response = await handleContractDossierAgency(agencyPost(agencyToken, { action: "create-revision", mode: "depart", baseRevision: 3, revisionReason: "Correction kilométrage" }), e);
+  assert.equal(response.status, 201);
+  const revision = (await response.json()).revision;
+  assert.equal(revision.revision, 4);
+  assert.equal(revision.basedOnRevision, 3);
+  assert.equal(revision.revisionReason, "Correction kilométrage");
+  const stored = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
+  assert.equal(stored.inspectionRevisions.depart[2].revisionReason, undefined);
+  assert.equal(stored.inspectionRevisions.depart[3].revisionReason, "Correction kilométrage");
+});
+
 // --- Réservation non payée : jamais d'écriture ----------------------------
 
 test("aucune écriture sur le dossier contrat tant que la réservation n'est pas payée", async () => {

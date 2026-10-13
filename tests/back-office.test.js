@@ -258,7 +258,16 @@ test("bibliothèque EDL : une V4 finalisée propose directement Créer V5 avec o
   assert.doesNotMatch(card.textContent, /Modifier V4/);
   const source = html.match(/function inspectionCorrect\(item,baseRevision\)[\s\S]*?\nfunction inspectionPdfUrl/)[0];
   assert.ok(source.indexOf("window.open('about:blank','_blank')") < source.indexOf("apiPost('/api/standalone-inspections'"), "Safari reçoit l’onglet avant la requête create-revision");
-  assert.match(source, /baseRevision=baseRevision\|\|item\.revisions\.latestFinalizedRevision/);
+  assert.match(source, /baseRevision=Number\(baseRevision\|\|item\.revisions\.latestFinalizedRevision\)/);
+  assert.match(source, /revisionReason/);
+  assert.match(source, /Pourquoi créez-vous une nouvelle version/);
+});
+
+test("bibliothèque EDL : Historique affiche le motif interne de chaque révision", () => {
+  const window = buildWindow();
+  window.__backOffice.renderInspectionListForTest([], [{ id: "edl_reason", mode: "depart", client: {}, vehicule: { nom: "Toyota Proace" }, inspectionRevisions: { depart: [{ revision: 1, status: "finalized", pdfKey: "v1.pdf" }, { revision: 2, status: "draft", basedOnRevision: 1, revisionReason: "Correction heure de signature" }] } }]);
+  [...window.document.querySelectorAll("#inspectionList button")].find(button => button.textContent === "Historique").click();
+  assert.match(window.document.querySelector(".inspection-history").textContent, /Motif : Correction heure de signature/);
 });
 
 test("bibliothèque EDL : l'activation directe de la section charge les deux sources et initialise les compteurs", async () => {

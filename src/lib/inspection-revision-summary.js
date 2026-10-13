@@ -11,6 +11,7 @@ function summarizeRevision(revision) {
     finalizedAt: revision.finalizedAt || null,
     finalizedBy: revision.finalizedBy || null,
     basedOnRevision: revision.basedOnRevision === null || revision.basedOnRevision === undefined || revision.basedOnRevision === "" ? null : (Number.isInteger(Number(revision.basedOnRevision)) ? Number(revision.basedOnRevision) : null),
+    revisionReason: typeof revision.revisionReason === "string" ? revision.revisionReason.slice(0, 500) : null,
     pdfKey: revision.pdfKey || null
   };
 }

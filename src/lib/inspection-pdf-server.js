@@ -27,15 +27,30 @@ async function generateInspectionPdf({ env, id, stage, revision, snapshot, media
   // Croquis : une grille par groupe, jamais une page par vue. Les marks sont
   // calculés sur la boîte réelle après conservation du ratio de l'asset.
   async function drawSketchGrid(views, title) {
-    if (!views.length) return;
+    if (!views.length) return null;
     const sketch = pdf.addPage([595.28, 841.89]); sketch.drawText(title, { x: 40, y: 800, size: 14, font: bold });
     // Cinq vues en 3 + 2 : plus grandes et sans la zone blanche produite
     // par l'ancienne ligne de quatre suivie d'une unique vue centrale.
     const cells = views.length === 5 ? [[42,510,160,215],[218,510,160,215],[394,510,160,215],[130,210,160,215],[306,210,160,215]] : views.map((_, i) => [42 + (i % 4) * 132, 555 - Math.floor(i / 4) * 295, 122, 165]);
-    for (const [index, view] of views.entries()) { const [cx,cy,cw,ch]=cells[index], bytes=await assetBytes(env,view.assetPath), image=bytes&&await embed(pdf,bytes,"image/png"); sketch.drawText(view.label,{x:cx,y:cy+ch+10,size:8,font:bold}); if(!image) continue; const scale=Math.min(cw/image.width,ch/image.height), box={x:cx+(cw-image.width*scale)/2,y:cy+(ch-image.height*scale)/2,width:image.width*scale,height:image.height*scale}; sketch.drawImage(image,box); view.marks.forEach((mark,markIndex)=>{const x=box.x+Number(mark.x||0)/100*box.width,y=box.y+(1-Number(mark.y||0)/100)*box.height;sketch.drawCircle({x,y,size:6,color:rgb(1,.42,0)});sketch.drawText(String(markIndex+1),{x:x-2,y:y-2.5,size:5.5,font:bold,color:rgb(1,1,1)});}); }
+    for (const [index, view] of views.entries()) { const [cx,cy,cw,ch]=cells[index], bytes=await assetBytes(env,view.assetPath), image=bytes&&await embed(pdf,bytes,"image/png"); sketch.drawText(view.label,{x:cx,y:cy+ch+10,size:8,font:bold}); if(!image) continue; const scale=Math.min(cw/image.width,ch/image.height), box={x:cx+(cw-image.width*scale)/2,y:cy+(ch-image.height*scale)/2,width:image.width*scale,height:image.height*scale}; sketch.drawImage(image,box); view.marks.forEach(mark=>{const x=box.x+Number(mark.x||0)/100*box.width,y=box.y+(1-Number(mark.y||0)/100)*box.height;sketch.drawCircle({x,y,size:6,color:rgb(1,.42,0)});sketch.drawText(String(mark.number),{x:x-2,y:y-2.5,size:5.5,font:bold,color:rgb(1,1,1)});}); }
+    return sketch;
   }
-  if (model.sketches.length === 5) await drawSketchGrid(model.sketches, "Croquis du véhicule");
-  else { await drawSketchGrid(model.sketches.filter(view=>view.surface === "utility-exterior"), "Croquis utilitaire — extérieur"); await drawSketchGrid(model.sketches.filter(view=>view.surface === "utility-interior"), "Croquis utilitaire — intérieur"); }
+  let lastSketchPage;
+  if (model.sketches.length === 5) lastSketchPage=await drawSketchGrid(model.sketches, "Croquis du véhicule");
+  else { await drawSketchGrid(model.sketches.filter(view=>view.surface === "utility-exterior"), "Croquis utilitaire — extérieur"); lastSketchPage=await drawSketchGrid(model.sketches.filter(view=>view.surface === "utility-interior"), "Croquis utilitaire — intérieur"); }
+  if (model.damageMarks.length) {
+    let damagePage, damageY;
+    const newDamagePage=(existing)=>{damagePage=existing||pdf.addPage([595.28,841.89]);damageY=existing?175:800;damagePage.drawText("Détails des dommages",{x:40,y:damageY,size:14,font:bold});damageY-=24;};
+    const wrap=(value,max=88)=>{const words=clean(value).split(/\s+/).filter(Boolean),lines=[];let current="";for(const word of words){const next=current?current+" "+word:word;if(next.length>max){if(current)lines.push(current);current=word;}else current=next;}if(current)lines.push(current);return lines.length?lines:["Sans description"];};
+    newDamagePage(lastSketchPage);
+    for (const mark of model.damageMarks) {
+      const heading=[`${mark.number} — ${mark.typeLabel}`,mark.zoneLabel,mark.statusLabel].filter(Boolean).join(" — ");
+      const description=wrap(mark.description||"Sans description");
+      if(damageY<45+description.length*12)newDamagePage();
+      damagePage.drawText(clean(heading),{x:40,y:damageY,size:10,font:bold,color:rgb(.08,.13,.2)});damageY-=15;
+      description.forEach(text=>{damagePage.drawText(text,{x:55,y:damageY,size:9,font:regular,color:rgb(.22,.28,.36)});damageY-=12;});damageY-=9;
+    }
+  }
   // Photos référencées par la révision, sans fallback legacy implicite. Une
   // référence R2 absente est ignorée sans empêcher la finalisation du PDF.
   const photos = [];

@@ -6,6 +6,8 @@ const { finalizeRevisionWithPdf } = require("../src/lib/finalize-inspection-revi
 const { build: inspectionModel } = require("../src/lib/inspection-document-model.js");
 const { generateInspectionPdf } = require("../src/lib/inspection-pdf-server.js");
 const { PDFDocument } = require("pdf-lib");
+const fs = require("node:fs");
+const path = require("node:path");
 
 test("EDL historique finalisé est vu comme V1 et V2 conserve V1 immuable", () => {
   const stage = { completedAt: "2026-10-12T10:00:00Z", km: 12000, signatures: { client: { signedAt: "2026-10-12T10:00:00Z" } }, marks: [{ id: "a" }] };
@@ -19,6 +21,16 @@ test("EDL historique finalisé est vu comme V1 et V2 conserve V1 immuable", () =
   created.revision.snapshot.km = 13000;
   assert.equal(revisions[0].snapshot.km, 12000);
   assert.equal(created.revision.media[0].key, "legacy/photo.jpg", "V2 peut référencer V1 sans copie R2");
+});
+
+test("une nouvelle révision conserve son motif interne sans modifier la source", () => {
+  const v3 = { revision: 3, status: "finalized", snapshot: { km: 300 }, media: [], pdfKey: "v3.pdf" };
+  const created = createInspectionRevision({ inspectionRevisions: { depart: [v3] } }, "depart", null, null, "Edmundo", 3, "  Ajout des photos manquantes  ");
+  assert.equal(created.revision.revision, 4);
+  assert.equal(created.revision.basedOnRevision, 3);
+  assert.equal(created.revision.createdBy, "Edmundo");
+  assert.equal(created.revision.revisionReason, "Ajout des photos manquantes");
+  assert.equal(v3.revisionReason, undefined);
 });
 
 test("clés média et PDF des nouvelles révisions sont versionnées", () => {
@@ -129,4 +141,37 @@ test("PDF officiel n'expose pas le numéro interne de révision et place les sig
   assert.ok(source.indexOf("const photos = []") < source.indexOf("async function drawSignatures"));
   assert.match(source, /item\.capturedAt \|\| item\.createdAt/);
   assert.match(source, /SIGNATURES —/);
+});
+
+test("PDF Worker : numéros globaux et descriptions des dommages voiture correspondent", async () => {
+  const assetRoot = path.join(__dirname, "..");
+  const env = { ASSETS: { async fetch(request) { const file = path.join(assetRoot, new URL(request.url).pathname); return fs.existsSync(file) ? new Response(fs.readFileSync(file), { headers: { "content-type": "image/png" } }) : new Response(null, { status: 404 }); } }, DOCUMENTS_BUCKET: { async get() { return null; } } };
+  const snapshot = { sketchVehicleType: "car", marks: [
+    { id: "m1", view: "left", x: 20, y: 30, type: "rayure", description: "Rayure horizontale vingt centimètres" },
+    { id: "m2", view: "front", x: 40, y: 50, type: "bosse", description: "Enfoncement pare-chocs avant" },
+    { id: "m3", view: "right", x: 60, y: 70, type: "eclat", description: "Impact peinture porte droite" }
+  ], signatures: { client: { signedAt: "a" }, agence: { signedAt: "b" } } };
+  const model = inspectionModel({ id: "car", stage: "depart", revision: 4, snapshot });
+  assert.deepEqual(model.damageMarks.map(mark => mark.number), [1, 2, 3]);
+  assert.deepEqual(model.sketches.flatMap(view => view.marks.map(mark => mark.number)), [1, 2, 3]);
+  const bytes = await generateInspectionPdf({ env, id: "car", stage: "depart", revision: 4, snapshot, media: [], vehicleFamily: "car" });
+  const pdf = await PDFDocument.load(bytes);
+  assert.equal(pdf.getPageCount(), 3, "trois descriptions utilisent l'espace sous la grille sans ajouter une page vide");
+  assert.ok(bytes.length > 0);
+  const renderer = fs.readFileSync(require.resolve("../src/lib/inspection-pdf-server.js"), "utf8");
+  assert.match(renderer, /Détails des dommages/);
+  assert.match(renderer, /mark\.number/);
+  assert.doesNotMatch(renderer, /revisionReason/, "le motif interne n'entre jamais dans le renderer client");
+});
+
+test("modèle PDF retour et utilitaire conserve statut, numéros et descriptions", () => {
+  const model = inspectionModel({ id: "van", stage: "retour", revision: 5, vehicleFamily: "utility", snapshot: { sketchVehicleType: "utility", utilityMarks: [
+    { id: "u1", surface: "utility-exterior", view: "left", x: 10, y: 20, type: "rayure", description: "Déjà relevée", presentAtDeparture: true },
+    { id: "u2", surface: "utility-interior", view: "floor", x: 30, y: 40, type: "bosse", description: "Nouveau choc", isNew: true }
+  ] } });
+  assert.deepEqual(model.damageMarks.map(mark => [mark.number, mark.statusLabel, mark.zoneLabel, mark.description]), [
+    [1, "Présent au départ", "Profil conducteur", "Déjà relevée"],
+    [2, "Nouveau au retour", "Plancher", "Nouveau choc"]
+  ]);
+  assert.deepEqual(model.sketches.flatMap(view => view.marks.map(mark => mark.number)), [1, 2]);
 });

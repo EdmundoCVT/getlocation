@@ -246,10 +246,10 @@ async function handlePost(request, env, headers) {
         if (!["depart", "retour"].includes(payload.mode)) return new Response(JSON.stringify({ error: "Type d’état des lieux invalide" }), { status: 400, headers });
         const agencySession = await resolveAgencySession(request, env);
         try {
-          const created = createInspectionRevision(reservation, payload.mode, existing[payload.mode], existing.media && existing.media[payload.mode], agencySession && agencySession.operator, payload.baseRevision);
+          const created = createInspectionRevision(reservation, payload.mode, existing[payload.mode], existing.media && existing.media[payload.mode], agencySession && agencySession.operator, payload.baseRevision, payload.revisionReason);
           const updated = { ...reservation, inspectionRevisions: { ...(reservation.inspectionRevisions || {}), [payload.mode]: created.revisions }, updatedAt: new Date().toISOString() };
           await env.RESERVATIONS_KV.put(reservation.id, JSON.stringify(updated));
-          await recordAuditEvent(env, { actor: agencySession && agencySession.operator, eventType: "inspection_revision_created", entityType: "contract", entityId: reservation.id, metadata: { stage: payload.mode, basedOnRevision: created.revision.basedOnRevision, revision: created.revision.revision } });
+          await recordAuditEvent(env, { actor: agencySession && agencySession.operator, eventType: "inspection_revision_created", entityType: "contract", entityId: reservation.id, metadata: { stage: payload.mode, basedOnRevision: created.revision.basedOnRevision, revision: created.revision.revision, revisionReason: created.revision.revisionReason } });
           return new Response(JSON.stringify({ ...buildDossierView(updated), revision: created.revision }), { status: 201, headers });
         } catch (error) { return new Response(JSON.stringify({ error: error.message || "Révision impossible" }), { status: 409, headers }); }
       }
