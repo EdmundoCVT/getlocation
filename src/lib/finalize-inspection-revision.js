@@ -1,5 +1,6 @@
 const { getInspectionRevision, setRevisionPdf, finalizeInspectionRevision, revisionPdfKey } = require("./inspection-revisions.js");
 const { generateInspectionPdf } = require("./inspection-pdf-server.js");
+const { getVehiculeParId } = require("../../js/data.js");
 
 // Ordre volontaire : R2 puis état finalisé. Si la génération ou R2 échoue,
 // le brouillon est conservé et aucune finalisation trompeuse n'est écrite.
@@ -9,7 +10,13 @@ async function finalizeRevisionWithPdf({ env, record, stage, revision, snapshot,
   if (!current) { const error = new Error("Révision introuvable"); error.status = 404; throw error; }
   if (current.status === "finalized") return { inspectionRevisions: record.inspectionRevisions, revision: current, idempotent: true };
   const key = revisionPdfKey(record.id, stage, revision, standalone);
-  const bytes = await generateInspectionPdf({ env, id: record.id, stage, revision, snapshot, media: current.media || [] });
+  // Seules les métadonnées déjà enregistrées servent à la présentation du PDF.
+  // La révision, ses médias et la clé d'archive conservent leur flux existant.
+  const catalogVehicle = record.vehiculeId ? getVehiculeParId(record.vehiculeId) : null;
+  const vehicle = { ...(catalogVehicle || {}), ...(record.vehicule && typeof record.vehicule === "object" ? record.vehicule : {}), immatriculation: record.immatriculation || record.immat || record.vehicule && record.vehicule.immatriculation || catalogVehicle && catalogVehicle.immatriculation || null };
+  const client = record.client || record.conducteur || { prenom: record.prenom, nom: record.nom, telephone: record.tel, email: record.email };
+  const rental = { reference: record.linkedContractNumero || record.contractNumero || record.id, client };
+  const bytes = await generateInspectionPdf({ env, id: record.id, stage, revision, snapshot, media: current.media || [], vehicle, rental });
   await env.DOCUMENTS_BUCKET.put(key, bytes, { httpMetadata: { contentType: "application/pdf" }, customMetadata: { inspectionId: record.id, stage, revision: String(revision) } });
   // Répare les brouillons produits avant la séparation des flux : ils pouvaient
   // contenir un PDF navigateur provisoire. Un brouillon n'est jamais une archive
