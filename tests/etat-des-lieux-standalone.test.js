@@ -6,10 +6,10 @@ const { JSDOM } = require("jsdom");
 const root = path.join(__dirname, "..");
 const page = fs.readFileSync(path.join(root, "etat-des-lieux.html"), "utf8");
 
-async function view({ mode = "retour", legacy = false, family = "car" } = {}) {
+async function view({ mode = "retour", legacy = false, family = "car", revisions = [], revision = null } = {}) {
   const requests = [];
   const dom = new JSDOM(page, {
-    url: "https://getlocation.fr/etat-des-lieux.html?mode=" + mode + (legacy ? "&source=legacy&legacyId=res_fixture" : "#agencyToken=" + "a".repeat(43)),
+    url: "https://getlocation.fr/etat-des-lieux.html?mode=" + mode + (revision ? "&revision=" + revision : "") + (legacy ? "&source=legacy&legacyId=res_fixture" : "#agencyToken=" + "a".repeat(43)),
     runScripts: "outside-only",
     beforeParse(window) {
       window.PDFLib = require("pdf-lib");
@@ -19,7 +19,8 @@ async function view({ mode = "retour", legacy = false, family = "car" } = {}) {
         requests.push({ url, options });
         return { ok: true, json: async () => legacy ? { inspection: { id: "res_fixture", client: { nom: "Historique", prenom: "Client" }, vehicule: "Corsa", depart: { km: 4083, cles: 2, marques: [] } } } : {
           reservation: { id: "res_fixture", contractNumero: "GL-TEST", vehicule: { nom: "Véhicule test", immatriculation: "AA-000-AA", vehicleFamily: family }, conducteur: { prenom: "Jean", nom: "Dupont" }, dateDebut: "2026-10-01", heureDebut: "10:00", dateFin: "2026-10-02", heureFin: "10:00" },
-          dossier: { depart: { km: 100, carburant: 100, dommages: "Rayure existante", marks: [{ id: "m1", view: "left", type: "rayure", x: 20, y: 30 }], propreteExterieure: 1, propreteInterieure: 5 }, retour: { km: 120, carburant: 80, agent: "Agent", marks: [], signatures: {}, propreteExterieure: 2, propreteInterieure: 4, propreteChargement: 3 }, media: { depart: [], retour: [] } }
+          dossier: { depart: { km: 100, carburant: 100, dommages: "Rayure existante", marks: [{ id: "m1", view: "left", type: "rayure", x: 20, y: 30 }], propreteExterieure: 1, propreteInterieure: 5 }, retour: { km: 120, carburant: 80, agent: "Agent", marks: [], signatures: {}, propreteExterieure: 2, propreteInterieure: 4, propreteChargement: 3 }, media: { depart: [], retour: [] } },
+          inspectionRevisions: revisions.length ? { [mode]: revisions } : undefined
         } };
       };
     }
@@ -28,6 +29,19 @@ async function view({ mode = "retour", legacy = false, family = "car" } = {}) {
   await new Promise(resolve => setTimeout(resolve, 0));
   return { dom, doc: dom.window.document, requests };
 }
+
+test("une V2 draft moderne reste éditable malgré le finalizedAt legacy de V1", async () => {
+  const v1 = { revision: 1, status: "finalized", finalizedAt: "2026-10-13T10:00:00Z", snapshot: { dateHeure: "2026-10-13T10:00", km: 100, carburant: 100, signatures: { client: { name: "Client", signedAt: "2026-10-13T10:00:00Z" }, agence: { name: "Agence", signedAt: "2026-10-13T10:01:00Z" } } }, media: [] };
+  const v2 = { revision: 2, status: "draft", finalizedAt: null, basedOnRevision: 1, snapshot: { dateHeure: "2026-10-12T18:30", km: 110, carburant: 80, signatures: { client: { name: "Client", signedAt: "2026-10-13T10:00:00Z" }, agence: { name: "Agence", signedAt: "2026-10-13T10:01:00Z" } } }, media: [] };
+  const { dom, doc } = await view({ mode: "depart", revisions: [v1, v2], revision: 2 });
+  assert.match(doc.querySelector("h1").textContent, /V2 — Brouillon de correction/);
+  assert.equal(doc.getElementById("dateHeure").disabled, false);
+  assert.equal(doc.getElementById("km").disabled, false);
+  assert.equal(doc.getElementById("finalize").disabled, false);
+  assert.equal(doc.getElementById("signature-client-name").disabled, false);
+  assert.doesNotMatch(doc.getElementById("saveStatus").textContent, /consultation seule/);
+  dom.window.close();
+});
 
 test("V3 : retour affiche cinq vues modifiables et cinq vues de référence, coordonnées conservées", async () => {
   const { dom, doc } = await view();

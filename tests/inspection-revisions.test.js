@@ -13,7 +13,9 @@ test("EDL historique finalisé est vu comme V1 et V2 conserve V1 immuable", () =
   assert.equal(revisions[0].revision, 1); assert.equal(revisions[0].status, "finalized");
   const created = createInspectionRevision({ inspectionRevisions: { depart: revisions } }, "depart", stage, [], "Edmundo", 1);
   assert.equal(created.revision.revision, 2); assert.equal(created.revision.status, "draft");
-  assert.equal(created.revision.snapshot.signatures.client, null, "une correction exige une nouvelle signature");
+  assert.deepEqual(created.revision.snapshot.signatures, revisions[0].snapshot.signatures, "V2 reprend les signatures de V1");
+  created.revision.snapshot.signatures.client.signedAt = "2026-10-12T11:00:00Z";
+  assert.equal(revisions[0].snapshot.signatures.client.signedAt, "2026-10-12T10:00:00Z", "la signature V1 reste indépendante");
   created.revision.snapshot.km = 13000;
   assert.equal(revisions[0].snapshot.km, 12000);
   assert.equal(created.revision.media[0].key, "legacy/photo.jpg", "V2 peut référencer V1 sans copie R2");
@@ -59,7 +61,9 @@ test("une seule correction brouillon est autorisée et une ancienne version fina
   assert.equal(created.revision.basedOnRevision, 1);
   assert.equal(created.revision.snapshot.km, 100);
   assert.deepEqual(created.revision.media, [{ key: "v1.jpg" }]);
-  assert.deepEqual(created.revision.snapshot.signatures, { client: null, agence: null });
+  assert.deepEqual(created.revision.snapshot.signatures, v1.snapshot.signatures);
+  created.revision.snapshot.signatures.client.signedAt = "edited-in-v3";
+  assert.equal(v1.snapshot.signatures.client.signedAt, "a", "la copie de signature V3 ne modifie pas V1");
   assert.throws(() => createInspectionRevision({ inspectionRevisions: created.inspectionRevisions }, "depart", null, null, "agent", 2), /Une correction est déjà en cours : V3/);
   assert.equal(created.inspectionRevisions.depart[0].snapshot.km, 100);
   assert.equal(created.inspectionRevisions.depart[1].snapshot.km, 200);

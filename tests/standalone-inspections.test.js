@@ -61,3 +61,22 @@ test("EDL indépendant : une correction reprend le brouillon existant et peut re
   assert.equal(created.status, 201); const revision = (await created.json()).revision;
   assert.equal(revision.revision, 3); assert.equal(revision.basedOnRevision, 1); assert.equal(revision.snapshot.km, 100); assert.equal(revision.pdfKey, null);
 });
+
+test("EDL indépendant finalisé : V2 reste un brouillon modifiable et copie les signatures", async () => {
+  const env = makeAgencyEnv({ DOCUMENTS_BUCKET: bucket(), RESERVATIONS_KV: createFakeKv() }), session = await loginAgency(env);
+  const id = "edl_bbbbbbbbbbbbbbbb";
+  const v1 = { revision: 1, status: "finalized", finalizedAt: "2026-10-13T10:00:00Z", snapshot: { dateHeure: "2026-10-13T10:00", km: 100, carburant: 100, propreteExterieure: 3, propreteInterieure: 3, propreteChargement: null, dommages: "", marks: [], utilityMarks: [], cles: 2, clesAccessoires: "", agent: "Agence", clientSigne: "Client", agenceSigne: "Agence", signatures: { client: { name: "Client", signedAt: "2026-10-13T10:00:00Z", displaySignedAt: "2026-10-13T09:30" }, agence: { name: "Agence", signedAt: "2026-10-13T10:01:00Z" } } }, media: [{ key: "inspection-standalone/edl_bbbbbbbbbbbbbbbb/depart/v1/photo.jpg" }], pdfKey: "v1.pdf" };
+  await env.RESERVATIONS_KV.put("standalone-inspection:" + id, JSON.stringify({ id, mode: "depart", status: "finalized", dossier: { depart: { ...v1.snapshot, finalizedAt: v1.finalizedAt }, media: { depart: v1.media } }, inspectionRevisions: { depart: [v1] }, createdAt: "2026-10-01", updatedAt: "2026-10-13" }));
+  const response = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create-revision", id, stage: "depart", baseRevision: 1 } }), env);
+  assert.equal(response.status, 201);
+  const v2 = (await response.json()).revision;
+  assert.equal(v2.status, "draft"); assert.equal(v2.finalizedAt, null); assert.equal(v2.pdfKey, null);
+  assert.deepEqual(v2.snapshot.signatures, v1.snapshot.signatures);
+  v2.snapshot.dateHeure = "2026-10-12T18:30"; v2.snapshot.signatures.client.displaySignedAt = "2026-10-12T18:30";
+  const saved = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "update-stage", id, revision: 2, stage: v2.snapshot, finalize: false } }), env);
+  assert.equal(saved.status, 200);
+  const stored = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + id));
+  assert.equal(stored.inspectionRevisions.depart[1].snapshot.dateHeure, "2026-10-12T18:30");
+  assert.equal(stored.inspectionRevisions.depart[0].snapshot.dateHeure, "2026-10-13T10:00");
+  assert.equal(stored.inspectionRevisions.depart[0].snapshot.signatures.client.displaySignedAt, "2026-10-13T09:30");
+});

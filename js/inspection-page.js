@@ -272,7 +272,10 @@
     });
     mountSketch();
     renderDamageTable();
-    finalized = finalized || Boolean(stage.finalizedAt);
+    // Une révision moderne porte son statut propre : ne jamais l'écraser avec
+    // un finalizedAt legacy du dossier ou un statut global standalone.
+    const currentRevision = revisionList.find(item => item.revision === inspectionRevision);
+    finalized = currentRevision ? currentRevision.status === "finalized" : Boolean(stage.finalizedAt);
     for (const role of ["client", "agence"]) pads[role] = window.createInspectionSignature($("signatures"), { role, title: role === "client" ? "Signature client" : "Signature agence", value: stage.signatures && stage.signatures[role], locked: finalized, onChange: changed, onDisplayChange: value => correctSignatureDisplayTime(role, value), onError: error => message(error.message || "Impossible d’enregistrer la date affichée.") });
     if (finalized) $("form").querySelectorAll("#information input,#vehicle input,#vehicle select,#dommages,#sketch input,.cleanliness-buttons button").forEach(control => { control.disabled = true; });
     $("form").querySelectorAll("#information input,#vehicle input,#vehicle select,#dommages").forEach(input => input.addEventListener("input", changed));
@@ -310,7 +313,6 @@
       const revisions = standalone.inspectionRevisions && standalone.inspectionRevisions[mode] || []; revisionList = revisions;
       const current = revisions.find(item => item.revision === requestedRevision) || revisions[revisions.length - 1];
       if (current) { inspectionRevision = current.revision; dossier[mode] = current.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: current.media || [] }; }
-      if (standalone.status === "finalized" && dossier[mode] && !dossier[mode].finalizedAt) dossier[mode].finalizedAt = standalone.updatedAt || new Date().toISOString();
       reservation = { id: standalone.id, contractVersion: { version: 1 }, contractNumero: standalone.linkedContractNumero || null, vehicule: standalone.vehicule || {}, conducteur: standalone.client || {}, langue: "fr" };
       window.__standaloneInspection = standalone;
     } else {
