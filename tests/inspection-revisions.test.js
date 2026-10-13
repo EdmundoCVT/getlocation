@@ -116,6 +116,19 @@ test("échec R2 conserve la révision au brouillon", async () => {
   assert.equal(v2.status, "draft"); assert.equal(v2.pdfKey, null);
 });
 
+test("V5 utilise le nouveau rendu sans réécrire les PDF finalisés V1 à V4", async () => {
+  const old = [1, 2, 3, 4].map(revision => ({ revision, status: "finalized", snapshot: { km: revision }, media: [], pdfKey: `archive/v${revision}.pdf` }));
+  const oldCopy = JSON.parse(JSON.stringify(old));
+  const draft = { revision: 5, status: "draft", snapshot: { km: 500, signatures: { client: { signedAt: "2026-10-13T10:00" }, agence: { signedAt: "2026-10-13T10:01" } } }, media: [], pdfKey: null };
+  const written = [];
+  const env = { DOCUMENTS_BUCKET: { async put(key, bytes) { written.push({ key, bytes }); } } };
+  const out = await finalizeRevisionWithPdf({ env, record: { id: "edl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", kind: "standalone-inspection", client: { prenom: "Jeanne", nom: "Martin" }, inspectionRevisions: { depart: [...old, draft] } }, stage: "depart", revision: 5, snapshot: draft.snapshot, standalone: true });
+  assert.equal(out.revision.status, "finalized");
+  assert.deepEqual(out.inspectionRevisions.depart.slice(0, 4), oldCopy);
+  assert.deepEqual(written.map(item => item.key), ["inspection-pdf-standalone/edl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/depart/v5.pdf"]);
+  assert.ok((await PDFDocument.load(written[0].bytes)).getPageCount() >= 1);
+});
+
 test("modèle documentaire normalise les croquis, médias et dates de signature", () => {
   const model = inspectionModel({ id: "edl_1", stage: "depart", revision: 2, vehicleFamily: "utility", snapshot: { utilityMarks: [{ surface: "utility-exterior", view: "left", x: 25, y: 75 }], signatures: { client: { name: "A", signedAt: "technique", displaySignedAt: "affichée" } } }, media: [{ key: "legacy/photo.jpg", slot: "avant", capturedAt: "2026-09-04T23:34", createdAt: "2026-10-12T23:41:45" }] });
   assert.equal(model.sketches.length, 10); assert.equal(model.sketches[0].marks.length, 1); assert.equal(model.photos[0].key, "legacy/photo.jpg"); assert.equal(model.signatures[0].displayedAt, "affichée");
@@ -129,7 +142,8 @@ test("grilles Worker : voiture une page croquis, utilitaire deux pages", async (
   const signatures = { client: { signedAt: "a" }, agence: { signedAt: "b" } };
   const car = await PDFDocument.load(await generateInspectionPdf({ env, id: "car", stage: "depart", revision: 2, snapshot: { marks: [], signatures }, media: [], vehicleFamily: "car" }));
   const utility = await PDFDocument.load(await generateInspectionPdf({ env, id: "van", stage: "depart", revision: 2, snapshot: { utilityMarks: [], signatures }, media: [], vehicleFamily: "utility" }));
-  assert.equal(car.getPageCount(), 3); assert.equal(utility.getPageCount(), 4);
+  assert.equal(car.getPageCount(), 2, "signatures groupées sur la page d'informations quand elle est libre");
+  assert.equal(utility.getPageCount(), 3, "les deux pages de croquis utilitaire sont conservées");
 });
 
 test("PDF officiel n'expose pas le numéro interne de révision et place les signatures après les photos", async () => {
@@ -156,7 +170,7 @@ test("PDF Worker : numéros globaux et descriptions des dommages voiture corresp
   assert.deepEqual(model.sketches.flatMap(view => view.marks.map(mark => mark.number)), [1, 2, 3]);
   const bytes = await generateInspectionPdf({ env, id: "car", stage: "depart", revision: 4, snapshot, media: [], vehicleFamily: "car" });
   const pdf = await PDFDocument.load(bytes);
-  assert.equal(pdf.getPageCount(), 3, "trois descriptions utilisent l'espace sous la grille sans ajouter une page vide");
+  assert.equal(pdf.getPageCount(), 2, "les descriptions figurent en première page et les croquis restent sur une seule page");
   assert.ok(bytes.length > 0);
   const renderer = fs.readFileSync(require.resolve("../src/lib/inspection-pdf-server.js"), "utf8");
   assert.match(renderer, /Détails des dommages/);
