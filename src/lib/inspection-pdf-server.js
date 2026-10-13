@@ -215,6 +215,16 @@ async function generateInspectionPdf({ env, id, stage, revision, snapshot, media
       const scale = Math.min(cw / image.width, ch / image.height);
       const box = { x: cx + (cw - image.width * scale) / 2, y: cy + (ch - image.height * scale) / 2, width: image.width * scale, height: image.height * scale };
       sketch.drawImage(image, box);
+      // Deux assets intérieurs historiques embarquent encore en haut un
+      // ancien titre numéroté et tronqué. Le libellé est désormais rendu par
+      // le PDF au-dessus de chaque vue : masquer uniquement cette marge évite
+      // le doublon sans toucher au croquis ni aux coordonnées des repères.
+      if (view.id === "right-wall" || view.id === "rear-doors") {
+        const titleMask = view.id === "right-wall"
+          ? { x: 0.28, width: 0.44 }
+          : { x: 0.18, width: 0.64 };
+        sketch.drawRectangle({ x: box.x + box.width * titleMask.x, y: box.y + box.height * 0.88, width: box.width * titleMask.width, height: box.height * 0.12, color: rgb(1, 1, 1) });
+      }
       for (const mark of view.marks) {
         const x = box.x + Number(mark.x || 0) / 100 * box.width;
         const y = box.y + (1 - Number(mark.y || 0) / 100) * box.height;
