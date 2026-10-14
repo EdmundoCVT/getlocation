@@ -104,6 +104,10 @@ const VUES_UTILITAIRE = {
   "utility-exterior": new Set(["left", "front", "top", "rear", "right"]),
   "utility-interior": new Set(["floor", "cabin-partition", "left-wall", "right-wall", "rear-doors"])
 };
+// Le canevas de signature mobile produit couramment un data URL supérieur à
+// 70 Ko. La valeur reste bornée pour protéger KV et le Worker, mais accepte
+// une signature réelle issue de l'éditeur iPhone.
+const MAX_SIGNATURE_DATA_URL_LENGTH = 500000;
 
 function scoreProprete(value, label) {
   if (value === undefined || value === null || value === "") return null;
@@ -139,7 +143,7 @@ function signature(value, label) {
   if (value === undefined || value === null || value === "") return null;
   if (!value || typeof value !== "object") throw new Error(`Signature invalide : ${label}`);
   const name = text(value.name, `nom de signature ${label}`, { required: false, max: 100 });
-  const imageDataUrl = text(value.imageDataUrl, `image de signature ${label}`, { required: false, max: 70000 });
+  const imageDataUrl = text(value.imageDataUrl, `image de signature ${label}`, { required: false, max: MAX_SIGNATURE_DATA_URL_LENGTH });
   if (imageDataUrl && !/^data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(imageDataUrl)) throw new Error(`Image de signature invalide : ${label}`);
   if (!name && !imageDataUrl) return null;
   return { name, imageDataUrl, signedAt: new Date().toISOString() };

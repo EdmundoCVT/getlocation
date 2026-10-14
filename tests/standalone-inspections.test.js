@@ -1,5 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const { handleStandaloneInspections } = require("../src/api/standalone-inspections.js");
 const { handleStandaloneInspectionMedia } = require("../src/api/standalone-inspection-media.js");
 const { makeAgencyEnv, loginAgency, agencyRequest } = require("./helpers/agency-session.js");
@@ -97,6 +99,19 @@ test("EDL autonome : un binding KV absent retourne une erreur JSON diagnostiquab
   assert.equal(response.status, 503);
   assert.match(response.headers.get("content-type"), /application\/json/);
   assert.match((await response.json()).error, /stockage/i);
+});
+
+test("EDL retour V1 iPhone : une signature JPEG réelle de plus de 70 Ko se sauvegarde en JSON", async () => {
+  const env = makeAgencyEnv({ DOCUMENTS_BUCKET: bucket(), RESERVATIONS_KV: createFakeKv() }), session = await loginAgency(env);
+  const created = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create", mode: "retour", client: { prenom: "Mobile", nom: "Safari" }, vehicule: { nom: "Toyota Proace" } } }), env);
+  const inspection = (await created.json()).inspection;
+  const imageDataUrl = `data:image/jpeg;base64,${fs.readFileSync(path.join(__dirname, "..", "images", "opel-corsa.jpg")).toString("base64")}`;
+  assert.ok(imageDataUrl.length > 70000);
+  const stage = report(32000); stage.signatures.client = { name: "Client iPhone", imageDataUrl };
+  const saved = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "update-stage", id: inspection.id, revision: 1, stage, finalize: false } }), env);
+  assert.equal(saved.status, 200);
+  assert.match(saved.headers.get("content-type"), /application\/json/);
+  assert.equal((await saved.json()).revision.snapshot.signatures.client.imageDataUrl, imageDataUrl);
 });
 test("EDL indépendant : création, association et photos R2 privées", async () => {
   const env=makeAgencyEnv({DOCUMENTS_BUCKET:bucket(),RESERVATIONS_KV:createFakeKv()}), session=await loginAgency(env);

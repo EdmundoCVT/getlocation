@@ -7,6 +7,8 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const {
   validateContractFields,
@@ -153,6 +155,15 @@ test("validateConditionReport : conserve les nouveaux relevés, croquis et signa
   assert.equal(data.signatures.client.name, "Client");
   assert.equal(data.signatures.agence.imageDataUrl, signature);
   assert.ok(data.signatures.client.signedAt);
+});
+
+test("validateConditionReport : accepte une signature mobile réelle supérieure à l'ancienne limite de 70 Ko", () => {
+  const jpeg = fs.readFileSync(path.join(__dirname, "..", "images", "opel-corsa.jpg"));
+  const signature = `data:image/jpeg;base64,${jpeg.toString("base64")}`;
+  assert.ok(signature.length > 70000);
+  const data = validateConditionReport(etatValide({ signatures: { client: { name: "Client iPhone", imageDataUrl: signature } } }));
+  assert.equal(data.signatures.client.imageDataUrl, signature);
+  assert.throws(() => validateConditionReport(etatValide({ signatures: { client: { name: "Trop grande", imageDataUrl: "data:image/png;base64," + "A".repeat(500000) } } })), /Champ invalide : image de signature client/);
 });
 
 test("validateConditionReport : sépare les surfaces et vues d'un utilitaire des vues voiture", () => {

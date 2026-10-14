@@ -33,7 +33,9 @@
     const box = document.createElement("div"), title = document.createElement("h3"), label = document.createElement("label"), name = document.createElement("input"), canvas = document.createElement("canvas"), expand = document.createElement("button"), timestamp = document.createElement("p"), displayLabel = document.createElement("label"), display = document.createElement("input"), clear = document.createElement("button");
     box.className = "signature-box"; title.textContent = options.title; label.className = "field"; label.textContent = "Nom du signataire";
     name.id = "signature-" + options.role + "-name"; name.maxLength = 100; name.autocomplete = "name"; label.append(name);
-    canvas.className = "signature-pad"; canvas.width = 960; canvas.height = 420; canvas.dataset.role = options.role; canvas.setAttribute("aria-label", options.title + " — zone de signature");
+    // 640 × 280 suffit pour un paraphe net dans le PDF et réduit fortement le
+    // JSON envoyé par Safari par rapport à l'ancien canevas 960 × 420.
+    canvas.className = "signature-pad"; canvas.width = 640; canvas.height = 280; canvas.dataset.role = options.role; canvas.setAttribute("aria-label", options.title + " — zone de signature");
     name.value = options.value && options.value.name || "";
     expand.type = "button"; expand.className = "secondary signature-expand"; expand.textContent = "Signer";
     timestamp.className = "hint signature-time"; displayLabel.className = "field signature-display-time"; displayLabel.textContent = "Date et heure affichées"; display.type = "datetime-local"; display.step = "60"; displayLabel.append(display); clear.type = "button"; clear.className = "danger"; clear.textContent = "Effacer la signature";
