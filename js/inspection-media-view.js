@@ -19,16 +19,24 @@
     try { path = new URL(responseUrl || "/api/inconnue", global.location && global.location.href || "https://getlocation.fr").pathname; } catch (_) { /* URL de diagnostic facultative. */ }
     const mediaRequest = /inspection-media/.test(path);
     const prefix = mediaRequest ? "Upload photo impossible" : "Requête impossible";
+    const requestId = response && response.headers && typeof response.headers.get === "function" ? response.headers.get("x-edl-request-id") || "" : "";
+    const failure = (message, body) => {
+      const error = new Error(message);
+      error.status = response && response.status || 0;
+      error.requestId = body && body.requestId || requestId || "";
+      error.diagnostic = body && body.diagnostic || null;
+      return error;
+    };
     if (contentType && !/\b(?:application|text)\/(?:[a-z0-9.+-]*\+)?json\b/i.test(contentType)) {
       // Consommer la réponse sans jamais exposer son contenu HTML au client.
       if (response && typeof response.text === "function") await response.text().catch(() => "");
       const isHtml = /text\/html/i.test(contentType);
-      throw new Error(prefix + " : HTTP " + (response.status || 0) + " — " + path + " a retourné " + (isHtml ? "du HTML au lieu de JSON" : "un format non JSON") + ".");
+      throw failure(prefix + " : HTTP " + (response.status || 0) + " — " + path + " a retourné " + (isHtml ? "du HTML au lieu de JSON" : "un format non JSON") + ".");
     }
     let body;
     try { body = await response.json(); }
-    catch (_) { throw new Error(prefix + " : HTTP " + (response.status || 0) + " — " + path + " n’a pas retourné une réponse JSON valide."); }
-    if (!response.ok) throw new Error(prefix + " : HTTP " + response.status + " — " + (body && body.error || "erreur serveur"));
+    catch (_) { throw failure(prefix + " : HTTP " + (response.status || 0) + " — " + path + " n’a pas retourné une réponse JSON valide."); }
+    if (!response.ok) throw failure(prefix + " : HTTP " + response.status + " — " + (body && body.error || "erreur serveur"), body);
     return body;
   }
   function decode(image) {

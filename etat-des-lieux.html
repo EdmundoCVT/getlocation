@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>État des lieux | GET LOCATION</title>
-  <link rel="stylesheet" href="css/inspection.css?v=6">
+  <link rel="stylesheet" href="css/inspection.css?v=7">
 </head>
 <body>
   <main class="inspection" id="inspectionApp">
@@ -83,6 +83,10 @@
         </div>
         <p class="hint">Le PDF officiel est généré et archivé uniquement lors de la finalisation. Toute correction crée une nouvelle révision.</p>
         <p id="message" role="status" aria-live="polite"></p>
+        <details id="technicalDiagnostic" class="technical-diagnostic" hidden>
+          <summary>Diagnostic technique</summary>
+          <dl id="technicalDiagnosticValues"></dl>
+        </details>
       </section>
     </form>
   </main>
@@ -110,11 +114,11 @@
   </dialog>
   <script src="js/inspection-sketch.js?v=6"></script>
   <script src="js/legacy-inspection-sketch.js?v=2"></script>
-  <script src="js/inspection-media-view.js?v=5"></script>
+  <script src="js/inspection-media-view.js?v=6"></script>
   <script src="js/inspection-signature.js?v=6"></script>
   <script src="js/vendor/pdf-lib.min.js"></script>
   <script src="src/lib/inspection-document-model.js?v=1"></script>
   <script src="js/inspection-document.js?v=6"></script>
-  <script src="js/inspection-page.js?v=9"></script>
+  <script src="js/inspection-page.js?v=10"></script>
 </body>
 </html>

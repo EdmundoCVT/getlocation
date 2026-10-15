@@ -15,6 +15,44 @@
   const json = M.parseApiResponse;
   const cache = M.createCache(item => api(legacy ? "/api/legacy-inspection-media?id=" + encodeURIComponent(legacyId) + "&key=" + encodeURIComponent(item.key) : mediaReadUrl(item.key)));
   const message = value => { $("message").textContent = value; };
+  function newRequestId() {
+    const random = globalThis.crypto && typeof globalThis.crypto.randomUUID === "function" ? globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 8) : Math.random().toString(16).slice(2, 10).padEnd(8, "0");
+    return "edlreq_" + random;
+  }
+  function byteSize(value) {
+    const bytes = Number(value);
+    if (!Number.isFinite(bytes)) return "Non disponible";
+    return bytes >= 1024 * 1024 ? (bytes / (1024 * 1024)).toFixed(2) + " MB" : bytes >= 1024 ? Math.round(bytes / 1024) + " KB" : bytes + " octets";
+  }
+  function hideTechnicalDiagnostic() {
+    $("technicalDiagnostic").hidden = true;
+    $("technicalDiagnostic").open = false;
+    $("technicalDiagnosticValues").replaceChildren();
+  }
+  function showTechnicalDiagnostic(id, statusCode, diagnostic) {
+    const details = diagnostic || {};
+    const rows = [
+      ["Request", id || "Non disponible"],
+      ["HTTP", statusCode || "Non disponible"],
+      ["Étape", details.stage || "Non déterminée"],
+      ["Record", byteSize(details.recordBytes)],
+      ["Révisions", Number.isFinite(details.revisionCount) ? details.revisionCount : "Non disponible"],
+      ["Signatures", byteSize(details.signatureBytes)],
+      ["Copies signatures", Number.isFinite(details.signatureCopies) ? details.signatureCopies : "Non disponible"],
+      ["Médias", Number.isFinite(details.mediaCount) ? details.mediaCount : "Non disponible"]
+    ];
+    const root = $("technicalDiagnosticValues"); root.replaceChildren();
+    rows.forEach(([label, value]) => { const dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = label; dd.textContent = String(value); root.append(dt, dd); });
+    $("technicalDiagnostic").hidden = false;
+    $("technicalDiagnostic").open = true;
+  }
+  async function recoverTechnicalDiagnostic(id) {
+    if (!standaloneId || !id) return null;
+    try {
+      const query = new URLSearchParams({ diagnostic: id, id: standaloneId });
+      return (await json(await api("/api/standalone-inspections?" + query))).diagnostic || null;
+    } catch (_) { return null; }
+  }
   function status() {
     $("saveStatus").textContent = finalized ? "État des lieux finalisé — consultation seule. Créez une nouvelle révision pour le corriger." : pendingCount ? "Enregistrement des photos…" : saving ? "Enregistrement…" : saveFailed ? "Échec de la sauvegarde — réessayez" : dirty ? "Modifications non enregistrées" : "Modifications enregistrées" + (lastSavedAt ? " · Dernière sauvegarde : " + lastSavedAt : "");
     $("saveStatus").classList.toggle("unsaved", dirty);
@@ -202,12 +240,14 @@
   async function save(finalize) {
     if (saving || !$("form").reportValidity()) return false;
     if (!standaloneId && mode === "retour" && (!dossier.depart || Number($("km").value) < dossier.depart.km)) { message(!dossier.depart ? "Enregistrez d’abord l’état des lieux de départ." : "Le kilométrage retour ne peut pas être inférieur au départ."); return false; }
-    saving = true; status();
+    saving = true; hideTechnicalDiagnostic(); status();
+    let saveRequestId = "";
     try {
       await queue; await Promise.all(Object.values(pads).map(pad => pad.ready()));
       const version = revision, body = readStage();
+      saveRequestId = standaloneId ? newRequestId() : "";
       const response = standaloneId
-        ? await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update-stage", id: standaloneId, revision: inspectionRevision, stage: body, finalize: Boolean(finalize) }) }))
+        ? await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json", "X-EDL-Request-ID": saveRequestId }, body: JSON.stringify({ action: "update-stage", id: standaloneId, revision: inspectionRevision, stage: body, finalize: Boolean(finalize) }) }))
         : await json(await api("/api/contract-dossier-agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, action: "update-" + mode, revision: inspectionRevision, finalize: Boolean(finalize) }) }));
       dossier = standaloneId ? response.inspection.dossier : response.dossier;
       if (response.revision) { inspectionRevision = response.revision.revision; revisionList = revisionList.map(item => item.revision === inspectionRevision ? { ...item, ...response.revision } : item); dossier[mode] = response.revision.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: response.revision.media || [] }; }
@@ -216,7 +256,15 @@
       $("reviewStatus").textContent = finalize && !dirty ? "État des lieux finalisé et enregistré." : "État des lieux enregistré.";
       if (finalize && !dirty && !document.getElementById("backToInspections")) { var back=document.createElement("a"); back.id="backToInspections"; back.className="primary"; back.href="/back-office.html#edl"; back.textContent="Retour aux états des lieux"; $("reviewStatus").after(back); }
       message(dirty ? "Enregistrement effectué. Vos dernières modifications restent à enregistrer." : "État des lieux enregistré."); return true;
-    } catch (error) { saveFailed = true; message("Échec de la sauvegarde. Vos modifications sont encore présentes sur cet écran. " + error.message); return false; }
+    } catch (error) {
+      saveFailed = true;
+      if (standaloneId && Number(error.status) >= 500) {
+        const id = error.requestId || saveRequestId;
+        const diagnostic = error.diagnostic || await recoverTechnicalDiagnostic(id);
+        showTechnicalDiagnostic(id, error.status, diagnostic);
+      }
+      message("Échec de la sauvegarde. Vos modifications sont encore présentes sur cet écran. " + error.message); return false;
+    }
     finally { saving = false; status(); if (dirty && !finalized && !saveFailed) scheduleAutosave(); }
   }
   $("form").onsubmit = event => { event.preventDefault(); save(false); };

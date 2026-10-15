@@ -24,3 +24,17 @@ test("réponse HTML d'une API photo devient une erreur explicite sans exposer le
   });
   dom.window.close();
 });
+
+test("une erreur JSON EDL expose seulement son identifiant et son diagnostic safe", async () => {
+  const { dom, media } = inspectionMedia();
+  const diagnostic = { stage: "before-kv-write", recordBytes: 824531, revisionCount: 4, signatureBytes: 118000, mediaCount: 8 };
+  const response = new Response(JSON.stringify({ error: "Erreur serveur", requestId: "edlreq_ab12cd34", diagnostic }), { status: 503, headers: { "Content-Type": "application/json", "X-EDL-Request-ID": "edlreq_ab12cd34" } });
+  Object.defineProperty(response, "url", { value: "https://getlocation.fr/api/standalone-inspections" });
+  await assert.rejects(() => media.parseApiResponse(response), error => {
+    assert.equal(error.status, 503);
+    assert.equal(error.requestId, "edlreq_ab12cd34");
+    assert.deepEqual(error.diagnostic, diagnostic);
+    return true;
+  });
+  dom.window.close();
+});

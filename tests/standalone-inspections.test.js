@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { handleStandaloneInspections } = require("../src/api/standalone-inspections.js");
+const { handleStandaloneInspections, DIAGNOSTIC_PREFIX } = require("../src/api/standalone-inspections.js");
 const { handleStandaloneInspectionMedia } = require("../src/api/standalone-inspection-media.js");
 const { makeAgencyEnv, loginAgency, agencyRequest } = require("./helpers/agency-session.js");
 const { createFakeKv } = require("./helpers/fake-kv.js");
@@ -92,6 +92,36 @@ test("EDL retour V2 : une signature historique inchangée est conservée et tout
   assert.equal(rejected.status, 400);
   assert.match(rejected.headers.get("content-type"), /application\/json/);
   assert.match((await rejected.json()).error, /carburant/i);
+});
+
+test("update-stage renvoie un diagnostic safe et laisse un breadcrumb temporaire corrélable", async () => {
+  const kv = createFakeKv(), env = makeAgencyEnv({ DOCUMENTS_BUCKET: bucket(), RESERVATIONS_KV: kv }), session = await loginAgency(env);
+  const createResponse = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create", mode: "retour", client: { prenom: "Test", nom: "Diagnostic" }, vehicule: { nom: "Véhicule test" } } }), env);
+  const inspection = (await createResponse.json()).inspection;
+  const id = "edlreq_ab12cd34";
+  const request = agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "update-stage", id: inspection.id, revision: 1, stage: report(12345), finalize: false } });
+  request.headers.set("X-EDL-Request-ID", id);
+  const response = await handleStandaloneInspections(request, env);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("X-EDL-Request-ID"), id);
+  const body = await response.json();
+  assert.equal(body.requestId, id);
+  assert.equal(body.diagnostic.stage, "after-audit-log");
+  assert.equal(body.diagnostic.revisionCount, 1);
+  assert.equal(body.diagnostic.signatureCopies, 2);
+  assert.ok(body.diagnostic.recordBytes > body.diagnostic.snapshotBytes);
+  assert.ok(body.diagnostic.signatureBytes > 100);
+  assert.equal(body.diagnostic.mediaCount, 0);
+  assert.ok(Array.isArray(body.diagnostic.timings));
+
+  const breadcrumbRaw = await kv.get(DIAGNOSTIC_PREFIX + id);
+  const breadcrumb = JSON.parse(breadcrumbRaw);
+  assert.equal(breadcrumb.s, "b");
+  assert.equal(breadcrumb.z[0], body.diagnostic.recordBytes);
+  assert.ok(Buffer.byteLength(breadcrumbRaw) < 150, "le breadcrumb reste strictement compact");
+  const lookup = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections?diagnostic=" + id + "&id=" + inspection.id, { session }), env);
+  assert.equal(lookup.status, 200);
+  assert.equal((await lookup.json()).diagnostic.stage, "after-kv-write");
 });
 
 test("EDL autonome : un binding KV absent retourne une erreur JSON diagnostiquable", async () => {
