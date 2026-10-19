@@ -39,6 +39,13 @@ function generateReservationId() {
   return `res_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
 
+// Les enregistrements KV ne contiennent que des données JSON. Cette copie
+// explicite garantit qu'une nouvelle version ne partage jamais un tableau ou
+// un objet mutable avec sa source (signature, options, CGL, observations…).
+function deepCloneContractData(value) {
+  return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+}
+
 function contractLanguage(record) {
   // `contractLanguage` appartient à la version de contrat et prévaut sur la
   // langue de navigation historique de la réservation. Cela permet par
@@ -86,6 +93,17 @@ async function createManualContract(env, rawData, operator) {
     contractNumero: numero,
     status: "manual_contract",
     contractLanguage: contractLanguage(rawData),
+    contractVersion: {
+      contractId: numero,
+      version: 1,
+      isActive: true,
+      status: "draft",
+      createdAt: now,
+      signedAt: null,
+      finalizedAt: null,
+      supersedesVersion: null,
+      versionReason: null
+    },
     createdAt: now,
     updatedAt: now,
     createdBy: operator || null,
@@ -107,14 +125,49 @@ async function updateManualContract(env, id, rawData, operator) {
   const record = await getReservation(env, id);
   if (!record || (record.status !== "manual_contract" && !(record.status === "contract_version" && record.contractSourceType === "manual"))) return null;
   if (isSignedContract(record)) throw new Error("Version signée — archivée : créez une nouvelle version");
+  const {
+    id: ignoredId,
+    status: ignoredStatus,
+    contractNumero: ignoredNumero,
+    contractVersion: ignoredVersion,
+    contractDossier: ignoredDossier,
+    contractAgencyAccess: ignoredAgencyAccess,
+    contractClientAccess: ignoredClientAccess,
+    manualClientAccess: ignoredManualAccess,
+    drivePdfFiles: ignoredPdfFiles,
+    paymentId: ignoredPaymentId,
+    paidAt: ignoredPaidAt,
+    paymentHistory: ignoredPaymentHistory,
+    transactions: ignoredTransactions,
+    financialHistory: ignoredFinancialHistory,
+    paidAmount: ignoredPaidAmount,
+    depositOperations: ignoredDepositOperations,
+    depositHistory: ignoredDepositHistory,
+    molliePaymentId: ignoredMolliePaymentId,
+    createdAt: ignoredCreatedAt,
+    createdBy: ignoredCreatedBy,
+    updatedAt: ignoredUpdatedAt,
+    updatedBy: ignoredUpdatedBy,
+    ...contractFields
+  } = rawData;
   const updated = {
-    ...rawData,
+    ...contractFields,
     // Le formulaire contrat remplace ses champs métier, mais n'a aucune
     // autorité sur le dossier d'inspection ou ses jetons agence/client.
     inspectionSchema: record.inspectionSchema,
     contractDossier: record.contractDossier,
     contractAgencyAccess: record.contractAgencyAccess,
     manualClientAccess: record.manualClientAccess,
+    drivePdfFiles: record.drivePdfFiles,
+    paymentId: record.paymentId,
+    paidAt: record.paidAt,
+    paymentHistory: record.paymentHistory,
+    transactions: record.transactions,
+    financialHistory: record.financialHistory,
+    paidAmount: record.paidAmount,
+    depositOperations: record.depositOperations,
+    depositHistory: record.depositHistory,
+    molliePaymentId: record.molliePaymentId,
     contractVersion: record.contractVersion,
     contractSourceType: record.contractSourceType,
     contractLanguage: contractLanguage(rawData),
@@ -339,7 +392,7 @@ async function setDrivePdfFile(env, id, item) {
   if (!record || !["paid", "manual_contract", "contract_version"].includes(record.status)) return null;
   const files = Array.isArray(record.drivePdfFiles) ? record.drivePdfFiles.filter((file) => file && file.sourceKey !== item.sourceKey) : [];
   files.push(item);
-  const updated = { ...record, drivePdfFiles: files, updatedAt: new Date().toISOString() };
+  const updated = { ...record, drivePdfFiles: files, updatedAt: isSignedContract(record) ? record.updatedAt : new Date().toISOString() };
   await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
   return updated;
 }
@@ -400,34 +453,143 @@ function contractVersionInfo(record) {
     status: legacy && legacy.status || (dossier.status === "signed" ? "signed" : "draft"),
     createdAt: legacy && legacy.createdAt || record && record.createdAt || null,
     signedAt: legacy && legacy.signedAt || (dossier.signature && dossier.signature.signedAt) || null,
-    supersedesVersion: legacy && legacy.supersedesVersion || null
+    finalizedAt: legacy && legacy.finalizedAt || null,
+    supersedesVersion: legacy && legacy.supersedesVersion || null,
+    versionReason: legacy && legacy.versionReason || null,
+    createdBy: legacy && legacy.createdBy || record && record.createdBy || null
   };
 }
 
 function isSignedContract(record) {
   const version = contractVersionInfo(record);
-  return version.status === "signed" || Boolean(record && record.contractDossier && record.contractDossier.status === "signed");
+  return version.status === "signed" || version.status === "finalized" || Boolean(record && record.contractDossier && record.contractDossier.status === "signed");
 }
 
-async function createContractVersion(env, id, operator) {
+async function updateContractVersionSignature(env, id, signature, operator) {
+  const record = await getReservation(env, id);
+  if (!record || !["paid", "manual_contract", "contract_version"].includes(record.status)) return null;
+  if (isSignedContract(record)) throw new Error("Version finalisée — créez une nouvelle version");
+  const now = new Date().toISOString();
+  const dossier = record.contractDossier || { status: "draft", fields: null, depart: null, retour: null, observations: "" };
+  const updated = {
+    ...record,
+    contractDossier: { ...dossier, status: "draft", signature: signature ? deepCloneContractData(signature) : null, updatedAt: now },
+    contractVersion: { ...contractVersionInfo(record), status: "draft", isActive: true, signedAt: null, finalizedAt: null },
+    updatedAt: now,
+    updatedBy: operator || record.updatedBy || null
+  };
+  await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
+  return updated;
+}
+
+async function updateContractVersionData(env, id, changes, operator) {
+  const record = await getReservation(env, id);
+  if (!record || !["paid", "manual_contract", "contract_version"].includes(record.status)) return null;
+  if (isSignedContract(record)) throw new Error("Version finalisée — créez une nouvelle version");
+  const patch = {};
+  const stringFields = ["vehiculeId", "immat", "immatriculation", "dateDebut", "heureDebut", "dateFin", "heureFin", "periodeDebut", "periodeFin", "depart", "retour", "lieuPrise", "lieuRetour", "adressePrise", "adresseRetour", "nom", "prenom", "tel", "email", "naissance", "protectionId", "codePromo", "contractLanguage", "langue", "langueClient"];
+  for (const key of stringFields) if (Object.prototype.hasOwnProperty.call(changes || {}, key)) {
+    if (typeof changes[key] !== "string") throw new Error(`Champ contractuel invalide : ${key}`);
+    patch[key] = changes[key].trim().slice(0, key.startsWith("adresse") || key.startsWith("lieu") ? 300 : 150);
+  }
+  const numericFields = ["total", "sousTotalBrut", "optionsMontant", "depotGarantie", "cautionContractuelle", "reductionPromoMontant", "supplementJeuneConducteur"];
+  for (const key of numericFields) if (Object.prototype.hasOwnProperty.call(changes || {}, key)) {
+    const value = Number(changes[key]);
+    if (!Number.isFinite(value) || value < 0 || value > 1000000) throw new Error(`Montant contractuel invalide : ${key}`);
+    patch[key] = value;
+  }
+  if (Object.prototype.hasOwnProperty.call(changes || {}, "conducteur")) {
+    if (!changes.conducteur || typeof changes.conducteur !== "object" || Array.isArray(changes.conducteur)) throw new Error("Conducteur invalide");
+    patch.conducteur = {};
+    for (const key of ["nom", "prenom", "telephone", "email", "naissance"]) if (typeof changes.conducteur[key] === "string") patch.conducteur[key] = changes.conducteur[key].trim().slice(0, 150);
+  }
+  if (Object.prototype.hasOwnProperty.call(changes || {}, "options")) {
+    if (!Array.isArray(changes.options) || changes.options.length > 50) throw new Error("Options contractuelles invalides");
+    patch.options = changes.options.filter((item) => item && typeof item === "object" && typeof item.id === "string").map((item) => deepCloneContractData(item));
+  }
+  for (const key of ["protection", "reductionDuree"]) if (Object.prototype.hasOwnProperty.call(changes || {}, key)) {
+    if (changes[key] !== null && (typeof changes[key] !== "object" || Array.isArray(changes[key]))) throw new Error(`Champ contractuel invalide : ${key}`);
+    patch[key] = deepCloneContractData(changes[key]);
+  }
+  const now = new Date().toISOString();
+  const updated = { ...record, ...patch, id: record.id, contractNumero: record.contractNumero, status: record.status, contractVersion: record.contractVersion, contractDossier: record.contractDossier, paymentId: record.paymentId, paidAt: record.paidAt, createdAt: record.createdAt, createdBy: record.createdBy || null, updatedAt: now, updatedBy: operator || null };
+  await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
+  return updated;
+}
+
+async function finalizeContractVersion(env, id, operator) {
+  const record = await getReservation(env, id);
+  if (!record || !["paid", "manual_contract", "contract_version"].includes(record.status)) return null;
+  if (isSignedContract(record)) throw new Error("Cette version est déjà finalisée");
+  const dossier = record.contractDossier || {};
+  if (!dossier.signature || !dossier.signature.imageDataUrl) throw new Error("Une signature est requise avant la finalisation");
+  const now = new Date().toISOString();
+  const signedAt = dossier.signature.signedAt || now;
+  const updated = {
+    ...record,
+    contractDossier: {
+      ...dossier,
+      status: "signed",
+      cglAcceptedAt: dossier.cglAcceptedAt || now,
+      signature: { ...dossier.signature, signedAt },
+      updatedAt: now
+    },
+    contractVersion: { ...contractVersionInfo(record), status: "signed", isActive: true, signedAt, finalizedAt: now },
+    updatedAt: now,
+    updatedBy: operator || record.updatedBy || null
+  };
+  await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
+  return updated;
+}
+
+class ContractDraftExistsError extends Error {
+  constructor(record) {
+    const info = contractVersionInfo(record);
+    super(`Un brouillon est déjà en cours : V${info.version}`);
+    this.name = "ContractDraftExistsError";
+    this.code = "contract_draft_exists";
+    this.draft = { id: record.id, version: info.version };
+  }
+}
+
+function isDraftContract(record) {
+  const info = contractVersionInfo(record);
+  if (["signed", "finalized", "archived"].includes(info.status)) return false;
+  return info.status === "draft" || info.status === "sent" || !isSignedContract(record);
+}
+
+async function createContractVersion(env, id, operator, versionReason) {
   const source = await getReservation(env, id);
   if (!source || !["paid", "manual_contract", "contract_version"].includes(source.status)) return null;
   if (!isSignedContract(source)) throw new Error("Seule une version signée peut être archivée et versionnée");
+  const reason = typeof versionReason === "string" ? versionReason.trim().slice(0, 500) : "";
+  if (!reason) throw new Error("Motif de la nouvelle version obligatoire");
   const sourceVersion = contractVersionInfo(source);
   const contractId = sourceVersion.contractId;
   const records = await listReservations(env);
   const versions = records.filter((record) => contractVersionInfo(record).contractId === contractId);
+  const existingDraft = versions.find((record) => record.id !== source.id && isDraftContract(record));
+  if (existingDraft) throw new ContractDraftExistsError(existingDraft);
   const nextVersion = Math.max.apply(null, versions.map((record) => contractVersionInfo(record).version)) + 1;
   const now = new Date().toISOString();
-  const archivedSource = { ...source, contractVersion: { ...sourceVersion, isActive: false, status: "archived", signedAt: sourceVersion.signedAt || now } };
-  await env.RESERVATIONS_KV.put(source.id, JSON.stringify(archivedSource));
-  const { contractAgencyAccess, contractClientAccess, manualClientAccess, ...copy } = source;
-  const clonedDossier = source.contractDossier ? {
-    ...source.contractDossier,
+  // La source n'est jamais réécrite. Son statut, ses timestamps, sa
+  // signature et ses pointeurs PDF restent strictement identiques.
+  const sourceCopy = deepCloneContractData(source);
+  const {
+    contractAgencyAccess,
+    contractClientAccess,
+    manualClientAccess,
+    drivePdfFiles,
+    driveSync,
+    ...copy
+  } = sourceCopy;
+  const clonedDossier = sourceCopy.contractDossier ? {
+    ...sourceCopy.contractDossier,
     status: "draft",
     sentAt: null,
-    cglAcceptedAt: null,
-    signature: null,
+    // La signature est héritée par copie profonde. Elle peut ensuite être
+    // conservée, corrigée ou remplacée uniquement dans le brouillon Vn.
+    signature: sourceCopy.contractDossier.signature || null,
     updatedAt: now
   } : { status: "draft", fields: null, depart: null, retour: null, observations: "" };
   const newId = generateReservationId();
@@ -437,7 +599,23 @@ async function createContractVersion(env, id, operator) {
     status: source.status === "manual_contract" || source.contractSourceType === "manual" ? "manual_contract" : "contract_version",
     contractSourceType: source.status === "manual_contract" || source.contractSourceType === "manual" ? "manual" : "reservation",
     contractDossier: clonedDossier,
-    contractVersion: { contractId, version: nextVersion, isActive: true, status: "draft", createdAt: now, signedAt: null, supersedesVersion: sourceVersion.version },
+    financialHistory: sourceCopy.financialHistory || {
+      paymentId: sourceCopy.paymentId || null,
+      paidAt: sourceCopy.paidAt || null,
+      paidAmount: sourceCopy.paidAmount !== undefined ? sourceCopy.paidAmount : sourceCopy.total !== undefined ? sourceCopy.total : null
+    },
+    contractVersion: {
+      contractId,
+      version: nextVersion,
+      isActive: true,
+      status: "draft",
+      createdAt: now,
+      signedAt: null,
+      finalizedAt: null,
+      supersedesVersion: sourceVersion.version,
+      versionReason: reason,
+      createdBy: operator || null
+    },
     createdAt: now,
     updatedAt: now,
     createdBy: operator || null,
@@ -480,16 +658,14 @@ async function listContractsHistory(env, limit = 30) {
   const records = await listReservations(env);
   const avecNumero = records.filter((r) => r.contractNumero);
 
-  avecNumero.sort((a, b) => String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || "")));
-
-  return avecNumero.slice(0, limit).map((r) => {
+  function historyEntry(r) {
     const version = contractVersionInfo(r);
     // Métadonnée de consultation seulement : jamais de clé R2 dans la liste
     // navigateur. La route agence-contract-pdf relit et autorise le fichier.
     const pdfKind = r.contractDossier && r.contractDossier.status === "signed" ? "contract-signed" : "contract-draft";
     const pdf = { available: Array.isArray(r.drivePdfFiles) && r.drivePdfFiles.some((file) => file && file.sourceKey === `${pdfKind}-v${version.version}` && file.key), signed: pdfKind === "contract-signed" };
     if (r.status === "manual_contract" || r.contractSourceType === "manual") {
-      return { id: r.id, numero: r.contractNumero, origine: "manuel", createdAt: r.createdAt, rawData: r, version, pdf };
+      return { id: r.id, numero: r.contractNumero, origine: "manuel", createdAt: r.createdAt, updatedAt: r.updatedAt, rawData: r, version, pdf };
     }
     return {
       id: r.id,
@@ -503,9 +679,48 @@ async function listContractsHistory(env, limit = 30) {
         depart: r.periodeDebut || (r.dateDebut && r.heureDebut ? `${r.dateDebut}T${r.heureDebut}` : ""),
         statut: r.status,
         immatriculation: r.immatriculation || ""
-      }, version, pdf
+      }, version, pdf, updatedAt: r.updatedAt
     };
+  }
+
+  // Une carte par contrat logique. Les versions complètes restent jointes à
+  // la carte pour l'historique et pour repartir de n'importe quelle version.
+  const groups = new Map();
+  for (const record of avecNumero) {
+    const id = contractVersionInfo(record).contractId;
+    if (!groups.has(id)) groups.set(id, []);
+    groups.get(id).push(record);
+  }
+  const cards = [];
+  for (const group of groups.values()) {
+    group.sort((a, b) => contractVersionInfo(b).version - contractVersionInfo(a).version);
+    const draft = group.find(isDraftContract);
+    const current = draft || group[0];
+    const versions = group.map((record) => {
+      const entry = historyEntry(record);
+      entry.version = { ...entry.version, isActive: record.id === current.id };
+      return entry;
+    });
+    const card = versions.find((entry) => entry.id === current.id);
+    const metadataRaw = await env.RESERVATIONS_KV.get(`contract_meta_${contractVersionInfo(current).contractId}`);
+    let metadata = null;
+    try { metadata = metadataRaw ? JSON.parse(metadataRaw) : null; } catch (error) { metadata = null; }
+    cards.push({ ...card, versions, archived: Boolean(metadata && metadata.archivedAt), archivedAt: metadata && metadata.archivedAt || null, archivedBy: metadata && metadata.archivedBy || null });
+  }
+  cards.sort((a, b) => {
+    const byDate = String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || ""));
+    return byDate || String(b.numero || "").localeCompare(String(a.numero || ""));
   });
+  return cards.slice(0, limit);
+}
+
+async function setContractArchived(env, id, archived, operator) {
+  const record = await getReservation(env, id);
+  if (!record || !["paid", "manual_contract", "contract_version"].includes(record.status)) return null;
+  const contractId = contractVersionInfo(record).contractId;
+  const metadata = archived ? { contractId, archivedAt: new Date().toISOString(), archivedBy: operator || null } : { contractId, archivedAt: null, archivedBy: null };
+  await env.RESERVATIONS_KV.put(`contract_meta_${contractId}`, JSON.stringify(metadata));
+  return metadata;
 }
 
 // Liste les réservations "actives" (pending_payment récent ou paid) pour un
@@ -592,8 +807,14 @@ module.exports = {
   createManualContract,
   updateManualContract,
   listContractsHistory,
+  setContractArchived,
   contractVersionInfo,
   isSignedContract,
-  createContractVersion
-  ,contractLanguage
+  createContractVersion,
+  updateContractVersionSignature,
+  updateContractVersionData,
+  finalizeContractVersion,
+  ContractDraftExistsError,
+  deepCloneContractData,
+  contractLanguage
 };

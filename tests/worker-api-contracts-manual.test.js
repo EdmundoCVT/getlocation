@@ -14,6 +14,7 @@ const { createFakeD1 } = require("./helpers/fake-d1.js");
 const { handleContractsManualCreate } = require("../src/api/contracts-manual-create.js");
 const { handleContractsManualUpdate } = require("../src/api/contracts-manual-update.js");
 const { handleContractsHistory } = require("../src/api/contracts-history.js");
+const { handleContractsArchive } = require("../src/api/contracts-archive.js");
 const { handleAgencyLogin } = require("../src/api/agency-login.js");
 
 function makeEnv() {
@@ -225,4 +226,17 @@ test("handleContractsHistory : renvoie les contrats manuels créés, du plus ré
   assert.equal(json.contracts.length, 2);
   assert.equal(json.contracts[0].rawData.nom, "Second");
   assert.equal(json.contracts[1].rawData.nom, "Premier");
+});
+
+test("handleContractsArchive : archive le contrat logique sans supprimer ses versions", async () => {
+  const env = makeEnv();
+  const session = await loginAgency(env);
+  const creation = await creerContrat(env, session);
+  const { id } = await creation.json();
+  const archived = await handleContractsArchive(makePostRequest("https://getlocation.fr/api/contracts-archive", { id, archived: true }, session), env);
+  assert.equal(archived.status, 200);
+  const list = await (await handleContractsHistory(makeGetRequest("https://getlocation.fr/api/contracts-history", session), env)).json();
+  assert.equal(list.contracts.length, 1);
+  assert.equal(list.contracts[0].archived, true);
+  assert.equal(list.contracts[0].versions.length, 1);
 });

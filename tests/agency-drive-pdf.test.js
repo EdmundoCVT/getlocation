@@ -12,6 +12,7 @@ test("archive PDF Drive : endpoint agence uniquement, PDF borné et signé immua
   assert.match(source, /enqueueDriveSync/);
   assert.match(source, /resolveContractAgencyAccess/);
   assert.match(source, /resolveContractClientAccess/);
+  assert.match(source, /resolveManualClientAccess/);
   assert.match(source, /Seul le PDF signé peut être archivé depuis le lien client/);
 });
 

@@ -16,6 +16,7 @@ const { createFakeD1 } = require("./helpers/fake-d1.js");
 const { handleContractsManualCreate } = require("../src/api/contracts-manual-create.js");
 const { handleContractManualLink } = require("../src/api/contract-manual-link.js");
 const { handleAgencyLogin } = require("../src/api/agency-login.js");
+const { getReservation } = require("../src/lib/reservation-store.js");
 
 const PEPPER = "pepper-de-test-lien-court-contrat-manuel";
 
@@ -221,4 +222,24 @@ test("GET : un jeton de dossier CLIENT (réservation en ligne) ne fonctionne pas
 
   const res = await handleContractManualLink(manualLinkGet(issued.token), env);
   assert.equal(res.status, 401);
+});
+
+test("POST client : la signature d'un contrat manuel est persistée et finalise V1", async () => {
+  const env = makeEnv();
+  const session = await loginAgency(env);
+  const { id } = await creerContratManuel(env, session);
+  const emission = await (await handleContractManualLink(makePostRequest("https://getlocation.fr/api/contract-manual-link", { id }, session), env)).json();
+  const token = extractManualToken(emission.clientUrl);
+  const res = await handleContractManualLink(new Request("https://getlocation.fr/api/contract-manual-link", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "content-type": "application/json", "cf-connecting-ip": nextIp() },
+    body: JSON.stringify({ cglAccepted: true, cglVersion: require("../js/data.js").getCglVersion("fr"), signatureImage: "data:image/png;base64," + "A".repeat(120), signatureName: "Israa Benzaama", displaySignedAt: "2026-10-19T14:30" })
+  }), env);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  const stored = await getReservation(env, id);
+  assert.equal(stored.contractVersion.status, "signed");
+  assert.equal(stored.contractDossier.status, "signed");
+  assert.equal(stored.contractDossier.signature.signatureId, body.signatureId);
+  assert.equal(stored.contractDossier.signature.displaySignedAt, "2026-10-19T14:30");
 });

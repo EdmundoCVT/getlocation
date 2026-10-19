@@ -8,10 +8,11 @@
 // src/lib/reservation-store.js, updateManualContract). Depuis le Lot 1
 // (voir CLAUDE.md), nécessite une session agence valide.
 
-const { updateManualContract } = require("../lib/reservation-store.js");
+const { updateManualContract, contractVersionInfo } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { requireAgencySession } = require("../lib/agency-auth.js");
 const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
+const { recordAuditEvent } = require("../lib/audit-log.js");
 
 function getAllowedOrigins(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -95,6 +96,7 @@ async function handleContractsManualUpdate(request, env) {
     return new Response(JSON.stringify({ error: "Contrat manuel introuvable" }), { status: 404, headers });
   }
   enqueueDriveSync(env, record.id).catch(() => undefined);
+  await recordAuditEvent(env, { actor: auth.session.operator, eventType: "contract_version_saved", entityType: "contract", entityId: record.id, metadata: { version: contractVersionInfo(record).version } });
 
   return new Response(JSON.stringify({ id: record.id, numero: record.contractNumero, updatedAt: record.updatedAt }), { status: 200, headers });
 }

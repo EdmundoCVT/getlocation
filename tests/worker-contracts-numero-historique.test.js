@@ -19,6 +19,10 @@ const {
   updateReservationStatus,
   updateContractDossier,
   createContractVersion,
+  updateContractVersionData,
+  updateContractVersionSignature,
+  finalizeContractVersion,
+  setContractArchived,
   getReservation
 } = require("../src/lib/reservation-store.js");
 
@@ -93,7 +97,7 @@ test("updateManualContract : refuse de modifier une réservation en ligne (mauva
   assert.equal(result, null);
 });
 
-test("versionnement : une version signée est figée, archivée et copiée dans une nouvelle version active", async () => {
+test("versionnement : V1 reste intacte et sa signature est copiée indépendamment dans V2", async () => {
   const env = makeEnv();
   const v1 = await createManualContract(env, rawDataValide, "Edmundo");
   const signedAt = "2026-10-09T10:00:00.000Z";
@@ -103,17 +107,20 @@ test("versionnement : une version signée est figée, archivée et copiée dans 
   });
 
   await assert.rejects(() => updateManualContract(env, v1.id, { ...rawDataValide, nom: "Modifié" }), /Version signée/);
-  const v2 = await createContractVersion(env, v1.id, "Edmundo");
-  const v1Archivee = await getReservation(env, v1.id);
+  const v1Avant = await getReservation(env, v1.id);
+  const v2 = await createContractVersion(env, v1.id, "Edmundo", "Correction client");
+  const v1Apres = await getReservation(env, v1.id);
 
-  assert.equal(v1Archivee.contractVersion.status, "archived");
-  assert.equal(v1Archivee.contractVersion.isActive, false);
-  assert.equal(v1Archivee.contractDossier.signature.signedAt, signedAt, "la signature V1 reste inchangée");
+  assert.deepEqual(v1Apres, v1Avant, "créer V2 ne doit jamais réécrire V1");
   assert.equal(v2.contractVersion.version, 2);
   assert.equal(v2.contractVersion.isActive, true);
   assert.equal(v2.contractVersion.supersedesVersion, 1);
+  assert.equal(v2.contractVersion.versionReason, "Correction client");
+  assert.equal(v2.contractNumero, v1.contractNumero);
+  assert.equal(v2.contractVersion.contractId, v1.contractNumero);
   assert.equal(v2.contractDossier.status, "draft");
-  assert.equal(v2.contractDossier.signature, null, "la nouvelle version doit être resignée");
+  assert.deepEqual(v2.contractDossier.signature, v1Avant.contractDossier.signature);
+  assert.notStrictEqual(v2.contractDossier.signature, v1Avant.contractDossier.signature);
   assert.notEqual(v2.id, v1.id);
 });
 
@@ -185,4 +192,88 @@ test("listContractsHistory : respecte la limite", async () => {
   }
   const historique = await listContractsHistory(env, 3);
   assert.equal(historique.length, 3);
+});
+
+test("versionnement complet V1 → V2 : copie profonde, signature modifiable et historiques financiers immuables", async () => {
+  const env = makeEnv();
+  const v1 = await createManualContract(env, {
+    ...rawDataValide,
+    nom: "Dupont",
+    total: 1000,
+    options: [{ id: "siege-enfant", montant: 20 }],
+    protection: { id: "confort", montant: 12 },
+    depotGarantie: 1500,
+    paymentId: "tr_300",
+    paidAmount: 300,
+    paymentHistory: [{ id: "tr_300", amount: 300, status: "paid" }],
+    depositOperations: [{ id: "auth_1500", amount: 1500, status: "authorized" }],
+    drivePdfFiles: [{ sourceKey: "contract-signed-v1", key: "pdf-v1", immutable: true }]
+  }, "Edmundo");
+  const signedAt = "2026-10-10T10:00:00.000Z";
+  await updateContractDossier(env, v1.id, {
+    contractDossier: {
+      status: "signed",
+      cglVersion: "2026-10-10-fr",
+      cglAcceptedAt: signedAt,
+      fields: { observations: ["départ", "retour"] },
+      signature: { imageDataUrl: "data:image/png;base64," + "A".repeat(120), name: "Jean Dupont", signedAt, displaySignedAt: "2026-10-10T12:00", signatureId: "SIG-A" }
+    },
+    contractVersion: { contractId: v1.contractNumero, version: 1, isActive: true, status: "signed", createdAt: v1.createdAt, signedAt }
+  });
+  const sourceBefore = await getReservation(env, v1.id);
+  const v2 = await createContractVersion(env, v1.id, "Edmundo", "Changement véhicule");
+
+  assert.equal(v2.contractNumero, sourceBefore.contractNumero);
+  assert.equal(v2.contractVersion.contractId, sourceBefore.contractVersion.contractId);
+  assert.equal(v2.contractVersion.version, 2);
+  assert.equal(v2.contractVersion.supersedesVersion, 1);
+  assert.equal(v2.contractVersion.versionReason, "Changement véhicule");
+  assert.deepEqual(v2.options, sourceBefore.options);
+  assert.deepEqual(v2.protection, sourceBefore.protection);
+  assert.deepEqual(v2.contractDossier.signature, sourceBefore.contractDossier.signature);
+  assert.notStrictEqual(v2.options, sourceBefore.options);
+  assert.notStrictEqual(v2.contractDossier.signature, sourceBefore.contractDossier.signature);
+  assert.equal(v2.drivePdfFiles, undefined, "V2 doit produire son propre PDF");
+
+  await updateContractVersionData(env, v2.id, { total: 1200, depotGarantie: 2000, vehiculeId: "peugeot-3008", nom: "Durand" }, "Edmundo");
+  await updateContractVersionSignature(env, v2.id, { imageDataUrl: "data:image/png;base64," + "B".repeat(120), name: "Jean Durand", signedAt: "2026-10-11T10:00:00.000Z", displaySignedAt: "2026-10-11T12:00", signatureId: "SIG-B" }, "Edmundo");
+  const v2Modified = await getReservation(env, v2.id);
+  assert.equal(v2Modified.total, 1200);
+  assert.equal(v2Modified.depotGarantie, 2000);
+  assert.equal(v2Modified.financialHistory.paidAmount, 300);
+  assert.deepEqual(v2Modified.paymentHistory, sourceBefore.paymentHistory);
+  assert.deepEqual(v2Modified.depositOperations, sourceBefore.depositOperations);
+  assert.equal(v2Modified.contractDossier.signature.signatureId, "SIG-B");
+  assert.deepEqual(await getReservation(env, v1.id), sourceBefore, "toutes les modifications V2 laissent V1 intacte");
+});
+
+test("versionnement V1/V2/V3/V4 : un seul brouillon et départ possible depuis une ancienne version", async () => {
+  const env = makeEnv();
+  const v1 = await createManualContract(env, rawDataValide, "Edmundo");
+  const signature = { imageDataUrl: "data:image/png;base64," + "A".repeat(120), signedAt: "2026-10-10T10:00:00.000Z", signatureId: "SIG-A" };
+  await updateContractDossier(env, v1.id, { contractDossier: { status: "signed", signature }, contractVersion: { contractId: v1.contractNumero, version: 1, isActive: true, status: "signed", signedAt: signature.signedAt } });
+  const v2 = await createContractVersion(env, v1.id, "Edmundo", "V2");
+  await assert.rejects(() => createContractVersion(env, v1.id, "Edmundo", "V3 trop tôt"), (error) => error.code === "contract_draft_exists" && error.draft.version === 2);
+  await finalizeContractVersion(env, v2.id, "Edmundo");
+  const v3 = await createContractVersion(env, v2.id, "Edmundo", "V3");
+  await finalizeContractVersion(env, v3.id, "Edmundo");
+  const v2BeforeV4 = await getReservation(env, v2.id);
+  const v3BeforeV4 = await getReservation(env, v3.id);
+  const v4 = await createContractVersion(env, v1.id, "Edmundo", "Retour aux données V1");
+  assert.equal(v4.contractVersion.version, 4);
+  assert.equal(v4.contractVersion.supersedesVersion, 1);
+  assert.equal(v4.contractNumero, v1.contractNumero);
+  assert.equal(v4.contractVersion.contractId, v1.contractNumero);
+  assert.deepEqual(await getReservation(env, v2.id), v2BeforeV4);
+  assert.deepEqual(await getReservation(env, v3.id), v3BeforeV4);
+  const cards = await listContractsHistory(env, 10);
+  assert.equal(cards.length, 1, "une seule carte logique par numéro de contrat");
+  assert.equal(cards[0].version.version, 4);
+  assert.equal(cards[0].versions.length, 4);
+  await setContractArchived(env, v4.id, true, "Edmundo");
+  const archivedCards = await listContractsHistory(env, 10);
+  assert.equal(archivedCards[0].archived, true);
+  assert.equal(archivedCards[0].versions.length, 4, "l’archivage logique conserve toutes les versions");
+  await setContractArchived(env, v4.id, false, "Edmundo");
+  assert.equal((await listContractsHistory(env, 10))[0].archived, false);
 });

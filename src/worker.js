@@ -20,6 +20,7 @@ const { handleContractsManualCreate } = require("./api/contracts-manual-create.j
 const { handleContractsManualUpdate } = require("./api/contracts-manual-update.js");
 const { handleContractsHistory } = require("./api/contracts-history.js");
 const { handleContractsVersion } = require("./api/contracts-version.js");
+const { handleContractsArchive } = require("./api/contracts-archive.js");
 const { handleAgencyDriveBackup } = require("./api/agency-drive-backup.js");
 const { handleAgencyDrivePdf } = require("./api/agency-drive-pdf.js");
 const { handleAgencyContractPdf } = require("./api/agency-contract-pdf.js");
@@ -69,6 +70,7 @@ const ROUTES = {
   "/api/contracts-manual-update": handleContractsManualUpdate,
   "/api/contracts-history": handleContractsHistory,
   "/api/contracts-version": handleContractsVersion,
+  "/api/contracts-archive": handleContractsArchive,
   "/api/agency-drive-backup": handleAgencyDriveBackup,
   "/api/agency-drive-pdf": handleAgencyDrivePdf,
   "/api/agency-contract-pdf": handleAgencyContractPdf,

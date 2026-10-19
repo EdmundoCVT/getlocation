@@ -3,6 +3,7 @@
 const { createContractVersion } = require("../lib/reservation-store.js");
 const { requireAgencySession } = require("../lib/agency-auth.js");
 const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
+const { recordAuditEvent } = require("../lib/audit-log.js");
 
 function headers(request, env) {
   const allowed = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -20,13 +21,27 @@ async function handleContractsVersion(request, env) {
   try {
     const body = await request.json();
     if (!body || typeof body.id !== "string" || !/^res_[a-f0-9]{32}$/.test(body.id)) throw new Error("Identifiant de contrat invalide");
-    const version = await createContractVersion(env, body.id, auth.session.operator);
+    const versionReason = typeof body.versionReason === "string" ? body.versionReason.trim() : "";
+    if (!versionReason || versionReason.length > 500) throw new Error("Motif de la nouvelle version obligatoire (500 caractères maximum)");
+    const version = await createContractVersion(env, body.id, auth.session.operator, versionReason);
     if (!version) return new Response(JSON.stringify({ error: "Contrat introuvable" }), { status: 404, headers: responseHeaders });
-    enqueueDriveSync(env, body.id).catch(() => undefined);
     enqueueDriveSync(env, version.id).catch(() => undefined);
+    await recordAuditEvent(env, {
+      actor: auth.session.operator,
+      eventType: "contract_version_created",
+      entityType: "contract",
+      entityId: version.id,
+      metadata: {
+        contractId: version.contractVersion.contractId,
+        version: version.contractVersion.version,
+        supersedesVersion: version.contractVersion.supersedesVersion,
+        versionReason: version.contractVersion.versionReason
+      }
+    });
     return new Response(JSON.stringify({ id: version.id, numero: version.contractNumero, version: version.contractVersion }), { status: 201, headers: responseHeaders });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message || "Création de version impossible" }), { status: 400, headers: responseHeaders });
+    const conflict = err && err.code === "contract_draft_exists";
+    return new Response(JSON.stringify({ error: err.message || "Création de version impossible", code: err.code || undefined, draft: err.draft || undefined }), { status: conflict ? 409 : 400, headers: responseHeaders });
   }
 }
 

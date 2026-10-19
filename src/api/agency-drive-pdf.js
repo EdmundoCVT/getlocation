@@ -3,6 +3,8 @@ const { getReservation, setDrivePdfFile, contractVersionInfo } = require("../lib
 const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
 const { resolveContractAgencyAccess } = require("./contract-dossier-agency.js");
 const { resolveContractClientAccess } = require("./contract-dossier-client.js");
+const { resolveManualClientAccess } = require("./contract-manual-link.js");
+const { recordAuditEvent } = require("../lib/audit-log.js");
 const ID = /^res_[a-f0-9]{32}$/;
 const KINDS = new Set(["contract-draft", "contract-signed", "edl-depart", "edl-return"]);
 const MAX_BYTES = 12 * 1024 * 1024;
@@ -15,8 +17,9 @@ async function handleAgencyDrivePdf(request, env) {
     if (agency) reservation = agency.reservation;
     else {
       const client = await resolveContractClientAccess(request, env);
-      if (!client) return new Response(JSON.stringify({ error: "Accès au dossier invalide ou expiré" }), { status: 401, headers: headers() });
-      reservation = client.reservation; clientArchive = true;
+      const manualClient = client ? null : await resolveManualClientAccess(request, env);
+      if (!client && !manualClient) return new Response(JSON.stringify({ error: "Accès au dossier invalide ou expiré" }), { status: 401, headers: headers() });
+      reservation = (client || manualClient).reservation; clientArchive = true;
     }
   } else {
     const auth = await requireAgencySession(request, env, { requireCsrf: true, requireOrigin: true });
@@ -44,6 +47,7 @@ async function handleAgencyDrivePdf(request, env) {
   await env.DOCUMENTS_BUCKET.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: "application/pdf" }, customMetadata: { reservationId: id, kind, version: String(version) } });
   const saved = await setDrivePdfFile(env, id, { key, sourceKey, kind, version, revision: null, size: file.size, uploadedAt: new Date().toISOString(), immutable: kind === "contract-signed" });
   if (!saved) return new Response(JSON.stringify({ error: "Dossier introuvable" }), { status: 404, headers: headers() });
+  await recordAuditEvent(env, { eventType: "contract_pdf_archived", entityType: "contract", entityId: id, metadata: { kind, version } });
   enqueueDriveSync(env, id).catch(() => undefined);
   return new Response(JSON.stringify({ ok: true, pending: true }), { status: 202, headers: headers() });
 }

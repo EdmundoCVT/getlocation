@@ -22,13 +22,14 @@ const { getVehiculeParId, calculerKilometrage, joursFacturablesDepuisHeures, jou
 const {
   updateContractDossier,
   findReservationByContractAgencyTokenHash, contractLanguage, updateInspectionSignatureDisplay,
-  saveContractClientAccessIndex
+  saveContractClientAccessIndex, contractVersionInfo, updateContractVersionSignature, updateContractVersionData, finalizeContractVersion
 } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { hashContractAgencyToken, issueContractClientAccess } = require("../lib/contract-dossier-token.js");
 const { validateContractFields, champsManquantsAvantEnvoi, validateConditionReport } = require("../lib/validate-contract-dossier.js");
 const { resolveAgencySession } = require("../lib/agency-auth.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
+const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
 const { listInspectionRevisions, initializeInspectionRevision, createInspectionRevision, updateInspectionRevisionDraft, finalizeInspectionRevision } = require("../lib/inspection-revisions.js");
 const { finalizeRevisionWithPdf } = require("../lib/finalize-inspection-revision.js");
 
@@ -91,6 +92,11 @@ function displaySignatureTime(value) {
   return value;
 }
 
+function contractSignatureId() {
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+
 function preserveInspectionSignatures(report, previous) {
   for (const role of ["client", "agence"]) {
     const before = previous && previous.signatures && previous.signatures[role];
@@ -143,14 +149,16 @@ function buildDossierView(reservation) {
   return {
     reservation: {
       id: reservation.id,
-      contractVersion: { version: Number(reservation.contractVersion && reservation.contractVersion.version) || 1 },
+      contractVersion: contractVersionInfo(reservation),
       // Numéro de contrat séquentiel lisible (GL-AAAAMMJJ-NNNN), assigné à
       // la confirmation du paiement (voir mollie-webhook.js) — distinct de
       // `id` (opaque) et de la référence non séquentielle de
       // confirmation.html. Peut être absent sur une réservation payée avant
       // l'introduction de ce champ.
       contractNumero: reservation.contractNumero || null,
-      vehicule: vehicule ? { id: vehicule.id, nom: vehicule.nom, immatriculation: manual ? reservation.immat || reservation.immatriculation || vehicule.immatriculation : vehicule.immatriculation, caution: vehicule.caution, prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, fuel: vehicule.fuel || null, vin: vehicule.vin || null, vehicleFamily: vehicule.vehicleFamily || "car" } : null,
+      vehiculeId: reservation.vehiculeId || null,
+      immatriculation: reservation.immat || reservation.immatriculation || null,
+      vehicule: vehicule ? { id: vehicule.id, nom: vehicule.nom, immatriculation: reservation.immat || reservation.immatriculation || vehicule.immatriculation, caution: reservation.depotGarantie !== undefined ? reservation.depotGarantie : reservation.cautionContractuelle !== undefined ? reservation.cautionContractuelle : vehicule.caution, prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, fuel: vehicule.fuel || null, vin: vehicule.vin || null, vehicleFamily: vehicule.vehicleFamily || "car" } : null,
       dateDebut: reservation.dateDebut || manualStart.slice(0, 10),
       heureDebut: reservation.heureDebut || manualStart.slice(11, 16),
       dateFin: reservation.dateFin || manualEnd.slice(0, 10),
@@ -175,6 +183,10 @@ function buildDossierView(reservation) {
       reductionPromoMontant: reservation.reductionPromoMontant,
       total: reservation.total,
       options: Array.isArray(reservation.options) ? reservation.options : [],
+      protection: reservation.protection || null,
+      protectionId: reservation.protectionId || null,
+      depotGarantie: reservation.depotGarantie !== undefined ? reservation.depotGarantie : reservation.cautionContractuelle,
+      financialHistory: reservation.financialHistory || (reservation.paymentId ? { paymentId: reservation.paymentId, paidAt: reservation.paidAt || null, paidAmount: reservation.paidAmount !== undefined ? reservation.paidAmount : reservation.total } : null),
       conducteur: manual ? { nom: reservation.nom || "", prenom: reservation.prenom || "", telephone: reservation.tel || "", email: reservation.email || "" } : reservation.conducteur
         ? { nom: reservation.conducteur.nom, prenom: reservation.conducteur.prenom, naissance: reservation.conducteur.naissance, telephone: reservation.conducteur.telephone, email: reservation.conducteur.email }
         : null,
@@ -204,7 +216,13 @@ function buildDossierView(reservation) {
       // signer), rien ne justifie de lui cacher l'image de signature une
       // fois le contrat signé — elle en a besoin pour le PDF définitif.
       signature: dossier && dossier.signature
-        ? { signedAt: dossier.signature.signedAt, signatureId: dossier.signature.signatureId, imageDataUrl: dossier.signature.imageDataUrl }
+        ? {
+            signedAt: dossier.signature.signedAt || null,
+            displaySignedAt: dossier.signature.displaySignedAt || null,
+            signatureId: dossier.signature.signatureId || null,
+            name: dossier.signature.name || null,
+            imageDataUrl: dossier.signature.imageDataUrl
+          }
         : null,
       depart,
       retour,
@@ -235,19 +253,13 @@ async function handlePost(request, env, headers) {
     // Deux signatures EDL dessinées sont encodées en PNG dans le dossier.
     // Cette limite reste bornée, mais couvre ces données sans tronquer les
     // champs métier historiques ni les photos (toujours stockées dans R2).
-    if (!rawBody || rawBody.length > 160000) throw new Error("corps de requête vide ou trop volumineux");
+    if (!rawBody || rawBody.length > 360000) throw new Error("corps de requête vide ou trop volumineux");
     payload = JSON.parse(rawBody);
   } catch (e) {
     return new Response(JSON.stringify({ error: "Requête invalide" }), { status: 400, headers });
   }
 
   const existing = reservation.contractDossier || { status: "draft", fields: null, depart: null, retour: null, observations: "" };
-
-  // Le jeton agence d'un contrat manuel sert ici uniquement à l'inspection.
-  // Le contrat manuel et son lien client gardent leur parcours séparé.
-  if (reservation.status === "manual_contract" && !["update-depart", "update-retour", "update-signature-display-time", "list-inspection-revisions", "initialize-inspection", "create-revision"].includes(payload.action)) {
-    return new Response(JSON.stringify({ error: "Action indisponible pour un contrat manuel" }), { status: 400, headers });
-  }
 
   try {
     switch (payload.action) {
@@ -312,6 +324,49 @@ async function handlePost(request, env, headers) {
         });
         if (!updated) return new Response(JSON.stringify({ error: "Réservation introuvable" }), { status: 404, headers });
         return new Response(JSON.stringify(buildDossierView(updated)), { status: 200, headers });
+      }
+      case "update-contract-data": {
+        if (!payload.data || typeof payload.data !== "object" || Array.isArray(payload.data)) throw new Error("Données contractuelles invalides");
+        const agencySession = await resolveAgencySession(request, env);
+        const updated = await updateContractVersionData(env, reservation.id, payload.data, agencySession && agencySession.operator);
+        enqueueDriveSync(env, reservation.id).catch(() => undefined);
+        await recordAuditEvent(env, { actor: agencySession && agencySession.operator, eventType: "contract_version_saved", entityType: "contract", entityId: reservation.id, metadata: { version: contractVersionInfo(reservation).version } });
+        return new Response(JSON.stringify(buildDossierView(updated)), { status: 200, headers });
+      }
+      case "update-contract-signature": {
+        const agencySession = await resolveAgencySession(request, env);
+        if (payload.clear === true) {
+          const cleared = await updateContractVersionSignature(env, reservation.id, null, agencySession && agencySession.operator);
+          enqueueDriveSync(env, reservation.id).catch(() => undefined);
+          await recordAuditEvent(env, { actor: agencySession && agencySession.operator, eventType: "contract_signature_cleared", entityType: "contract", entityId: reservation.id, metadata: { version: contractVersionInfo(reservation).version } });
+          return new Response(JSON.stringify(buildDossierView(cleared)), { status: 200, headers });
+        }
+        const previous = existing.signature || null;
+        const imageDataUrl = typeof payload.imageDataUrl === "string" && payload.imageDataUrl
+          ? payload.imageDataUrl
+          : previous && previous.imageDataUrl;
+        if (!imageDataUrl || !imageDataUrl.startsWith("data:image/png") || imageDataUrl.length > 300000 || imageDataUrl.length < 100) throw new Error("Signature manquante ou invalide");
+        const newImage = !previous || previous.imageDataUrl !== imageDataUrl;
+        const displaySignedAt = displaySignatureTime(payload.displaySignedAt);
+        const name = typeof payload.name === "string" ? payload.name.trim().slice(0, 150) : previous && previous.name || "";
+        const signature = {
+          imageDataUrl,
+          name,
+          signedAt: newImage ? new Date().toISOString() : previous.signedAt,
+          signatureId: newImage ? contractSignatureId() : previous.signatureId,
+          ...(displaySignedAt ? { displaySignedAt } : {})
+        };
+        const signed = await updateContractVersionSignature(env, reservation.id, signature, agencySession && agencySession.operator);
+        enqueueDriveSync(env, reservation.id).catch(() => undefined);
+        await recordAuditEvent(env, { actor: agencySession && agencySession.operator, eventType: newImage ? "contract_signature_replaced" : "contract_signature_metadata_updated", entityType: "contract", entityId: reservation.id, metadata: { version: contractVersionInfo(reservation).version } });
+        return new Response(JSON.stringify(buildDossierView(signed)), { status: 200, headers });
+      }
+      case "finalize-version": {
+        const agencySession = await resolveAgencySession(request, env);
+        const finalized = await finalizeContractVersion(env, reservation.id, agencySession && agencySession.operator);
+        enqueueDriveSync(env, reservation.id).catch(() => undefined);
+        await recordAuditEvent(env, { actor: agencySession && agencySession.operator, eventType: "contract_version_finalized", entityType: "contract", entityId: reservation.id, metadata: { version: contractVersionInfo(finalized).version } });
+        return new Response(JSON.stringify(buildDossierView(finalized)), { status: 200, headers });
       }
       case "send-to-client": {
         const fields = existing.fields;

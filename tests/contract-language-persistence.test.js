@@ -23,9 +23,9 @@ test("version V2 : reprend la langue de V1 signée tout en restant modifiable av
     contractDossier: { status: "signed", contractLanguage: "en", cglVersion: "2026-10-10-en", signature: { signedAt: "2026-10-10T10:00:00.000Z" } },
     contractVersion: { contractId: created.id, version: 1, isActive: true, status: "signed" }
   });
-  const v2 = await createContractVersion(env, created.id, "agency@example.test");
+  const v2 = await createContractVersion(env, created.id, "agency@example.test", "Correction de langue");
   assert.equal(v2.contractLanguage, "en");
   assert.equal(v2.contractDossier.status, "draft");
-  assert.equal(v2.contractDossier.signature, null);
+  assert.deepEqual(v2.contractDossier.signature, { signedAt: "2026-10-10T10:00:00.000Z" });
   assert.equal(v2.contractVersion.version, 2);
 });

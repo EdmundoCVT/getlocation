@@ -16,6 +16,7 @@ const { updateContractDossier, findReservationByContractClientTokenHash, contrac
 const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { hashContractClientToken } = require("../lib/contract-dossier-token.js");
 const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
+const { recordAuditEvent } = require("../lib/audit-log.js");
 
 const MAX_SIGNATURE_DATA_URL_LENGTH = 300000; // large marge pour un PNG 700x150 en base64
 
@@ -122,6 +123,8 @@ function buildClientView(reservation) {
     kmInclus: kmInclusPourJours(jours),
     status: dossier.status,
     signedAt: dossier.signature ? dossier.signature.signedAt : null,
+    displaySignedAt: dossier.signature ? dossier.signature.displaySignedAt || null : null,
+    signatureName: dossier.signature ? dossier.signature.name || null : null,
     signatureId: dossier.signature ? dossier.signature.signatureId : null
   };
 }
@@ -176,12 +179,19 @@ async function handlePost(request, env, headers) {
       cglAcceptedAt: signedAt,
       cglVersion: payload.cglVersion,
       contractLanguage: language,
-      signature: { imageDataUrl: signatureImage, signedAt, signatureId: genererIdentifiantSignature() },
+      signature: {
+        imageDataUrl: signatureImage,
+        signedAt,
+        displaySignedAt: typeof payload.displaySignedAt === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(payload.displaySignedAt) ? payload.displaySignedAt : null,
+        name: typeof payload.signatureName === "string" ? payload.signatureName.trim().slice(0, 150) : null,
+        signatureId: genererIdentifiantSignature()
+      },
       updatedAt: signedAt
     },
     contractVersion: { ...contractVersionInfo(reservation), status: "signed", isActive: true, signedAt }
   });
   if (!updated) return new Response(JSON.stringify({ error: "Réservation introuvable" }), { status: 404, headers });
+  await recordAuditEvent(env, { eventType: "contract_signed", entityType: "contract", entityId: updated.id, metadata: { version: contractVersionInfo(updated).version, signatureId: updated.contractDossier.signature.signatureId } });
   enqueueDriveSync(env, updated.id).catch(() => undefined);
   return new Response(JSON.stringify(buildClientView(updated)), { status: 200, headers });
 }

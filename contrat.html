@@ -540,6 +540,24 @@
       </div>
 
       <div class="card">
+        <h2>Signature de cette version</h2>
+        <p class="lead" id="dfSignatureHint">La signature héritée appartient uniquement à cette version. Vous pouvez la conserver, corriger ses informations, l’effacer ou la refaire.</p>
+        <div id="dfSignaturePreview"></div>
+        <div class="grid">
+          <div class="field"><label for="df-signatureName">Nom du signataire</label><input id="df-signatureName" type="text" maxlength="150"></div>
+          <div class="field"><label for="df-displaySignedAt">Date et heure affichées</label><input id="df-displaySignedAt" type="datetime-local"></div>
+        </div>
+        <div class="signature-wrap" style="margin-top:12px;"><canvas id="dfSignaturePad" aria-label="Refaire la signature"></canvas></div>
+        <div class="section-actions">
+          <button type="button" class="btn" id="dfSignatureClearPadBtn">Effacer le dessin</button>
+          <button type="button" class="btn" id="dfSignatureDeleteBtn">Supprimer la signature</button>
+          <button type="button" class="btn btn-primary" id="dfSignatureSaveBtn">Sauvegarder la signature</button>
+          <button type="button" class="btn btn-primary" id="dfFinalizeVersionBtn">Finaliser cette version</button>
+        </div>
+        <p class="meta-line" id="dfSignatureMsg"></p>
+      </div>
+
+      <div class="card">
         <h2>Aperçu PDF</h2>
         <p class="lead" style="margin-bottom:10px;">Téléchargez un aperçu du contrat à tout moment, avec les informations déjà saisies ci-dessus — pas besoin d'attendre que le client ait ouvert le lien ni qu'il ait signé.</p>
         <button type="button" class="btn btn-primary" id="downloadPdfBtn">📄 Télécharger le PDF</button>
@@ -715,9 +733,33 @@
         <div id="dossierRecap"></div>
       </div>
 
+      <div class="card" id="dfVersionDataCard">
+        <h2>Données contractuelles de cette version</h2>
+        <p class="lead">Ces changements restent propres au brouillon Vn. Ils ne modifient ni les anciennes versions, ni les transactions Mollie déjà effectuées.</p>
+        <div class="grid">
+          <div class="field"><label for="df-clientPrenom">Prénom</label><input id="df-clientPrenom" type="text"></div>
+          <div class="field"><label for="df-clientNom">Nom</label><input id="df-clientNom" type="text"></div>
+          <div class="field"><label for="df-clientTelephone">Téléphone</label><input id="df-clientTelephone" type="text"></div>
+          <div class="field"><label for="df-clientEmail">E-mail</label><input id="df-clientEmail" type="email"></div>
+          <div class="field"><label for="df-vehiculeId">Véhicule</label><input id="df-vehiculeId" type="text"></div>
+          <div class="field"><label for="df-versionImmat">Immatriculation</label><input id="df-versionImmat" type="text"></div>
+          <div class="field"><label for="df-versionDepart">Départ</label><input id="df-versionDepart" type="datetime-local"></div>
+          <div class="field"><label for="df-versionRetour">Retour</label><input id="df-versionRetour" type="datetime-local"></div>
+          <div class="field"><label for="df-versionLieuPrise">Lieu de départ</label><input id="df-versionLieuPrise" type="text"></div>
+          <div class="field"><label for="df-versionLieuRetour">Lieu de retour</label><input id="df-versionLieuRetour" type="text"></div>
+          <div class="field"><label for="df-versionTotal">Montant contractuel total (€)</label><input id="df-versionTotal" type="number" min="0" step="0.01"></div>
+          <div class="field"><label for="df-versionDepot">Dépôt contractuel prévu (€)</label><input id="df-versionDepot" type="number" min="0" step="0.01"></div>
+          <div class="field"><label for="df-versionProtection">Protection</label><input id="df-versionProtection" type="text"></div>
+          <div class="field"><label for="df-versionOptions">Options (identifiants séparés par des virgules)</label><input id="df-versionOptions" type="text"></div>
+        </div>
+        <button type="button" class="btn btn-primary" id="dfVersionDataSaveBtn">Sauvegarder les données contractuelles</button>
+        <p class="meta-line" id="dfVersionDataMsg"></p>
+        <p class="meta-line" id="dfFinancialHistory"></p>
+      </div>
+
       <div class="card">
         <h2>Informations du contrat à compléter</h2>
-        <p class="lead" style="margin-bottom:10px;">Le véhicule, les dates et les coordonnées viennent de la réservation payée (ci-dessus, non modifiables ici). Complétez le reste avant d'envoyer le lien de signature au client.</p>
+        <p class="lead" style="margin-bottom:10px;">Complétez les informations administratives propres à cette version avant d’envoyer le lien de signature au client.</p>
         <div class="grid">
           <div class="field">
             <label for="df-immatriculation">Immatriculation</label>
@@ -1844,7 +1886,7 @@ function construirePayload(data, sigData, stamp){
     remarques: (data.remarques || '').trim().slice(0, 1500),
     etatDepart: normaliserEtatVehicule(data.etatDepart),
     etatRetour: normaliserEtatVehicule(data.etatRetour),
-    cglVersion: getCglVersion(data.langueClient),
+    cglVersion: data.cglVersion || getCglVersion(data.langueClient),
     horodatage_signature: stamp || '',
     signature_image: sigData || '',
     rib_iban: data.ribIban || '',
@@ -3081,6 +3123,20 @@ function initDossierAgencyView(token){
   }
 
   var view = null;
+  var contractSignatureCanvas = document.getElementById('dfSignaturePad');
+  var contractSignatureContext = contractSignatureCanvas && contractSignatureCanvas.getContext ? contractSignatureCanvas.getContext('2d') : null;
+  var contractSignatureDrawing = false, contractSignatureHasDrawing = false, contractSignatureLast = null;
+  function resizeContractSignatureCanvas(){
+    if(!contractSignatureCanvas||!contractSignatureContext)return; var rect=contractSignatureCanvas.getBoundingClientRect(); if(!rect.width)return;
+    var ratio=window.devicePixelRatio||1; contractSignatureCanvas.width=rect.width*ratio; contractSignatureCanvas.height=Math.max(150,rect.height)*ratio;
+    contractSignatureContext.setTransform(ratio,0,0,ratio,0,0); contractSignatureContext.lineWidth=2.2; contractSignatureContext.lineCap='round'; contractSignatureContext.strokeStyle='#2a2438'; contractSignatureHasDrawing=false;
+  }
+  function signaturePosition(event){var rect=contractSignatureCanvas.getBoundingClientRect(), point=event.touches?event.touches[0]:event;return{x:point.clientX-rect.left,y:point.clientY-rect.top};}
+  function startContractSignature(event){if(view&&view.dossier.status==='signed')return;event.preventDefault();contractSignatureDrawing=true;contractSignatureLast=signaturePosition(event);}
+  function moveContractSignature(event){if(!contractSignatureDrawing)return;event.preventDefault();var point=signaturePosition(event);contractSignatureContext.beginPath();contractSignatureContext.moveTo(contractSignatureLast.x,contractSignatureLast.y);contractSignatureContext.lineTo(point.x,point.y);contractSignatureContext.stroke();contractSignatureLast=point;contractSignatureHasDrawing=true;}
+  function endContractSignature(){contractSignatureDrawing=false;}
+  if(contractSignatureCanvas&&contractSignatureContext){contractSignatureCanvas.addEventListener('mousedown',startContractSignature);contractSignatureCanvas.addEventListener('mousemove',moveContractSignature);window.addEventListener('mouseup',endContractSignature);
+  contractSignatureCanvas.addEventListener('touchstart',startContractSignature,{passive:false});contractSignatureCanvas.addEventListener('touchmove',moveContractSignature,{passive:false});contractSignatureCanvas.addEventListener('touchend',endContractSignature);}
   var NOMS_CHAMPS = {
     immatriculation: 'Immatriculation', adresse: 'Adresse', codePostal: 'Code postal', ville: 'Ville',
     permisNumero: 'Numéro de permis', livraisonRue: 'Adresse de livraison', livraisonCP: 'Code postal de livraison',
@@ -3113,7 +3169,7 @@ function initDossierAgencyView(token){
     return manquants;
   }
 
-  function construireDossierPayload(v){
+  function construireDossierPayload(v, archiveSigned){
     var r = v.reservation;
     var f = (v.dossier && v.dossier.fields) || {};
     var jours = r.jours;
@@ -3129,7 +3185,7 @@ function initDossierAgencyView(token){
       driveArchiveToken: token,
       // Une copie agence d'un contrat signé est un rendu ultérieur, jamais
       // l'original historique : elle ne doit donc pas créer un faux signé.
-      driveArchiveKind: v.dossier.status === 'signed' ? null : 'contract-draft',
+      driveArchiveKind: v.dossier.status === 'signed' ? (archiveSigned ? 'contract-signed' : null) : 'contract-draft',
       numero: r.contractNumero || '',
       // Langue de la reservation : le contrat que le client ouvre depuis son
       // lien securise est etabli dans la langue ou il a reserve.
@@ -3174,7 +3230,7 @@ function initDossierAgencyView(token){
       second_conducteur_permis_date: f.secondConducteurPermisDate || '',
       kmInclus: kmInclusPourJours(jours).toLocaleString('fr-FR'),
       cglVersion: r.cglVersion || getCglVersion(r.langue),
-      horodatage_signature: v.dossier.signature ? formatDateHeureFR(v.dossier.signature.signedAt, r.langue) : '',
+      horodatage_signature: v.dossier.signature ? formatDateHeureFR(v.dossier.signature.displaySignedAt || v.dossier.signature.signedAt, r.langue) : '',
       signatureId: v.dossier.signature ? v.dossier.signature.signatureId : '',
       signature_image: v.dossier.signature ? (v.dossier.signature.imageDataUrl || '') : '',
       remise: v.dossier.depart,
@@ -3219,6 +3275,35 @@ function initDossierAgencyView(token){
     recap.appendChild(recapRow('Téléphone', r.conducteur ? r.conducteur.telephone : ''));
     recap.appendChild(recapRow('Total réglé', formatEUR(r.total)));
     recap.appendChild(recapRow('Dépôt de garantie', r.vehicule ? formatEUR(r.vehicule.caution) : ''));
+
+    if(document.getElementById('dfVersionDataCard')){
+    document.getElementById('df-clientPrenom').value=r.conducteur&&r.conducteur.prenom||'';
+    document.getElementById('df-clientNom').value=r.conducteur&&r.conducteur.nom||'';
+    document.getElementById('df-clientTelephone').value=r.conducteur&&r.conducteur.telephone||'';
+    document.getElementById('df-clientEmail').value=r.conducteur&&r.conducteur.email||'';
+    document.getElementById('df-vehiculeId').value=r.vehiculeId||(r.vehicule&&r.vehicule.id)||'';
+    document.getElementById('df-versionImmat').value=r.immatriculation||(r.vehicule&&r.vehicule.immatriculation)||'';
+    document.getElementById('df-versionDepart').value=(r.dateDebut&&r.heureDebut)?r.dateDebut+'T'+r.heureDebut:'';
+    document.getElementById('df-versionRetour').value=(r.dateFin&&r.heureFin)?r.dateFin+'T'+r.heureFin:'';
+    document.getElementById('df-versionLieuPrise').value=r.lieuPrise||'';
+    document.getElementById('df-versionLieuRetour').value=r.lieuRetour||'';
+    document.getElementById('df-versionTotal').value=r.total===undefined||r.total===null?'':r.total;
+    document.getElementById('df-versionDepot').value=r.depotGarantie===undefined||r.depotGarantie===null?'':r.depotGarantie;
+    document.getElementById('df-versionProtection').value=r.protectionId||(r.protection&&r.protection.id)||'';
+    document.getElementById('df-versionOptions').value=(r.options||[]).map(function(option){return option&&option.id||'';}).filter(Boolean).join(', ');
+    var history=r.financialHistory; document.getElementById('dfFinancialHistory').textContent=history?('Paiement réel historique (lecture seule) : '+(history.paidAmount===null||history.paidAmount===undefined?'montant non renseigné':formatEUR(history.paidAmount))+(history.paidAt?' · encaissé le '+formatDateHeureFR(history.paidAt):'')):'Aucune transaction réelle rattachée.';
+    var contractDataLocked=view.dossier.status==='signed';
+    document.querySelectorAll('#dfVersionDataCard input').forEach(function(input){input.disabled=contractDataLocked;});document.getElementById('dfVersionDataSaveBtn').disabled=contractDataLocked;}
+
+    var signaturePreview=document.getElementById('dfSignaturePreview'); if(signaturePreview){var signature=view.dossier.signature; signaturePreview.textContent='';
+    if(signature&&signature.imageDataUrl){var signatureImage=document.createElement('img');signatureImage.className='signed-img';signatureImage.src=signature.imageDataUrl;signatureImage.alt='Signature de cette version';signaturePreview.appendChild(signatureImage);}
+    else signaturePreview.textContent='Aucune signature enregistrée sur cette version.';
+    document.getElementById('df-signatureName').value=signature&&signature.name||'';
+    document.getElementById('df-displaySignedAt').value=signature&&signature.displaySignedAt||'';
+    var signatureLocked=view.dossier.status==='signed';
+    ['df-signatureName','df-displaySignedAt','dfSignatureClearPadBtn','dfSignatureDeleteBtn','dfSignatureSaveBtn','dfFinalizeVersionBtn'].forEach(function(id){document.getElementById(id).disabled=signatureLocked;});
+    document.getElementById('dfSignatureHint').textContent=signatureLocked?'Cette version est finalisée et strictement en lecture seule.':'La signature héritée appartient uniquement à cette version. Vous pouvez la conserver, corriger ses informations, l’effacer ou la refaire.';
+    window.setTimeout(resizeContractSignatureCanvas,0);}
 
     var f = view.dossier.fields || {};
     var prefill = view.documentsPrefill || {};
@@ -3353,6 +3438,38 @@ function initDossierAgencyView(token){
       msg.textContent = err.message;
     });
   });
+
+  if(document.getElementById('dfSignatureClearPadBtn')){
+  document.getElementById('dfSignatureClearPadBtn').addEventListener('click',function(){resizeContractSignatureCanvas();document.getElementById('dfSignatureMsg').textContent='Dessin effacé (la signature enregistrée reste conservée tant que vous ne la supprimez pas).';});
+  document.getElementById('dfSignatureDeleteBtn').addEventListener('click',function(){
+    apiPost({action:'update-contract-signature',clear:true}).then(function(body){view=body;render();document.getElementById('dfSignatureMsg').textContent='Signature supprimée de cette version uniquement ✓';}).catch(function(err){document.getElementById('dfSignatureMsg').textContent=err.message;});
+  });
+  document.getElementById('dfSignatureSaveBtn').addEventListener('click',function(){
+    var payload={action:'update-contract-signature',name:document.getElementById('df-signatureName').value,displaySignedAt:document.getElementById('df-displaySignedAt').value};
+    if(contractSignatureHasDrawing)payload.imageDataUrl=contractSignatureCanvas.toDataURL('image/png');
+    apiPost(payload).then(function(body){view=body;render();document.getElementById('dfSignatureMsg').textContent='Signature sauvegardée sur cette version ✓';}).catch(function(err){document.getElementById('dfSignatureMsg').textContent=err.message;});
+  });
+  document.getElementById('dfVersionDataSaveBtn').addEventListener('click',function(){
+    var start=document.getElementById('df-versionDepart').value, end=document.getElementById('df-versionRetour').value;
+    var existingOptions=view.reservation.options||[], optionIds=document.getElementById('df-versionOptions').value.split(',').map(function(value){return value.trim();}).filter(Boolean);
+    var data={
+      conducteur:{prenom:document.getElementById('df-clientPrenom').value.trim(),nom:document.getElementById('df-clientNom').value.trim(),telephone:document.getElementById('df-clientTelephone').value.trim(),email:document.getElementById('df-clientEmail').value.trim(),naissance:view.reservation.conducteur&&view.reservation.conducteur.naissance||null},
+      prenom:document.getElementById('df-clientPrenom').value.trim(),nom:document.getElementById('df-clientNom').value.trim(),tel:document.getElementById('df-clientTelephone').value.trim(),email:document.getElementById('df-clientEmail').value.trim(),
+      vehiculeId:document.getElementById('df-vehiculeId').value.trim(),immatriculation:document.getElementById('df-versionImmat').value.trim(),immat:document.getElementById('df-versionImmat').value.trim(),
+      dateDebut:start.slice(0,10),heureDebut:start.slice(11,16),dateFin:end.slice(0,10),heureFin:end.slice(11,16),periodeDebut:start,periodeFin:end,depart:start,retour:end,
+      lieuPrise:document.getElementById('df-versionLieuPrise').value.trim(),lieuRetour:document.getElementById('df-versionLieuRetour').value.trim(),
+      total:Number(document.getElementById('df-versionTotal').value||0),depotGarantie:Number(document.getElementById('df-versionDepot').value||0),cautionContractuelle:Number(document.getElementById('df-versionDepot').value||0),
+      protectionId:document.getElementById('df-versionProtection').value.trim(),options:optionIds.map(function(id){return existingOptions.find(function(option){return option&&option.id===id;})||{id:id};})
+    };
+    document.getElementById('dfVersionDataMsg').textContent='Enregistrement…';
+    apiPost({action:'update-contract-data',data:data}).then(function(body){view=body;render();document.getElementById('dfVersionDataMsg').textContent='Données contractuelles sauvegardées sur cette version ✓';}).catch(function(err){document.getElementById('dfVersionDataMsg').textContent=err.message;});
+  });
+  document.getElementById('dfFinalizeVersionBtn').addEventListener('click',function(){
+    if(!view.dossier.signature||!view.dossier.signature.imageDataUrl){document.getElementById('dfSignatureMsg').textContent='Une signature est requise avant la finalisation.';return;}
+    reserverOngletPdf();
+    apiPost({action:'finalize-version'}).then(function(body){view=body;render();var payload=construireDossierPayload(view,true);genererPDF(payload,false);document.getElementById('dfSignatureMsg').textContent='Version finalisée et PDF archivé ✓';}).catch(function(err){libererOngletPdf();document.getElementById('dfSignatureMsg').textContent=err.message;});
+  });
+  }
 
   document.getElementById('dfSendBtn').addEventListener('click', function(){
     apiPost({ action: 'send-to-client' }).then(function(body){
@@ -4567,7 +4684,7 @@ function initOwnerView(prefill){
   var historiqueContrats = [];
 
   function statutContrat(entry){
-    if(entry.version && entry.version.status === 'signed') return 'Signé';
+    if(entry.version && (entry.version.status === 'signed' || entry.version.status === 'finalized')) return 'Finalisée';
     if(entry.version && entry.version.status === 'archived') return 'Archivé';
     if(entry.origine === 'reservation') return entry.resume.statut === 'paid' ? 'Payée en ligne' : entry.resume.statut;
     var rawData = entry.rawData || {};
@@ -4593,10 +4710,10 @@ function initOwnerView(prefill){
       if(recherche && texte.indexOf(recherche) === -1) return false;
       if(annee && (!moisCle || moisCle.slice(0, 4) !== annee)) return false;
       if(mois && moisCle !== mois) return false;
-      if(filtre === 'actif') return version.isActive !== false;
+      if(filtre === 'actif') return !entry.archived && version.isActive !== false;
       if(filtre === 'signe') return version.status === 'signed';
       if(filtre === 'brouillon') return version.status !== 'signed' && version.status !== 'archived';
-      if(filtre === 'archive') return version.isActive === false || version.status === 'archived';
+      if(filtre === 'archive') return entry.archived || version.isActive === false || version.status === 'archived';
       return true;
     });
     contrats.sort(function(a, b){
@@ -4633,6 +4750,11 @@ function initOwnerView(prefill){
           '</span>' +
         '</div>' +
         '<div class="actions"></div>';
+      if(Array.isArray(entry.versions) && entry.versions.length){
+        var versionsLine=document.createElement('span'); versionsLine.className='details';
+        versionsLine.textContent='Version actuelle : V'+((entry.version&&entry.version.version)||1)+' — '+statutContrat(entry)+' · Versions : '+entry.versions.slice().sort(function(a,b){return (a.version.version||1)-(b.version.version||1);}).map(function(item){var status=item.version.status==='signed'||item.version.status==='finalized'||item.version.status==='archived'?'✓':'Brouillon';return '[V'+item.version.version+' '+status+']';}).join(' ');
+        row.querySelector('.info').appendChild(versionsLine);
+      }
       var actions = row.querySelector('.actions');
 
       var driveStatut = document.createElement('span');
@@ -4717,7 +4839,8 @@ function initOwnerView(prefill){
       });
       actions.appendChild(driveDetailsBtn);
 
-      function appelerLienAgence(ouvrir){
+      function appelerLienAgence(ouvrir, cible){
+        cible = cible || entry;
         // Un window.open déclenché après le fetch est bloqué par Safari/iOS
         // et certains navigateurs : réserver l'onglet pendant le geste.
         var onglet = ouvrir ? window.open('about:blank', '_blank') : null;
@@ -4725,16 +4848,32 @@ function initOwnerView(prefill){
         return fetch('/api/contract-agency-link', {
           method: 'POST', credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json', 'X-Agency-Csrf': agenceCsrfToken || '' },
-          body: JSON.stringify({ id: entry.id })
+          body: JSON.stringify({ id: cible.id, purpose: 'contract' })
         }).then(function(r){ return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || 'Erreur'); return body; }); })
           .then(function(body){ if(ouvrir){ try { onglet.opener = null; } catch(e){} onglet.location.replace(body.agencyUrl); } else afficherLienDossierAgence(row, body.agencyUrl); return body; })
           .catch(function(err){ if(onglet && !onglet.closed) onglet.close(); throw err; });
       }
 
-      function ouvrirPdf(download){
+      function ouvrirPdf(download, cible){
+        cible = cible || entry;
         // URL interne protégée par la session agence : aucune clé R2 n'est
         // exposée. L'ouverture reste synchrone au clic et donc compatible iOS.
-        window.open('/api/agency-contract-pdf?id=' + encodeURIComponent(entry.id) + (download ? '&download=1' : ''), '_blank', 'noopener');
+        window.open('/api/agency-contract-pdf?id=' + encodeURIComponent(cible.id) + (download ? '&download=1' : ''), '_blank', 'noopener');
+      }
+
+      function creerNouvelleVersion(cible){
+        var motif = window.prompt('Motif de la nouvelle version', '');
+        if(motif === null) return;
+        motif = motif.trim();
+        if(!motif){ alert('Le motif de la nouvelle version est obligatoire.'); return; }
+        var onglet = window.open('about:blank', '_blank');
+        if(!onglet){ alert('L’ouverture du nouveau dossier a été bloquée par le navigateur. Autorisez les fenêtres contextuelles puis réessayez.'); return; }
+        fetch('/api/contracts-version', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken || ''}, body:JSON.stringify({id:cible.id,versionReason:motif}) })
+          .then(function(r){ return r.json().then(function(body){ if(!r.ok) throw body; return body; }); })
+          .then(function(version){ return fetch('/api/contract-agency-link', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken || ''}, body:JSON.stringify({id:version.id,purpose:'contract'}) }); })
+          .then(function(r){ return r.json().then(function(body){ if(!r.ok) throw body; return body; }); })
+          .then(function(body){ try { onglet.opener=null; } catch(e){} onglet.location.replace(body.agencyUrl); chargerHistorique(); })
+          .catch(function(err){ if(!onglet.closed) onglet.close(); alert(err && err.error ? err.error : 'La nouvelle version n’a pas pu être créée.'); });
       }
 
       function ouvrirConsultation(){
@@ -4757,17 +4896,7 @@ function initOwnerView(prefill){
         }
         ajouterAction('Ouvrir le dossier', function(){ appelerLienAgence(true).catch(function(err){ alert(err.message || "Le dossier n'a pas pu être ouvert."); }); });
         if(entry.origine === 'reservation') ajouterAction('Renvoyer le lien agence', function(){ appelerLienAgence(false).catch(function(err){ alert(err.message || "Le lien n'a pas pu être généré."); }); });
-        if(estSigne) ajouterAction('Nouvelle version', function(){
-          if(!confirm('Créer une nouvelle version modifiable de ce contrat signé ? La version actuelle restera archivée et consultable.')) return;
-          var onglet = window.open('about:blank', '_blank');
-          if(!onglet){ alert('L’ouverture du nouveau dossier a été bloquée par le navigateur. Autorisez les fenêtres contextuelles puis réessayez.'); return; }
-          fetch('/api/contracts-version', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken || ''}, body:JSON.stringify({id:entry.id}) })
-            .then(function(r){ return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || 'Erreur'); return body; }); })
-            .then(function(version){ return fetch('/api/contract-agency-link', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken || ''}, body:JSON.stringify({id:version.id}) }); })
-            .then(function(r){ return r.json().then(function(body){ if(!r.ok) throw new Error(body.error || 'Erreur'); return body; }); })
-            .then(function(body){ try { onglet.opener=null; } catch(e){} onglet.location.replace(body.agencyUrl); chargerHistorique(); })
-            .catch(function(err){ if(!onglet.closed) onglet.close(); alert(err.message || 'La nouvelle version n’a pas pu être créée.'); });
-        });
+        if(estSigne) ajouterAction('Créer V' + (((entry.version && entry.version.version) || 1) + 1), function(){ creerNouvelleVersion(entry); });
         ajouterAction('Fermer', function(){}, false);
         overlay.addEventListener('click', function(e){ if(e.target===overlay) overlay.remove(); }); overlay.appendChild(sheet); document.body.appendChild(overlay);
       }
@@ -4781,11 +4910,45 @@ function initOwnerView(prefill){
       // plus dépendre de retrouver l'e-mail d'origine — par exemple pour
       // transmettre directement à Antonio le lien du dossier afin qu'il
       // complète l'état des lieux de retour depuis son téléphone.
-      var estSigne = entry.version && (entry.version.status === 'signed' || entry.version.status === 'archived');
+      var estSigne = entry.version && (entry.version.status === 'signed' || entry.version.status === 'finalized' || entry.version.status === 'archived');
       var consulterBtn = document.createElement('button');
       consulterBtn.type='button'; consulterBtn.className='btn'; consulterBtn.textContent='Consulter';
       consulterBtn.addEventListener('click', function(){ appelerLienAgence(true).catch(function(err){ alert(err.message || 'Le contrat n’a pas pu être ouvert.'); }); });
       actions.appendChild(consulterBtn);
+      var actionVersionBtn = document.createElement('button');
+      actionVersionBtn.type='button'; actionVersionBtn.className='btn btn-primary';
+      if(estSigne){
+        actionVersionBtn.textContent='Créer V' + (((entry.version && entry.version.version) || 1) + 1);
+        actionVersionBtn.addEventListener('click', function(){ creerNouvelleVersion(entry); });
+      } else {
+        actionVersionBtn.textContent='Modifier V' + ((entry.version && entry.version.version) || 1);
+        actionVersionBtn.addEventListener('click', function(){ appelerLienAgence(true).catch(function(err){ alert(err.message || 'Le brouillon n’a pas pu être ouvert.'); }); });
+      }
+      actions.appendChild(actionVersionBtn);
+      if(entry.archived){actionVersionBtn.disabled=true;actionVersionBtn.textContent='Contrat archivé';}
+      var historiqueBtn = document.createElement('button');
+      historiqueBtn.type='button'; historiqueBtn.className='btn'; historiqueBtn.textContent='Historique des versions';
+      historiqueBtn.addEventListener('click', function(){
+        var versions = Array.isArray(entry.versions) ? entry.versions : [entry];
+        var overlay = document.createElement('div'); overlay.className='consultation-overlay'; overlay.setAttribute('role','dialog'); overlay.setAttribute('aria-modal','true');
+        var sheet = document.createElement('section'); sheet.className='consultation-sheet';
+        var title=document.createElement('h3'); title.textContent='Historique des versions — ' + entry.numero; sheet.appendChild(title);
+        versions.forEach(function(versionEntry){
+          var info=versionEntry.version||{}, block=document.createElement('div'); block.className='card';
+          var status=(info.status==='signed'||info.status==='archived')?'Finalisée':info.status==='sent'?'Envoyée':'Brouillon';
+          block.innerHTML='<strong>V'+escapeHtml(String(info.version||1))+' — '+escapeHtml(status)+'</strong><p class="meta-line">Créée le '+escapeHtml(formatDateHeureFR(info.createdAt||versionEntry.createdAt||''))+(info.supersedesVersion?' · Basée sur V'+escapeHtml(String(info.supersedesVersion)):'')+(info.versionReason?' · Motif : '+escapeHtml(info.versionReason):'')+'</p>';
+          var versionActions=document.createElement('div'); versionActions.className='sheet-actions';
+          var open=document.createElement('button'); open.type='button'; open.className='btn'; open.textContent=status==='Brouillon'?'Modifier V'+info.version:'Consulter V'+info.version; open.onclick=function(){ appelerLienAgence(true,versionEntry).catch(function(err){alert(err.message||'Ouverture impossible');}); }; versionActions.appendChild(open);
+          if(versionEntry.pdf&&versionEntry.pdf.available){var pdfBtn=document.createElement('button');pdfBtn.type='button';pdfBtn.className='btn';pdfBtn.textContent='Voir PDF V'+info.version;pdfBtn.onclick=function(){ouvrirPdf(false,versionEntry);};versionActions.appendChild(pdfBtn);}
+          if(status!=='Brouillon'){var from=document.createElement('button');from.type='button';from.className='btn';from.textContent='Créer une nouvelle version à partir de V'+info.version;from.onclick=function(){creerNouvelleVersion(versionEntry);};versionActions.appendChild(from);}
+          block.appendChild(versionActions); sheet.appendChild(block);
+        });
+        var close=document.createElement('button');close.type='button';close.className='btn';close.textContent='Fermer';close.onclick=function(){overlay.remove();};sheet.appendChild(close);overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove();});overlay.appendChild(sheet);document.body.appendChild(overlay);
+      });
+      actions.appendChild(historiqueBtn);
+      var archiveBtn=document.createElement('button');archiveBtn.type='button';archiveBtn.className='btn';archiveBtn.textContent=entry.archived?'Réactiver':'Archiver';archiveBtn.addEventListener('click',function(){
+        fetch('/api/contracts-archive',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken||''},body:JSON.stringify({id:entry.id,archived:!entry.archived})}).then(function(response){return response.json().then(function(body){if(!response.ok)throw new Error(body.error||'Archivage impossible');return body;});}).then(chargerHistorique).catch(function(error){alert(error.message||'Archivage impossible');});
+      });actions.appendChild(archiveBtn);
       conteneur.appendChild(row);
     });
   }
@@ -5164,7 +5327,7 @@ function initClientView(data){
   setFill('kmInclus', kmInclus.toLocaleString('fr-FR'));
   setFill('kmInclusParJour', getKmInclusParJour().toLocaleString('fr-FR'));
   setFill('supplementKm', formatEURPrecis(getSupplementKmCentimes() / 100));
-  setFill('cglVersion', getCglVersion(data.langueClient));
+  setFill('cglVersion', data.cglVersion || getCglVersion(data.langueClient));
   if(data.secondConducteur){
     setFill('nom2', data.prenom2 + ' ' + data.nom2);
     setFill('permis2', data.permis2);
@@ -5286,7 +5449,7 @@ function initClientView(data){
 
     var payload = construirePayload(data, sigData, stamp);
 
-    function afficherConfirmation(envoye){
+    function afficherConfirmation(envoye, signatureServeur){
       accept.disabled = true;
       Array.prototype.forEach.call(form.querySelectorAll('button'), function(el){
         if(el.id !== 'printBtn') el.disabled = true;
@@ -5298,8 +5461,9 @@ function initClientView(data){
         ? 'Contrat signé électroniquement le ' + stamp + '. Une copie a été envoyée à GETLOCATION.'
         : 'Contrat signé électroniquement le ' + stamp + '. (L\'envoi automatique a échoué — pensez à télécharger une copie en PDF.)';
 
-      var signatureId = genererIdentifiantSignature();
+      var signatureId = signatureServeur && signatureServeur.signatureId ? signatureServeur.signatureId : genererIdentifiantSignature();
       payload.signatureId = signatureId;
+      if(signatureServeur && signatureServeur.reference){payload.reference=signatureServeur.reference;payload.contractVersion=signatureServeur.contractVersion;payload.driveArchiveToken=manualToken;payload.driveArchiveKind='contract-signed';}
       var signedBlock = document.getElementById('signedBlock');
       signedBlock.classList.add('show');
       document.getElementById('signedMeta').textContent =
@@ -5318,13 +5482,30 @@ function initClientView(data){
       genererPDF(payload, false);
     }
 
-    fetch('/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: encodeForm(payload)
-    })
-    .then(function(){ afficherConfirmation(true); })
-    .catch(function(){ afficherConfirmation(false); });
+    var signatureRequest = manualToken
+      ? fetch('/api/contract-manual-link', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + manualToken },
+          body: JSON.stringify({
+            cglAccepted: true,
+            cglVersion: data.cglVersion || getCglVersion(data.langueClient),
+            signatureImage: sigData,
+            signatureName: ((data.prenom || '') + ' ' + (data.nom || '')).trim(),
+            displaySignedAt: [now.getFullYear(), String(now.getMonth()+1).padStart(2,'0'), String(now.getDate()).padStart(2,'0')].join('-') + 'T' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0')
+          })
+        }).then(function(response){ return response.json().then(function(body){ if(!response.ok) throw new Error(body.error || 'La signature a échoué'); return body; }); })
+      : fetch('/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: encodeForm(payload)
+        });
+    signatureRequest
+    .then(function(result){ afficherConfirmation(true, result); })
+    .catch(function(error){
+      if(manualToken){ libererOngletPdf(); alert(error && error.message ? error.message : 'La signature n’a pas pu être enregistrée.'); return; }
+      afficherConfirmation(false);
+    });
   });
 }
 </script>

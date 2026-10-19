@@ -81,7 +81,8 @@ async function handlePost(request, env, headers) {
   if (!reservation || !["paid", "manual_contract", "contract_version"].includes(reservation.status)) {
     return new Response(JSON.stringify({ error: "Dossier de location introuvable" }), { status: 404, headers });
   }
-  if (reservation.status === "manual_contract" && manualContractInspectionItem(reservation).historyMode) {
+  const contractPurpose = body.purpose === "contract";
+  if (!contractPurpose && reservation.status === "manual_contract" && manualContractInspectionItem(reservation).historyMode) {
     return new Response(JSON.stringify({ error: "Cet état des lieux historique se consulte depuis la vue dédiée" }), { status: 409, headers });
   }
 
@@ -93,7 +94,7 @@ async function handlePost(request, env, headers) {
   if (!saved) {
     return new Response(JSON.stringify({ error: "Lien indisponible pour le moment." }), { status: 503, headers });
   }
-  const updated = await setContractAgencyAccess(env, body.id, access.stored, reservation.status === "manual_contract");
+  const updated = await setContractAgencyAccess(env, body.id, access.stored, reservation.status === "manual_contract" && !contractPurpose);
   if (!updated) {
     return new Response(JSON.stringify({ error: "Réservation introuvable" }), { status: 404, headers });
   }
@@ -102,7 +103,7 @@ async function handlePost(request, env, headers) {
   // Jeton en FRAGMENT (#agencyToken=), jamais en paramètre de requête —
   // même principe que #clientToken=/#manualToken= (voir
   // contract-dossier-token.js et contrat.html).
-  const target = reservation.status === "manual_contract" ? "etat-des-lieux.html" : "contrat.html";
+  const target = reservation.status === "manual_contract" && !contractPurpose ? "etat-des-lieux.html" : "contrat.html";
   return new Response(JSON.stringify({ agencyUrl: `${origin}/${target}#agencyToken=${access.token}` }), { status: 200, headers });
 }
 
