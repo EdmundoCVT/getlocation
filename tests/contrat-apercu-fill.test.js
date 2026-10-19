@@ -26,6 +26,7 @@ const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
 
+const pricingJsSource = fs.readFileSync(path.join(__dirname, "..", "js", "pricing.js"), "utf8");
 const dataJsSource = fs.readFileSync(path.join(__dirname, "..", "js", "data.js"), "utf8");
 const html = fs.readFileSync(path.join(__dirname, "..", "contrat.html"), "utf8");
 
@@ -72,6 +73,7 @@ function buildWindow() {
     url: "https://getlocation.fr/contrat.html",
     runScripts: "outside-only"
   });
+  dom.window.eval(pricingJsSource);
   dom.window.eval(dataJsSource);
   dom.window.eval(extractScriptBody());
   return dom.window;
@@ -117,7 +119,7 @@ test("remplirTexteArticles() + texteConditionsLocation() : les articles reflète
   assert.match(texte, /le véhicule Peugeot 3008, immatriculé AB-123-CD/);
   assert.match(texte, /Lieu : Agence Grasse\./);
   assert.match(texte, /Montant total convenu pour la location : \d+([.,]\d+)?\s?€\./);
-  assert.match(texte, /Un dépôt de garantie de \d+([.,]\d+)?\s?€ est prélevé avant remise des clés, réglé par carte bancaire\./);
+  assert.match(texte, /Un dépôt de garantie de \d+([.,]\d+)?\s?€ est préautorisé avant remise des clés, réglé par carte bancaire\./);
   assert.match(texte, /soit \d[\d\s]* km au total pour la durée du contrat/);
 
   // Plus aucun span data-fill non substitué (hors ceux volontairement

@@ -15,13 +15,14 @@ const rawData = {
   nom: "Martin", prenom: "Anne", immat: "AA-123-BB", kmDepart: "4083", signatureClient: "signature du contrat",
   etatDepart: { marks: [], observations: "" }, etatRetour: { marks: [], observations: "" }
 };
+const signaturePng = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 function env() {
   const objects = new Map();
   return makeAgencyEnv({
     RESERVATIONS_KV: createFakeKv(), RATE_LIMITS_KV: createFakeKv(), DOCUMENT_TOKEN_PEPPER: "manual-inspection-test-pepper",
     DOCUMENTS_BUCKET: {
       async put(key, body, options) { objects.set(key, { body, options }); },
-      async get(key) { const item = objects.get(key); return item ? { body: new Blob([item.body]).stream(), writeHttpMetadata(headers) { headers.set("Content-Type", item.options.httpMetadata.contentType); } } : null; },
+      async get(key) { const item = objects.get(key); return item ? { body: new Blob([item.body]).stream(), async arrayBuffer() { return item.body instanceof ArrayBuffer ? item.body : new Uint8Array(item.body).buffer; }, writeHttpMetadata(headers) { headers.set("Content-Type", item.options.httpMetadata.contentType); } } : null; },
       async delete(key) { objects.delete(key); }
     }
   });
@@ -67,8 +68,13 @@ test("contrat manuel : km du contrat ne termine pas l'EDL, accès sécurisé, m�
   assert.equal(details.dossier.depart, null);
   assert.equal((await list(e, session)).find((item) => item.id === id).inspection.depart, false, "ouvrir sans enregistrer reste À faire");
 
+  const initialized = await handleContractDossierAgency(bearer("https://getlocation.fr/api/contract-dossier-agency", token, "POST", {
+    action: "initialize-inspection", mode: "depart"
+  }), e);
+  assert.equal(initialized.status, 201);
+
   const photo = new FormData();
-  photo.append("stage", "depart"); photo.append("slot", "avant"); photo.append("file", new Blob(["original"], { type: "image/jpeg" }), "avant.jpg");
+  photo.append("stage", "depart"); photo.append("revision", "1"); photo.append("slot", "avant"); photo.append("file", new Blob(["original"], { type: "image/jpeg" }), "avant.jpg");
   const upload = await handleInspectionMedia(bearer("https://getlocation.fr/api/inspection-media", token, "POST", photo), e);
   assert.equal(upload.status, 200);
   const uploaded = (await upload.json()).item;
@@ -76,12 +82,14 @@ test("contrat manuel : km du contrat ne termine pas l'EDL, accès sécurisé, m�
   assert.equal((await list(e, session)).find((item) => item.id === id).inspection.depart, false, "une photo seule ne termine pas le départ");
 
   const save = await handleContractDossierAgency(bearer("https://getlocation.fr/api/contract-dossier-agency", token, "POST", {
-    action: "update-depart", dateHeure: "2026-10-10T10:15", km: 4083, carburant: 80, agent: "Edmundo",
-    marks: [{ id: "m1", view: "left", type: "rayure", x: 20, y: 30 }], propreteExterieure: 4, propreteInterieure: 5
+    action: "update-depart", revision: 1, finalize: true, dateHeure: "2026-10-10T10:15", km: 4083, carburant: 80, agent: "Edmundo",
+    marks: [{ id: "m1", view: "left", type: "rayure", x: 20, y: 30 }], propreteExterieure: 4, propreteInterieure: 5,
+    signatures: { client: { name: "Anne Martin", imageDataUrl: signaturePng }, agence: { name: "Edmundo", imageDataUrl: signaturePng } }
   }), e);
-  assert.equal(save.status, 200);
+  assert.equal(save.status, 200, await save.clone().text());
   const saved = await save.json();
-  assert.match(saved.dossier.depart.completedAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal(saved.revision.status, "finalized");
+  assert.match(saved.revision.finalizedAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.equal(saved.dossier.media.depart[0].key, uploaded.key);
   assert.deepEqual((await list(e, session)).find((item) => item.id === id).inspection, { depart: true, retour: false, retourAvailable: true });
 
@@ -90,10 +98,10 @@ test("contrat manuel : km du contrat ne termine pas l'EDL, accès sécurisé, m�
   assert.equal(update.status, 200);
   assert.equal((await handleContractDossierAgency(bearer("https://getlocation.fr/api/contract-dossier-agency", token), e)).status, 200);
   const persisted = JSON.parse(await e.RESERVATIONS_KV.get(id));
-  assert.equal(persisted.contractDossier.depart.km, 4083);
-  assert.notEqual(persisted.contractDossier.depart.completedAt, "forged");
+  assert.equal(persisted.inspectionRevisions.depart[0].snapshot.km, 4083);
+  assert.notEqual(persisted.inspectionRevisions.depart[0].snapshot.completedAt, "forged");
   assert.notEqual(persisted.contractAgencyAccess.tokenHash, "forged");
-  assert.equal(persisted.contractDossier.media.depart[0].key, uploaded.key);
+  assert.equal(persisted.inspectionRevisions.depart[0].media[0].key, uploaded.key);
   assert.equal(persisted.kmDepart, "4090");
   assert.equal(persisted.signatureClient, "signature du contrat");
 });
@@ -123,8 +131,12 @@ test("ancien contrat manuel : marques et photos historiques restent consultables
   assert.equal(modernLink.status, 200);
   assert.equal(JSON.parse(await e.RESERVATIONS_KV.get(onlyKm.id)).inspectionSchema, "modern");
   const token = new URLSearchParams(new URL((await modernLink.json()).agencyUrl).hash.slice(1)).get("agencyToken");
+  const initialized = await handleContractDossierAgency(bearer("https://getlocation.fr/api/contract-dossier-agency", token, "POST", {
+    action: "initialize-inspection", mode: "depart"
+  }), e);
+  assert.equal(initialized.status, 201);
   const photo = new FormData();
-  photo.append("stage", "depart"); photo.append("slot", "avant");
+  photo.append("stage", "depart"); photo.append("revision", "1"); photo.append("slot", "avant");
   photo.append("file", new Blob(["photo"], { type: "image/jpeg" }), "avant.jpg");
   assert.equal((await handleInspectionMedia(bearer("https://getlocation.fr/api/inspection-media", token, "POST", photo), e)).status, 200);
   const afterPhoto = (await list(e, session)).find((item) => item.id === onlyKm.id);

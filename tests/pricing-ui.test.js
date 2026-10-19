@@ -12,6 +12,7 @@ const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
 
+const PRICING_SRC = fs.readFileSync(path.join(__dirname, "..", "js", "pricing.js"), "utf8");
 const DATA_SRC = fs.readFileSync(path.join(__dirname, "..", "js", "data.js"), "utf8");
 const APP_SRC = fs.readFileSync(path.join(__dirname, "..", "js", "app.js"), "utf8");
 // Les `const` de haut niveau (OPTIONS, VEHICULES...) évaluées via
@@ -48,13 +49,13 @@ function reservationPageHtml() {
 
 function newWindow(bodyHtml) {
   const dom = new JSDOM(`<!DOCTYPE html><body>${bodyHtml}</body>`, { url: "https://getlocation.fr/reservation.html", runScripts: "outside-only" });
-  dom.window.eval(DATA_SRC + "\n" + APP_SRC);
+  dom.window.eval(PRICING_SRC + "\n" + DATA_SRC + "\n" + APP_SRC);
   return dom.window;
 }
 
 function baseReservation(overrides = {}) {
   return {
-    vehiculeId: "opel-corsa", // 59 €/jour
+    vehiculeId: "opel-corsa", // 65 €/jour en très forte saison
     dateDebut: "2026-08-10", heureDebut: "10:00",
     dateFin: "2026-08-12", heureFin: "10:00", // 2 jours, pas de remise durée
     jours: 2,
@@ -91,7 +92,7 @@ test("initReservationPage : les cartes présentent les niveaux, franchises et ga
   window.initReservationPage();
 
   const texte = window.document.getElementById("protection-list").textContent;
-  assert.match(texte, /Franchise : 2[\s\u00a0\u202f]000[\s\u00a0\u202f]€/);
+  assert.doesNotMatch(texte, /Franchise\s*:/, "la franchise reste dans le contrat/CGL et n'est plus répétée sur les cartes compactes");
   assert.doesNotMatch(texte, /Responsabilité maximale/);
   assert.match(texte, /Protection Essentielle/);
   assert.match(texte, /Protection Premium/);
@@ -118,7 +119,7 @@ test("initReservationPage : étoiles, accordéon et sélection restent indépend
     assert.ok(carte);
     assert.equal(carte.querySelector(".protection-stars").textContent, etoiles);
     assert.match(carte.querySelector(".sr-only").textContent, /Niveau de protection/);
-    assert.match(carte.querySelector(".protection-franchise").textContent, /Franchise/);
+    assert.equal(carte.querySelector(".protection-franchise"), null);
     assert.ok(carte.querySelector(".protection-price"));
     assert.equal(carte.querySelector(".protection-details-toggle").getAttribute("aria-expanded"), "false");
     assert.equal(carte.querySelector(".protection-details").getAttribute("aria-hidden"), "true");
@@ -135,7 +136,7 @@ test("initReservationPage : étoiles, accordéon et sélection restent indépend
   window.document.querySelector('[data-protection="confort"] .protection-select').click();
   assert.equal(JSON.parse(window.localStorage.getItem("gl_reservation")).protection, "confort");
   assert.equal(window.document.querySelector('[data-protection="confort"] .protection-select').getAttribute("aria-checked"), "true");
-  assert.match(window.document.getElementById("reservation-summary").textContent, /130/);
+  assert.match(window.document.getElementById("reservation-summary").textContent, /142/);
 });
 
 test("initReservationPage : les forfaits kilométriques sont exclusifs et recalculent le total", () => {
@@ -146,7 +147,7 @@ test("initReservationPage : les forfaits kilométriques sont exclusifs et recalc
   const km200 = window.document.getElementById("option-km-200");
   km200.checked = true;
   km200.dispatchEvent(new window.Event("change", { bubbles: true }));
-  assert.match(window.document.getElementById("reservation-summary").textContent, /178/); // 118 € + 60 €
+  assert.match(window.document.getElementById("reservation-summary").textContent, /190/); // 130 € + 60 €
 
   const km400 = window.document.getElementById("option-km-400");
   km400.checked = true;
@@ -154,7 +155,7 @@ test("initReservationPage : les forfaits kilométriques sont exclusifs et recalc
   const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
   assert.ok(persisted.options.includes("km-400"));
   assert.ok(!persisted.options.includes("km-200"));
-  assert.match(window.document.getElementById("reservation-summary").textContent, /268/); // 118 € + 150 €
+  assert.match(window.document.getElementById("reservation-summary").textContent, /280/); // 130 € + 150 €
 });
 
 test("initReservationPage : les deux équipements enfant sont regroupés dans une rubrique dépliable", () => {
@@ -221,20 +222,20 @@ test("initReservationPage : la protection retenue persiste, se remplace et recal
   let persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
   assert.equal(persisted.protection, "serenite");
   assert.equal(window.document.querySelectorAll("#protection-list .protection-card.is-selected").length, 1);
-  // 118 € (2 j × 59 €) + 24 € (2 j × 12 €)
-  assert.match(window.document.getElementById("reservation-summary").textContent, /142/);
+  // 130 € (2 j × 65 €) + 24 € (2 j × 12 €)
+  assert.match(window.document.getElementById("reservation-summary").textContent, /154/);
 
   // Changer de formule remplace l'ancienne au lieu de s'y ajouter.
   choisir("confort");
   persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
   assert.equal(persisted.protection, "confort");
-  assert.match(window.document.getElementById("reservation-summary").textContent, /130/); // 118 € + 2 j × 6 €
+  assert.match(window.document.getElementById("reservation-summary").textContent, /142/); // 130 € + 2 j × 6 €
 
   // Retour à la formule incluse : plus aucun supplément de protection.
   choisir("essentiel");
   persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
   assert.equal(persisted.protection, "essentiel");
-  assert.match(window.document.getElementById("reservation-summary").textContent, /118/);
+  assert.match(window.document.getElementById("reservation-summary").textContent, /130/);
 
   next.dispatchEvent(new window.Event("click", { bubbles: true }));
   assert.equal(window.document.getElementById("protection-step").hidden, true);
@@ -264,13 +265,14 @@ test("initReservationPage : la livraison est ajoutée et facturée sans case à 
     lieuRetour: "Livraison à l'adresse de votre choix",
     adressePrise: "Nice",
     adresseRetour: "Nice",
+    deliveryDistanceKm: 0,
     options: []
   })));
   window.initReservationPage();
 
   const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
   assert.ok(persisted.options.includes("livraison-adresse"));
-  assert.match(window.document.getElementById("reservation-summary").textContent, /138/); // 118 € + 20 € livraison
+  assert.match(window.document.getElementById("reservation-summary").textContent, /155/); // 130 € + minimum livraison 25 €
 });
 
 test("initReservationPage : cocher une option recalcule le total et le persiste", () => {
@@ -278,15 +280,15 @@ test("initReservationPage : cocher une option recalcule le total et le persiste"
   window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
   window.initReservationPage();
 
-  // 2 jours x 59 € = 118 € avant option.
-  assert.match(window.document.getElementById("reservation-summary").textContent, /118/);
+  // 2 jours x 65 € = 130 € avant option.
+  assert.match(window.document.getElementById("reservation-summary").textContent, /130/);
 
   const siegeAuto = window.getOptionParId("rehausseur"); // type "jour"
   const checkbox = window.document.getElementById("option-rehausseur");
   checkbox.checked = true;
   checkbox.dispatchEvent(new window.Event("change", { bubbles: true }));
 
-  const totalAttendu = 118 + siegeAuto.prix * 2;
+  const totalAttendu = 130 + siegeAuto.prix * 2;
   assert.match(window.document.getElementById("reservation-summary").textContent, new RegExp(String(totalAttendu)));
 
   const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
@@ -295,7 +297,7 @@ test("initReservationPage : cocher une option recalcule le total et le persiste"
   // Décocher revient au total initial.
   checkbox.checked = false;
   checkbox.dispatchEvent(new window.Event("change", { bubbles: true }));
-  assert.match(window.document.getElementById("reservation-summary").textContent, /118/);
+  assert.match(window.document.getElementById("reservation-summary").textContent, /130/);
   const persistedApres = JSON.parse(window.localStorage.getItem("gl_reservation"));
   assert.deepEqual(persistedApres.options, []);
 });
@@ -309,7 +311,7 @@ test("initReservationPage : applique un code promo valide et affiche un message 
   window.document.getElementById("promo-apply").dispatchEvent(new window.Event("click", { bubbles: true }));
 
   const promo = getCodePromo("GETLOC10");
-  const totalAttendu = Math.round(118 - 118 * promo.pourcentage / 100); // formatEUR arrondit à l'euro
+  const totalAttendu = Math.round(130 - 130 * promo.pourcentage / 100); // formatEUR arrondit à l'euro
   assert.match(window.document.getElementById("reservation-summary").textContent, new RegExp(String(totalAttendu)));
   assert.match(window.document.getElementById("promo-message").textContent, /appliqué/);
 
@@ -331,7 +333,7 @@ test("initReservationPage : un code promo invalide affiche une erreur et ne chan
   // verifierCodeDeTest() bascule alors immédiatement, sans appel réseau, sur
   // "invalide" — voir js/app.js. Couvre donc à la fois ce repli et le cas
   // d'un code réellement inconnu.
-  assert.match(window.document.getElementById("reservation-summary").textContent, /118/);
+  assert.match(window.document.getElementById("reservation-summary").textContent, /130/);
   assert.match(window.document.getElementById("promo-message").textContent, /invalide/);
 });
 
@@ -374,7 +376,7 @@ test("initReservationPage : un code de test interne confirmé par le serveur aff
   assert.match(window.document.getElementById("promo-message").textContent, /reconnu.*test interne/);
   // Le total affiché reste volontairement le tarif normal (indicatif) : seul
   // le serveur applique réellement la réduction, au moment du paiement.
-  assert.match(window.document.getElementById("reservation-summary").textContent, /118/);
+  assert.match(window.document.getElementById("reservation-summary").textContent, /130/);
 
   const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
   assert.equal(persisted.codePromo, "TEST1");

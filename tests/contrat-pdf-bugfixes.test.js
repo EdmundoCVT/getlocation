@@ -23,6 +23,7 @@ const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
 
+const pricingJsSource = fs.readFileSync(path.join(__dirname, "..", "js", "pricing.js"), "utf8");
 const dataJsSource = fs.readFileSync(path.join(__dirname, "..", "js", "data.js"), "utf8");
 const html = fs.readFileSync(path.join(__dirname, "..", "contrat.html"), "utf8");
 
@@ -42,6 +43,7 @@ function buildWindow() {
     url: "https://getlocation.fr/contrat.html",
     runScripts: "outside-only"
   });
+  dom.window.eval(pricingJsSource);
   dom.window.eval(dataJsSource);
   dom.window.eval(extractScriptBody());
   return dom.window;

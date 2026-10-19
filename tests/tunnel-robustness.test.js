@@ -16,6 +16,7 @@ const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
 
+const PRICING_SRC = fs.readFileSync(path.join(__dirname, "..", "js", "pricing.js"), "utf8");
 const DATA_SRC = fs.readFileSync(path.join(__dirname, "..", "js", "data.js"), "utf8");
 const APP_SRC = fs.readFileSync(path.join(__dirname, "..", "js", "app.js"), "utf8");
 
@@ -70,7 +71,7 @@ function paiementFormHtml() {
 
 function newWindow(html, url = "https://getlocation.fr/reservation.html") {
   const dom = new JSDOM(html, { url, runScripts: "outside-only" });
-  dom.window.eval(DATA_SRC + "\n" + APP_SRC);
+  dom.window.eval(PRICING_SRC + "\n" + DATA_SRC + "\n" + APP_SRC);
   return dom.window;
 }
 
@@ -117,7 +118,7 @@ test("initPaiementPage : ne pré-remplit rien pour une première visite (pas de 
 
   window.initPaiementPage();
   assert.equal(window.document.getElementById("nom").value, "");
-  assert.match(window.document.getElementById("payment-summary-total").textContent, /118/);
+  assert.match(window.document.getElementById("payment-summary-total").textContent, /130/);
 });
 
 test("initPaiementPage : les lieux fréquents se choisissent en un clic", () => {
@@ -173,7 +174,7 @@ test("initReservationPage : n'exige plus de coordonnées conducteur (options ava
   // Ne doit pas planter en l'absence de tout formulaire conducteur sur
   // cette page (il a été déplacé vers paiement.html).
   assert.doesNotThrow(() => window.initReservationPage());
-  assert.match(window.document.getElementById("reservation-summary").textContent, /118/);
+  assert.match(window.document.getElementById("reservation-summary").textContent, /130/);
 });
 
 test("validateDriverForm : marque aria-invalid et place le focus sur le premier champ en erreur", () => {

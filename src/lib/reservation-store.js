@@ -131,6 +131,8 @@ async function updateManualContract(env, id, rawData, operator) {
     contractNumero: ignoredNumero,
     contractVersion: ignoredVersion,
     contractDossier: ignoredDossier,
+    inspectionRevisions: ignoredInspectionRevisions,
+    inspectionArchives: ignoredInspectionArchives,
     contractAgencyAccess: ignoredAgencyAccess,
     contractClientAccess: ignoredClientAccess,
     manualClientAccess: ignoredManualAccess,
@@ -156,6 +158,8 @@ async function updateManualContract(env, id, rawData, operator) {
     // autorité sur le dossier d'inspection ou ses jetons agence/client.
     inspectionSchema: record.inspectionSchema,
     contractDossier: record.contractDossier,
+    inspectionRevisions: record.inspectionRevisions,
+    inspectionArchives: record.inspectionArchives,
     contractAgencyAccess: record.contractAgencyAccess,
     manualClientAccess: record.manualClientAccess,
     drivePdfFiles: record.drivePdfFiles,

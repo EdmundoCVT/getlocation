@@ -108,13 +108,13 @@ test("identifiant de protection inconnu ou absent : repli silencieux sur la form
 
 test("10 jours en Sérénité : location remisée + protection plafonnée", () => {
   const resultat = prix(10, { protection: "serenite" });
-  // 05/10 → 15/10/2026 : 6 jours Normale à 49 €, puis 4 jours MIPCOM à 65 €.
+  // 05/10 → 15/10/2026 : 6 jours Normale à 55 €, puis 4 jours MIPCOM à 65 €.
   // La remise de durée est de 10 % après la valorisation journalière.
-  assert.equal(resultat.sousTotalBrut, 554);
-  assert.equal(resultat.reductionDuree.montant, 55.4);
+  assert.equal(resultat.sousTotalBrut, 590);
+  assert.equal(resultat.reductionDuree.montant, 59);
   assert.equal(resultat.protection.montant, 84);
   assert.equal(resultat.protection.plafonne, true);
-  assert.equal(resultat.total, 554 - 55.4 + 84);
+  assert.equal(resultat.total, 590 - 59 + 84);
 });
 
 test("protection, options enfant, livraison, jeune conducteur et remise durée se cumulent sans se recouvrir", () => {
@@ -127,8 +127,8 @@ test("protection, options enfant, livraison, jeune conducteur et remise durée s
   assert.equal(resultat.protection.montant, 100); // 5 j × 20 €
   assert.equal(resultat.optionsMontant, 50 + 25); // siège 5 j × 10 € + livraison minimum 25 €
   assert.equal(resultat.supplementJeuneConducteur.montant, 150); // 5 j × 30 €
-  assert.equal(resultat.reductionDuree.montant, 12.25); // 5 % après valorisation journalière
-  assert.equal(resultat.total, 245 - 12.25 + 100 + 75 + 150);
+  assert.equal(resultat.reductionDuree.montant, 13.75); // 5 % après valorisation journalière
+  assert.equal(resultat.total, 275 - 13.75 + 100 + 75 + 150);
 });
 
 test("changer de formule remplace le montant au lieu de s'y ajouter", () => {
@@ -155,7 +155,7 @@ test("la protection n'est pas une option : elle n'apparaît jamais dans le catal
 test("une ancienne réservation demandant « assurance-passagers » n'est plus facturée pour cette option", () => {
   const resultat = prix(2, { options: ["assurance-passagers"], protection: PROTECTION_PAR_DEFAUT });
   assert.equal(resultat.optionsMontant, 0, "une option disparue du catalogue ne doit rien facturer");
-  assert.equal(resultat.total, 2 * 49);
+  assert.equal(resultat.total, 2 * 55);
 });
 
 // ---------------------------------------------------------------------

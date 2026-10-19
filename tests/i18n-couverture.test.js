@@ -123,8 +123,12 @@ test("les remises promo sont traduites par modèle, pas code par code", () => {
 test("les pages juridiques n'ont que leur en-tête traduit : leur corps reste en français", () => {
   // Le corps des CGL/mentions/confidentialité ne doit JAMAIS se retrouver
   // dans le dictionnaire : la version française est la seule qui fasse foi.
+  // PROTECTION_MENTION est aussi un texte commercial injecté dans le tunnel
+  // client : sa traduction est requise sur /en/booking même s'il est repris
+  // mot pour mot dans les CGL françaises.
+  const mentionProtectionPartagee = require("../js/data.js").PROTECTION_MENTION;
   const clausesJuridiques = i18n.PAGES_JURIDIQUES.flatMap((page) =>
-    textesVisibles(page).filter((texte) => texte.length > 200)
+    textesVisibles(page).filter((texte) => texte.length > 200 && texte !== mentionProtectionPartagee)
   );
   assert.ok(clausesJuridiques.length > 0, "les pages juridiques doivent bien contenir des clauses longues");
   clausesJuridiques.forEach((clause) => {

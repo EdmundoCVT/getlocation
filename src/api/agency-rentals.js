@@ -73,12 +73,18 @@ function inspectionFlags({ depart, retour, media }) {
   return { depart: departDone, retour: retourDone, retourAvailable: departDone || retourDone };
 }
 
+function hasFinalizedInspectionRevision(record, mode) {
+  const revisions = record && record.inspectionRevisions && record.inspectionRevisions[mode];
+  return Array.isArray(revisions) && revisions.some((revision) => revision && revision.status === "finalized");
+}
+
 function hasRealInspectionEvidence(record) {
   const dossier = record && record.contractDossier || {};
   return hasInspectionValue(record && record.etatDepart) || hasInspectionValue(record && record.etatRetour) ||
     hasInspectionValue(dossier.depart) || hasInspectionValue(dossier.retour) ||
     hasMediaForMode(record && record.photosEtatDesLieux, "depart") || hasMediaForMode(record && record.photosEtatDesLieux, "retour") ||
     hasMediaForMode(dossier.media, "depart") || hasMediaForMode(dossier.media, "retour") ||
+    hasFinalizedInspectionRevision(record, "depart") || hasFinalizedInspectionRevision(record, "retour") ||
     Boolean(record && record.inspectionSchema === "modern" && (dossier.depart || dossier.retour));
 }
 
@@ -101,8 +107,8 @@ function reservationInspectionItem(reservation) {
     dateFin: reservation.dateFin || end.date,
     heureFin: reservation.heureFin || end.heure,
     inspection: inspectionFlags({
-      depart: reservation.inspectionSchema === "modern" ? Boolean(dossier.depart && dossier.depart.completedAt) : hasInspectionValue(dossier.depart),
-      retour: reservation.inspectionSchema === "modern" ? Boolean(dossier.retour && dossier.retour.completedAt) : hasInspectionValue(dossier.retour),
+      depart: reservation.inspectionSchema === "modern" ? hasFinalizedInspectionRevision(reservation, "depart") || Boolean(dossier.depart && dossier.depart.completedAt) : hasInspectionValue(dossier.depart),
+      retour: reservation.inspectionSchema === "modern" ? hasFinalizedInspectionRevision(reservation, "retour") || Boolean(dossier.retour && dossier.retour.completedAt) : hasInspectionValue(dossier.retour),
       media: reservation.inspectionSchema === "modern" ? null : dossier.media
     }),
     source: "reservation",
@@ -138,8 +144,8 @@ function manualContractInspectionItem(contract) {
     dateFin: end.date,
     heureFin: end.heure,
     inspection: inspectionFlags({
-      depart: historical ? legacyDepart : Boolean(dossier.depart && dossier.depart.completedAt),
-      retour: historical ? legacyRetour : Boolean(dossier.retour && dossier.retour.completedAt)
+      depart: historical ? legacyDepart : hasFinalizedInspectionRevision(contract, "depart") || Boolean(dossier.depart && dossier.depart.completedAt),
+      retour: historical ? legacyRetour : hasFinalizedInspectionRevision(contract, "retour") || Boolean(dossier.retour && dossier.retour.completedAt)
     }),
     source: "manual_contract",
     modernInspection: !historical,

@@ -1141,6 +1141,8 @@
     "✓ Sélectionnée": "✓ Selected",
     "Les protections complémentaires permettent de réduire la participation financière du locataire dans les conditions prévues au contrat de location. Elles restent soumises aux exclusions, limitations et conditions générales applicables.\n\nLe dépôt de garantie ne constitue pas un plafond de responsabilité. En cas de dommages, frais ou réparations supérieurs au dépôt de garantie, un complément pourra être réclamé conformément au contrat.":
       "Additional protection options can reduce the renter's financial contribution under the terms of the rental agreement. They remain subject to the applicable exclusions, limitations and general terms and conditions.\n\nThe security deposit does not constitute a liability cap. If damage, costs or repairs exceed the security deposit, an additional amount may be claimed in accordance with the rental agreement.",
+    "Les protections complémentaires permettent de réduire la participation financière du locataire dans les conditions prévues au contrat de location. Elles restent soumises aux exclusions, limitations et conditions générales applicables.":
+      "Additional protection options can reduce the renter's financial contribution under the terms of the rental agreement. They remain subject to the applicable exclusions, limitations and general terms and conditions.",
     "Les garanties sont détaillées dans les Conditions Générales de Location et restent soumises aux exclusions et limitations applicables.": "The guarantees are detailed in the General Rental Conditions and remain subject to the applicable exclusions and limitations.",
     "Informations sur {protection}": "Information about {protection}",
     "Fermer": "Close",

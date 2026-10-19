@@ -11,6 +11,7 @@ const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
 
+const PRICING_SRC = fs.readFileSync(path.join(__dirname, "..", "js", "pricing.js"), "utf8");
 const DATA_SRC = fs.readFileSync(path.join(__dirname, "..", "js", "data.js"), "utf8");
 const APP_SRC = fs.readFileSync(path.join(__dirname, "..", "js", "app.js"), "utf8");
 
@@ -35,7 +36,7 @@ function dateBarHtml() {
 
 function newWindow(bodyHtml, url) {
   const dom = new JSDOM(`<!DOCTYPE html><body>${bodyHtml}</body>`, { url, runScripts: "outside-only" });
-  dom.window.eval(DATA_SRC + "\n" + APP_SRC);
+  dom.window.eval(PRICING_SRC + "\n" + DATA_SRC + "\n" + APP_SRC);
   return dom.window;
 }
 
@@ -59,7 +60,7 @@ test("initReservationPage : la barre de dates affiche les dates courantes et rec
     "https://getlocation.fr/reservation.html"
   );
   window.localStorage.setItem("gl_reservation", JSON.stringify({
-    vehiculeId: "opel-corsa", // 59 €/jour
+    vehiculeId: "opel-corsa", // 65 €/jour en très forte saison
     dateDebut: "2026-08-10", heureDebut: "10:00",
     dateFin: "2026-08-12", heureFin: "10:00",
     jours: 2,
@@ -68,14 +69,14 @@ test("initReservationPage : la barre de dates affiche les dates courantes et rec
 
   window.initReservationPage();
 
-  // Résumé initial : 2 jours x 59 € = 118 €.
-  assert.match(window.document.getElementById("reservation-summary").textContent, /118/);
+  // Résumé initial : 2 jours x 65 € = 130 €.
+  assert.match(window.document.getElementById("reservation-summary").textContent, /130/);
   assert.match(window.document.getElementById("date-bar-text").textContent, /2 jours/);
 
-  // Le client rajoute un jour (10 -> 13 août au lieu de 10 -> 12) : 3 jours x 59 € = 177 €.
+  // Le client rajoute un jour (10 -> 13 août au lieu de 10 -> 12) : 3 jours x 65 € = 195 €.
   applyNewDates(window, { dateDebut: "2026-08-10", heureDebut: "10:00", dateFin: "2026-08-13", heureFin: "10:00" });
 
-  assert.match(window.document.getElementById("reservation-summary").textContent, /177/);
+  assert.match(window.document.getElementById("reservation-summary").textContent, /195/);
   assert.match(window.document.getElementById("date-bar-text").textContent, /3 jours/);
 
   // La nouvelle durée est bien persistée (survit à un rafraîchissement de page).
@@ -107,8 +108,8 @@ test("initReservationPage : la barre de dates refuse une date de retour avant le
   applyNewDates(window, { dateDebut: "2026-08-10", heureDebut: "10:00", dateFin: "2026-08-09", heureFin: "10:00" });
 
   assert.notEqual(window.document.getElementById("date-bar-error").textContent, "");
-  // Le total ne doit pas avoir changé (toujours 2 jours x 59 € = 118 €).
-  assert.match(window.document.getElementById("reservation-summary").textContent, /118/);
+  // Le total ne doit pas avoir changé (toujours 2 jours x 65 € = 130 €).
+  assert.match(window.document.getElementById("reservation-summary").textContent, /130/);
   const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
   assert.equal(persisted.dateFin, "2026-08-12");
 });
@@ -145,7 +146,7 @@ test("initPaiementPage : la barre de dates recalcule le total à régler sans re
     "https://getlocation.fr/paiement.html"
   );
   window.localStorage.setItem("gl_reservation", JSON.stringify({
-    vehiculeId: "peugeot-3008", // 79 €/jour
+    vehiculeId: "peugeot-3008", // 99 €/jour
     dateDebut: "2026-08-10", heureDebut: "10:00",
     dateFin: "2026-08-12", heureFin: "10:00",
     jours: 2,
@@ -160,11 +161,11 @@ test("initPaiementPage : la barre de dates recalcule le total à régler sans re
   // une tentative de paiement.
   window.initPaiementPage();
 
-  assert.match(window.document.getElementById("payment-summary").textContent, /158/); // 2 x 79 €
+  assert.match(window.document.getElementById("payment-summary").textContent, /198/); // 2 x 99 €
 
   applyNewDates(window, { dateDebut: "2026-08-10", heureDebut: "10:00", dateFin: "2026-08-14", heureFin: "10:00" });
 
-  assert.match(window.document.getElementById("payment-summary").textContent, /316/); // 4 x 79 €
+  assert.match(window.document.getElementById("payment-summary").textContent, /396/); // 4 x 99 €
   const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
   assert.equal(persisted.jours, 4);
 });
@@ -184,11 +185,11 @@ test("initVehiculesPage : la barre de dates recalcule le nombre de jours et les 
   }));
 
   window.initVehiculesPage();
-  assert.match(window.document.getElementById("vehicle-grid").textContent, /2 jours/);
+  assert.match(window.document.getElementById("date-bar-text").textContent, /2 jours/);
 
   applyNewDates(window, { dateDebut: "2026-08-10", heureDebut: "10:00", dateFin: "2026-08-15", heureFin: "10:00" });
 
-  assert.match(window.document.getElementById("vehicle-grid").textContent, /5 jours/);
+  assert.match(window.document.getElementById("date-bar-text").textContent, /5 jours/);
   const persisted = JSON.parse(window.localStorage.getItem("gl_recherche"));
   assert.equal(persisted.dateFin, "2026-08-15");
 });

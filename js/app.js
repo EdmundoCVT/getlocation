@@ -1317,7 +1317,8 @@ function initReservationPage() {
       heureFin: data.heureFin,
       options: data.options,
       codePromo: data.codePromo,
-      protection: data.protection
+      protection: data.protection,
+      deliveryDistanceKm: data.deliveryDistanceKm
     });
   }
 

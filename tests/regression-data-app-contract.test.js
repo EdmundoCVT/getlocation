@@ -157,6 +157,7 @@ test("contrat front/API : le payload fetch() de create-payment dans js/app.js co
     options: [],
     protection: dataJs.PROTECTION_PAR_DEFAUT,
     codePromo: "",
+    deliveryDistanceKm: 0,
     conducteur: { nom: "Dupont", prenom: "Jean", email: "jean@example.com", telephone: "0600000000", naissance: "1995-06-15", permisDate: "2015-06-15" },
     enfantAge: undefined,
     enfantPoids: undefined,

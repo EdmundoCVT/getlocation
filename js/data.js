@@ -148,7 +148,7 @@ const HEURE_FERMETURE = "23:30";
 // IMPORTANT : cgl.html contient encore des placeholders [à compléter] non
 // résolus (cf. LEGAL-TODO.md) — ce mécanisme trace la version acceptée,
 // il ne garantit pas à lui seul la validité juridique du texte.
-const CGL_VERSION = "2026-09-16";
+const CGL_VERSION = "2026-10-19";
 // La version anglaise est un texte contractuel distinct, revu et publié
 // séparément. Elle ne doit jamais être déduite ni traduite au moment de la
 // signature : la version est enregistrée avec chaque contrat.

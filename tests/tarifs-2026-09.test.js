@@ -1,7 +1,7 @@
 // tests/tarifs-2026-09.test.js
 //
 // Règles tarifaires et de présentation mises en place le 15/09/2026 :
-//   - remise longue durée ramenée à -5 €/jour à partir de 5 jours ;
+//   - remises longue durée progressives à partir de 5 jours ;
 //   - deux options enfant seulement (siège enfant 10 €/jour, rehausseur
 //     5 €/jour), avec âge et poids demandés pour le siège ;
 //   - supplément jeune conducteur automatique (+30 €/jour, permis de moins
@@ -39,20 +39,26 @@ function prix(jours, extra) {
 
 // --- Remise longue durée (cas A, B, C) -----------------------------------
 
-test("remise longue durée : -5 €/jour à partir de 5 jours, rien en dessous", () => {
-  assert.equal(REDUCTIONS_DUREE.length, 1);
-  assert.equal(REDUCTIONS_DUREE[0].seuilJours, 5);
-  assert.equal(REDUCTIONS_DUREE[0].montantParJour, 5, "l'ancienne remise de 10 €/jour ne doit plus exister");
+test("remise longue durée : paliers progressifs à partir de 5 jours, rien en dessous", () => {
+  assert.deepEqual(
+    REDUCTIONS_DUREE.map(({ seuilJours, taux, libelle }) => ({ seuilJours, taux, libelle })),
+    [
+      { seuilJours: 5, taux: 0.05, libelle: "5 à 6 jours" },
+      { seuilJours: 7, taux: 0.10, libelle: "7 à 13 jours" },
+      { seuilJours: 14, taux: 0.15, libelle: "14 à 29 jours" },
+      { seuilJours: 30, taux: 0.20, libelle: "30 jours et plus" }
+    ]
+  );
 
   assert.equal(prix(4).reductionDuree, null, "cas A : 4 jours, aucune remise");
-  assert.equal(prix(5).reductionDuree.montant, 25, "cas B : 5 jours, -25 €");
-  assert.equal(prix(9).reductionDuree.montant, 45, "cas C : 9 jours, -45 €");
-  assert.equal(prix(10).reductionDuree.montant, 50);
+  assert.equal(prix(5).reductionDuree.montant, 13.75, "cas B : 5 jours, -5 %");
+  assert.equal(prix(9).reductionDuree.montant, 49.5, "cas C : 9 jours, -10 %");
+  assert.equal(prix(10).reductionDuree.montant, 55);
 });
 
 test("la remise s'applique à toute la durée, pas seulement aux jours au-delà du seuil", () => {
   const p = prix(9);
-  assert.equal(p.sousTotal, p.sousTotalBrut - 45);
+  assert.equal(p.sousTotal, p.sousTotalBrut - 49.5);
 });
 
 // --- Options enfants (cas D, E) ------------------------------------------
@@ -153,11 +159,11 @@ test("le lien à envoyer au client est placé juste sous la génération du cont
   const titres = [...document.querySelectorAll("h2")].map((h) => h.textContent.trim());
   const indexGeneration = titres.findIndex((t) => /Générer le contrat officiel/.test(t));
   const indexLien = titres.findIndex((t) => /Lien à envoyer au client/.test(t));
-  const indexHistorique = titres.findIndex((t) => /Derniers contrats/.test(t));
+  const indexHistorique = titres.findIndex((t) => /^Contrats$/.test(t));
 
   assert.ok(indexGeneration !== -1 && indexLien !== -1 && indexHistorique !== -1);
   assert.equal(indexLien, indexGeneration + 1, "le lien client suit immédiatement le bloc de génération");
-  assert.ok(indexLien < indexHistorique, "il ne faut plus descendre après « Derniers contrats » pour le trouver");
+  assert.ok(indexLien < indexHistorique, "il ne faut plus descendre après la liste des contrats pour trouver le lien client");
 
   // Un seul bloc de lien : pas de doublon introduit en le remontant.
   assert.equal(titres.filter((t) => /Lien à envoyer au client/.test(t)).length, 1);

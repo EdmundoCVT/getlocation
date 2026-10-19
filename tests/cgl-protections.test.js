@@ -114,7 +114,7 @@ test("cgl.html : les CGL décrivent bien les exclusions auxquelles renvoie le si
   assert.match(cglTexte, /Cas dans lesquels la protection ne s'applique pas/);
   // Et ne jamais promettre l'inverse de ce qu'annonce le site.
   assert.doesNotMatch(cglTexte, /franchise\s*(de)?\s*0\s*€/i, "aucune promesse de franchise nulle");
-  assert.match(cglTexte, /Aucun niveau ne supprime la franchise/);
+  assert.match(cglTexte, /Aucun niveau ne couvre tous les dommages/);
 });
 
 test("cgl.html : la version des CGL a été incrémentée après l'ajout des protections", () => {
