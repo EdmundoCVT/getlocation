@@ -104,6 +104,44 @@ test("dossier agence : affiche le récapitulatif et pré-remplit depuis le dossi
   assert.equal(window.document.getElementById("df-permisNumero").value, "999888777");
 });
 
+test("dossier agence : affiche et sauvegarde les conditions kilométriques personnalisées", async () => {
+  const window = buildWindow();
+  const view = baseAgencyView({
+    contractMileage: {
+      mode: "custom",
+      kilometresInclusParJour: 100,
+      kilometresInclusTotal: 300,
+      supplementKmCentimes: 45,
+      joursFactures: 3
+    }
+  });
+  let savedPayload = null;
+  withFakeFetch(window, async (url, opts) => {
+    if (opts && opts.method === "POST") {
+      savedPayload = JSON.parse(opts.body);
+      return { ok: true, json: async () => view };
+    }
+    return { ok: true, json: async () => view };
+  });
+
+  window.initDossierAgencyView(AGENCY_TOKEN);
+  await flush();
+
+  assert.equal(window.document.getElementById("df-kilometragePersonnalise-toggle").checked, true);
+  assert.equal(window.document.getElementById("df-kmInclusParJour").value, "100");
+  assert.equal(window.document.getElementById("df-supplementKm").value, "0.45");
+  assert.match(window.document.getElementById("df-kmInclusTotal").textContent.replace(/\s/g, ""), /300km/);
+
+  window.document.getElementById("df-kmInclusParJour").value = "150";
+  window.document.getElementById("df-supplementKm").value = "0.35";
+  window.document.getElementById("dfSaveBtn").dispatchEvent(new window.Event("click", { bubbles: true }));
+  await flush();
+
+  assert.equal(savedPayload.contractMileage.mode, "custom");
+  assert.equal(savedPayload.contractMileage.kilometresInclusParJour, 150);
+  assert.equal(savedPayload.contractMileage.supplementKmCentimes, 35);
+});
+
 test("dossier agence : jeton invalide (mauvais format) affiche une erreur sans appeler le serveur", async () => {
   const window = buildWindow();
   let called = false;

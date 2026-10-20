@@ -837,6 +837,8 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut = "00:00", dateFi
 // séparé (n'augmente pas kmInclusPourJours et n'influe pas sur ce tarif).
 const KM_INCLUS_PAR_JOUR = 200;
 const SUPPLEMENT_KM_CENTIMES = 65; // 0,65 € / km, en centimes pour éviter l'arrondi flottant
+const LONGUE_DUREE_KM_PAR_JOUR = 100;
+const LONGUE_DUREE_SUPPLEMENT_KM_CENTIMES = 45;
 // Identifiants des forfaits kilométriques supplémentaires (voir OPTIONS) —
 // centralisés ici pour que l'UI de sélection du forfait (reservation.html,
 // contrat.html) ne divergue jamais de OPTIONS.
@@ -857,6 +859,44 @@ function getKmInclusParJour() {
 function getSupplementKmCentimes() {
   return SUPPLEMENT_KM_CENTIMES;
 }
+
+// Instantané kilométrique attaché à une version de contrat. Le mode
+// "standard" continue d'utiliser le moteur tarifaire (y compris un éventuel
+// forfait kilométrique acheté). Le mode "custom" fige au contraire les deux
+// valeurs négociées pour cette version ; aucun changement ultérieur du
+// catalogue ne peut donc modifier un contrat déjà enregistré.
+function creerConditionsKilometriquesContrat({
+  mode,
+  kilometresInclusParJour,
+  supplementKmCentimes,
+  joursFactures,
+  vehiculeId = "opel-corsa",
+  kilometresInclusStandard
+} = {}) {
+  const jours = Math.max(1, Math.floor(Number(joursFactures) || 1));
+  const personnalise = mode === "custom";
+  const kmParJourSaisi = Number(kilometresInclusParJour);
+  const supplementSaisi = Number(supplementKmCentimes);
+  const kmParJour = personnalise && Number.isInteger(kmParJourSaisi) && kmParJourSaisi >= 0
+    ? kmParJourSaisi
+    : getKmInclusParJour();
+  const supplement = personnalise && Number.isInteger(supplementSaisi) && supplementSaisi >= 0
+    ? supplementSaisi
+    : getSupplementKmCentimes();
+  const standard = Number(kilometresInclusStandard);
+  const total = personnalise
+    ? kmParJour * jours
+    : Number.isFinite(standard) && standard >= 0
+      ? Math.round(standard)
+      : kmInclusPourJours(jours, vehiculeId);
+  return {
+    mode: personnalise ? "custom" : "standard",
+    kilometresInclusParJour: kmParJour,
+    kilometresInclusTotal: total,
+    supplementKmCentimes: supplement,
+    joursFactures: jours
+  };
+}
 function getCglVersion(language) {
   return language === "en" ? CGL_EN_VERSION : CGL_VERSION;
 }
@@ -876,7 +916,7 @@ function getAgence() {
 // incohérents (retour inférieur au départ) ; sinon { valid: true, kmInclus,
 // kmParcourus, kmDepasses, supplementKmCentimes, supplementCentimes,
 // supplement }.
-function calculerKilometrage({ kmDepart, kmRetour, jours, vehiculeId = "opel-corsa", forfaitKm = 0 }) {
+function calculerKilometrage({ kmDepart, kmRetour, jours, vehiculeId = "opel-corsa", forfaitKm = 0, conditionsKilometriques = null }) {
   if (!Number.isFinite(kmDepart) || kmDepart < 0) {
     return { valid: false, error: "Kilométrage de départ manquant ou invalide" };
   }
@@ -889,10 +929,22 @@ function calculerKilometrage({ kmDepart, kmRetour, jours, vehiculeId = "opel-cor
   if (!Number.isFinite(jours) || jours <= 0) {
     return { valid: false, error: "Durée de location invalide" };
   }
-  const kmInclus = kmInclusPourJours(jours, vehiculeId) + (Number.isFinite(forfaitKm) ? forfaitKm : 0);
+  const conditions = conditionsKilometriques && typeof conditionsKilometriques === "object"
+    ? creerConditionsKilometriquesContrat({
+      ...conditionsKilometriques,
+      joursFactures: jours,
+      vehiculeId,
+      kilometresInclusStandard: conditionsKilometriques.mode === "standard"
+        ? conditionsKilometriques.kilometresInclusTotal
+        : undefined
+    })
+    : null;
+  const kmInclus = conditions
+    ? conditions.kilometresInclusTotal
+    : kmInclusPourJours(jours, vehiculeId) + (Number.isFinite(forfaitKm) ? forfaitKm : 0);
   const kmParcourus = kmRetour - kmDepart;
   const kmDepasses = Math.max(kmParcourus - kmInclus, 0);
-  const supplementKmCentimes = SUPPLEMENT_KM_CENTIMES;
+  const supplementKmCentimes = conditions ? conditions.supplementKmCentimes : SUPPLEMENT_KM_CENTIMES;
   const supplementCentimes = Math.round(kmDepasses * supplementKmCentimes);
   return {
     valid: true,
@@ -967,10 +1019,13 @@ if (typeof module !== "undefined" && module.exports) {
     calculerPrixTotal,
     KM_INCLUS_PAR_JOUR,
     SUPPLEMENT_KM_CENTIMES,
+    LONGUE_DUREE_KM_PAR_JOUR,
+    LONGUE_DUREE_SUPPLEMENT_KM_CENTIMES,
     KM_PACKAGE_OPTION_IDS,
     kmInclusPourJours,
     getKmInclusParJour,
     getSupplementKmCentimes,
+    creerConditionsKilometriquesContrat,
     getCglVersion,
     getAgence,
     calculerKilometrage

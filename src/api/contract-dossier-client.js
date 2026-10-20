@@ -11,12 +11,13 @@
 // réservation) : si le texte a changé depuis l'émission du lien, la
 // signature est refusée tant que le client n'a pas rechargé la page.
 
-const { getVehiculeParId, kmInclusPourJours, joursFacturablesPourPeriode, getCglVersion } = require("../../js/data.js");
+const { getVehiculeParId, joursFacturablesPourPeriode, getCglVersion } = require("../../js/data.js");
 const { updateContractDossier, findReservationByContractClientTokenHash, contractVersionInfo, contractLanguage } = require("../lib/reservation-store.js");
 const { checkRateLimit } = require("../lib/rate-limiter.js");
 const { hashContractClientToken } = require("../lib/contract-dossier-token.js");
 const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
+const { normalizeContractMileage, agreedTotal } = require("../lib/contract-mileage.js");
 
 const MAX_SIGNATURE_DATA_URL_LENGTH = 300000; // large marge pour un PNG 700x150 en base64
 
@@ -66,6 +67,7 @@ function buildClientView(reservation) {
   const jours = joursReservation(reservation);
   const dossier = reservation.contractDossier || { status: "draft", fields: null };
   const fields = dossier.fields || {};
+  const contractMileage = normalizeContractMileage(reservation, reservation.contractMileage);
   return {
     reservation: {
       id: reservation.id,
@@ -120,7 +122,8 @@ function buildClientView(reservation) {
       secondConducteurPermisPays: fields.secondConducteurPermisPays || "",
       secondConducteurPermisDate: fields.secondConducteurPermisDate || ""
     },
-    kmInclus: kmInclusPourJours(jours),
+    contractMileage,
+    kmInclus: contractMileage.kilometresInclusTotal,
     status: dossier.status,
     signedAt: dossier.signature ? dossier.signature.signedAt : null,
     displaySignedAt: dossier.signature ? dossier.signature.displaySignedAt || null : null,
@@ -173,6 +176,8 @@ async function handlePost(request, env, headers) {
   }
   const signedAt = new Date().toISOString();
   const updated = await updateContractDossier(env, reservation.id, {
+    contractMileage: normalizeContractMileage(reservation, reservation.contractMileage),
+    agreedRentalTotal: agreedTotal(reservation),
     contractDossier: {
       ...existing,
       status: "signed",

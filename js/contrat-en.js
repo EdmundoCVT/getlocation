@@ -249,12 +249,12 @@
     {
       titre: "Article 3 — Mileage and fuel",
       paragraphes: [
-        "The vehicle is rented with an allowance of {kmInclusParJour} km included per rental day, that is {kmInclus} km "
-          + "in total for the term of this agreement. Every kilometre beyond that allowance is charged at {supplementKm} / km "
-          + "(see the handover and return table for the pick-up and return odometer readings). The vehicle must be returned "
+        "The vehicle is rented with an allowance of {kmInclusParJour} km included per billed day. For {joursFactures} billed day(s), "
+          + "the total mileage allowed without an extra charge is {kmInclus} km. Every kilometre beyond that total allowance is charged at {supplementKm} / km incl. VAT. "
+          + "Excess mileage is calculated over the total distance driven during the rental, not on a daily basis (see the handover and return table). The vehicle must be returned "
           + "with the same fuel level as at pick-up."
       ],
-      gras: ["{kmInclusParJour} km included per rental day", "{supplementKm} / km"]
+      gras: ["{kmInclusParJour} km included per billed day", "{supplementKm} / km incl. VAT"]
     },
     {
       titre: "Article 4 — Security deposit and insurance",

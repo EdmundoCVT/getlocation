@@ -100,7 +100,12 @@ async function handleContractsManualCreate(request, env) {
     return new Response(JSON.stringify({ error: "Champs requis manquants (véhicule, dates, nom, prénom)" }), { status: 400, headers });
   }
 
-  const record = await createManualContract(env, rawData, auth.session.operator);
+  let record;
+  try {
+    record = await createManualContract(env, rawData, auth.session.operator);
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message || "Contrat invalide" }), { status: error.status || 400, headers });
+  }
   // Copie secondaire, jamais bloquante pour la création du contrat.
   enqueueDriveSync(env, record.id).catch(() => undefined);
   return new Response(JSON.stringify({ id: record.id, numero: record.contractNumero, createdAt: record.createdAt }), { status: 200, headers });

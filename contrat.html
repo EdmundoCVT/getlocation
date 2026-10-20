@@ -314,6 +314,25 @@
           <span class="total">Total : <span id="totalTxt">—</span></span>
         </div>
         <div class="check-row" style="margin-top:16px;">
+          <input type="checkbox" id="kilometragePersonnalise-toggle">
+          <label for="kilometragePersonnalise-toggle">Conditions kilométriques personnalisées</label>
+        </div>
+        <div class="second-conducteur" id="kilometragePersonnaliseBlock">
+          <div class="grid">
+            <div class="field">
+              <label for="kmInclusParJourContrat">Kilomètres inclus par jour</label>
+              <input id="kmInclusParJourContrat" type="number" min="0" step="1" inputmode="numeric">
+            </div>
+            <div class="field">
+              <label for="supplementKmContrat">Prix du kilomètre supplémentaire (€)</label>
+              <input id="supplementKmContrat" type="number" min="0" step="0.01" inputmode="decimal">
+            </div>
+          </div>
+          <p class="meta-line">Total inclus : <strong id="kmInclusTotalContrat">—</strong>. Le dépassement est calculé sur la distance totale de la location.</p>
+          <p class="meta-line" id="kmSupplementEstimeContrat"></p>
+          <button type="button" class="btn btn-ghost" id="appliquerLongueDureeBtn">Appliquer le préréglage longue durée (100 km/jour · 0,45 €/km)</button>
+        </div>
+        <div class="check-row" style="margin-top:16px;">
           <input type="checkbox" id="tarifManuel-toggle">
           <label for="tarifManuel-toggle">Tarif spécial (montant différent du tarif calculé)</label>
         </div>
@@ -645,7 +664,7 @@
         <h3>Article 2 — Prix et règlement</h3>
         <p>Montant total convenu pour la location : <span class="fill" data-fill="total">…</span>. Ce montant comprend les options éventuellement sélectionnées, reprises ligne à ligne dans le récapitulatif financier ci-dessus. Acompte de <span class="fill" data-fill="montantRegle">…</span> : <span class="fill" data-fill="detailAcompte">…</span>. Solde restant de <span class="fill" data-fill="soldeRestant">…</span> : <span class="fill" data-fill="detailSolde">…</span>.</p>
         <h3>Article 3 — Kilométrage et carburant</h3>
-        <p>Le véhicule est loué avec un forfait de <strong><span class="fill" data-fill="kmInclusParJour">…</span> km inclus par jour de location</strong>, soit <span class="fill" data-fill="kmInclus">…</span> km au total pour la durée du contrat. Tout kilomètre parcouru au-delà de ce forfait est facturé <strong><span class="fill" data-fill="supplementKm">…</span> / km</strong> (voir le tableau de remise et restitution du véhicule pour le relevé kilométrique départ/retour). Le véhicule doit être restitué avec le même niveau de carburant qu'au départ.</p>
+        <p>Le véhicule est loué avec un forfait de <strong><span class="fill" data-fill="kmInclusParJour">…</span> km inclus par jour facturé</strong>. Pour <span class="fill" data-fill="joursFactures">…</span> jour(s) facturé(s), le kilométrage total autorisé sans supplément est de <span class="fill" data-fill="kmInclus">…</span> km. Tout kilomètre parcouru au-delà de ce forfait total est facturé <strong><span class="fill" data-fill="supplementKm">…</span> / km TTC</strong> ; le dépassement est calculé sur la distance totale parcourue pendant la location, et non quotidiennement (voir le tableau de remise et restitution du véhicule). Le véhicule doit être restitué avec le même niveau de carburant qu'au départ.</p>
         <h3>Article 4 — Dépôt de garantie et assurance</h3>
         <p>Un dépôt de garantie de <span class="fill" data-fill="caution">…</span> est préautorisé avant remise des clés, réglé par <span class="fill" data-fill="modeCaution">…</span>. Le véhicule est couvert par une assurance responsabilité civile et les protections complémentaires éventuellement souscrites, selon leurs conditions et exclusions. Un état des lieux (photos, kilométrage, niveau de carburant) est réalisé au départ et à la restitution ; toute dégradation non mentionnée au départ pourra être facturée sur devis.</p>
         <p><strong>Dépôt de garantie.</strong> Le dépôt de garantie constitue une garantie financière. Il peut être utilisé pour couvrir les dommages, le carburant manquant, les kilomètres supplémentaires, un nettoyage exceptionnel et toute somme restant due. Il ne constitue ni un plafond de responsabilité ni une limitation des sommes pouvant être réclamées au locataire. Si les frais dépassent le dépôt de garantie, le complément pourra être réclamé conformément au contrat, aux protections souscrites et aux Conditions Générales de Location.</p>
@@ -802,6 +821,18 @@
           </div>
         </div>
         <div class="check-row">
+          <input type="checkbox" id="df-kilometragePersonnalise-toggle">
+          <label for="df-kilometragePersonnalise-toggle">Conditions kilométriques personnalisées</label>
+        </div>
+        <div class="second-conducteur" id="dfKilometragePersonnaliseBlock">
+          <div class="grid">
+            <div class="field"><label for="df-kmInclusParJour">Kilomètres inclus par jour</label><input id="df-kmInclusParJour" type="number" min="0" step="1" inputmode="numeric"></div>
+            <div class="field"><label for="df-supplementKm">Prix du kilomètre supplémentaire (€)</label><input id="df-supplementKm" type="number" min="0" step="0.01" inputmode="decimal"></div>
+          </div>
+          <p class="meta-line">Total inclus : <strong id="df-kmInclusTotal">—</strong>. Le dépassement est calculé sur la distance totale.</p>
+          <button type="button" class="btn btn-ghost" id="df-appliquerLongueDureeBtn">Préréglage longue durée (100 km/jour · 0,45 €/km)</button>
+        </div>
+        <div class="check-row">
           <input type="checkbox" id="df-livraison-toggle">
           <label for="df-livraison-toggle">Livraison du véhicule à une adresse</label>
         </div>
@@ -938,7 +969,7 @@
 </div>
 
 <script src="js/pricing.js?v=1"></script>
-<script src="js/data.js?v=31"></script>
+<script src="js/data.js?v=32"></script>
 <script src="js/contrat-en.js?v=4"></script>
 <script src="js/backoffice-shell.js?v=1"></script>
 <script>
@@ -1025,6 +1056,18 @@ function appliquerTarifManuel(prix, data){
   var tarifManuelActif = !!(data.tarifManuel && montantValide);
   var total = tarifManuelActif ? Number(data.montantFinalConvenu) : tarifCalcule;
   return { tarifCalcule: tarifCalcule, total: total, tarifManuelActif: tarifManuelActif };
+}
+function conditionsKilometriquesDepuisData(data, prix){
+  var source = data && data.contractMileage && typeof data.contractMileage === 'object' ? data.contractMileage : {};
+  var jours = prix ? prix.jours : joursFacturablesDepuisHeures(dureeHeures(data.depart, data.retour));
+  return creerConditionsKilometriquesContrat({
+    mode: source.mode,
+    kilometresInclusParJour: source.kilometresInclusParJour,
+    supplementKmCentimes: source.supplementKmCentimes,
+    joursFactures: jours,
+    vehiculeId: data.vehiculeId,
+    kilometresInclusStandard: source.kilometresInclusTotal !== undefined ? source.kilometresInclusTotal : prix && prix.kmInclus
+  });
 }
 function formatJoursFactures(jours){ return jours + ' jour' + (jours > 1 ? 's' : ''); }
 function formatDuree(heures){
@@ -1188,7 +1231,8 @@ function sectionsContrat(payload, dictionnaire){
     soldeRestant: payload.soldeRestant,
     detailAcompte: payload.detailAcompte,
     detailSolde: payload.detailSolde,
-    kmInclusParJour: nombreContrat(getKmInclusParJour(), payload.langueClient),
+    kmInclusParJour: nombreContrat(payload.kmInclusParJour !== undefined ? payload.kmInclusParJour : getKmInclusParJour(), payload.langueClient),
+    joursFactures: nombreContrat(payload.joursFactures || (payload.contractMileage && payload.contractMileage.joursFactures) || '', payload.langueClient),
     kmInclus: payload.kmInclus,
     supplementKm: formatEURPrecis((payload.supplementKmCentimes !== undefined ? payload.supplementKmCentimes : getSupplementKmCentimes()) / 100),
     caution: payload.caution,
@@ -1781,6 +1825,7 @@ function construirePayload(data, sigData, stamp){
   var heures = dureeHeures(data.depart, data.retour);
   var jours = prix ? prix.jours : NaN;
   var tarif = appliquerTarifManuel(prix, data);
+  var conditionsKilometriques = conditionsKilometriquesDepuisData(data, prix);
   var total = tarif.total;
   var detailPaiement = calculerDetailPaiement(total, data);
   var montantRegleNombre = detailPaiement.montantRegleNombre;
@@ -1822,7 +1867,7 @@ function construirePayload(data, sigData, stamp){
       kmDepart: data.kmDepart,
       kmRetour: data.kmRetour || '',
       resultat: (data.kmRetour !== undefined && data.kmRetour !== '')
-        ? calculerKilometrage({ kmDepart: Number(data.kmDepart), kmRetour: Number(data.kmRetour), jours: jours })
+        ? calculerKilometrage({ kmDepart: Number(data.kmDepart), kmRetour: Number(data.kmRetour), jours: jours, vehiculeId: data.vehiculeId, conditionsKilometriques: conditionsKilometriques })
         : null
     };
   }
@@ -1848,8 +1893,9 @@ function construirePayload(data, sigData, stamp){
     // Instantané de la protection : niveau et franchise imprimés dans le
     // bloc GARANTIE, distincts du prix de la protection et du dépôt.
     protection: prix ? prix.protection : null,
+    contractMileage: conditionsKilometriques,
     kilometrageManuel: kilometrageManuel,
-    supplementKmCentimes: getSupplementKmCentimes(),
+    supplementKmCentimes: conditionsKilometriques.supplementKmCentimes,
     total: formatEUR(total),
     montantRegle: formatEUR(montantRegleNombre),
     soldeRestant: formatEUR(soldeNombre),
@@ -1876,7 +1922,9 @@ function construirePayload(data, sigData, stamp){
     second_conducteur_permis: data.permis2 || '',
     second_conducteur_permis_pays: data.permis2Pays || '',
     second_conducteur_permis_date: data.permis2Date || '',
-    kmInclus: kmInclusPourJours(jours).toLocaleString('fr-FR'),
+    kmInclusParJour: conditionsKilometriques.kilometresInclusParJour,
+    joursFactures: conditionsKilometriques.joursFactures,
+    kmInclus: conditionsKilometriques.kilometresInclusTotal.toLocaleString('fr-FR'),
     notes: data.notes || '',
     // slice(0,1500) : garde-fou serveur-équivalent (même logique que le
     // reste du contrat — jamais confiance aveugle dans data), au cas où ce
@@ -1925,7 +1973,8 @@ function remplirTexteArticles(payload){
   setFill('caution', payload.caution);
   setFill('modeCaution', (payload.mode_reglement_caution || '').toLowerCase());
   setFill('kmInclus', payload.kmInclus);
-  setFill('kmInclusParJour', getKmInclusParJour().toLocaleString('fr-FR'));
+  setFill('kmInclusParJour', Number(payload.kmInclusParJour !== undefined ? payload.kmInclusParJour : getKmInclusParJour()).toLocaleString('fr-FR'));
+  setFill('joursFactures', Number(payload.joursFactures || (payload.contractMileage && payload.contractMileage.joursFactures) || 0).toLocaleString('fr-FR'));
   setFill('supplementKm', formatEURPrecis((payload.supplementKmCentimes !== undefined ? payload.supplementKmCentimes : getSupplementKmCentimes()) / 100));
   setFill('cglVersion', payload.cglVersion || getCglVersion(payload.langueClient));
   if(payload.second_conducteur === 'Oui'){
@@ -2456,7 +2505,7 @@ function genererPDF(payload, estApercu){
 
   grilleChamps([
     { label: T('Durée'), valeur: payload.duree, gras: true, taille: 10 },
-    { label: T('Kilométrage inclus'), valeur: nombreContrat(getKmInclusParJour(), payload.langueClient) + (contratEnAnglais ? ' km / day — ' : ' km / jour — ') + payload.kmInclus + (contratEnAnglais ? ' km in total' : ' km au total'), taille: 10 }
+    { label: T('Kilométrage inclus'), valeur: nombreContrat(payload.kmInclusParJour !== undefined ? payload.kmInclusParJour : getKmInclusParJour(), payload.langueClient) + (contratEnAnglais ? ' km / day — ' : ' km / jour — ') + payload.kmInclus + (contratEnAnglais ? ' km in total' : ' km au total'), taille: 10 }
   ]);
   y += 3;
 
@@ -2629,9 +2678,9 @@ function genererPDF(payload, estApercu){
   // (kilométrage, tarif au km, dépôt de garantie, numéro d'urgence) : le
   // gras guide le regard sans réécrire une seule ligne du texte juridique.
   var termesEnGras = [
-    getKmInclusParJour().toLocaleString('fr-FR') + ' km',
+    Number(payload.kmInclusParJour !== undefined ? payload.kmInclusParJour : getKmInclusParJour()).toLocaleString('fr-FR') + ' km',
     payload.kmInclus + ' km',
-    formatEURPrecis((payload.supplementKmCentimes || getSupplementKmCentimes()) / 100),
+    formatEURPrecis((payload.supplementKmCentimes !== undefined ? payload.supplementKmCentimes : getSupplementKmCentimes()) / 100),
     String(payload.caution || ''),
     (getAgence().telephone || '')
   ];
@@ -3178,6 +3227,7 @@ function initDossierAgencyView(token){
     var heures = dureeHeures(departISO, retourISO);
     var lieuAffiche = f.livraison ? ('Livraison à ' + (f.livraisonRue||'') + ', ' + (f.livraisonCP||'') + ' ' + (f.livraisonVille||'')) : r.lieuPrise;
     var adresseComplete = [f.adresse, [f.codePostal, f.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    var conditionsKilometriques = v.contractMileage || creerConditionsKilometriquesContrat({ joursFactures: jours, vehiculeId: r.vehicule && r.vehicule.id });
     return traduireValeursPayload({
       'form-name': 'contrat-signature',
       reference: r.id,
@@ -3228,7 +3278,11 @@ function initDossierAgencyView(token){
       second_conducteur_permis: f.secondConducteurPermisNumero || '',
       second_conducteur_permis_pays: f.secondConducteurPermisPays || '',
       second_conducteur_permis_date: f.secondConducteurPermisDate || '',
-      kmInclus: kmInclusPourJours(jours).toLocaleString('fr-FR'),
+      contractMileage: conditionsKilometriques,
+      kmInclusParJour: conditionsKilometriques.kilometresInclusParJour,
+      joursFactures: conditionsKilometriques.joursFactures,
+      kmInclus: conditionsKilometriques.kilometresInclusTotal.toLocaleString('fr-FR'),
+      supplementKmCentimes: conditionsKilometriques.supplementKmCentimes,
       cglVersion: r.cglVersion || getCglVersion(r.langue),
       horodatage_signature: v.dossier.signature ? formatDateHeureFR(v.dossier.signature.displaySignedAt || v.dossier.signature.signedAt, r.langue) : '',
       signatureId: v.dossier.signature ? v.dossier.signature.signatureId : '',
@@ -3275,6 +3329,9 @@ function initDossierAgencyView(token){
     recap.appendChild(recapRow('Téléphone', r.conducteur ? r.conducteur.telephone : ''));
     recap.appendChild(recapRow('Total réglé', formatEUR(r.total)));
     recap.appendChild(recapRow('Dépôt de garantie', r.vehicule ? formatEUR(r.vehicule.caution) : ''));
+    if(view.contractMileage){
+      recap.appendChild(recapRow('Kilométrage inclus', view.contractMileage.kilometresInclusTotal.toLocaleString('fr-FR') + ' km'));
+    }
 
     if(document.getElementById('dfVersionDataCard')){
     document.getElementById('df-clientPrenom').value=r.conducteur&&r.conducteur.prenom||'';
@@ -3340,6 +3397,16 @@ function initDossierAgencyView(token){
     document.getElementById('df-secondPermis').value = val('secondConducteurPermisNumero');
     document.getElementById('df-secondPermisDate').value = val('secondConducteurPermisDate');
     document.getElementById('df-secondPermisPays').value = val('secondConducteurPermisPays');
+    var conditionsKilometriques = view.contractMileage || creerConditionsKilometriquesContrat({ joursFactures: r.jours, vehiculeId: r.vehicule && r.vehicule.id });
+    var kmToggle = document.getElementById('df-kilometragePersonnalise-toggle');
+    var kmJourField = document.getElementById('df-kmInclusParJour');
+    var kmRateField = document.getElementById('df-supplementKm');
+    kmToggle.checked = conditionsKilometriques.mode === 'custom';
+    document.getElementById('dfKilometragePersonnaliseBlock').classList.toggle('show', kmToggle.checked);
+    kmJourField.value = String(conditionsKilometriques.kilometresInclusParJour);
+    kmRateField.value = (conditionsKilometriques.supplementKmCentimes / 100).toFixed(2);
+    document.getElementById('df-kmInclusTotal').textContent = conditionsKilometriques.kilometresInclusTotal.toLocaleString('fr-FR') + ' km';
+    [kmToggle, kmJourField, kmRateField, document.getElementById('df-appliquerLongueDureeBtn')].forEach(function(field){ field.disabled = view.dossier.status === 'signed'; });
 
     ['depart','retour'].forEach(function(etape){
       var data = view.dossier[etape];
@@ -3390,6 +3457,24 @@ function initDossierAgencyView(token){
   document.getElementById('df-second-toggle').addEventListener('change', function(){
     document.getElementById('dfSecondBlock').classList.toggle('show', this.checked);
   });
+  document.getElementById('df-kilometragePersonnalise-toggle').addEventListener('change', function(){
+    document.getElementById('dfKilometragePersonnaliseBlock').classList.toggle('show', this.checked);
+    var jours = view && view.reservation ? view.reservation.jours : 1;
+    var total = this.checked ? Number(document.getElementById('df-kmInclusParJour').value) * jours : (view && view.contractMileage ? view.contractMileage.kilometresInclusTotal : getKmInclusParJour() * jours);
+    document.getElementById('df-kmInclusTotal').textContent = Math.max(0, Math.round(total || 0)).toLocaleString('fr-FR') + ' km';
+  });
+  document.getElementById('df-kmInclusParJour').addEventListener('input', function(){
+    if(document.getElementById('df-kilometragePersonnalise-toggle').checked){
+      document.getElementById('df-kmInclusTotal').textContent = Math.max(0, Math.round(Number(this.value) * (view && view.reservation ? view.reservation.jours : 1) || 0)).toLocaleString('fr-FR') + ' km';
+    }
+  });
+  document.getElementById('df-appliquerLongueDureeBtn').addEventListener('click', function(){
+    document.getElementById('df-kilometragePersonnalise-toggle').checked = true;
+    document.getElementById('dfKilometragePersonnaliseBlock').classList.add('show');
+    document.getElementById('df-kmInclusParJour').value = String(LONGUE_DUREE_KM_PAR_JOUR);
+    document.getElementById('df-supplementKm').value = (LONGUE_DUREE_SUPPLEMENT_KM_CENTIMES / 100).toFixed(2);
+    document.getElementById('df-kmInclusParJour').dispatchEvent(new Event('input'));
+  });
   // La langue est persistée indépendamment des autres champs : un lien déjà
   // envoyé reflète donc immédiatement la langue choisie par l'agence.
   document.getElementById('df-contractLanguage').addEventListener('change', function(){
@@ -3408,6 +3493,13 @@ function initDossierAgencyView(token){
   document.getElementById('dfSaveBtn').addEventListener('click', function(){
     var msg = document.getElementById('dfSaveMsg');
     msg.textContent = 'Enregistrement…';
+    var customMileage = document.getElementById('df-kilometragePersonnalise-toggle').checked;
+    var customKmPerDay = Number(document.getElementById('df-kmInclusParJour').value);
+    var customKmRate = Number(document.getElementById('df-supplementKm').value);
+    if(customMileage && (!Number.isInteger(customKmPerDay) || customKmPerDay < 0 || !isFinite(customKmRate) || customKmRate < 0)){
+      msg.textContent = 'Vérifiez les conditions kilométriques personnalisées.';
+      return;
+    }
     var modeCautionBtn = document.querySelector('#dfCautionTabs .tab-btn.active');
     apiPost({
       action: 'update-fields',
@@ -3430,7 +3522,12 @@ function initDossierAgencyView(token){
       secondConducteurPrenom: document.getElementById('df-secondPrenom').value,
       secondConducteurPermisNumero: document.getElementById('df-secondPermis').value,
       secondConducteurPermisDate: document.getElementById('df-secondPermisDate').value,
-      secondConducteurPermisPays: document.getElementById('df-secondPermisPays').value
+      secondConducteurPermisPays: document.getElementById('df-secondPermisPays').value,
+      contractMileage: {
+        mode: customMileage ? 'custom' : 'standard',
+        kilometresInclusParJour: customKmPerDay,
+        supplementKmCentimes: Math.round(customKmRate * 100)
+      }
     }).then(function(body){
       view = body; render();
       msg.textContent = 'Enregistré ✓';
@@ -3589,6 +3686,7 @@ function initDossierClientView(token){
     var heures = dureeHeures(departISO, retourISO);
     var lieuAffiche = f.livraison ? ('Livraison à ' + f.livraisonRue + ', ' + f.livraisonCP + ' ' + f.livraisonVille) : r.lieuPrise;
     var adresseComplete = [f.adresse, [f.codePostal, f.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    var conditionsKilometriques = v.contractMileage || creerConditionsKilometriquesContrat({ joursFactures: jours });
     return traduireValeursPayload({
       'form-name': 'contrat-signature',
       reference: r.id,
@@ -3637,7 +3735,11 @@ function initDossierClientView(token){
       second_conducteur_permis: f.secondConducteurPermisNumero || '',
       second_conducteur_permis_pays: f.secondConducteurPermisPays || '',
       second_conducteur_permis_date: f.secondConducteurPermisDate || '',
-      kmInclus: kmInclusPourJours(jours).toLocaleString('fr-FR'),
+      contractMileage: conditionsKilometriques,
+      kmInclusParJour: conditionsKilometriques.kilometresInclusParJour,
+      joursFactures: conditionsKilometriques.joursFactures,
+      kmInclus: conditionsKilometriques.kilometresInclusTotal.toLocaleString('fr-FR'),
+      supplementKmCentimes: conditionsKilometriques.supplementKmCentimes,
       cglVersion: r.cglVersion || getCglVersion(r.langue),
       horodatage_signature: stamp || '',
       signatureId: signatureId || '',
@@ -3663,7 +3765,7 @@ function initDossierClientView(token){
     });
     document.getElementById('dc-accept').nextElementSibling.innerHTML = 'I confirm that the information provided is accurate, that I hold a valid driving licence, that I have read this agreement and the <a href="cgl.html" target="_blank" rel="noopener">General Rental Conditions</a>, and that I accept the rental terms, applicable pricing and the condition of the vehicle on handover.';
     return function(value){ return ({
-      'Véhicule':'Vehicle', 'Immatriculation':'Registration', 'Livraison':'Delivery', 'Lieu de prise en charge':'Pick-up location', 'Départ':'Pick-up', 'Retour':'Return', 'Total':'Total', 'Dépôt de garantie':'Security deposit', 'Locataire':'Renter', 'N° de permis':'Driving licence no.', 'Second conducteur':'Additional driver', 'carte bancaire':'bank card', 'espèces':'cash'
+      'Véhicule':'Vehicle', 'Immatriculation':'Registration', 'Livraison':'Delivery', 'Lieu de prise en charge':'Pick-up location', 'Départ':'Pick-up', 'Retour':'Return', 'Total':'Total', 'Kilométrage inclus':'Included mileage', 'Dépôt de garantie':'Security deposit', 'Locataire':'Renter', 'N° de permis':'Driving licence no.', 'Second conducteur':'Additional driver', 'carte bancaire':'bank card', 'espèces':'cash'
     }[value] || value); };
   }
 
@@ -3688,6 +3790,7 @@ function initDossierClientView(token){
       recap.appendChild(recapRow(L('Départ'), formatDateHeureFR(departISO, r.langue)));
       recap.appendChild(recapRow(L('Retour'), formatDateHeureFR(retourISO, r.langue)));
       recap.appendChild(recapRow(L('Total'), formatEUR(r.total)));
+      if(v.contractMileage) recap.appendChild(recapRow(L('Kilométrage inclus'), v.contractMileage.kilometresInclusTotal.toLocaleString(r.langue === 'en' ? 'en-GB' : 'fr-FR') + ' km'));
       recap.appendChild(recapRow(L('Dépôt de garantie'), r.vehicule ? (formatEUR(r.vehicule.caution) + ' (' + L(f.modeCaution === 'carte' ? 'carte bancaire' : 'espèces') + ')') : ''));
       recap.appendChild(recapRow(L('Locataire'), r.conducteur ? (r.conducteur.prenom + ' ' + r.conducteur.nom) : ''));
       recap.appendChild(recapRow(L('N° de permis'), f.permisNumero));
@@ -3966,6 +4069,10 @@ function initOwnerView(prefill){
   var livraisonBlock = document.getElementById('livraisonBlock');
   var tarifManuelToggle = document.getElementById('tarifManuel-toggle');
   var tarifManuelBlock = document.getElementById('tarifManuelBlock');
+  var kilometragePersonnaliseToggle = document.getElementById('kilometragePersonnalise-toggle');
+  var kilometragePersonnaliseBlock = document.getElementById('kilometragePersonnaliseBlock');
+  var kmInclusParJourContrat = document.getElementById('kmInclusParJourContrat');
+  var supplementKmContrat = document.getElementById('supplementKmContrat');
   var siegeEnfantToggle = document.getElementById('siege-enfant-toggle');
   var rehausseurToggle = document.getElementById('rehausseur-toggle');
 
@@ -4028,6 +4135,23 @@ function initOwnerView(prefill){
   tarifManuelToggle.addEventListener('change', function(){
     tarifManuelBlock.classList.toggle('show', tarifManuelToggle.checked);
     updateSummary();
+  });
+
+  kmInclusParJourContrat.value = String(getKmInclusParJour());
+  supplementKmContrat.value = (getSupplementKmCentimes() / 100).toFixed(2);
+  kilometragePersonnaliseToggle.addEventListener('change', function(){
+    kilometragePersonnaliseBlock.classList.toggle('show', kilometragePersonnaliseToggle.checked);
+    kmInclusParJourContrat.required = kilometragePersonnaliseToggle.checked;
+    supplementKmContrat.required = kilometragePersonnaliseToggle.checked;
+    updateSummary();
+  });
+  document.getElementById('appliquerLongueDureeBtn').addEventListener('click', function(){
+    kilometragePersonnaliseToggle.checked = true;
+    kilometragePersonnaliseBlock.classList.add('show');
+    kmInclusParJourContrat.value = String(LONGUE_DUREE_KM_PAR_JOUR);
+    supplementKmContrat.value = (LONGUE_DUREE_SUPPLEMENT_KM_CENTIMES / 100).toFixed(2);
+    updateSummary();
+    modificationBrouillonContrat();
   });
 
   function pad(n){ return String(n).padStart(2,'0'); }
@@ -4125,6 +4249,10 @@ function initOwnerView(prefill){
       retour: inputRetour.value,
       secondConducteur: secondToggle.checked,
       livraison: livraisonToggle.checked,
+      kmForfait: selectKmForfait.value,
+      protection: selectProtection ? selectProtection.value : getProtectionParDefaut(),
+      siegeEnfant: siegeEnfantToggle.checked,
+      rehausseur: rehausseurToggle.checked,
       tarifManuel: document.getElementById('tarifManuel-toggle').checked,
       montantFinalConvenu: document.getElementById('montantFinalConvenu').value
     };
@@ -4136,23 +4264,32 @@ function initOwnerView(prefill){
       document.getElementById('dureeTxt').textContent = 'Dates invalides (retour avant départ)';
       document.getElementById('kmTxt').textContent = '—';
       document.getElementById('totalTxt').textContent = '—';
-      afficherRecapKilometrage(NaN);
+      afficherRecapKilometrage(NaN, null);
       return;
     }
+    var conditionsKilometriques = creerConditionsKilometriquesContrat({
+      mode: kilometragePersonnaliseToggle.checked ? 'custom' : 'standard',
+      kilometresInclusParJour: Number(kmInclusParJourContrat.value),
+      supplementKmCentimes: Math.round(Number(supplementKmContrat.value) * 100),
+      joursFactures: prix.jours,
+      vehiculeId: selectVehicule.value,
+      kilometresInclusStandard: prix.kmInclus
+    });
     var tarif = appliquerTarifManuel(prix, donneesTarif);
     document.getElementById('dureeTxt').textContent = formatDuree(heures) + ' — facturé ' + formatJoursFactures(prix.jours);
-    document.getElementById('kmTxt').textContent = kmInclusPourJours(prix.jours).toLocaleString('fr-FR') + ' km';
+    document.getElementById('kmTxt').textContent = conditionsKilometriques.kilometresInclusTotal.toLocaleString('fr-FR') + ' km';
+    document.getElementById('kmInclusTotalContrat').textContent = conditionsKilometriques.kilometresInclusTotal.toLocaleString('fr-FR') + ' km';
     document.getElementById('totalTxt').textContent = tarif.tarifManuelActif
       ? (formatEUR(tarif.total) + ' (tarif spécial, calculé : ' + formatEUR(tarif.tarifCalcule) + ')')
       : formatEUR(tarif.total);
-    afficherRecapKilometrage(prix.jours);
+    afficherRecapKilometrage(prix.jours, conditionsKilometriques);
   }
 
   // Calcul/validation kilométrique en direct — toujours via
   // calculerKilometrage() de js/data.js, jamais de tarif recodé ici. Message
   // non bloquant pendant la saisie (la validation qui bloque réellement la
   // génération est kmSontValides(), appelée au clic sur le bouton).
-  function afficherRecapKilometrage(jours){
+  function afficherRecapKilometrage(jours, conditionsKilometriques){
     var kmDepartVal = document.getElementById('kmDepart').value;
     var kmRetourVal = document.getElementById('kmRetour').value;
     var msg = document.getElementById('kmValidationMsg');
@@ -4160,9 +4297,10 @@ function initOwnerView(prefill){
     if(kmDepartVal === '' || kmRetourVal === ''){
       msg.textContent = '';
       recap.classList.add('hidden');
+      document.getElementById('kmSupplementEstimeContrat').textContent = 'Renseignez les compteurs départ et retour pour estimer un éventuel dépassement.';
       return;
     }
-    var km = calculerKilometrage({ kmDepart: Number(kmDepartVal), kmRetour: Number(kmRetourVal), jours: jours });
+    var km = calculerKilometrage({ kmDepart: Number(kmDepartVal), kmRetour: Number(kmRetourVal), jours: jours, vehiculeId: selectVehicule.value, conditionsKilometriques: conditionsKilometriques });
     if(!km.valid){
       msg.textContent = km.error;
       recap.classList.add('hidden');
@@ -4173,6 +4311,9 @@ function initOwnerView(prefill){
     recap.innerHTML = km.kmDepasses > 0
       ? ('<span>Dépassement : ' + km.kmDepasses + ' km — supplément ' + formatEURPrecis(km.supplement) + '</span>')
       : ('<span>Aucun dépassement (' + km.kmParcourus + ' km parcourus, ' + km.kmInclus + ' km inclus)</span>');
+    document.getElementById('kmSupplementEstimeContrat').textContent = km.kmDepasses > 0
+      ? ('Coût estimé du dépassement saisi : ' + formatEURPrecis(km.supplement))
+      : 'Coût estimé du dépassement saisi : 0,00 €';
   }
 
   document.getElementById('ownerForm').addEventListener('input', function(e){
@@ -4275,6 +4416,11 @@ function initOwnerView(prefill){
     if(d === '' || r === '') return true;
     return Number(r) >= Number(d);
   }
+  function conditionsKilometriquesSontValides(){
+    if(!kilometragePersonnaliseToggle.checked) return true;
+    var kmJour = Number(kmInclusParJourContrat.value), tarifKm = Number(supplementKmContrat.value);
+    return Number.isInteger(kmJour) && kmJour >= 0 && isFinite(tarifKm) && tarifKm >= 0;
+  }
 
   // Lit l'état courant du formulaire AGENCE — utilisé à la fois pour le
   // lien client (regenererLien, seulement une fois tous les champs requis
@@ -4325,6 +4471,11 @@ function initOwnerView(prefill){
       tarifManuel: tarifManuelToggle.checked,
       montantFinalConvenu: document.getElementById('montantFinalConvenu').value,
       tarifMotif: document.getElementById('tarifMotif').value,
+      contractMileage: {
+        mode: kilometragePersonnaliseToggle.checked ? 'custom' : 'standard',
+        kilometresInclusParJour: Number(kmInclusParJourContrat.value),
+        supplementKmCentimes: Math.round(Number(supplementKmContrat.value) * 100)
+      },
       kmDepart: document.getElementById('kmDepart').value,
       kmRetour: document.getElementById('kmRetour').value,
       kmForfait: selectKmForfait.value,
@@ -4509,6 +4660,14 @@ function initOwnerView(prefill){
     tarifManuelBlock.classList.toggle('show', tarifManuelToggle.checked);
     document.getElementById('montantFinalConvenu').value = inclureDonneesInstance ? (rawData.montantFinalConvenu || '') : '';
     document.getElementById('tarifMotif').value = inclureDonneesInstance ? (rawData.tarifMotif || '') : '';
+    var conditionsEnregistrees = inclureDonneesInstance && rawData.contractMileage && typeof rawData.contractMileage === 'object'
+      ? rawData.contractMileage : null;
+    kilometragePersonnaliseToggle.checked = !!(conditionsEnregistrees && conditionsEnregistrees.mode === 'custom');
+    kilometragePersonnaliseBlock.classList.toggle('show', kilometragePersonnaliseToggle.checked);
+    kmInclusParJourContrat.value = String(conditionsEnregistrees && conditionsEnregistrees.kilometresInclusParJour !== undefined
+      ? conditionsEnregistrees.kilometresInclusParJour : getKmInclusParJour());
+    supplementKmContrat.value = ((conditionsEnregistrees && conditionsEnregistrees.supplementKmCentimes !== undefined
+      ? conditionsEnregistrees.supplementKmCentimes : getSupplementKmCentimes()) / 100).toFixed(2);
     document.getElementById('kmDepart').value = inclureDonneesInstance ? (rawData.kmDepart || '') : '';
     document.getElementById('kmRetour').value = inclureDonneesInstance ? (rawData.kmRetour || '') : '';
     selectKmForfait.value = inclureDonneesInstance ? (rawData.kmForfait || '') : '';
@@ -4632,6 +4791,10 @@ function initOwnerView(prefill){
     }
     if(!kmSontValides()){
       alert('Le kilométrage de retour doit être supérieur ou égal au kilométrage de départ.');
+      return;
+    }
+    if(!conditionsKilometriquesSontValides()){
+      alert('Vérifiez les conditions kilométriques personnalisées (kilomètres entiers positifs ou nuls et tarif positif ou nul).');
       return;
     }
     var btn = document.getElementById('genererContratBtn');
@@ -5264,7 +5427,8 @@ function initClientView(data){
   var jours = prixClient ? prixClient.jours : joursFacturablesDepuisHeures(heures);
   var tarifClient = appliquerTarifManuel(prixClient, data);
   var total = tarifClient.total;
-  var kmInclus = kmInclusPourJours(jours);
+  var conditionsKilometriquesClient = conditionsKilometriquesDepuisData(data, prixClient);
+  var kmInclus = conditionsKilometriquesClient.kilometresInclusTotal;
   var adresseComplete = data.adresse + ', ' + data.codePostal + ' ' + data.ville;
   var lieuAffiche = data.livraison
     ? 'Livraison à ' + data.livraisonRue + ', ' + data.livraisonCP + ' ' + data.livraisonVille
@@ -5325,8 +5489,9 @@ function initClientView(data){
   setFill('caution', formatEUR(v.caution));
   setFill('modeCaution', libelleModeCaution(data.modeCaution).toLowerCase());
   setFill('kmInclus', kmInclus.toLocaleString('fr-FR'));
-  setFill('kmInclusParJour', getKmInclusParJour().toLocaleString('fr-FR'));
-  setFill('supplementKm', formatEURPrecis(getSupplementKmCentimes() / 100));
+  setFill('kmInclusParJour', conditionsKilometriquesClient.kilometresInclusParJour.toLocaleString('fr-FR'));
+  setFill('joursFactures', conditionsKilometriquesClient.joursFactures.toLocaleString('fr-FR'));
+  setFill('supplementKm', formatEURPrecis(conditionsKilometriquesClient.supplementKmCentimes / 100));
   setFill('cglVersion', data.cglVersion || getCglVersion(data.langueClient));
   if(data.secondConducteur){
     setFill('nom2', data.prenom2 + ' ' + data.nom2);

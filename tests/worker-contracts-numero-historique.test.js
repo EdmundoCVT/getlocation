@@ -84,6 +84,36 @@ test("updateManualContract : met à jour en place (même id, même numéro, mêm
   assert.equal(historique.length, 1, "la mise à jour ne doit jamais créer un second contrat");
 });
 
+test("conditions kilométriques : sauvegarde, réouverture et recalcul de durée conservent la personnalisation", async () => {
+  const env = makeEnv();
+  const custom = { mode: "custom", kilometresInclusParJour: 100, supplementKmCentimes: 45 };
+  const cree = await createManualContract(env, {
+    ...rawDataValide,
+    depart: "2026-11-01T10:00",
+    retour: "2026-12-01T10:00",
+    tarifManuel: true,
+    montantFinalConvenu: "1800",
+    contractMileage: custom
+  });
+  assert.deepEqual(cree.contractMileage, {
+    mode: "custom", kilometresInclusParJour: 100, kilometresInclusTotal: 3000,
+    supplementKmCentimes: 45, joursFactures: 30
+  });
+  assert.equal(cree.agreedRentalTotal, 1800);
+
+  const relu = await getReservation(env, cree.id);
+  assert.deepEqual(relu.contractMileage, cree.contractMileage);
+  const maj = await updateManualContract(env, cree.id, {
+    ...rawDataValide,
+    depart: "2026-11-01T10:00",
+    retour: "2026-12-16T10:00",
+    contractMileage: custom
+  });
+  assert.equal(maj.contractMileage.joursFactures, 45);
+  assert.equal(maj.contractMileage.kilometresInclusTotal, 4500);
+  assert.equal(maj.contractMileage.supplementKmCentimes, 45);
+});
+
 test("updateManualContract : id introuvable renvoie null (pas de crash)", async () => {
   const env = makeEnv();
   const result = await updateManualContract(env, "res_" + "0".repeat(32), rawDataValide);
@@ -99,7 +129,7 @@ test("updateManualContract : refuse de modifier une réservation en ligne (mauva
 
 test("versionnement : V1 reste intacte et sa signature est copiée indépendamment dans V2", async () => {
   const env = makeEnv();
-  const v1 = await createManualContract(env, rawDataValide, "Edmundo");
+  const v1 = await createManualContract(env, { ...rawDataValide, contractMileage: { mode: "custom", kilometresInclusParJour: 150, supplementKmCentimes: 35 } }, "Edmundo");
   const signedAt = "2026-10-09T10:00:00.000Z";
   await updateContractDossier(env, v1.id, {
     contractDossier: { status: "signed", signature: { imageDataUrl: "data:image/png;base64,signee", signedAt } },
@@ -121,6 +151,7 @@ test("versionnement : V1 reste intacte et sa signature est copiée indépendamme
   assert.equal(v2.contractDossier.status, "draft");
   assert.deepEqual(v2.contractDossier.signature, v1Avant.contractDossier.signature);
   assert.notStrictEqual(v2.contractDossier.signature, v1Avant.contractDossier.signature);
+  assert.deepEqual(v2.contractMileage, v1.contractMileage, "V2 reprend les conditions kilométriques de V1 par défaut");
   assert.notEqual(v2.id, v1.id);
 });
 

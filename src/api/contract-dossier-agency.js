@@ -18,7 +18,7 @@
 // du dossier contrat, un contrat ne doit jamais pouvoir diverger de ce qui
 // a réellement été payé.
 
-const { getVehiculeParId, calculerKilometrage, joursFacturablesDepuisHeures, joursFacturablesPourPeriode, KM_INCLUS_PAR_JOUR, SUPPLEMENT_KM_CENTIMES, getCglVersion, parseAdressePersonnalisee } = require("../../js/data.js");
+const { getVehiculeParId, calculerKilometrage, joursFacturablesDepuisHeures, joursFacturablesPourPeriode, getCglVersion, parseAdressePersonnalisee } = require("../../js/data.js");
 const {
   updateContractDossier,
   findReservationByContractAgencyTokenHash, contractLanguage, updateInspectionSignatureDisplay,
@@ -32,6 +32,7 @@ const { recordAuditEvent } = require("../lib/audit-log.js");
 const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
 const { listInspectionRevisions, initializeInspectionRevision, createInspectionRevision, updateInspectionRevisionDraft, finalizeInspectionRevision } = require("../lib/inspection-revisions.js");
 const { finalizeRevisionWithPdf } = require("../lib/finalize-inspection-revision.js");
+const { normalizeContractMileage, agreedTotal } = require("../lib/contract-mileage.js");
 
 function corsHeaders(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -135,8 +136,9 @@ function buildDossierView(reservation) {
     depart: departRevision && Array.isArray(departRevision.media) ? departRevision.media : legacyMedia.depart || [],
     retour: retourRevision && Array.isArray(retourRevision.media) ? retourRevision.media : legacyMedia.retour || []
   };
+  const contractMileage = normalizeContractMileage(reservation, reservation.contractMileage);
   const kilometrage = depart && retour
-    ? calculerKilometrage({ kmDepart: depart.km, kmRetour: retour.km, jours })
+    ? calculerKilometrage({ kmDepart: depart.km, kmRetour: retour.km, jours, vehiculeId: reservation.vehiculeId, conditionsKilometriques: contractMileage })
     : null;
 
   // Prefill "meilleur effort" depuis le dossier documentaire (documents.html,
@@ -193,8 +195,9 @@ function buildDossierView(reservation) {
       cglVersion: dossier && dossier.cglVersion || getCglVersion(language),
       langue: language
     },
-    kmInclusParJour: KM_INCLUS_PAR_JOUR,
-    supplementKmCentimes: SUPPLEMENT_KM_CENTIMES,
+    contractMileage,
+    kmInclusParJour: contractMileage.kilometresInclusParJour,
+    supplementKmCentimes: contractMileage.supplementKmCentimes,
     documentsPrefill: {
         adresse: documentsData.postalAddress || "",
         permisNumero: documentsData.permitNumber || "",
@@ -306,8 +309,11 @@ async function handlePost(request, env, headers) {
       case "update-fields": {
         const fields = validateContractFields(payload);
         const language = payload.contractLanguage === "en" ? "en" : "fr";
+        const contractMileage = normalizeContractMileage(reservation, payload.contractMileage || reservation.contractMileage);
         const updated = await updateContractDossier(env, reservation.id, {
           contractLanguage: language,
+          contractMileage,
+          agreedRentalTotal: agreedTotal(reservation),
           // Tant que la version n'est pas signée, ses CGL suivent sa langue
           // active. Après signature, updateContractDossier bloque toute
           // écriture et garde donc langue + CGL immuables.
@@ -423,7 +429,8 @@ async function handlePost(request, env, headers) {
         }
         const retour = { ...preserveInspectionSignatures(validateConditionReport(payload), existing.retour), completedAt: existing.retour && existing.retour.completedAt || new Date().toISOString(), finalizedAt: payload.finalize ? existing.retour && existing.retour.finalizedAt || new Date().toISOString() : existing.retour && existing.retour.finalizedAt || null };
         const jours = joursReservation(reservation);
-        const kilometrage = calculerKilometrage({ kmDepart: departureSnapshot.km, kmRetour: retour.km, jours });
+        const contractMileage = normalizeContractMileage(reservation, reservation.contractMileage);
+        const kilometrage = calculerKilometrage({ kmDepart: departureSnapshot.km, kmRetour: retour.km, jours, vehiculeId: reservation.vehiculeId, conditionsKilometriques: contractMileage });
         if (!kilometrage.valid) {
           return new Response(JSON.stringify({ error: kilometrage.error }), { status: 400, headers });
         }

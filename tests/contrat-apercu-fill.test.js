@@ -120,7 +120,7 @@ test("remplirTexteArticles() + texteConditionsLocation() : les articles reflète
   assert.match(texte, /Lieu : Agence Grasse\./);
   assert.match(texte, /Montant total convenu pour la location : \d+([.,]\d+)?\s?€\./);
   assert.match(texte, /Un dépôt de garantie de \d+([.,]\d+)?\s?€ est préautorisé avant remise des clés, réglé par carte bancaire\./);
-  assert.match(texte, /soit \d[\d\s]* km au total pour la durée du contrat/);
+  assert.match(texte, /kilométrage total autorisé sans supplément est de \d[\d\s]* km/);
 
   // Plus aucun span data-fill non substitué (hors ceux volontairement
   // absents du texte, ex. le second conducteur non applicable ici).
@@ -129,7 +129,7 @@ test("remplirTexteArticles() + texteConditionsLocation() : les articles reflète
   assert.doesNotMatch(texte, /Lieu : …\./, "le lieu doit être substitué");
   assert.doesNotMatch(texte, /location : …\./, "le montant total doit être substitué");
   assert.doesNotMatch(texte, /garantie de … est/, "le dépôt de garantie doit être substitué");
-  assert.doesNotMatch(texte, /soit … km/, "le kilométrage inclus doit être substitué");
+  assert.doesNotMatch(texte, /autorisé sans supplément est de … km/, "le kilométrage inclus doit être substitué");
 });
 
 test("second conducteur : la clause correspondante est révélée et remplie quand l'option est sélectionnée", () => {

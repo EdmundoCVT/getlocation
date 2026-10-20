@@ -153,6 +153,20 @@ test("page 1 : les huit informations que le client doit saisir en 10 secondes so
   assert.match(page1, /DÉPÔT DE GARANTIE/);          // garantie
 });
 
+test("PDF : les conditions kilométriques personnalisées réellement enregistrées remplacent les valeurs générales", () => {
+  const journal = genererJournal({
+    depart: "2026-11-01T10:00",
+    retour: "2026-12-01T10:00",
+    contractMileage: { mode: "custom", kilometresInclusParJour: 100, supplementKmCentimes: 45 }
+  });
+  const texte = journal.map((item) => item.texte).join(" | ");
+  assert.match(texte, /100 km \/ jour/);
+  assert.match(texte.replace(/[\s\u00a0\u202f]/g, ""), /3000km/);
+  assert.match(texte, /0,45\s*€/);
+  assert.doesNotMatch(texte, /0,65\s*€\s*TTC\s*\/\s*km/);
+  assert.match(texte, /distance totale parcourue/);
+});
+
 test("PDF EN : kilométrage, livraison, règlement et annexe ne mélangent pas le français", () => {
   const journal = genererJournal({
     langueClient: "en",

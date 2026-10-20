@@ -91,7 +91,12 @@ async function handleContractsManualUpdate(request, env) {
     return new Response(JSON.stringify({ error: "Identifiant de contrat ou données manquantes/invalides" }), { status: 400, headers });
   }
 
-  const record = await updateManualContract(env, body.id, body.rawData, auth.session.operator);
+  let record;
+  try {
+    record = await updateManualContract(env, body.id, body.rawData, auth.session.operator);
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message || "Mise à jour impossible" }), { status: error.status || 400, headers });
+  }
   if (!record) {
     return new Response(JSON.stringify({ error: "Contrat manuel introuvable" }), { status: 404, headers });
   }

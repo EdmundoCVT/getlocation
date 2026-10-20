@@ -265,6 +265,33 @@ test("kilométrage : un dépassement calcule le bon supplément (0,65 €/km), j
   assert.equal(body.dossier.kilometrage.supplementCentimes, 6500);
 });
 
+test("kilométrage personnalisé : restitution utilise les 100 km/jour et 0,45 €/km figés sur le contrat", async () => {
+  const e = env();
+  const { agencyToken, reservationId } = await setupReservationPayee(e, {
+    dateDebut: "2026-11-01", heureDebut: "10:00", dateFin: "2026-12-01", heureFin: "10:00",
+    periodeDebut: "2026-11-01T10:00:00.000Z", periodeFin: "2026-12-01T10:00:00.000Z"
+  });
+  const fields = await handleContractDossierAgency(agencyPost(agencyToken, {
+    ...CHAMPS_MINIMAUX,
+    contractMileage: { mode: "custom", kilometresInclusParJour: 100, supplementKmCentimes: 45 }
+  }), e);
+  assert.equal(fields.status, 200);
+  const fieldsBody = await fields.json();
+  assert.equal(fieldsBody.contractMileage.kilometresInclusTotal, 3000);
+  assert.equal(fieldsBody.contractMileage.supplementKmCentimes, 45);
+
+  await handleContractDossierAgency(agencyPost(agencyToken, { action: "update-depart", dateHeure: "2026-11-01T10:00", km: 10000, carburant: 100, agent: "Jean" }), e);
+  const res = await handleContractDossierAgency(agencyPost(agencyToken, { action: "update-retour", dateHeure: "2026-12-01T10:00", km: 13500, carburant: 80, agent: "Jean" }), e);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.dossier.kilometrage.kmInclus, 3000);
+  assert.equal(body.dossier.kilometrage.kmDepasses, 500);
+  assert.equal(body.dossier.kilometrage.supplementKmCentimes, 45);
+  assert.equal(body.dossier.kilometrage.supplementCentimes, 22500);
+  const stored = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
+  assert.equal(stored.contractMileage.kilometresInclusTotal, 3000);
+});
+
 test("kilométrage : un retour inférieur au départ est rejeté (jamais enregistré)", async () => {
   const e = env();
   const { agencyToken, reservationId } = await envoyerDossierComplet(e);

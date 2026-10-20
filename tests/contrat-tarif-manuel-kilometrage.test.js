@@ -189,3 +189,45 @@ test("kilometrageManuel utilise le tarif canonique de js/data.js, pas une valeur
   assert.equal(win.getKmInclusParJour(), 200);
   assert.equal(win.getSupplementKmCentimes(), 65);
 });
+
+test("conditions personnalisées longue durée : 30 jours × 100 km et 0,45 €/km sont figés dans le payload", () => {
+  const win = buildWindow();
+  const payload = win.construirePayload({
+    ...donneesBase,
+    depart: "2026-11-01T10:00",
+    retour: "2026-12-01T10:00",
+    contractMileage: { mode: "custom", kilometresInclusParJour: 100, supplementKmCentimes: 45 }
+  }, null, null);
+  assert.equal(payload.contractMileage.mode, "custom");
+  assert.equal(payload.joursFactures, 30);
+  assert.equal(payload.kmInclusParJour, 100);
+  assert.equal(payload.contractMileage.kilometresInclusTotal, 3000);
+  assert.equal(payload.kmInclus.replace(/\s/g, ""), "3000");
+  assert.equal(payload.supplementKmCentimes, 45);
+});
+
+test("conditions personnalisées : une modification de durée recalcule le total sans écraser 150 km/jour ni 0,35 €/km", () => {
+  const win = buildWindow();
+  const custom = { mode: "custom", kilometresInclusParJour: 150, supplementKmCentimes: 35 };
+  const court = win.construirePayload({ ...donneesBase, contractMileage: custom }, null, null);
+  const long = win.construirePayload({ ...donneesBase, retour: "2026-08-18T10:00", contractMileage: custom }, null, null);
+  assert.equal(court.contractMileage.kilometresInclusTotal, 300);
+  assert.equal(long.contractMileage.kilometresInclusTotal, 750);
+  assert.equal(long.kmInclusParJour, 150);
+  assert.equal(long.supplementKmCentimes, 35);
+});
+
+test("restitution : le dépassement utilise le total et le tarif personnalisés du contrat", () => {
+  const win = buildWindow();
+  const payload = win.construirePayload({
+    ...donneesBase,
+    depart: "2026-11-01T10:00",
+    retour: "2026-12-01T10:00",
+    kmDepart: "10000",
+    kmRetour: "13500",
+    contractMileage: { mode: "custom", kilometresInclusParJour: 100, supplementKmCentimes: 45 }
+  }, null, null);
+  assert.equal(payload.kilometrageManuel.resultat.kmInclus, 3000);
+  assert.equal(payload.kilometrageManuel.resultat.kmDepasses, 500);
+  assert.equal(payload.kilometrageManuel.resultat.supplement, 225);
+});

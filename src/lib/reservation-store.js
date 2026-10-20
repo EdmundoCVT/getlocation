@@ -65,6 +65,7 @@ function contractLanguage(record) {
 // compteur Cloudflare KV lecture-puis-écriture (non garanti unique en cas de
 // double écriture quasi simultanée).
 const { generateContractNumero } = require("./contract-numero.js");
+const { normalizeContractMileage, agreedTotal } = require("./contract-mileage.js");
 
 // Contrat créé à la main par l'agence (client sans réservation en ligne, ou
 // contrat recréé après une location déjà effectuée) — statut dédié
@@ -84,8 +85,11 @@ async function createManualContract(env, rawData, operator) {
   // Les champs internes d'inspection ne proviennent jamais du formulaire
   // contrat, y compris si un appelant forge le corps de la requête.
   const { contractDossier, contractAgencyAccess, manualClientAccess, inspectionSchema, ...contractFields } = rawData;
+  const contractMileage = normalizeContractMileage(contractFields, rawData.contractMileage);
   const record = {
     ...contractFields,
+    contractMileage,
+    agreedRentalTotal: agreedTotal(contractFields),
     // Une saisie du contrat (dont kmDepart/etatDepart) n'est jamais une
     // validation de l'état des lieux autonome.
     inspectionSchema: "modern",
@@ -152,8 +156,11 @@ async function updateManualContract(env, id, rawData, operator) {
     updatedBy: ignoredUpdatedBy,
     ...contractFields
   } = rawData;
+  const contractMileage = normalizeContractMileage(contractFields, contractFields.contractMileage || record.contractMileage);
   const updated = {
     ...contractFields,
+    contractMileage,
+    agreedRentalTotal: agreedTotal(contractFields),
     // Le formulaire contrat remplace ses champs métier, mais n'a aucune
     // autorité sur le dossier d'inspection ou ses jetons agence/client.
     inspectionSchema: record.inspectionSchema,
