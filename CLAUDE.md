@@ -94,48 +94,50 @@ Tout vit dans `js/data.js` (règle n°1) — ne jamais recopier un montant aille
 - Les réservations et contrats déjà enregistrés gardent leur propre copie des
   montants : **rien n'est recalculé rétroactivement**.
 
-## Niveaux de protection (depuis le 16/09/2026)
+## Niveaux de protection (présentation depuis le 20/10/2026)
 
 Quatre formules dans `PROTECTIONS` (`js/data.js`), **une seule retenue par
 réservation**, jamais cumulables :
 
-| Formule | Prix | Franchise |
+| Formule | Prix | Principales garanties |
 |---|---|---|
-| Essentiel | incluse | 2 000 € |
-| Confort | 6 €/jour | 1 500 € |
-| Sérénité (recommandée) | 12 €/jour | 750 € |
-| Sérénité+ | 20 €/jour | 300 € |
+| Essentiel | incluse | responsabilité civile obligatoire |
+| Standard | 6 €/jour | collision, rayures, chocs |
+| Confort (recommandée) | 12 €/jour | Standard + vol, pneus, vitrages, assistance |
+| Premium | 20 €/jour | Confort + conducteur et passagers |
 
 - **`PROTECTION_PAR_DEFAUT = "essentiel"`** : retenue d'office, donc l'étape
   ne bloque jamais le tunnel. Elle est enregistrée dès l'affichage de l'étape.
 - **Plafond** : les formules payantes sont facturées au maximum
   `joursFacturesMax` = 7 jours (42 / 84 / 140 €). **La protection court
   pendant toute la location** — ne jamais écrire au client qu'elle s'arrête
-  après 7 jours : l'affichage dit « X € maximum par location ».
+  après 7 jours : l'affichage précise « prix facturé sur 7 jours ».
 - `calculerProtection(id, jours)` produit l'instantané (`montant`,
-  `franchise`, `plafonne`…) stocké avec la réservation puis repris tel quel
+  `plafonne`…) stocké avec la réservation puis repris tel quel
   par le contrat : un ancien dossier n'est jamais recalculé.
+- Les nouveaux snapshots ne portent plus de champ commercial `franchise`.
+  D'anciens snapshots peuvent encore contenir ce champ : il reste conservé
+  tel quel dans leur historique, mais n'est ni recalculé ni affiché.
 - Le serveur **refuse** un identifiant de protection inconnu
   (`validate-reservation-input.js`) au lieu de le corriger en silence ; en
   revanche l'absence de champ vaut « Essentiel » (anciennes réservations).
 - L'ancienne option payante `assurance-passagers` n'existe plus : sa garantie
   fait partie de Sérénité+. `js/app.js` convertit une réservation en cours
   qui la contenait encore.
-- **Ne jamais confondre trois choses distinctes**, sur le site comme sur le
-  contrat : le *prix* de la protection, la *franchise* (ce qui reste à la
-  charge du client), le *dépôt de garantie* (bloqué puis restitué). Le bloc
-  PROTECTION ET GARANTIE du PDF les affiche en colonnes séparées.
-- **Ne jamais annoncer** « franchise 0 € », une couverture illimitée, une
-  couverture de tous les dommages ni un remboursement automatique, et ne pas
+- **Toujours distinguer**, sur le site comme sur le contrat : le prix et les
+  garanties de la protection, le dépôt de garantie (garantie financière), et
+  les frais pouvant rester à la charge du locataire. Le dépôt n'est jamais
+  présenté comme un plafond des sommes dues.
+- **Ne jamais annoncer** une couverture illimitée, une couverture de tous les
+  dommages, une absence de frais ou un remboursement automatique, et ne pas
   inventer d'exclusions : `PROTECTION_MENTION` renvoie aux CGL.
 - Traductions : noms de formules et garanties dans `js/i18n.js` (site) **et**
   dans `js/contrat-en.js` (contrat, y compris le libellé composé
   « Protection <nom> » de la ligne de prix). `tests/protections.test.js` et
   `tests/i18n-couverture.test.js` échouent si une formule ajoutée plus tard
   reste sans traduction.
-- Le formulaire agence (`contrat.html`) a le même choix : un contrat établi
-  au comptoir facture et affiche la franchise exactement comme une
-  réservation en ligne.
+- Le formulaire agence (`contrat.html`) a le même choix et la même tarification
+  qu'une réservation en ligne.
 
 ## Contrat PDF — présentation financière
 

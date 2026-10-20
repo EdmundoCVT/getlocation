@@ -86,14 +86,15 @@ test("initReservationPage : la protection est une étape dédiée et les autres 
   assert.equal(selectionnees[0].dataset.protection, "essentiel");
 });
 
-test("initReservationPage : les cartes présentent les niveaux, franchises et garanties", () => {
+test("initReservationPage : les cartes présentent les niveaux et garanties sans plafond implicite", () => {
   const window = newWindow(reservationPageHtml());
   window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
   window.initReservationPage();
 
   const texte = window.document.getElementById("protection-list").textContent;
-  assert.doesNotMatch(texte, /Franchise\s*:/, "la franchise reste dans le contrat/CGL et n'est plus répétée sur les cartes compactes");
+  assert.doesNotMatch(texte, /Franchise\s*:/i);
   assert.doesNotMatch(texte, /Responsabilité maximale/);
+  assert.doesNotMatch(texte, /rédui(?:t|re) (?:votre |la )?participation financière/i);
   assert.match(texte, /Protection Essentielle/);
   assert.match(texte, /Protection Premium/);
   assert.equal(window.document.querySelectorAll(".protection-info-button").length, 0, "un seul contrôle ouvre les détails");
@@ -101,6 +102,9 @@ test("initReservationPage : les cartes présentent les niveaux, franchises et ga
   const detailsToggle = window.document.querySelector('[data-protection="essentiel"] .protection-details-toggle');
   detailsToggle.click();
   assert.match(window.document.querySelector('[data-protection="essentiel"] .protection-details').textContent, /responsabilité civile obligatoire/i);
+  assert.match(texte, /garantie financière/i);
+  assert.match(texte, /ne limite pas les sommes/i);
+  assert.match(texte, /650\s*€/i, "le montant du dépôt du véhicule doit être visible avant paiement");
 });
 
 test("initReservationPage : étoiles, accordéon et sélection restent indépendants", () => {

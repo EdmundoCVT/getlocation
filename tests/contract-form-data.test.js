@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { recordToContractForm, mergeContractFormRecord } = require("../src/lib/contract-form-data.js");
+const { CGL_VERSION, CGL_EN_VERSION } = require("../js/data.js");
 
 function record() {
   return {
@@ -63,6 +64,20 @@ test("mergeContractFormRecord met à jour la version courante sans perdre signat
   assert.equal(updated.id, source.id);
   assert.equal(updated.contractNumero, source.contractNumero);
   assert.equal(source.nom, "Dupont", "la source reste immuable");
+  assert.equal(updated.contractDossier.cglVersion, CGL_EN_VERSION, "un brouillon anglais modifié utilise les CGL anglaises courantes");
+});
+
+test("un nouveau brouillon français utilise la CGL courante sans modifier une ancienne source", () => {
+  const source = record();
+  source.contractLanguage = "fr";
+  source.contractDossier.contractLanguage = "fr";
+  source.contractDossier.cglVersion = "2026-09-16";
+  const before = structuredClone(source);
+  const form = recordToContractForm(source);
+  form.langueClient = "fr";
+  const updated = mergeContractFormRecord(source, form, "Edmundo");
+  assert.equal(updated.contractDossier.cglVersion, CGL_VERSION);
+  assert.deepEqual(source, before, "la version CGL de la source historique ne doit jamais être réécrite");
 });
 
 test("recordToContractForm accepte un ancien contrat incomplet sans toLocaleString ni migration destructive", () => {

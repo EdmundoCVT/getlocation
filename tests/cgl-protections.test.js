@@ -7,8 +7,8 @@
 // véhicules recopiées dans les pages de destination
 // (scripts/check-vehicle-grid-sync.js).
 //
-// Ce test joue le même rôle que ce script : il échoue dès qu'un prix, une
-// franchise ou une garantie change dans js/data.js sans être reporté dans les
+// Ce test joue le même rôle que ce script : il échoue dès qu'un prix ou une
+// garantie change dans js/data.js sans être reporté dans les
 // CGL — c'est-à-dire dès que le site facturerait autre chose que ce que le
 // contrat annonce.
 
@@ -31,6 +31,16 @@ const cglHtml = fs.readFileSync(path.join(__dirname, "..", "cgl.html"), "utf8");
 // l'endroit où le paragraphe a été replié.
 const cglTexte = cglHtml.replace(/\s+/g, " ");
 
+function texteArticle4() {
+  const dom = new JSDOM(cglHtml);
+  const article = [...dom.window.document.querySelectorAll(".section .card")]
+    .find((card) => /^4\./.test(card.querySelector("h2")?.textContent.trim() || ""));
+  assert.ok(article, "article 4 introuvable");
+  const texte = article.textContent.replace(/\s+/g, " ").trim();
+  dom.window.close();
+  return texte;
+}
+
 function lignesDuTableau() {
   const dom = new JSDOM(cglHtml);
   const tableau = dom.window.document.getElementById("cglProtections");
@@ -38,7 +48,6 @@ function lignesDuTableau() {
   const lignes = [...tableau.querySelectorAll("tbody tr")].map((tr) => ({
     id: tr.dataset.protection,
     prix: tr.querySelector("[data-prix]").textContent.trim(),
-    franchise: tr.querySelector("[data-franchise]").textContent.trim(),
     garanties: tr.querySelector("[data-garanties]").textContent.trim()
   }));
   dom.window.close();
@@ -59,7 +68,7 @@ test("cgl.html : une ligne par niveau de protection, dans l'ordre de js/data.js"
   );
 });
 
-test("cgl.html : prix et franchises identiques à js/data.js", () => {
+test("cgl.html : prix identiques à js/data.js et aucun montant maximal à charge", () => {
   lignesDuTableau().forEach((ligne) => {
     const protection = getProtectionParId(ligne.id);
     const prixAttendu = protection.prixParJour > 0
@@ -69,11 +78,9 @@ test("cgl.html : prix et franchises identiques à js/data.js", () => {
       memeMontant(ligne.prix, prixAttendu),
       `prix divergent pour ${ligne.id} : CGL « ${ligne.prix} », js/data.js « ${prixAttendu} »`
     );
-    assert.ok(
-      memeMontant(ligne.franchise, formatEUR(protection.franchise)),
-      `franchise divergente pour ${ligne.id} : CGL « ${ligne.franchise} », js/data.js « ${formatEUR(protection.franchise)} »`
-    );
   });
+  assert.doesNotMatch(cglHtml, /data-franchise/i);
+  assert.doesNotMatch(texteArticle4(), /franchise|responsabilité maximale|montant maximal à la charge/i);
 });
 
 test("cgl.html : garanties couvertes identiques à js/data.js, dans le même ordre", () => {
@@ -111,16 +118,30 @@ test("cgl.html : le plafond de facturation annoncé correspond à prixMax", () =
 test("cgl.html : les CGL décrivent bien les exclusions auxquelles renvoie le site", () => {
   // PROTECTION_MENTION (js/data.js) promet au client que les conditions et
   // exclusions figurent dans les CGL : ce paragraphe doit donc exister.
-  assert.match(cglTexte, /Cas dans lesquels la protection ne s'applique pas/);
-  // Et ne jamais promettre l'inverse de ce qu'annonce le site.
-  assert.doesNotMatch(cglTexte, /franchise\s*(de)?\s*0\s*€/i, "aucune promesse de franchise nulle");
-  assert.match(cglTexte, /Aucun niveau ne couvre tous les dommages/);
+  const article = texteArticle4();
+  assert.match(article, /4\.3 Limites des protections/);
+  assert.match(article, /dommage non couvert, d'exclusion, de faute, de négligence ou de non-respect du contrat/);
+  assert.match(article, /personne non mentionnée au contrat/);
+  assert.match(article, /état alcoolique|stupéfiants/);
+  assert.match(article, /erreur de carburant/);
+  assert.match(article, /dommages à l'habitacle/);
 });
 
-test("cgl.html : la version des CGL a été incrémentée après l'ajout des protections", () => {
+test("cgl.html : protections sans promesse absolue et dépôt sans plafond", () => {
+  const article = texteArticle4();
+  assert.match(article, /4\.1 Assurance obligatoire incluse/);
+  assert.match(article, /4\.2 Protections complémentaires/);
+  assert.match(article, /ni une assurance tous risques, ni une garantie d'absence de frais/);
+  assert.match(article, /4\.4 Dépôt de garantie/);
+  assert.match(article, /Le dépôt de garantie constitue une garantie financière\. Il ne constitue pas un plafond de responsabilité du locataire/);
+  assert.match(article, /GETLOCATION peut réclamer le complément/);
+  assert.doesNotMatch(article, /rédui(?:t|re) (?:sa |la )?participation financière/i);
+});
+
+test("cgl.html : la version des CGL a été incrémentée pour la nouvelle présentation", () => {
   // La version acceptée est tracée sur chaque réservation : un texte
   // contractuel modifié sans changement de version rendrait cette trace
   // mensongère (deux textes différents sous le même identifiant).
   const { CGL_VERSION } = require("../js/data.js");
-  assert.ok(CGL_VERSION >= "2026-09-16", `CGL_VERSION (${CGL_VERSION}) antérieure à l'ajout des niveaux de protection`);
+  assert.ok(CGL_VERSION >= "2026-10-20", `CGL_VERSION (${CGL_VERSION}) antérieure à la nouvelle présentation des protections`);
 });

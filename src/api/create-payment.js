@@ -230,8 +230,8 @@ async function handleCreatePayment(request, env) {
     presentationPrix: prix.presentationPrix,
     options: prix.optionsSelectionnees,
     optionsMontant: prix.optionsMontant,
-    // Instantané de la protection retenue (niveau, franchise, jours
-    // facturés, montant). Le contrat reprend CET objet, jamais un recalcul :
+    // Instantané de la protection retenue (niveau, jours facturés, montant).
+    // Le contrat reprend CET objet, jamais un recalcul :
     // une grille tarifaire modifiée plus tard ne doit pas réécrire un
     // dossier déjà payé.
     protection: prix.protection,

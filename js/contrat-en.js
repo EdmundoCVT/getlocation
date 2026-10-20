@@ -105,11 +105,10 @@
     "Selon le contrat et les CGL": "Subject to the rental agreement and General Rental Conditions",
     "Dépôt de garantie": "Security deposit",
     "Mode": "Method",
-    "Franchises assurance": "Insurance terms",
-    "Les protections complémentaires réduisent la participation financière dans les conditions prévues au contrat. Elles restent soumises aux exclusions et limitations applicables.":
-      "Additional protection options reduce the renter's financial contribution under the terms of the rental agreement. They remain subject to the applicable exclusions and limitations.",
-    "Le dépôt de garantie ne constitue ni un plafond de responsabilité ni une limitation des sommes pouvant être réclamées.":
-      "The security deposit does not constitute a liability cap or a limitation on the amounts that may be claimed.",
+    "Les protections complémentaires définissent les événements susceptibles d’être pris en charge selon le contrat et les CGL. Elles ne constituent ni une assurance tous risques, ni une garantie d’absence de frais, ni un plafond général des sommes restant à la charge du locataire.":
+      "Additional protection options define the events that may be covered under the rental agreement and the General Rental Conditions. They are neither comprehensive insurance, nor a guarantee that the renter will incur no charges, nor a general cap on the amounts payable by the renter.",
+    "Le dépôt de garantie est une garantie financière et ne constitue pas un plafond de responsabilité. Des sommes complémentaires peuvent être réclamées lorsque les frais restant à la charge du locataire dépassent son montant.":
+      "The security deposit is a financial guarantee and does not constitute a cap on the renter's liability. Additional amounts may be claimed where costs chargeable to the renter exceed the security deposit.",
     // Noms des formules : identiques à ceux affichés sur le site en anglais
     // (js/i18n.js), pour qu'un client retrouve sur son contrat le nom qu'il
     // a vu au moment de réserver.
@@ -260,15 +259,16 @@
       titre: "Article 4 — Security deposit and insurance",
       paragraphes: [
         "A security deposit of {caution} is taken before the keys are handed over, paid by {modeCaution}. The vehicle is "
-          + "covered by third-party liability insurance and the additional cover in force, taken out with Allianz Assurance; "
-          + "the excess applicable in the event of an at-fault accident, theft or glass breakage is not necessarily equal to "
-          + "this security deposit — the amounts are set out in the General Rental Conditions. A condition report (photographs, "
-          + "odometer reading, fuel level) is carried out at pick-up and at return; any damage not recorded at pick-up will be "
-          + "charged on the basis of a repair quotation.",
-        "Security deposit. The security deposit is a financial guarantee. It may be used to cover damage, missing fuel, extra "
-          + "kilometres, exceptional cleaning and any amount still owed. It is neither a liability cap nor a limitation on the "
-          + "amounts that may be claimed from the renter. If the costs exceed the security deposit, the balance may be claimed "
-          + "in accordance with this agreement, the protection selected and the General Rental Conditions.",
+          + "covered by mandatory third-party liability insurance under the applicable insurance policy. Any additional protection "
+          + "selected defines the events that may be covered under this agreement and the General Rental Conditions. It is neither "
+          + "comprehensive insurance, nor a guarantee that the renter will incur no charges, nor a general cap on the amounts "
+          + "payable by the renter. A condition report (photographs, odometer reading and fuel level) is carried out at pick-up and "
+          + "at return; any damage not recorded at pick-up may be charged on the basis of a repair quotation.",
+        "Security deposit. The security deposit is a financial guarantee. It may be used to cover all or part of the amounts owed "
+          + "for damage, repairs, reinstatement costs, loss of use, missing fuel, cleaning, extra kilometres, traffic fines, "
+          + "administrative charges or other amounts provided for by this agreement and the General Rental Conditions. It does not "
+          + "constitute a cap on the renter's liability. Additional amounts may be claimed where costs chargeable to the renter "
+          + "exceed the security deposit, in accordance with this agreement, the protection selected and the General Rental Conditions.",
         "On return of the vehicle and once the joint return condition report has been agreed: where the deposit was taken as a "
           + "card pre-authorisation, GETLOCATION releases it within 7 working days. Where the deposit was paid in cash or by bank "
           + "transfer, it is returned by bank transfer to the account details provided by the renter, within a minimum of 7 working "
@@ -309,7 +309,7 @@
   // fonctionne à l'identique.
   var DECLARATION = "By signing this agreement, the renter declares : that the information provided above is accurate ; "
     + "that they hold a valid driving licence ; that they have read this agreement and the General Rental Conditions ; "
-    + "that they accept the agreed pricing and any extras selected ; that they have read the cover and excess amounts set out in "
+    + "that they accept the agreed pricing and any extras selected ; that they have read the cover, limits and conditions set out in "
     + "Article 4 ; that they acknowledge the condition of the vehicle as recorded at handover (see the handover and return table).";
 
   // ---------------------------------------------------------------

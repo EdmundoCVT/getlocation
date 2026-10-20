@@ -831,10 +831,10 @@
     "Le permis de conduire et une pièce d'identité vous seront demandés par e-mail après la réservation.":
       "Your driving licence and proof of identity will be requested by email after booking.",
     "Une protection est-elle incluse ?": "Is protection included?",
-    "Oui. La Protection Essentielle est incluse. Des niveaux de protection complémentaires peuvent être sélectionnés pendant la commande ; leurs prix, garanties et franchises sont affichés avant le paiement.":
-      "Yes. Essential Protection is included. Additional protection levels can be selected during booking; their prices, cover and excesses are shown before payment.",
-    "Oui. Son montant dépend du véhicule et reste affiché séparément du prix de la location sur la fiche du véhicule et dans le récapitulatif.":
-      "Yes. The amount depends on the vehicle and is always shown separately from the rental price on the vehicle page and in the summary.",
+    "Oui. La Protection Essentielle est incluse. Des niveaux de protection complémentaires peuvent être sélectionnés pendant la commande ; leurs prix, garanties, limites et conditions sont affichés avant le paiement.":
+      "Yes. Essential Protection is included. Additional protection levels can be selected during booking; their prices, cover, limits and conditions are shown before payment.",
+    "Oui. Son montant dépend du véhicule et reste affiché séparément du prix de la location dans le récapitulatif. Il constitue une garantie financière et non un plafond des sommes pouvant rester à votre charge.":
+      "Yes. The amount depends on the vehicle and is shown separately from the rental price in the summary. It is a financial guarantee, not a cap on the amounts that may remain payable by you.",
     "Oui, le paiement est traité par Mollie, un prestataire de paiement certifié. GETLOCATION ne stocke aucune donnée bancaire.":
       "Yes, payments are handled by Mollie, a certified payment provider. GETLOCATION never stores your card details.",
 
@@ -916,8 +916,8 @@
     "Payer maintenant": "Pay now",
     "🔒 Paiement chiffré de bout en bout par Mollie — GETLOCATION ne stocke aucune donnée bancaire.":
       "🔒 End-to-end encrypted payment by Mollie — GETLOCATION never stores your card details.",
-    "Le dépôt de garantie est prélevé avant la remise des clés, selon le véhicule choisi.":
-      "The security deposit is taken before the keys are handed over, depending on the vehicle.",
+    "Le dépôt de garantie est demandé avant la remise des clés. C'est une garantie financière, pas un plafond des sommes pouvant rester à votre charge.":
+      "The security deposit is requested before the keys are handed over. It is a financial guarantee, not a cap on the amounts that may remain payable by you.",
     "Résumé de la commande": "Order summary",
 
     // --- Confirmation
@@ -1117,37 +1117,26 @@
     "Protection conducteur": "Driver protection",
     "Protection passagers": "Passenger protection",
     "Choisissez votre niveau de protection": "Choose your protection level",
-    "La formule Essentiel est incluse dans votre location. Les formules supérieures réduisent votre franchise en cas de dommage — elles s'appliquent pendant toute la durée de la location, avec un prix plafonné.":
-      "The Essential cover is included in the rental. Higher levels add extra guarantees, with a capped price depending on the level.",
     "La Protection Essentielle est incluse dans votre location. Les formules supérieures ajoutent des garanties complémentaires, avec un prix plafonné selon la formule.":
       "Essential Protection is included in your rental. Higher levels add extra guarantees, with a capped price depending on the level.",
-    "La Protection Essentielle est incluse dans votre location. Les formules supérieures ajoutent des garanties complémentaires et réduisent votre participation financière en cas de dommage couvert, selon les conditions du contrat. Le prix de chaque formule est plafonné à 7 jours.":
-      "Essential Protection is included in your rental. Higher levels add extra cover and reduce your financial contribution in the event of covered damage, subject to the terms of the rental agreement. The price of each level is capped at 7 days.",
+    "La Protection Essentielle est incluse dans votre location. Les formules supérieures ajoutent des garanties complémentaires pour les événements indiqués, selon le contrat et les CGL. Leur prix est facturé au maximum pendant 7 jours.":
+      "Essential Protection is included in your rental. Higher levels add cover for the events indicated, subject to the rental agreement and terms. Their price is charged for no more than 7 days.",
     "La responsabilité civile obligatoire uniquement. Aucune protection complémentaire.": "Mandatory third-party liability only. No additional protection.",
     "Une protection complémentaire pour les collisions, les rayures et les chocs.": "Additional protection for collisions, scratches and impacts.",
     "La protection Standard complétée par le vol, les pneus, le pare-brise, les vitres et l'assistance dépannage.": "Standard Protection plus theft, tyres, windscreen, windows and breakdown assistance.",
     "La protection Confort avec la protection du conducteur et des passagers.": "Comfort Protection with driver and passenger protection.",
     "Protection minimale incluse. La responsabilité civile obligatoire s'applique selon les conditions du contrat.":
       "Minimum protection included. Mandatory third-party liability applies subject to the terms of the rental agreement.",
-    "Protection du véhicule. Réduit votre participation financière en cas de dommage couvert, selon les conditions du contrat.":
-      "Vehicle protection. Reduces your financial contribution in the event of covered damage, subject to the terms of the rental agreement.",
-    "Protection élargie. Réduit votre participation financière en cas de dommage couvert, selon les conditions du contrat.":
-      "Extended protection. Reduces your financial contribution in the event of covered damage, subject to the terms of the rental agreement.",
-    "Protection la plus complète proposée. Réduit votre participation financière en cas de dommage couvert, selon les conditions du contrat.":
-      "The most comprehensive protection option available. Reduces your financial contribution in the event of covered damage, subject to the terms of the rental agreement.",
     "Recommandé": "Recommended",
     "Couvert : ": "Covered: ",
     "Non couvert : ": "Not covered: ",
     "✓ Sélectionnée": "✓ Selected",
-    "Les protections complémentaires permettent de réduire la participation financière du locataire dans les conditions prévues au contrat de location. Elles restent soumises aux exclusions, limitations et conditions générales applicables.\n\nLe dépôt de garantie ne constitue pas un plafond de responsabilité. En cas de dommages, frais ou réparations supérieurs au dépôt de garantie, un complément pourra être réclamé conformément au contrat.":
-      "Additional protection options can reduce the renter's financial contribution under the terms of the rental agreement. They remain subject to the applicable exclusions, limitations and general terms and conditions.\n\nThe security deposit does not constitute a liability cap. If damage, costs or repairs exceed the security deposit, an additional amount may be claimed in accordance with the rental agreement.",
-    "Les protections complémentaires permettent de réduire la participation financière du locataire dans les conditions prévues au contrat de location. Elles restent soumises aux exclusions, limitations et conditions générales applicables.":
-      "Additional protection options can reduce the renter's financial contribution under the terms of the rental agreement. They remain subject to the applicable exclusions, limitations and general terms and conditions.",
+    "Les protections complémentaires définissent les événements susceptibles d’être pris en charge, selon le contrat et les CGL. Le dépôt de garantie est une garantie financière : il ne limite pas les sommes pouvant rester à votre charge en cas de dommage ou de frais non couverts.":
+      "Additional protection options define the events that may be covered, subject to the rental agreement and terms. The security deposit is a financial guarantee: it does not cap the amounts that may remain payable by you for damage or costs that are not covered.",
+    "Montant prévu pour ce véhicule : {caution}.": "Amount applicable to this vehicle: {caution}.",
     "Les garanties sont détaillées dans les Conditions Générales de Location et restent soumises aux exclusions et limitations applicables.": "The guarantees are detailed in the General Rental Conditions and remain subject to the applicable exclusions and limitations.",
     "Informations sur {protection}": "Information about {protection}",
     "Fermer": "Close",
-    "Maximum : {montant}": "Maximum: {montant}",
-
     "Voir le détail": "See details",
     "5 à 6 jours": "5 to 6 days",
     "7 à 13 jours": "7 to 13 days",
@@ -1328,13 +1317,11 @@
     "{prix} / jour": "{prix} / day",
     "Choisir {protection}": "Choose {protection}",
     "Choisir {vehicule}": "Choose {vehicule}",
-    "Franchise : {montant}": "Excess: {montant}",
     "Niveau de protection : {niveau} sur 3": "Protection level: {niveau} out of 3",
     "Afficher les détails de {protection}": "Show details for {protection}",
     "Masquer les détails de {protection}": "Hide details for {protection}",
-    "{montant} maximum par location": "{montant} maximum per rental",
     "{nom} — {jours}": "{nom} — {jours}",
-    "{nom} (forfait plafonné à {jours})": "{nom} (flat rate capped at {jours})",
+    "{nom} (prix facturé sur {jours})": "{nom} (price charged for {jours})",
     "Télécharger {type}": "Download {type}",
     "{index} / {total}": "{index} / {total}",
     "Réservation {reference}": "Booking {reference}",

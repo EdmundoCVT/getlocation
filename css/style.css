@@ -1901,7 +1901,7 @@ textarea:focus-visible,
 
    Mobile d'abord : une colonne, chaque carte lisible d'un bloc. À partir
    de 780 px les cartes s'alignent côte à côte et s'étirent à la même
-   hauteur, pour que les franchises et les prix se comparent en ligne.
+   hauteur, pour que les garanties et les prix se comparent en ligne.
    --------------------------------------------------------------- */
 .protection-list {
   display: grid;
@@ -1918,8 +1918,7 @@ textarea:focus-visible,
 }
 
 /* Hauteur réservée même sans badge : sans elle, la seule carte
-   « Recommandé » décalait toute sa colonne d'une ligne et les franchises ne
-   se lisaient plus sur la même ligne d'une carte à l'autre. */
+   « Recommandé » décalait toute sa colonne d'une ligne. */
 .protection-head {
   display: flex;
   align-items: center;
@@ -1945,16 +1944,6 @@ textarea:focus-visible,
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-}
-
-/* Franchise : l'information comparée en premier, donc détachée du reste.
-   Libellé au-dessus, montant en dessous : sur quatre colonnes, les mettre
-   côte à côte faisait déborder « 2 000 € » hors de la carte. */
-.protection-franchise {
-  margin: 0;
-  color: #62626c;
-  font-size: 0.82rem;
-  font-weight: 600;
 }
 
 .protection-select {

@@ -1564,11 +1564,11 @@ function initReservationPage() {
     protectionList.textContent = "";
     getProtections().forEach(addProtectionCard);
 
-    // Mention prudente sous les cartes : renvoie aux CGL plutôt que de
-    // promettre une couverture que le texte contractuel ne décrit pas.
+    // Mention prudente sous les cartes : elle distingue les garanties du
+    // dépôt et affiche son montant exact avant le paiement.
     const mention = document.createElement("p");
     mention.className = "protection-mention";
-    mention.textContent = t(getProtectionMention());
+    mention.textContent = `${t(getProtectionMention())} ${t("Montant prévu pour ce véhicule : {caution}.", { caution: formatEUR(vehicule.caution) })}`;
     protectionList.appendChild(mention);
 
     // La formule incluse étant retenue par défaut, l'étape ne bloque jamais.
@@ -2494,7 +2494,7 @@ function appendBreakdownRows(container, prix) {
     const protection = prix.protection;
     const ligne = summaryRow(
       protection.plafonne
-        ? t("{nom} (forfait plafonné à {jours})", { nom: t(protection.nom), jours: libelleJours(protection.joursFactures) })
+        ? t("{nom} (prix facturé sur {jours})", { nom: t(protection.nom), jours: libelleJours(protection.joursFactures) })
         : t("{nom} — {jours}", { nom: t(protection.nom), jours: libelleJours(prix.jours) }),
       protection.montant > 0 ? formatPrixJour(protection.montant) : t("Incluse")
     );

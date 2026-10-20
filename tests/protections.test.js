@@ -81,10 +81,11 @@ test("prix des quatre protections pour 1, 5, 7, 8 et 20 jours (plafond à 7 jour
   });
 });
 
-test("franchise de chaque formule : décroissante, jamais nulle (aucune promesse de « franchise 0 € »)", () => {
-  const franchises = PROTECTIONS.map((p) => p.franchise);
-  assert.deepEqual(franchises, [2000, 1500, 750, 300]);
-  franchises.forEach((franchise) => assert.ok(franchise > 0, "aucune formule ne supprime la franchise"));
+test("les nouvelles formules et leurs snapshots n'exposent aucun montant maximal à charge", () => {
+  PROTECTIONS.forEach((protection) => {
+    assert.equal(Object.hasOwn(protection, "franchise"), false);
+    assert.equal(Object.hasOwn(calculerProtection(protection.id, 3), "franchise"), false);
+  });
 });
 
 test("une seule formule est recommandée, et la formule incluse est celle par défaut", () => {
@@ -198,7 +199,7 @@ test("validateReservationInput : protection absente => formule incluse, protecti
   assert.deepEqual(sansProtection.errors, []);
   assert.equal(sansProtection.protection, PROTECTION_PAR_DEFAUT);
 
-  ["franchise-zero", "SERENITE", { id: "serenite" }, 7].forEach((valeur) => {
+  ["couverture-totale", "SERENITE", { id: "serenite" }, 7].forEach((valeur) => {
     const resultat = validateReservationInput(entreeValide({ protection: valeur }));
     assert.ok(
       resultat.errors.includes("Niveau de protection invalide"),
@@ -215,7 +216,7 @@ test("validateReservationInput Worker : refuse 06:30 et accepte 07:00", () => {
 });
 
 // ---------------------------------------------------------------------
-// 4. Contrat PDF : protection, franchise et dépôt de garantie distincts
+// 4. Contrat PDF : protection et dépôt de garantie distincts
 // ---------------------------------------------------------------------
 
 const dataJsSource = fs.readFileSync(path.join(__dirname, "..", "js", "data.js"), "utf8");
@@ -318,8 +319,9 @@ test("contrat PDF : la clause Dépôt de garantie précise sa portée financièr
   const { tout } = contratPdf({ protection: "serenite" });
   assert.match(tout, /Dépôt de garantie\./);
   assert.match(tout, /garantie financière/);
-  assert.match(tout, /ni un plafond de responsabilité ni une limitation/);
-  assert.match(tout, /complément pourra être réclamé/);
+  assert.match(tout, /ne constitue pas un plafond de responsabilité/);
+  assert.match(tout, /sommes complémentaires peuvent être réclamées/);
+  assert.match(tout, /garantie d’absence de frais/);
 });
 
 test("contrat PDF : la protection payante figure comme ligne de prix, la formule incluse non", () => {
@@ -348,7 +350,10 @@ test("contrat PDF : total = location + options + protection, sans double comptag
 test("contrat PDF anglais : la formule porte son nom anglais sans promettre un plafond", () => {
   const { tout } = contratPdf({ protection: "serenite", langueClient: "en" });
   assert.match(tout, /ADDITIONAL PROTECTION/);
-  assert.doesNotMatch(tout, /EXCESS|MAXIMUM LIABILITY/);
+  assert.doesNotMatch(tout, /EXCESS|MAXIMUM LIABILITY|DEDUCTIBLE WAIVER/);
+  assert.match(tout, /financial guarantee/i);
+  assert.match(tout, /does not constitute a cap on the renter's liability/i);
+  assert.match(tout, /Additional amounts may be claimed/i);
   assert.ok(tout.includes("Comfort Protection"), "le nom de la formule doit être traduit");
   assert.equal(/NIVEAU DE PROTECTION/.test(tout), false, "aucun intitulé français sur le contrat anglais");
 });
@@ -381,6 +386,36 @@ test("statut public d'une réservation d'avant les protections : protection null
   assert.equal(vue.protection, null, "aucune protection inventée après coup");
   assert.equal(vue.supplementJeuneConducteur, null);
   assert.equal(vue.total, 118, "le total enregistré fait foi, jamais recalculé avec la grille du jour");
+});
+
+test("snapshot historique : l'ancien champ de protection reste intact et n'est pas recalculé", async () => {
+  const { createFakeKv } = require("./helpers/fake-kv.js");
+  const { handleReservationStatus } = require("../src/api/reservation-status.js");
+  const { createReservation } = require("../src/lib/reservation-store.js");
+  const env = { RESERVATIONS_KV: createFakeKv(), RATE_LIMITS_KV: createFakeKv() };
+  const protectionHistorique = {
+    id: "confort",
+    nom: "Protection Standard",
+    prixParJour: 6,
+    franchise: 1500,
+    joursLocation: 2,
+    joursFactures: 2,
+    montant: 12
+  };
+  const ancienne = await createReservation(env, {
+    vehiculeId: VEHICULE,
+    protection: protectionHistorique,
+    dateDebut: "2026-09-01", heureDebut: "10:00",
+    dateFin: "2026-09-03", heureFin: "10:00",
+    jours: 2, total: 130,
+    conducteur: { nom: "Historique", prenom: "Client", email: "historique@example.com" }
+  });
+  const requete = new Request(`https://getlocation.fr/api/reservation-status?id=${ancienne.id}`, {
+    headers: { origin: "https://getlocation.fr", "cf-connecting-ip": "198.51.100.78" }
+  });
+  const vue = await (await handleReservationStatus(requete, env)).json();
+  assert.deepEqual(vue.protection, protectionHistorique);
+  assert.equal(vue.total, 130);
 });
 
 test("contrat établi pour une réservation sans protection : repli sur la formule incluse, jamais un supplément", () => {

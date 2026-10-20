@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { contractLanguage, createReservation, updateReservationStatus, createContractVersion } = require("../src/lib/reservation-store.js");
+const { contractLanguage, createReservation, getReservation, updateReservationStatus, createContractVersion } = require("../src/lib/reservation-store.js");
 const { createFakeKv } = require("./helpers/fake-kv.js");
 
 test("langue contrat : anglais explicite conservé, anciens dossiers français par défaut", () => {
@@ -27,5 +27,8 @@ test("version V2 : reprend la langue de V1 signée tout en restant modifiable av
   assert.equal(v2.contractLanguage, "en");
   assert.equal(v2.contractDossier.status, "draft");
   assert.deepEqual(v2.contractDossier.signature, { signedAt: "2026-10-10T10:00:00.000Z" });
+  assert.equal(v2.contractDossier.cglVersion, "2026-10-10-en", "la nouvelle version hérite d'abord du texte accepté par la version source");
   assert.equal(v2.contractVersion.version, 2);
+  const v1 = await getReservation(env, created.id);
+  assert.equal(v1.contractDossier.cglVersion, "2026-10-10-en", "la version CGL signée historique reste immuable");
 });

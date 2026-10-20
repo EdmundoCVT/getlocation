@@ -148,11 +148,11 @@ const HEURE_FERMETURE = "23:30";
 // IMPORTANT : cgl.html contient encore des placeholders [à compléter] non
 // résolus (cf. LEGAL-TODO.md) — ce mécanisme trace la version acceptée,
 // il ne garantit pas à lui seul la validité juridique du texte.
-const CGL_VERSION = "2026-10-19";
+const CGL_VERSION = "2026-10-20";
 // La version anglaise est un texte contractuel distinct, revu et publié
 // séparément. Elle ne doit jamais être déduite ni traduite au moment de la
 // signature : la version est enregistrée avec chaque contrat.
-const CGL_EN_VERSION = "2026-10-10-en";
+const CGL_EN_VERSION = "2026-10-20-en";
 
 // Réduction selon la durée de location : aucun tarif dégressif en dessous
 // de 5 jours consécutifs ; à partir de 5 jours, réduction fixe de
@@ -267,7 +267,7 @@ const OPTIONS = [
 // elle continue de s'appliquer pendant toute la location — seul son PRIX
 // cesse d'augmenter. Ne jamais laisser entendre au client qu'elle s'arrête.
 //
-// Tout se règle ici : prix, franchise, plafond, garanties couvertes. Ne
+// Tout se règle ici : prix, durée maximale facturée et garanties couvertes. Ne
 // recopier aucune de ces valeurs ailleurs (règle n°1).
 
 // Garanties comparées d'un niveau à l'autre, dans l'ordre d'affichage.
@@ -295,7 +295,6 @@ const PROTECTIONS = [
     prixParJour: 0,
     joursFacturesMax: 0,
     prixMax: 0,
-    franchise: 2000,
     recommande: false,
     garanties: ["rc"]
   },
@@ -306,7 +305,6 @@ const PROTECTIONS = [
     prixParJour: 6,
     joursFacturesMax: 7,
     prixMax: 42,
-    franchise: 1500,
     recommande: false,
     garanties: ["rc", "collision", "rayures", "chocs"]
   },
@@ -317,7 +315,6 @@ const PROTECTIONS = [
     prixParJour: 12,
     joursFacturesMax: 7,
     prixMax: 84,
-    franchise: 750,
     recommande: true,
     garanties: ["rc", "collision", "rayures", "chocs", "vol", "pneus", "parebrise", "vitres", "assistance"]
   },
@@ -328,7 +325,6 @@ const PROTECTIONS = [
     prixParJour: 20,
     joursFacturesMax: 7,
     prixMax: 140,
-    franchise: 300,
     recommande: false,
     garanties: ["rc", "collision", "rayures", "chocs", "vol", "pneus", "parebrise", "vitres", "assistance", "conducteur", "passagers"]
   }
@@ -336,10 +332,10 @@ const PROTECTIONS = [
 
 const PROTECTION_PAR_DEFAUT = "essentiel";
 
-// Mention affichée sous les protections. Volontairement prudente : elle
-// renvoie aux CGL plutôt que de promettre une couverture que le texte
-// contractuel ne décrit pas encore.
-const PROTECTION_MENTION = "Les protections complémentaires permettent de réduire la participation financière du locataire dans les conditions prévues au contrat de location. Elles restent soumises aux exclusions, limitations et conditions générales applicables.";
+// Mention affichée sous les protections. Elle distingue explicitement les
+// garanties choisies du dépôt de garantie et ne promet aucun plafond de
+// responsabilité.
+const PROTECTION_MENTION = "Les protections complémentaires définissent les événements susceptibles d’être pris en charge, selon le contrat et les CGL. Le dépôt de garantie est une garantie financière : il ne limite pas les sommes pouvant rester à votre charge en cas de dommage ou de frais non couverts.";
 
 // Accesseurs : contrat.html et js/app.js passent par eux plutôt que par les
 // constantes ci-dessus, pour rester lisibles dans les environnements où
@@ -378,7 +374,6 @@ function calculerProtection(protectionId, jours) {
     id: protection.id,
     nom: protection.nom,
     prixParJour: protection.prixParJour,
-    franchise: protection.franchise,
     joursLocation,
     joursFactures,
     prixMax: protection.prixMax,
@@ -625,25 +620,6 @@ const AGENCE = {
   siteWeb: "www.getlocation.fr"
 };
 
-// Franchises d'assurance — DISTINCTES du dépôt de garantie (voir
-// VEHICULES[].caution). Ne jamais assimiler franchise et caution : leurs
-// montants peuvent légitimement diverger selon le contrat d'assurance réel
-// souscrit par l'agence. Aucun montant n'a été communiqué à ce jour pour
-// ces trois franchises (dommages/vol/bris de glace) : elles restent à
-// `null` tant que l'agence ne les a pas configurées ici — le contrat
-// affiche alors une formulation générique renvoyant aux CGL plutôt qu'un
-// montant inventé. À renseigner une fois pour toutes ici (un seul endroit
-// à modifier) dès que l'agence communique les montants exacts.
-const FRANCHISES = {
-  dommages: null,
-  vol: null,
-  brisDeGlace: null
-};
-
-function getFranchises() {
-  return FRANCHISES;
-}
-
 function getVehiculeParId(id) {
   return VEHICULES.find(v => v.id === id);
 }
@@ -683,11 +659,9 @@ function joursFacturablesDepuisHeures(dureeHeures) {
 //   4. − réduction du code promo (si valide), appliquée sur le total obtenu
 //      à l'étape précédente
 //
-// Pas d'assurance tous risques optionnelle pour l'instant (retirée le
-// 4 août 2026) : seule l'assurance responsabilité civile obligatoire,
-// incluse dans le prix, s'applique. La franchise en cas de sinistre
-// responsable est égale au montant de la caution du véhicule loué (voir
-// VEHICULES[].caution) — aucun montant de franchise séparé à définir.
+// Les protections complémentaires ne constituent pas une assurance tous
+// risques. Le dépôt de garantie du véhicule (VEHICULES[].caution) reste une
+// garantie financière distincte du prix et des garanties de la protection.
 //
 // `options` est une liste d'identifiants (ex. ["siege-auto","livraison-adresse"]) ;
 // les identifiants inconnus sont ignorés ici (la validation stricte côté
@@ -991,8 +965,6 @@ if (typeof module !== "undefined" && module.exports) {
     formatEUR,
     formatEURPrecis,
     AGENCE,
-    FRANCHISES,
-    getFranchises,
     getVehiculeParId,
     dureeEnHeures,
     instantEuropeParis,
