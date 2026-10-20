@@ -65,7 +65,7 @@ function contractLanguage(record) {
 // compteur Cloudflare KV lecture-puis-écriture (non garanti unique en cas de
 // double écriture quasi simultanée).
 const { generateContractNumero } = require("./contract-numero.js");
-const { normalizeContractMileage, agreedTotal } = require("./contract-mileage.js");
+const { mergeContractFormRecord } = require("./contract-form-data.js");
 
 // Contrat créé à la main par l'agence (client sans réservation en ligne, ou
 // contrat recréé après une location déjà effectuée) — statut dédié
@@ -82,14 +82,13 @@ async function createManualContract(env, rawData, operator) {
   const id = generateReservationId();
   const numero = await generateContractNumero(env);
   const now = new Date().toISOString();
-  // Les champs internes d'inspection ne proviennent jamais du formulaire
-  // contrat, y compris si un appelant forge le corps de la requête.
-  const { contractDossier, contractAgencyAccess, manualClientAccess, inspectionSchema, ...contractFields } = rawData;
-  const contractMileage = normalizeContractMileage(contractFields, rawData.contractMileage);
-  const record = {
+  // Les structures internes restent exclusivement serveur. Les autres
+  // champs legacy (photos/états notamment) sont conservés pour compatibilité.
+  const { contractDossier, contractAgencyAccess, contractClientAccess, manualClientAccess, inspectionSchema, inspectionRevisions, inspectionArchives, drivePdfFiles, ...contractFields } = rawData;
+  const base = {
+    // Compatibilité des anciens contrats : les champs historiques non
+    // représentés dans le formulaire canonique restent conservés tels quels.
     ...contractFields,
-    contractMileage,
-    agreedRentalTotal: agreedTotal(contractFields),
     // Une saisie du contrat (dont kmDepart/etatDepart) n'est jamais une
     // validation de l'état des lieux autonome.
     inspectionSchema: "modern",
@@ -113,6 +112,9 @@ async function createManualContract(env, rawData, operator) {
     createdBy: operator || null,
     updatedBy: operator || null
   };
+  // Même adaptateur canonique que l'édition V1/V2/V3 : aucun second modèle
+  // de contrat n'est construit au moment de la création.
+  const record = mergeContractFormRecord(base, rawData, operator);
   await env.RESERVATIONS_KV.put(id, JSON.stringify(record));
   return record;
 }
@@ -129,70 +131,20 @@ async function updateManualContract(env, id, rawData, operator) {
   const record = await getReservation(env, id);
   if (!record || (record.status !== "manual_contract" && !(record.status === "contract_version" && record.contractSourceType === "manual"))) return null;
   if (isSignedContract(record)) throw new Error("Version signée — archivée : créez une nouvelle version");
-  const {
-    id: ignoredId,
-    status: ignoredStatus,
-    contractNumero: ignoredNumero,
-    contractVersion: ignoredVersion,
-    contractDossier: ignoredDossier,
-    inspectionRevisions: ignoredInspectionRevisions,
-    inspectionArchives: ignoredInspectionArchives,
-    contractAgencyAccess: ignoredAgencyAccess,
-    contractClientAccess: ignoredClientAccess,
-    manualClientAccess: ignoredManualAccess,
-    drivePdfFiles: ignoredPdfFiles,
-    paymentId: ignoredPaymentId,
-    paidAt: ignoredPaidAt,
-    paymentHistory: ignoredPaymentHistory,
-    transactions: ignoredTransactions,
-    financialHistory: ignoredFinancialHistory,
-    paidAmount: ignoredPaidAmount,
-    depositOperations: ignoredDepositOperations,
-    depositHistory: ignoredDepositHistory,
-    molliePaymentId: ignoredMolliePaymentId,
-    createdAt: ignoredCreatedAt,
-    createdBy: ignoredCreatedBy,
-    updatedAt: ignoredUpdatedAt,
-    updatedBy: ignoredUpdatedBy,
-    ...contractFields
-  } = rawData;
-  const contractMileage = normalizeContractMileage(contractFields, contractFields.contractMileage || record.contractMileage);
-  const updated = {
-    ...contractFields,
-    contractMileage,
-    agreedRentalTotal: agreedTotal(contractFields),
-    // Le formulaire contrat remplace ses champs métier, mais n'a aucune
-    // autorité sur le dossier d'inspection ou ses jetons agence/client.
-    inspectionSchema: record.inspectionSchema,
-    contractDossier: record.contractDossier,
-    inspectionRevisions: record.inspectionRevisions,
-    inspectionArchives: record.inspectionArchives,
-    contractAgencyAccess: record.contractAgencyAccess,
-    manualClientAccess: record.manualClientAccess,
-    drivePdfFiles: record.drivePdfFiles,
-    paymentId: record.paymentId,
-    paidAt: record.paidAt,
-    paymentHistory: record.paymentHistory,
-    transactions: record.transactions,
-    financialHistory: record.financialHistory,
-    paidAmount: record.paidAmount,
-    depositOperations: record.depositOperations,
-    depositHistory: record.depositHistory,
-    molliePaymentId: record.molliePaymentId,
-    contractVersion: record.contractVersion,
-    contractSourceType: record.contractSourceType,
-    contractLanguage: contractLanguage(rawData),
-    id: record.id,
-    contractNumero: record.contractNumero,
-    status: record.status,
-    createdAt: record.createdAt,
-    createdBy: record.createdBy || null,
-    updatedAt: new Date().toISOString(),
-    updatedBy: operator || null
-  };
+  const updated = mergeContractFormRecord(record, rawData, operator);
   await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
   // La copie Drive est best-effort : jamais d'impact sur le contrat local.
   try { require("./google-drive-backup.js").enqueueDriveSync(env, id).catch(() => undefined); } catch (e) { /* module facultatif */ }
+  return updated;
+}
+
+async function updateContractFromForm(env, id, rawData, operator) {
+  const record = await getReservation(env, id);
+  if (!record || !["paid", "manual_contract", "contract_version"].includes(record.status)) return null;
+  if (isSignedContract(record)) throw new Error("Version finalisée — créez une nouvelle version");
+  const updated = mergeContractFormRecord(record, rawData, operator);
+  await env.RESERVATIONS_KV.put(id, JSON.stringify(updated));
+  try { require("./google-drive-backup.js").enqueueDriveSync(env, id).catch(() => undefined); } catch (e) { /* copie secondaire */ }
   return updated;
 }
 
@@ -817,6 +769,7 @@ module.exports = {
   generateContractNumero,
   createManualContract,
   updateManualContract,
+  updateContractFromForm,
   listContractsHistory,
   setContractArchived,
   contractVersionInfo,

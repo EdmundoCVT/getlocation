@@ -195,7 +195,8 @@ test("genererPDF() délivre toujours via livrerPDF(), jamais par un doc.save() d
 test("les boutons qui génèrent un PDF après un appel asynchrone réservent l'onglet dès le clic", () => {
   // "Générer/Mettre à jour le contrat officiel" et "Aperçu PDF" (vue agence),
   // signature client (contrat manuel et dossier sécurisé) et finalisation
-  // d'une nouvelle version depuis le dossier agence : 5 réservations.
+  // d'une nouvelle version depuis le dossier agence ou le formulaire
+  // canonique versionné : 6 réservations.
   const reservations = html.match(/reserverOngletPdf\(\);/g) || [];
-  assert.equal(reservations.length, 5);
+  assert.equal(reservations.length, 6);
 });
