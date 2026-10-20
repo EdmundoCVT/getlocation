@@ -457,8 +457,8 @@
 </main>
 
 <script src="js/pricing.js?v=1"></script>
-<script src="js/data.js?v=31"></script>
-<script src="js/agency-quote.js?v=1"></script>
+<script src="js/data.js?v=33"></script>
+<script src="js/agency-quote.js?v=2"></script>
 <script src="js/backoffice-shell.js?v=1"></script>
 <script>
 (function(){
@@ -1315,8 +1315,8 @@ function openDepositCreation(){
     var target=document.getElementById('depositRentalChoices');
     if(!rentals.length){target.innerHTML='<p class="hint-text">Aucune réservation disponible.</p>';return;}
     target.innerHTML='<form id="depositCreationForm" class="form-grid"><div class="field full"><label for="newDepositRental">Réservation</label><select id="newDepositRental">'+rentals.map(function(r){return '<option value="'+escapeHtml(r.id)+'">'+escapeHtml((r.client&&(r.client.prenom||r.client.firstName)||'Client')+' — '+(r.vehicule||vehicleLabel(r.vehiculeId))+' · '+(r.contractNumero||r.id))+'</option>';}).join('')+'</select><div id="newDepositRentalSummary" class="deposit-rental-summary"></div></div><div class="field"><label for="newDepositAmount">Montant du dépôt (€)</label><input id="newDepositAmount" type="number" min="0.50" step="0.01" required><p class="deposit-amount-help">Montant libre — ex. 500 €, 1 000 €, 1 500 €</p></div><div class="field full"><label>Mode de mise à disposition</label><input id="newDepositMode" type="hidden" value="send"><div class="deposit-mode-options"><button class="deposit-mode-option is-selected" data-deposit-mode="send" type="button"><strong>Envoyer au client</strong><small>Créer un lien sécurisé à partager.</small></button><button class="deposit-mode-option" data-deposit-mode="onsite" type="button"><strong>Carte sur place</strong><small>Saisir la carte avec le client via Mollie.</small></button></div></div><div class="field full"><p class="hint-text">Carte et 3D Secure sont traités par Mollie.</p><button class="btn btn-primary" type="submit">Créer l’empreinte</button></div></form>';
-    var select=document.getElementById('newDepositRental'), summary=document.getElementById('newDepositRentalSummary');
-    function updateSummary(){var rental=rentals.find(function(r){return r.id===select.value;})||{};var client=rental.client||{}, name=(client.prenom||client.firstName||'').trim();summary.innerHTML='<strong>'+escapeHtml(name||'Client')+'</strong>'+escapeHtml(rental.vehicule||vehicleLabel(rental.vehiculeId))+(rental.id?'<br>Réservation : '+escapeHtml(rental.id):'')+(rental.contractNumero?'<br>Contrat : '+escapeHtml(rental.contractNumero):'');}
+    var select=document.getElementById('newDepositRental'), summary=document.getElementById('newDepositRentalSummary'), amount=document.getElementById('newDepositAmount');
+    function updateSummary(){var rental=rentals.find(function(r){return r.id===select.value;})||{};var client=rental.client||{}, name=(client.prenom||client.firstName||'').trim(), suggested=Number(rental.depositAmount), hasSuggested=rental.depositAmount!==undefined&&rental.depositAmount!==null&&rental.depositAmount!==''&&Number.isFinite(suggested)&&suggested>=0.5;summary.innerHTML='<strong>'+escapeHtml(name||'Client')+'</strong>'+escapeHtml(rental.vehicule||vehicleLabel(rental.vehiculeId))+(rental.id?'<br>Réservation : '+escapeHtml(rental.id):'')+(rental.contractNumero?'<br>Contrat : '+escapeHtml(rental.contractNumero):'');amount.value=hasSuggested?String(suggested):'';}
     select.addEventListener('change',updateSummary);updateSummary();
     target.querySelectorAll('[data-deposit-mode]').forEach(function(button){button.addEventListener('click',function(){document.getElementById('newDepositMode').value=button.dataset.depositMode;target.querySelectorAll('[data-deposit-mode]').forEach(function(other){other.classList.toggle('is-selected',other===button);});});});
     document.getElementById('depositCreationForm').onsubmit=function(e){e.preventDefault();var b=this.querySelector('[type="submit"]');b.disabled=true;apiPost('/api/agency-deposits',{action:'create-mollie-authorization',rentalId:select.value,amount:Number(document.getElementById('newDepositAmount').value)}).then(function(result){if(!result.ok){alert(result.json.error||'Erreur');return;}loadDepositDashboard();renderCreatedDepositLink(result.json,document.getElementById('newDepositMode').value);}).catch(alerteConnexion).finally(function(){b.disabled=false;});};

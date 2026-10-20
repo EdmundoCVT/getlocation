@@ -978,7 +978,7 @@
 </div>
 
 <script src="js/pricing.js?v=1"></script>
-<script src="js/data.js?v=32"></script>
+<script src="js/data.js?v=33"></script>
 <script src="js/contrat-en.js?v=4"></script>
 <script src="js/backoffice-shell.js?v=1"></script>
 <script>
@@ -1828,6 +1828,20 @@ function traduireDetailReglement(valeur, dico){
   return (aRegler ? 'to be paid by ' : 'paid by ') + modeTraduit + (attente ? ' (pending)' : '');
 }
 
+// Le montant figé dans le dossier prévaut toujours sur le catalogue. Cela
+// conserve notamment une ancienne caution à 650 € même si le tarif du
+// véhicule a changé depuis la signature du contrat.
+function montantDepotContrat(data, vehicule){
+  var sources = [data && data.cautionContractuelle, data && data.depotGarantie];
+  for(var i=0;i<sources.length;i++){
+    if(sources[i] === undefined || sources[i] === null || sources[i] === '') continue;
+    var stored = Number(sources[i]);
+    if(isFinite(stored) && stored >= 0) return stored;
+  }
+  var fallback = Number(vehicule && vehicule.caution);
+  return isFinite(fallback) && fallback >= 0 ? fallback : 0;
+}
+
 function construirePayload(data, sigData, stamp){
   var prix = calculerPrixContrat(data);
   var v = (prix && prix.vehicule) || getVehiculeParId(data.vehiculeId) || VEHICULES[0];
@@ -1912,7 +1926,7 @@ function construirePayload(data, sigData, stamp){
     modePaiementSolde: libelleModePaiement(data.modePaiementSolde),
     detailAcompte: detailAcompte,
     detailSolde: detailSolde,
-    caution: formatEUR(data.cautionContractuelle !== undefined && data.cautionContractuelle !== '' ? Number(data.cautionContractuelle) : v.caution),
+    caution: formatEUR(montantDepotContrat(data, v)),
     mode_reglement_caution: libelleModeCaution(data.modeCaution),
     locataire_prenom: data.prenom,
     locataire_nom: data.nom,
@@ -4102,7 +4116,7 @@ function initOwnerView(prefill, versionId){
     var v = getVehiculeParId(selectVehicule.value);
     if(v){
       inputImmat.value = v.immatriculation;
-      if(!document.getElementById('cautionContractuelle').value) document.getElementById('cautionContractuelle').value = v.caution;
+      document.getElementById('cautionContractuelle').value = v.caution;
     }
   }
   selectVehicule.addEventListener('change', function(){
@@ -5537,6 +5551,7 @@ function initClientView(data){
   var lieuAffiche = data.livraison
     ? 'Livraison à ' + data.livraisonRue + ', ' + data.livraisonCP + ' ' + data.livraisonVille
     : data.lieu;
+  var depotContrat = montantDepotContrat(data, v);
 
   function genererIdentifiantSignature(){
     return Math.random().toString(36).slice(2,10).toUpperCase();
@@ -5555,7 +5570,7 @@ function initClientView(data){
     '<div class="recap-row"><span>' + (data.livraison ? 'Livraison' : 'Lieu de prise en charge') + '</span><span>' + lieuAffiche + '</span></div>' +
     '<div class="recap-row"><span>Départ</span><span>' + formatDateHeureFR(data.depart) + '</span></div>' +
     '<div class="recap-row"><span>Retour</span><span>' + formatDateHeureFR(data.retour) + '</span></div>' +
-    '<div class="recap-row"><span>Dépôt de garantie</span><span>' + formatEUR(v.caution) + ' (' + libelleModeCaution(data.modeCaution).toLowerCase() + ')</span></div>';
+    '<div class="recap-row"><span>Dépôt de garantie</span><span>' + formatEUR(depotContrat) + ' (' + libelleModeCaution(data.modeCaution).toLowerCase() + ')</span></div>';
 
   document.getElementById('c-dureeTxt').textContent = formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours);
   document.getElementById('c-kmTxt').textContent = kmInclus.toLocaleString('fr-FR') + ' km';
@@ -5590,7 +5605,7 @@ function initClientView(data){
   setFill('modePaiement', libelleModePaiement(data.modePaiement).toLowerCase());
   setFill('detailAcompte', detailPaiementClient.detailAcompte);
   setFill('detailSolde', detailPaiementClient.detailSolde);
-  setFill('caution', formatEUR(v.caution));
+  setFill('caution', formatEUR(depotContrat));
   setFill('modeCaution', libelleModeCaution(data.modeCaution).toLowerCase());
   setFill('kmInclus', kmInclus.toLocaleString('fr-FR'));
   setFill('kmInclusParJour', conditionsKilometriquesClient.kilometresInclusParJour.toLocaleString('fr-FR'));

@@ -237,6 +237,10 @@ exports.handler = async (event) => {
     codePromo: prix.codePromo,
     reductionPromoMontant: prix.reductionPromoMontant,
     total: totalFacture,
+    // Instantané contractuel : ne jamais recalculer une ancienne caution
+    // depuis un catalogue qui aurait changé entre-temps.
+    depotGarantie: vehicule.caution,
+    cautionContractuelle: vehicule.caution,
     cglVersion: payload.cglVersion,
     cglAcceptedAt: new Date().toISOString(),
     conducteur: {

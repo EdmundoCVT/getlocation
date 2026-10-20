@@ -33,6 +33,7 @@ const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
 const { listInspectionRevisions, initializeInspectionRevision, createInspectionRevision, updateInspectionRevisionDraft, finalizeInspectionRevision } = require("../lib/inspection-revisions.js");
 const { finalizeRevisionWithPdf } = require("../lib/finalize-inspection-revision.js");
 const { normalizeContractMileage, agreedTotal } = require("../lib/contract-mileage.js");
+const { resolveContractDeposit } = require("../lib/contract-deposit.js");
 
 function corsHeaders(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -160,7 +161,7 @@ function buildDossierView(reservation) {
       contractNumero: reservation.contractNumero || null,
       vehiculeId: reservation.vehiculeId || null,
       immatriculation: reservation.immat || reservation.immatriculation || null,
-      vehicule: vehicule ? { id: vehicule.id, nom: vehicule.nom, immatriculation: reservation.immat || reservation.immatriculation || vehicule.immatriculation, caution: reservation.depotGarantie !== undefined ? reservation.depotGarantie : reservation.cautionContractuelle !== undefined ? reservation.cautionContractuelle : vehicule.caution, prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, fuel: vehicule.fuel || null, vin: vehicule.vin || null, vehicleFamily: vehicule.vehicleFamily || "car" } : null,
+      vehicule: vehicule ? { id: vehicule.id, nom: vehicule.nom, immatriculation: reservation.immat || reservation.immatriculation || vehicule.immatriculation, caution: resolveContractDeposit(reservation, vehicule), prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, fuel: vehicule.fuel || null, vin: vehicule.vin || null, vehicleFamily: vehicule.vehicleFamily || "car" } : null,
       dateDebut: reservation.dateDebut || manualStart.slice(0, 10),
       heureDebut: reservation.heureDebut || manualStart.slice(11, 16),
       dateFin: reservation.dateFin || manualEnd.slice(0, 10),
@@ -187,7 +188,7 @@ function buildDossierView(reservation) {
       options: Array.isArray(reservation.options) ? reservation.options : [],
       protection: reservation.protection || null,
       protectionId: reservation.protectionId || null,
-      depotGarantie: reservation.depotGarantie !== undefined ? reservation.depotGarantie : reservation.cautionContractuelle,
+      depotGarantie: resolveContractDeposit(reservation, vehicule),
       financialHistory: reservation.financialHistory || (reservation.paymentId ? { paymentId: reservation.paymentId, paidAt: reservation.paidAt || null, paidAmount: reservation.paidAmount !== undefined ? reservation.paidAmount : reservation.total } : null),
       conducteur: manual ? { nom: reservation.nom || "", prenom: reservation.prenom || "", telephone: reservation.tel || "", email: reservation.email || "" } : reservation.conducteur
         ? { nom: reservation.conducteur.nom, prenom: reservation.conducteur.prenom, naissance: reservation.conducteur.naissance, telephone: reservation.conducteur.telephone, email: reservation.conducteur.email }

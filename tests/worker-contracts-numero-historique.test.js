@@ -234,6 +234,7 @@ test("versionnement complet V1 → V2 : copie profonde, signature modifiable et 
     options: [{ id: "siege-enfant", montant: 20 }],
     protection: { id: "confort", montant: 12 },
     depotGarantie: 1500,
+    cautionContractuelle: 1500,
     paymentId: "tr_300",
     paidAmount: 300,
     paymentHistory: [{ id: "tr_300", amount: 300, status: "paid" }],
@@ -262,6 +263,8 @@ test("versionnement complet V1 → V2 : copie profonde, signature modifiable et 
   assert.deepEqual(v2.options, sourceBefore.options);
   assert.deepEqual(v2.protection, sourceBefore.protection);
   assert.deepEqual(v2.contractDossier.signature, sourceBefore.contractDossier.signature);
+  assert.equal(v2.cautionContractuelle, 1500, "V2 hérite du dépôt contractuel de V1");
+  assert.equal(v2.depotGarantie, 1500, "V2 ne relit pas le catalogue courant");
   assert.notStrictEqual(v2.options, sourceBefore.options);
   assert.notStrictEqual(v2.contractDossier.signature, sourceBefore.contractDossier.signature);
   assert.equal(v2.drivePdfFiles, undefined, "V2 doit produire son propre PDF");

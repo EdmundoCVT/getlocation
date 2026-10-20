@@ -249,6 +249,10 @@ async function handleCreatePayment(request, env) {
     // la grille ne peut pas modifier le prix d'une réservation créée.
     pricingSnapshot: prix.pricingSnapshot,
     total: totalFacture,
+    // Instantané contractuel du dépôt au moment de la réservation. Une
+    // évolution future du catalogue ne doit jamais réécrire ce montant.
+    depotGarantie: vehicule.caution,
+    cautionContractuelle: vehicule.caution,
     cglVersion: payload.cglVersion,
     cglAcceptedAt: new Date().toISOString(),
     // Langue dans laquelle le client a réservé (voir js/i18n.js), pour les

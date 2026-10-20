@@ -140,6 +140,16 @@ function createFakeD1() {
               auditLog.push({ id: auditLog.length + 1, actor, event_type, entity_type, entity_id, metadata, created_at });
               return { success: true };
             }
+            if (norm.startsWith("INSERT INTO deposits") && norm.includes("'mollie'")) {
+              const [id, rental_id, amount_requested_cents, mollie_payment_id, authorization_status, authorization_expires_at, customer_link_hash, customer_link_expires_at, created_at, updated_at, created_by, updated_by] = args;
+              tables.deposits.set(id, {
+                id, rental_id, amount_requested_cents, method: "carte", status: "attendue", provider: "mollie",
+                mollie_payment_id, authorization_status, authorization_expires_at, authorized_at: null,
+                released_at: null, customer_link_hash, customer_link_expires_at, release_requested_at: null,
+                created_at, updated_at, created_by, updated_by
+              });
+              return { success: true };
+            }
             // ---- Lot 2 : moteur générique ----
             const generic = genericInsert(norm, args) ?? genericUpdate(norm, args);
             if (generic !== undefined) return generic;

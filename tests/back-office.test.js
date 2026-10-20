@@ -584,15 +584,16 @@ test("tableau des dépôts : filtres et cartes compactes affichent les montants 
   assert.doesNotMatch(window.document.getElementById("depositDashboardList").textContent, /Joseph Nicholson/);
 });
 
-test("nouvelle empreinte : modes visibles, résumé de réservation et fermeture compacte", async () => {
+test("nouvelle empreinte : montant contractuel prérempli, modes visibles, résumé et fermeture compacte", async () => {
   const window = buildWindow();
-  window.fetch = () => Promise.resolve({ ok: true, json: async () => ({ rentals: [{ id: "rnt_42", vehiculeId: "opel-corsa", vehicule: "Opel Corsa Business", contractNumero: "GL-42", client: { prenom: "Felipe", nom: "Martin" } }] }) });
+  window.fetch = () => Promise.resolve({ ok: true, json: async () => ({ rentals: [{ id: "rnt_42", vehiculeId: "peugeot-2008-hybrid", vehicule: "Peugeot 2008 Hybrid", depositAmount: 750, contractNumero: "GL-42", client: { prenom: "Felipe", nom: "Martin" } }] }) });
   window.__backOffice.openDepositCreationForTest();
   await new Promise((resolve) => setTimeout(resolve, 0));
   const panel = window.document.getElementById("depositCreationPanel");
   assert.equal(window.document.getElementById("newDepositBtn").textContent, "Fermer");
   assert.match(panel.textContent, /Felipe/);
   assert.match(panel.textContent, /Montant libre/);
+  assert.equal(window.document.getElementById("newDepositAmount").value, "750");
   assert.equal(window.document.querySelectorAll("[data-deposit-mode]").length, 2);
   window.document.querySelector('[data-deposit-mode="onsite"]').click();
   assert.equal(window.document.getElementById("newDepositMode").value, "onsite");

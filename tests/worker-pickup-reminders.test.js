@@ -60,3 +60,12 @@ test("l'e-mail récapitule les informations utiles et échappe les valeurs HTML"
   assert.match(content.html, /&lt;Agence&gt;/);
   assert.match(content.html, /wa\.me\/33667485430/);
 });
+
+test("le rappel reprend le dépôt contractuel figé plutôt que le catalogue actuel", () => {
+  const content = buildPickupReminderEmailContent({
+    id: "res_historique", vehiculeId: "peugeot-2008-hybrid", cautionContractuelle: 650,
+    dateDebut: "2026-08-16", heureDebut: "10:00", lieuPrise: "Agence Grasse"
+  });
+  assert.match(content.text, /Caution : 650/);
+  assert.doesNotMatch(content.text, /Caution : 750/);
+});

@@ -84,7 +84,7 @@ test("GET view=inspection : agrège KV/D1, reconnaît l'historique et ne renvoie
   assert.equal(unauthenticated.status, 401);
   const body = await (await handleAgencyRentals(agencyRequest("https://getlocation.fr/api/agency-rentals?view=inspection", { session }), env)).json();
   assert.equal(body.rentals.length, 4, "KV payé, contrat manuel et locations D1 sont présents, sans doublon");
-  assert.deepEqual(Object.keys(body.rentals[0]).sort(), ["client", "contractNumero", "dateDebut", "dateFin", "heureDebut", "heureFin", "historyId", "historyMode", "id", "immatriculation", "inspection", "inspectionArchives", "inspectionRevisions", "openable", "source", "vehicule", "vehiculeId"].sort());
+  assert.deepEqual(Object.keys(body.rentals[0]).sort(), ["client", "contractNumero", "dateDebut", "dateFin", "depositAmount", "heureDebut", "heureFin", "historyId", "historyMode", "id", "immatriculation", "inspection", "inspectionArchives", "inspectionRevisions", "openable", "source", "vehicule", "vehiculeId"].sort());
   const sansEtatDesLieux = body.rentals.find((rental) => rental.id === webSansEtat.id);
   assert.deepEqual(sansEtatDesLieux.inspection, { depart: false, retour: false, retourAvailable: false });
   assert.equal(sansEtatDesLieux.openable, true);

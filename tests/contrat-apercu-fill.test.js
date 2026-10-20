@@ -102,6 +102,14 @@ function makeReservationData(overrides = {}) {
   };
 }
 
+test("le PDF contrat utilise 750 € pour un nouveau Peugeot 2008 mais conserve un ancien montant de 650 €", () => {
+  const win = buildWindow();
+  const nouveau = win.construirePayload(makeReservationData({ vehiculeId: "peugeot-2008-hybrid" }), null, null);
+  const historique = win.construirePayload(makeReservationData({ vehiculeId: "peugeot-2008-hybrid", cautionContractuelle: 650 }), null, null);
+  assert.match(nouveau.caution, /750/);
+  assert.match(historique.caution, /650/);
+});
+
 test("reproduction du bug : sans remplirTexteArticles(), les articles gardent leurs \"…\" non remplis", () => {
   const win = buildWindow();
   const payload = win.construirePayload(makeReservationData(), null, null);

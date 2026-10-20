@@ -18,6 +18,7 @@ const { hashContractClientToken } = require("../lib/contract-dossier-token.js");
 const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
 const { normalizeContractMileage, agreedTotal } = require("../lib/contract-mileage.js");
+const { resolveContractDeposit } = require("../lib/contract-deposit.js");
 
 const MAX_SIGNATURE_DATA_URL_LENGTH = 300000; // large marge pour un PNG 700x150 en base64
 
@@ -73,7 +74,7 @@ function buildClientView(reservation) {
       id: reservation.id,
       contractVersion: { version: Number(reservation.contractVersion && reservation.contractVersion.version) || 1 },
       numero: reservation.contractNumero || null,
-      vehicule: vehicule ? { nom: vehicule.nom, caution: vehicule.caution, prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, vin: vehicule.vin || null } : null,
+      vehicule: vehicule ? { nom: vehicule.nom, caution: resolveContractDeposit(reservation, vehicule), prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, vin: vehicule.vin || null } : null,
       immatriculation: fields.immatriculation || "",
       dateDebut: reservation.dateDebut,
       heureDebut: reservation.heureDebut,

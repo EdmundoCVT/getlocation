@@ -342,6 +342,26 @@ test("client : lecture du récapitulatif avant signature", async () => {
   assert.equal(body.fields.permisNumero, "123456789");
 });
 
+test("agence et client voient le dépôt historique figé, pas le catalogue actuel", async () => {
+  const e = env();
+  const { agencyToken, reservationId } = await setupReservationPayee(e, {
+    vehiculeId: "peugeot-2008-hybrid",
+    depotGarantie: 650,
+    cautionContractuelle: 650
+  });
+  const agencyView = await handleContractDossierAgency(agencyGet(agencyToken), e);
+  const agencyBody = await agencyView.json();
+  assert.equal(agencyBody.reservation.vehicule.caution, 650);
+  assert.equal(agencyBody.reservation.depotGarantie, 650);
+
+  await handleContractDossierAgency(agencyPost(agencyToken, CHAMPS_MINIMAUX), e);
+  const sent = await handleContractDossierAgency(agencyPost(agencyToken, { action: "send-to-client" }), e);
+  const clientToken = extractClientToken((await sent.json()).clientUrl);
+  const clientView = await handleContractDossierClient(clientGet(clientToken), e);
+  assert.equal((await clientView.json()).reservation.vehicule.caution, 650);
+  assert.equal(JSON.parse(await e.RESERVATIONS_KV.get(reservationId)).depotGarantie, 650);
+});
+
 test("langue : se met à jour avant signature, pilote les CGL et reste figée après signature", async () => {
   const e = env();
   const { agencyToken, reservationId } = await setupReservationPayee(e, { langue: "en" });

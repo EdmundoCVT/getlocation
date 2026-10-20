@@ -78,6 +78,11 @@ test("buildConfirmationEmailContent : inclut le montant de la caution du véhicu
   assert.match(html, /Caution du véhicule.*900/s);
 });
 
+test("confirmation : Peugeot 2008 utilise 750 € pour un nouveau dossier et conserve 650 € si le contrat est historique", () => {
+  assert.match(buildConfirmationEmailContent(makeReservation({ vehiculeId: "peugeot-2008-hybrid" })).text, /Caution du véhicule : 750/);
+  assert.match(buildConfirmationEmailContent(makeReservation({ vehiculeId: "peugeot-2008-hybrid", cautionContractuelle: 650 })).text, /Caution du véhicule : 650/);
+});
+
 test("buildConfirmationEmailContent : inclut la checklist de documents de base sans mention du second conducteur par défaut", () => {
   const { text, html } = buildConfirmationEmailContent(makeReservation());
   assert.match(text, /Permis de conduire valide/);

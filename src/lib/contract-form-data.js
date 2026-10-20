@@ -7,6 +7,7 @@ const {
   KM_PACKAGE_OPTION_IDS
 } = require("../../js/data.js");
 const { normalizeContractMileage, agreedTotal } = require("./contract-mileage.js");
+const { resolveContractDeposit } = require("./contract-deposit.js");
 
 const TEXT_FIELDS = [
   "vehiculeId", "immat", "lieu", "lieuRetour", "depart", "retour",
@@ -73,11 +74,8 @@ function recordToContractForm(record) {
     : record && record.agreedRentalTotal !== undefined && record.agreedRentalTotal !== null
       ? record.agreedRentalTotal
       : record && record.total !== undefined ? record.total : "";
-  const deposit = record && record.cautionContractuelle !== undefined
-    ? record.cautionContractuelle
-    : record && record.depotGarantie !== undefined
-      ? record.depotGarantie
-      : vehicle && vehicle.caution !== undefined ? vehicle.caution : "";
+  const resolvedDeposit = resolveContractDeposit(record, vehicle);
+  const deposit = resolvedDeposit === null ? "" : resolvedDeposit;
   const isManual = record && (record.status === "manual_contract" || record.contractSourceType === "manual");
   return {
     vehiculeId: text(record && record.vehiculeId),

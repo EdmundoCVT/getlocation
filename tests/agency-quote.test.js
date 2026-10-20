@@ -14,12 +14,16 @@ function makeWindow() {
   const dom = new JSDOM(`<!doctype html><body>${body}</body>`, { url: "https://getlocation.fr/back-office.html", runScripts: "outside-only" });
   dom.window.__fetchCount = 0;
   dom.window.fetch = () => { dom.window.__fetchCount += 1; return Promise.reject(new Error("offline test")); };
-  dom.window.HTMLCanvasElement.prototype.getContext = () => ({ fillRect() {}, fillText() {} });
+  dom.window.__canvasText = [];
+  dom.window.HTMLCanvasElement.prototype.getContext = () => ({ fillRect() {}, fillText(value) { dom.window.__canvasText.push(String(value)); } });
   dom.window.HTMLCanvasElement.prototype.toBlob = function (callback) { callback(new dom.window.Blob(["png"], { type: "image/png" })); };
   dom.window.URL.createObjectURL = () => "blob:test";
   dom.window.URL.revokeObjectURL = () => {};
   dom.window.HTMLAnchorElement.prototype.click = function () { dom.window.__downloadName = this.download; };
-  sources.forEach((source) => dom.window.eval(source));
+  dom.window.navigator.clipboard = { writeText: async (value) => { dom.window.__clipboardText = value; } };
+  // Un seul contexte lexical, comme de vrais <script> classiques chargés
+  // dans la même page : agency-quote.js voit ainsi VEHICULES de data.js.
+  dom.window.eval(sources.join("\n"));
   dom.window.eval(inline);
   dom.window.document.dispatchEvent(new dom.window.Event("DOMContentLoaded"));
   return dom.window;
@@ -57,6 +61,21 @@ test("durée, tarifs personnalisés, frais et remises sont calculés sans réser
   assert.doesNotMatch(html, /convertir en réservation/i);
   assert.match(html, /@media \(max-width:820px\)[\s\S]*?\.quote-grid \{ grid-template-columns:1fr/);
   assert.match(html, /@media \(max-width:820px\)[\s\S]*?\.quote-extra-row/);
+});
+
+test("Peugeot 2008 : aperçu, texte copié et export reprennent le dépôt catalogue de 750 €", async () => {
+  const window = makeWindow();
+  const doc = window.document;
+  doc.getElementById("q-vehicle").value = "peugeot-2008-hybrid";
+  doc.getElementById("q-vehicle").dispatchEvent(new window.Event("change", { bubbles: true }));
+  assert.equal(doc.getElementById("q-deposit").value, "750");
+  doc.getElementById("q-preview-btn").click();
+  assert.match(doc.getElementById("q-preview").textContent, /750,00\s*€/);
+  doc.getElementById("q-copy").click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.match(window.__clipboardText, /Dépôt de garantie \(séparé\)\s*:\s*750,00\s*€/);
+  doc.getElementById("q-png").click();
+  assert.ok(window.__canvasText.some((line) => /Dépôt de garantie.*750,00\s*€/.test(line)));
 });
 
 test("moteur tarifaire existant conserve les tarifs automatiques et frais de livraison", () => {

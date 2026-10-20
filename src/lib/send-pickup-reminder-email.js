@@ -1,6 +1,7 @@
 const { getVehiculeParId, formatEUR } = require("../../js/data.js");
 const { sendEmail } = require("./resend-client.js");
 const { traducteur, langueClient, formatDateHeure, deuxPoints } = require("./textes-email.js");
+const { resolveContractDeposit } = require("./contract-deposit.js");
 
 const AGENCY_WHATSAPP_NUMBER = "33667485430";
 
@@ -20,7 +21,8 @@ function buildPickupReminderEmailContent(reservation) {
   const sep = deuxPoints(langue);
   const vehicle = getVehiculeParId(reservation.vehiculeId);
   const vehicleName = vehicle ? vehicle.nom : reservation.vehiculeId;
-  const caution = vehicle ? formatEUR(vehicle.caution) : t("à confirmer");
+  const deposit = resolveContractDeposit(reservation, vehicle);
+  const caution = deposit === null ? t("à confirmer") : formatEUR(deposit);
   const pickup = formatDateHeure(reservation.dateDebut, reservation.heureDebut, langue);
   const location = pickupLocation(reservation, t);
   const documentsSubmitted = reservation.documentsStatus === "submitted";

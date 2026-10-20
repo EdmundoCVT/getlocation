@@ -13,7 +13,7 @@ const assert = require("node:assert/strict");
 
 const { createFakeKv } = require("./helpers/fake-kv.js");
 const { handleCreatePayment } = require("../src/api/create-payment.js");
-const { createReservation } = require("../src/lib/reservation-store.js");
+const { createReservation, getReservation } = require("../src/lib/reservation-store.js");
 const { CGL_VERSION } = require("../js/data.js");
 
 function makeEnv(overrides = {}) {
@@ -133,6 +133,25 @@ test("répond mollie_not_configured (503) quand MOLLIE_API_KEY est absente", asy
   assert.equal(res.status, 503);
   const json = await res.json();
   assert.equal(json.code, "mollie_not_configured");
+});
+
+test("une nouvelle réservation Peugeot 2008 fige le dépôt catalogue à 750 €", async () => {
+  const env = makeEnv({ MOLLIE_API_KEY: "test_dummy_for_unit_tests" });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    id: "tr_peugeot_2008",
+    _links: { checkout: { href: "https://www.mollie.com/checkout/test" } }
+  }), { status: 201, headers: { "Content-Type": "application/json" } });
+  try {
+    const res = await handleCreatePayment(makeRequest({ body: validPayload({ vehiculeId: "peugeot-2008-hybrid" }) }), env);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    const stored = await getReservation(env, body.reservationId);
+    assert.equal(stored.depotGarantie, 750);
+    assert.equal(stored.cautionContractuelle, 750);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("détecte l'indisponibilité (409) sur un chevauchement de dates pour le même véhicule", async () => {

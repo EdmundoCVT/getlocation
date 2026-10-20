@@ -11,7 +11,7 @@ const { handleAgencyClients } = require("../src/api/agency-clients.js");
 const { handleAgencyRentals } = require("../src/api/agency-rentals.js");
 const { handleAgencyDeposits } = require("../src/api/agency-deposits.js");
 
-async function creerLocation(env, session) {
+async function creerLocation(env, session, vehiculeId = "opel-corsa") {
   const clientRes = await handleAgencyClients(
     agencyRequest("https://getlocation.fr/api/agency-clients", { method: "POST", session, body: { action: "create", data: { firstName: "Jean", lastName: "Dupont" } } }),
     env
@@ -21,7 +21,7 @@ async function creerLocation(env, session) {
     agencyRequest("https://getlocation.fr/api/agency-rentals", {
       method: "POST",
       session,
-      body: { action: "create", clientId: client.id, data: { vehiculeId: "opel-corsa", dateDebut: "2026-09-10", heureDebut: "10:00", dateFin: "2026-09-12", heureFin: "10:00" } }
+      body: { action: "create", clientId: client.id, data: { vehiculeId, dateDebut: "2026-09-10", heureDebut: "10:00", dateFin: "2026-09-12", heureFin: "10:00" } }
     }),
     env
   );
@@ -116,6 +116,34 @@ test("préautorisation Mollie sans DEPOSIT_LINK_PEPPER : erreur générique et a
     assert.equal(res.status, 503);
     assert.equal((await res.json()).error, "Impossible de créer le lien sécurisé pour le moment. Vérifiez la configuration du service.");
     assert.equal(mollieCalled, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("préautorisation Mollie Peugeot 2008 : le montant prérempli de 750 € est transmis sans fallback à 650 €", async () => {
+  const env = makeAgencyEnv({ MOLLIE_API_KEY: "test_key", DEPOSIT_LINK_PEPPER: "pepper-de-test-suffisamment-long" });
+  const session = await loginAgency(env);
+  const rental = await creerLocation(env, session, "peugeot-2008-hybrid");
+  const originalFetch = globalThis.fetch;
+  let molliePayload;
+  globalThis.fetch = async (_url, init) => {
+    molliePayload = JSON.parse(init.body);
+    return new Response(JSON.stringify({
+      id: "tr_deposit_750",
+      status: "open",
+      _links: { checkout: { href: "https://www.mollie.com/checkout/deposit-750" } }
+    }), { status: 201, headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    const res = await handleAgencyDeposits(
+      agencyRequest("https://getlocation.fr/api/agency-deposits", { method: "POST", session, body: { action: "create-mollie-authorization", rentalId: rental.id, amount: 750 } }),
+      env
+    );
+    const responseBody = await res.clone().json();
+    assert.equal(res.status, 201, JSON.stringify(responseBody));
+    assert.equal(molliePayload.amount.value, "750.00");
+    assert.equal(responseBody.deposit.amountRequestedCents, 75000);
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -21,6 +21,7 @@
 
 const nodemailer = require("nodemailer");
 const { getVehiculeParId, formatEUR, libelleAdresseLivraison } = require("../../../js/data.js");
+const { resolveContractDeposit } = require("../../../src/lib/contract-deposit.js");
 
 // Numéro WhatsApp de l'agence, déjà utilisé comme repli paiement
 // indisponible (js/app.js, showPaymentUnavailableFallback) et sur
@@ -97,7 +98,8 @@ function buildConfirmationEmailContent(reservation) {
   const prise = formatDateHeure(reservation.dateDebut, reservation.heureDebut);
   const retour = formatDateHeure(reservation.dateFin, reservation.heureFin);
   const total = typeof reservation.total === "number" ? formatEUR(reservation.total) : "";
-  const caution = vehicule ? formatEUR(vehicule.caution) : "";
+  const deposit = resolveContractDeposit(reservation, vehicule);
+  const caution = deposit === null ? "" : formatEUR(deposit);
   const prenom = reservation.conducteur ? reservation.conducteur.prenom : "";
   const checklistLignes = buildChecklistLignes(reservation);
   const whatsappUrl = buildWhatsappUrl(reservation.id);

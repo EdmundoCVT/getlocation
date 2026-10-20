@@ -14,6 +14,7 @@ const { attemptSync, getSyncStatusForRental } = require("../lib/sheet-sync-outbo
 const { listReservations } = require("../lib/reservation-store.js");
 const { getVehiculeParId } = require("../../js/data.js");
 const { summarizeInspectionRevisions } = require("../lib/inspection-revision-summary.js");
+const { resolveContractDeposit } = require("../lib/contract-deposit.js");
 
 function corsHeaders(request, env) {
   const origins = new Set(["https://getlocation.fr", "https://www.getlocation.fr", new URL(request.url).origin]);
@@ -101,6 +102,7 @@ function reservationInspectionItem(reservation) {
       : null,
     vehiculeId: reservation.vehiculeId,
     vehicule: vehicule ? vehicule.nom : reservation.vehiculeId,
+    depositAmount: resolveContractDeposit(reservation, vehicule),
     immatriculation: reservation.immatriculation || (vehicule && vehicule.immatriculation) || "",
     dateDebut: reservation.dateDebut || start.date,
     heureDebut: reservation.heureDebut || start.heure,
@@ -138,6 +140,7 @@ function manualContractInspectionItem(contract) {
     client: { prenom: contract.prenom || "", nom: contract.nom || "" },
     vehiculeId: contract.vehiculeId,
     vehicule: vehicule ? vehicule.nom : contract.vehiculeId,
+    depositAmount: resolveContractDeposit(contract, vehicule),
     immatriculation: contract.immatriculation || contract.immat || (vehicule && vehicule.immatriculation) || "",
     dateDebut: start.date,
     heureDebut: start.heure,
@@ -166,6 +169,7 @@ function d1RentalInspectionItem(rental) {
     client: rental.client || null,
     vehiculeId: rental.vehiculeId,
     vehicule: vehicule ? vehicule.nom : rental.vehiculeId,
+    depositAmount: resolveContractDeposit(rental, vehicule),
     immatriculation: rental.immatriculation || (vehicule && vehicule.immatriculation) || "",
     dateDebut: rental.dateDebut,
     heureDebut: rental.heureDebut,
@@ -274,6 +278,7 @@ function publicInspectionItem(item) {
     client: item.client,
     vehiculeId: item.vehiculeId,
     vehicule: item.vehicule,
+    depositAmount: item.depositAmount,
     immatriculation: item.immatriculation,
     dateDebut: item.dateDebut,
     heureDebut: item.heureDebut,
