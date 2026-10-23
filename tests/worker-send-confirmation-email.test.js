@@ -48,6 +48,25 @@ test("buildConfirmationEmailContent : inclut les informations clés de la réser
   assert.match(html, /res_test1234567890abcdef1234567890/);
 });
 
+test("confirmation : détaille le tarif fixe, les remises véhicule et les extras séparément", () => {
+  const reservation = makeReservation({
+    sousTotalBrut: 609,
+    tarifJournalierFixe: { code: "CORSA50", tarifJournalier: 50, montantLocation: 550 },
+    reductionsPromo: [
+      { code: "GETLOC10", montantApplique: 55 },
+      { code: "BIENVENUE20", montantApplique: 20 }
+    ],
+    locationNette: 475,
+    options: [{ id: "siege-enfant", nom: "Siège enfant", montant: 110 }],
+    total: 585
+  });
+  const { text, html } = buildConfirmationEmailContent(reservation);
+  for (const attendu of ["Location véhicule avant réductions", "CORSA50", "GETLOC10", "BIENVENUE20", "Location véhicule nette", "Siège enfant", "585"]) {
+    assert.match(text, new RegExp(attendu));
+    assert.match(html, new RegExp(attendu));
+  }
+});
+
 test("buildConfirmationEmailContent : affiche l'adresse personnalisée complète sans libellé technique", () => {
   const adresse = formatAdressePersonnalisee("12 avenue Jean Médecin", "06000", "Nice");
   const { text, html } = buildConfirmationEmailContent(makeReservation({ adressePrise: adresse, adresseRetour: adresse }));

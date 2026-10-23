@@ -28,7 +28,7 @@
 // Acceptable pour une petite flotte à faible volume ; à durcir (verrou
 // distribué) si le volume de réservations augmente significativement.
 
-const { calculerPrixTotal, instantEuropeParis } = require("../../js/data.js");
+const { calculerPrixTotal, instantEuropeParis, validerCodesPromo } = require("../../js/data.js");
 const { validateReservationInput } = require("./lib/validate-reservation-input.js");
 const {
   createReservation,
@@ -121,7 +121,8 @@ function clientIp(event) {
 // montant effectivement facturé est réduit.
 const TEST_DISCOUNT_CENTIMES = 10; // 0,10 €
 function resolverMontantFacture(prix, codePromoBrut, testDiscountCode) {
-  if (testDiscountCode && codePromoBrut && codePromoBrut.trim().toUpperCase() === testDiscountCode.trim().toUpperCase()) {
+  const codes = Array.isArray(codePromoBrut) ? codePromoBrut : [codePromoBrut];
+  if (testDiscountCode && codes.some((code) => typeof code === "string" && code.trim().toUpperCase() === testDiscountCode.trim().toUpperCase())) {
     return { totalCentimesFacture: TEST_DISCOUNT_CENTIMES, totalFacture: TEST_DISCOUNT_CENTIMES / 100 };
   }
   return { totalCentimesFacture: prix.totalCentimes, totalFacture: prix.total };
@@ -163,7 +164,7 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "Requête invalide" }) };
   }
 
-  const { valid, errors, vehicule, options, codePromo, lieuPriseType, lieuRetourType, adresseExactePriseAConfirmer, adresseExacteRetourAConfirmer } = validateReservationInput(payload);
+  const { valid, errors, vehicule, options, codesPromo, lieuPriseType, lieuRetourType, adresseExactePriseAConfirmer, adresseExacteRetourAConfirmer } = validateReservationInput(payload);
   if (!valid) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "Requête invalide", details: errors }) };
   }
@@ -172,7 +173,16 @@ exports.handler = async (event) => {
   // validés/normalisés ci-dessus (options, codePromo) — jamais depuis
   // `payload.options`/`payload.codePromo` bruts, qui pourraient contenir des
   // valeurs non vérifiées.
-  const prix = calculerPrixTotal({ ...payload, options, codePromo });
+  const secretNormalise = process.env.TEST_DISCOUNT_CODE ? process.env.TEST_DISCOUNT_CODE.trim().toUpperCase() : null;
+  const codesPublics = codesPromo.filter((code) => !secretNormalise || code !== secretNormalise);
+  if (new Set(codesPromo).size !== codesPromo.length) {
+    return { statusCode: 400, headers, body: JSON.stringify({ error: "Requête invalide", details: ["Un même code promo ne peut être appliqué qu'une fois"] }) };
+  }
+  const validationPromos = validerCodesPromo({ codesPromo: codesPublics, vehiculeId: vehicule.id, dateDebut: payload.dateDebut });
+  if (!validationPromos.valid) {
+    return { statusCode: 400, headers, body: JSON.stringify({ error: "Requête invalide", details: validationPromos.errors.map((item) => item.message) }) };
+  }
+  const prix = calculerPrixTotal({ ...payload, options, codesPromo: codesPublics });
   if (!prix || !isFinite(prix.totalCentimes) || prix.totalCentimes < 50) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "Impossible de calculer le prix pour cette demande" }) };
   }
@@ -181,7 +191,7 @@ exports.handler = async (event) => {
   // de valider en conditions réelles (Mollie live) le parcours complet
   // paiement + email de confirmation pour un montant minime, plutôt que le
   // tarif réel du véhicule.
-  const { totalCentimesFacture, totalFacture } = resolverMontantFacture(prix, codePromo, process.env.TEST_DISCOUNT_CODE);
+  const { totalCentimesFacture, totalFacture } = resolverMontantFacture(prix, codesPromo, process.env.TEST_DISCOUNT_CODE);
 
   // Mollie non configuré : réponse honnête (code dédié) plutôt qu'une
   // fausse promesse de paiement en ligne opérationnel. Le client (P0-6)
@@ -235,6 +245,10 @@ exports.handler = async (event) => {
     options: prix.optionsSelectionnees,
     optionsMontant: prix.optionsMontant,
     codePromo: prix.codePromo,
+    codesPromo: prix.codesPromo,
+    tarifJournalierFixe: prix.tarifJournalierFixe,
+    reductionsPromo: prix.reductionsPromo,
+    locationNette: prix.locationNette,
     reductionPromoMontant: prix.reductionPromoMontant,
     total: totalFacture,
     // Instantané contractuel : ne jamais recalculer une ancienne caution
@@ -276,7 +290,7 @@ exports.handler = async (event) => {
         vehiculeId: vehicule.id,
         jours: String(prix.jours),
         options: prix.optionsSelectionnees.map((o) => o.id).join(",") || "aucune",
-        codePromo: prix.codePromo ? prix.codePromo.code : "aucun"
+        codePromo: prix.codesPromo.length ? prix.codesPromo.map((promo) => promo.code).join(",") : "aucun"
       }
     });
 

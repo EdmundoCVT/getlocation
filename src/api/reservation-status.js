@@ -81,6 +81,10 @@ function toSafePublicView(reservation) {
     // niveaux de protection, la ligne ne s'affiche simplement pas.
     protection: reservation.protection || null,
     codePromo: reservation.codePromo || null,
+    codesPromo: reservation.codesPromo || (reservation.codePromo ? [reservation.codePromo] : []),
+    tarifJournalierFixe: reservation.tarifJournalierFixe || null,
+    reductionsPromo: reservation.reductionsPromo || [],
+    locationNette: reservation.locationNette,
     reductionPromoMontant: reservation.reductionPromoMontant,
     total: reservation.total,
     conducteur: reservation.conducteur

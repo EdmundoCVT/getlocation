@@ -2663,10 +2663,52 @@ textarea:focus-visible,
 
 .promo-group input {
   flex: 1;
+  min-width: 0;
   padding: 10px 12px;
   border: 1px solid #d8d8de;
   border-radius: var(--radius-sm);
   font-size: 0.9rem;
+}
+
+.promo-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.promo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 6px 8px 6px 12px;
+  border: 1px solid rgba(255, 107, 0, .35);
+  border-radius: 999px;
+  background: #fff5ed;
+  color: #7a3100;
+  font-size: .88rem;
+  font-weight: 700;
+}
+
+.promo-chip button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(122, 49, 0, .1);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.promo-chip button:focus-visible { outline: 2px solid #ff6b00; outline-offset: 2px; }
+
+@media (max-width: 430px) {
+  .promo-group { align-items: stretch; }
+  .promo-group .btn { flex: 0 0 auto; min-height: 44px; }
+  .promo-group input { min-height: 44px; font-size: 16px; }
 }
 
 #promo-message.is-success {

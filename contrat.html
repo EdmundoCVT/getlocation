@@ -978,7 +978,7 @@
 </div>
 
 <script src="js/pricing.js?v=1"></script>
-<script src="js/data.js?v=33"></script>
+<script src="js/data.js?v=34"></script>
 <script src="js/contrat-en.js?v=4"></script>
 <script src="js/backoffice-shell.js?v=1"></script>
 <script>
@@ -1043,6 +1043,7 @@ function calculerPrixContrat(data){
     dateDebut: d.date, heureDebut: d.heure,
     dateFin: r.date, heureFin: r.heure,
     options: optionsDepuisFormulaire(data),
+    codesPromo: data.codesPromo,
     codePromo: data.codePromo || '',
     protection: data.protection || getProtectionParDefaut(),
     // Supplément jeune conducteur : déduit de la date de délivrance du
@@ -1606,13 +1607,20 @@ function lignesDetailFinancier(prix){
   if(prix.reductionDuree){
     lignes.push(['Réduction durée (' + prix.reductionDuree.libelle + ')', '− ' + formatEUR(prix.reductionDuree.montant)]);
   }
+  if(prix.tarifJournalierFixe){
+    lignes.push(['Tarif fixe ' + prix.tarifJournalierFixe.code + ' (' + formatEUR(prix.tarifJournalierFixe.tarifJournalier) + '/jour)', formatEUR(prix.tarifJournalierFixe.montantLocation)]);
+  }
+  (prix.reductionsPromo || []).forEach(function(promo){
+    var suffixe = promo.type === 'pourcentage' ? ('-' + promo.pourcentage + ' %') : ('-' + formatEUR(promo.montant));
+    lignes.push(['Code promo ' + promo.code + ' (' + suffixe + ')', '− ' + formatEUR(promo.montantApplique)]);
+  });
   (prix.optionsSelectionnees || []).forEach(function(opt){
     lignes.push([opt.nom, formatEUR(opt.montant)]);
   });
   if(prix.optionsSelectionnees && prix.optionsSelectionnees.length || prix.reductionDuree){
     lignes.push(['Sous-total', formatEUR(prix.baseAvantPromo)]);
   }
-  if(prix.codePromo){
+  if(prix.codePromo && !(prix.reductionsPromo || []).length && !prix.tarifJournalierFixe){
     // .pourcentage OU .montant selon le type de code (voir CODES_PROMO,
     // js/data.js) — jamais les deux à la fois.
     var suffixePromo = prix.codePromo.pourcentage !== undefined ? ('-' + prix.codePromo.pourcentage + ' %') : ('-' + formatEUR(prix.codePromo.montant));
@@ -1676,7 +1684,11 @@ function syntheseFinancierePdf(prix, totalFinal, montantRegleNombre, soldeNombre
 
   var remises = [];
   if(prix.reductionDuree) remises.push({ libelle: 'durée', montant: prix.reductionDuree.montant });
-  if(prix.codePromo) remises.push({ libelle: 'code ' + prix.codePromo.code, montant: prix.reductionPromoMontant });
+  if((prix.reductionsPromo || []).length){
+    prix.reductionsPromo.forEach(function(promo){ remises.push({ libelle: 'code ' + promo.code, montant: promo.montantApplique }); });
+  } else if(prix.codePromo && !prix.tarifJournalierFixe){
+    remises.push({ libelle: 'code ' + prix.codePromo.code, montant: prix.reductionPromoMontant });
+  }
   var ecartTarifManuel = Math.round((prix.total - totalFinal) * 100) / 100;
   if(ecartTarifManuel > 0) remises.push({ libelle: 'remise commerciale', montant: ecartTarifManuel });
 
@@ -1714,7 +1726,11 @@ function detailFinancierDepuisReservation(r){
     optionsSelectionnees: r.options || [],
     optionsMontant: r.optionsMontant || 0,
     baseAvantPromo: sousTotal + (r.optionsMontant || 0),
+    codesPromo: r.codesPromo || (r.codePromo ? [r.codePromo] : []),
     codePromo: r.codePromo || null,
+    tarifJournalierFixe: r.tarifJournalierFixe || null,
+    reductionsPromo: r.reductionsPromo || [],
+    locationNette: r.locationNette,
     reductionPromoMontant: r.reductionPromoMontant || 0,
     // Supplément jeune conducteur tel qu'appliqué au paiement en ligne
     // (voir create-payment.js) : repris tel quel, jamais recalculé, pour que

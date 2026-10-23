@@ -56,6 +56,12 @@ const TRADUCTIONS = {
   "{jours} jour(s)": "{jours} day(s)",
   "Montant total réglé : {valeur}": "Total amount paid: {valeur}",
   "Montant total réglé": "Total amount paid",
+  "Location véhicule avant réductions": "Vehicle rental before discounts",
+  "Tarif journalier fixe {code} ({tarif}/jour)": "Fixed daily rate {code} ({tarif}/day)",
+  "Réduction durée": "Long-hire discount",
+  "Code promo {code}": "Promo code {code}",
+  "Location véhicule nette": "Net vehicle rental",
+  "Supplément jeune conducteur": "Young driver surcharge",
   "Caution du véhicule : {valeur} (prélevée avant la remise des clés)":
     "Vehicle deposit: {valeur} (taken before the keys are handed over)",
   "Caution du véhicule": "Vehicle deposit",

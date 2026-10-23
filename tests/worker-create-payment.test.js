@@ -154,6 +154,44 @@ test("une nouvelle réservation Peugeot 2008 fige le dépôt catalogue à 750 �
   }
 });
 
+test("recalcule et fige plusieurs promotions côté serveur, sans faire confiance au client", async () => {
+  const env = makeEnv({ MOLLIE_API_KEY: "test_dummy_for_unit_tests" });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    id: "tr_promos_multiples",
+    _links: { checkout: { href: "https://www.mollie.com/checkout/test" } }
+  }), { status: 201, headers: { "Content-Type": "application/json" } });
+  try {
+    const res = await handleCreatePayment(makeRequest({ body: validPayload({
+      dateFin: futureDate(41),
+      codesPromo: ["CORSA50", "GETLOC10", "BIENVENUE20"],
+      total: 0,
+      options: []
+    }) }), env);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    const stored = await getReservation(env, body.reservationId);
+    assert.deepEqual(stored.codesPromo.map((promo) => promo.code), ["CORSA50", "GETLOC10", "BIENVENUE20"]);
+    assert.equal(stored.locationNette, 475);
+    assert.equal(stored.total, 475);
+    assert.equal(stored.pricingSnapshot.montantLocationNet, 475);
+    assert.equal(stored.reductionDuree, null);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("refuse côté serveur un code inconnu, un doublon et CORSA50 sur un autre véhicule", async () => {
+  for (const body of [
+    validPayload({ codesPromo: ["CODE-INCONNU"] }),
+    validPayload({ codesPromo: ["GETLOC10", "getloc10"] }),
+    validPayload({ vehiculeId: "peugeot-3008", codesPromo: ["CORSA50"] })
+  ]) {
+    const res = await handleCreatePayment(makeRequest({ body }), makeEnv());
+    assert.equal(res.status, 400);
+  }
+});
+
 test("détecte l'indisponibilité (409) sur un chevauchement de dates pour le même véhicule", async () => {
   const env = makeEnv({ MOLLIE_API_KEY: "test_dummy_for_unit_tests" });
   const vehiculeId = "peugeot-2008-hybrid";

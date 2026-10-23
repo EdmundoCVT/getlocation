@@ -35,7 +35,7 @@
 // Acceptable pour une petite flotte à faible volume ; à durcir (verrou
 // distribué) si le volume de réservations augmente significativement.
 
-const { calculerPrixTotal, instantEuropeParis } = require("../../js/data.js");
+const { calculerPrixTotal, instantEuropeParis, validerCodesPromo } = require("../../js/data.js");
 const { validateReservationInput } = require("../lib/validate-reservation-input.js");
 const {
   createReservation,
@@ -104,9 +104,10 @@ const TEST_DISCOUNT_CENTIMES = 10; // 0,10 €
 // (voir validate-promo.js) sans dupliquer cette comparaison : un seul
 // endroit décide de ce qui compte comme "le bon code de test".
 function estCodeDeTestValide(codePromoBrut, testDiscountCode) {
-  return Boolean(
-    testDiscountCode && codePromoBrut && codePromoBrut.trim().toUpperCase() === testDiscountCode.trim().toUpperCase()
-  );
+  const codes = Array.isArray(codePromoBrut) ? codePromoBrut : [codePromoBrut];
+  return Boolean(testDiscountCode && codes.some((code) =>
+    typeof code === "string" && code.trim().toUpperCase() === testDiscountCode.trim().toUpperCase()
+  ));
 }
 
 function resolverMontantFacture(prix, codePromoBrut, testDiscountCode) {
@@ -148,7 +149,7 @@ async function handleCreatePayment(request, env) {
     return new Response(JSON.stringify({ error: "Requête invalide" }), { status: 400, headers });
   }
 
-  const { valid, errors, vehicule, options, codePromo, enfantAge, enfantPoids, protection, lieuPriseType, lieuRetourType, adresseExactePriseAConfirmer, adresseExacteRetourAConfirmer, deliveryDistanceKm } = validateReservationInput(payload);
+  const { valid, errors, vehicule, options, codesPromo, enfantAge, enfantPoids, protection, lieuPriseType, lieuRetourType, adresseExactePriseAConfirmer, adresseExacteRetourAConfirmer, deliveryDistanceKm } = validateReservationInput(payload);
   if (!valid) {
     return new Response(JSON.stringify({ error: "Requête invalide", details: errors }), { status: 400, headers });
   }
@@ -165,6 +166,17 @@ async function handleCreatePayment(request, env) {
     );
   }
 
+  const codeTestActif = estCodeDeTestValide(codesPromo, env.TEST_DISCOUNT_CODE);
+  const secretNormalise = env.TEST_DISCOUNT_CODE ? env.TEST_DISCOUNT_CODE.trim().toUpperCase() : null;
+  const codesPublics = codesPromo.filter((code) => !secretNormalise || code !== secretNormalise);
+  if (new Set(codesPromo).size !== codesPromo.length) {
+    return new Response(JSON.stringify({ error: "Requête invalide", details: ["Un même code promo ne peut être appliqué qu'une fois"] }), { status: 400, headers });
+  }
+  const validationPromos = validerCodesPromo({ codesPromo: codesPublics, vehiculeId: vehicule.id, dateDebut: payload.dateDebut });
+  if (!validationPromos.valid) {
+    return new Response(JSON.stringify({ error: "Requête invalide", details: validationPromos.errors.map((item) => item.message) }), { status: 400, headers });
+  }
+
   // Le prix qui fait foi est recalculé uniquement à partir des champs déjà
   // validés/normalisés ci-dessus (options, codePromo) — jamais depuis
   // `payload.options`/`payload.codePromo` bruts, qui pourraient contenir des
@@ -175,7 +187,7 @@ async function handleCreatePayment(request, env) {
   const prix = calculerPrixTotal({
     ...payload,
     options,
-    codePromo,
+    codesPromo: codesPublics,
     protection,
     deliveryDistanceKm,
     permisDate: payload.conducteur ? payload.conducteur.permisDate : undefined
@@ -184,7 +196,7 @@ async function handleCreatePayment(request, env) {
     return new Response(JSON.stringify({ error: "Impossible de calculer le prix pour cette demande" }), { status: 400, headers });
   }
 
-  const { totalCentimesFacture, totalFacture } = resolverMontantFacture(prix, codePromo, env.TEST_DISCOUNT_CODE);
+  const { totalCentimesFacture, totalFacture } = resolverMontantFacture(prix, codeTestActif ? codesPromo : [], env.TEST_DISCOUNT_CODE);
 
   // Mollie non configuré : réponse honnête (code dédié) plutôt qu'une
   // fausse promesse de paiement en ligne opérationnel. Le client doit alors
@@ -243,7 +255,11 @@ async function handleCreatePayment(request, env) {
     // l'agence quel siège homologué préparer. Aucune incidence tarifaire.
     enfantAge,
     enfantPoids,
+    codesPromo: prix.codesPromo,
     codePromo: prix.codePromo,
+    tarifJournalierFixe: prix.tarifJournalierFixe,
+    reductionsPromo: prix.reductionsPromo,
+    locationNette: prix.locationNette,
     reductionPromoMontant: prix.reductionPromoMontant,
     // Instantané complet du moteur tarifaire : une modification future de
     // la grille ne peut pas modifier le prix d'une réservation créée.
@@ -288,7 +304,7 @@ async function handleCreatePayment(request, env) {
           vehiculeId: vehicule.id,
           jours: String(prix.jours),
           options: prix.optionsSelectionnees.map((o) => o.id).join(",") || "aucune",
-          codePromo: prix.codePromo ? prix.codePromo.code : "aucun"
+          codePromo: prix.codesPromo.length ? prix.codesPromo.map((promo) => promo.code).join(",") : (codeTestActif ? "test-interne" : "aucun")
         }
       },
       payload.idempotencyKey

@@ -95,6 +95,10 @@ function buildClientView(reservation) {
       // réservations antérieures à cette règle.
       supplementJeuneConducteur: reservation.supplementJeuneConducteur || null,
       codePromo: reservation.codePromo || null,
+      codesPromo: reservation.codesPromo || (reservation.codePromo ? [reservation.codePromo] : []),
+      tarifJournalierFixe: reservation.tarifJournalierFixe || null,
+      reductionsPromo: reservation.reductionsPromo || [],
+      locationNette: reservation.locationNette,
       reductionPromoMontant: reservation.reductionPromoMontant,
       total: reservation.total,
       conducteur: reservation.conducteur

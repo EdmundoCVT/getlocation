@@ -103,6 +103,7 @@ function validateReservationInput(payload) {
     lieuPriseType,
     lieuRetourType,
     options,
+    codesPromo,
     codePromo,
     conducteur,
     idempotencyKey,
@@ -197,17 +198,20 @@ function validateReservationInput(payload) {
   const deliveryDistanceNormalisee = normaliserEntier(deliveryDistanceKm, 0, 500);
   if (livraisonPrise && deliveryDistanceNormalisee === null) errors.push("Distance de livraison invalide");
 
-  // Code promo : facultatif, simple chaîne bornée (la validité du code lui-
-  // même — existe-t-il, quel taux — est vérifiée par getCodePromo() lors du
-  // calcul, jamais ici : un code inconnu ou expiré n'est pas une erreur de
-  // requête, il est simplement ignoré par le calcul du total).
-  let codePromoNormalise = null;
-  if (codePromo !== undefined && codePromo !== null && codePromo !== "") {
-    if (!isNonEmptyString(codePromo, MAX_LEN.codePromo)) {
-      errors.push("Code promo invalide");
-    } else {
-      codePromoNormalise = codePromo;
-    }
+  // Compatibilité : le nouveau client envoie une liste, les anciens clients
+  // continuent à pouvoir envoyer le champ singulier. La forme est contrôlée
+  // ici ; l'éligibilité métier et le secret de test sont contrôlés ensuite
+  // dans create-payment, côté serveur uniquement.
+  let codesPromoNormalises = [];
+  const codesPromoBruts = Array.isArray(codesPromo)
+    ? codesPromo
+    : (codePromo !== undefined && codePromo !== null && codePromo !== "" ? [codePromo] : []);
+  if ((codesPromo !== undefined && !Array.isArray(codesPromo)) || codesPromoBruts.length > 10) {
+    errors.push("Codes promo invalides");
+  } else if (codesPromoBruts.some((code) => !isNonEmptyString(code, MAX_LEN.codePromo))) {
+    errors.push("Code promo invalide");
+  } else {
+    codesPromoNormalises = codesPromoBruts.map((code) => code.trim().toUpperCase());
   }
 
   if (!conducteur || typeof conducteur !== "object") {
@@ -290,7 +294,8 @@ function validateReservationInput(payload) {
     errors,
     vehicule,
     options: optionsNormalisees,
-    codePromo: codePromoNormalise,
+    codesPromo: codesPromoNormalises,
+    codePromo: codesPromoNormalises[0] || null,
     langue: langueNormalisee,
     protection: protectionNormalisee,
     lieuPriseType: lieuPriseTypeNormalise,

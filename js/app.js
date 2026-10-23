@@ -1288,7 +1288,14 @@ function initReservationPage() {
     data.options.push("livraison-adresse");
     writeReservationLocal(data);
   }
-  if (typeof data.codePromo !== "string") data.codePromo = "";
+  // Migration transparente des paniers créés avec l'ancien champ singulier.
+  if (!Array.isArray(data.codesPromo)) {
+    data.codesPromo = typeof data.codePromo === "string" && data.codePromo.trim() ? [data.codePromo] : [];
+  }
+  data.codesPromo = data.codesPromo.map((code) => String(code || "").trim().toUpperCase()).filter(Boolean);
+  data.codePromo = data.codesPromo[0] || "";
+  let promoFeedback = "";
+  let promoFeedbackSuccess = false;
 
   // Réservation en cours démarrée avant les niveaux de protection : l'ancien
   // choix (« incluse » / « passagers ») est converti, et l'ancienne option
@@ -1316,6 +1323,7 @@ function initReservationPage() {
       dateFin: data.dateFin,
       heureFin: data.heureFin,
       options: data.options,
+      codesPromo: data.codesPromo,
       codePromo: data.codePromo,
       protection: data.protection,
       deliveryDistanceKm: data.deliveryDistanceKm
@@ -1356,34 +1364,32 @@ function initReservationPage() {
     // dans le total ci-dessus (jamais un état optimiste non calculé).
     const promoMessage = document.getElementById("promo-message");
     if (promoMessage) {
-      if (!data.codePromo) {
-        promoMessage.textContent = "";
-        promoMessage.classList.remove("is-success");
-      } else if (prix.codePromo) {
-        // La remise est reformulée à partir des champs structurés plutôt que
-        // du texte tout fait de js/data.js : même phrase en français, et une
-        // seule traduction à maintenir au lieu d'une par code promo.
-        const remisePromo = prix.codePromo.pourcentage !== undefined
-          ? t("{pourcentage} % de réduction", { pourcentage: prix.codePromo.pourcentage })
-          : t("{montant} € de réduction", { montant: prix.codePromo.montant });
-        promoMessage.textContent = t('Code "{code}" appliqué : {remise}.', { code: prix.codePromo.code, remise: remisePromo });
-        promoMessage.classList.add("is-success");
-      } else if (data._codePromoTestValide === true) {
-        // Code de test interne (TEST_DISCOUNT_CODE) : jamais dans le
-        // catalogue public (js/data.js), donc invisible de calculerPrixTotal
-        // ci-dessus — sa validité est confirmée par le serveur (voir
-        // verifierCodeDeTest) sans jamais exposer le secret lui-même. Le
-        // total affiché ci-dessus n'est volontairement pas modifié : seul
-        // le serveur applique réellement la réduction, au moment du paiement.
-        promoMessage.textContent = `Code "${data.codePromo}" reconnu (code de test interne) : le montant sera ramené à 0,10 € lors du paiement Mollie — le total ci-dessus reste indicatif.`;
-        promoMessage.classList.add("is-success");
-      } else if (data._codePromoTestValide === null) {
-        promoMessage.textContent = "Vérification du code…";
-        promoMessage.classList.remove("is-success");
-      } else {
-        promoMessage.textContent = "Code promo invalide ou expiré.";
-        promoMessage.classList.remove("is-success");
-      }
+      promoMessage.textContent = promoFeedback;
+      promoMessage.classList.toggle("is-success", promoFeedbackSuccess);
+    }
+    const promoChips = document.getElementById("promo-chips");
+    if (promoChips) {
+      promoChips.textContent = "";
+      data.codesPromo.forEach((code) => {
+        const chip = document.createElement("span");
+        chip.className = "promo-chip";
+        const label = document.createElement("span");
+        label.textContent = code;
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = "×";
+        remove.setAttribute("aria-label", t("Retirer le code {code}", { code }));
+        remove.addEventListener("click", () => {
+          data.codesPromo = data.codesPromo.filter((item) => item !== code);
+          data.codePromo = data.codesPromo[0] || "";
+          promoFeedback = t("Code {code} retiré.", { code });
+          promoFeedbackSuccess = false;
+          writeReservationLocal(data);
+          render();
+        });
+        chip.append(label, remove);
+        promoChips.appendChild(chip);
+      });
     }
   }
 
@@ -1791,9 +1797,9 @@ function initReservationPage() {
     optionsList.appendChild(childrenGroup);
   }
 
-  // Code promo : saisie facultative, validée à l'affichage (voir render())
-  // — un code inconnu/expiré n'empêche jamais de continuer la réservation,
-  // il est simplement ignoré dans le calcul.
+  // Les codes sont ajoutés successivement. Les promotions publiques sont
+  // contrôlées par le moteur partagé ; le code de test interne reste le seul
+  // cas vérifié par le serveur afin de ne jamais exposer son secret.
   //
   // Les codes publics (CODES_PROMO, js/data.js) sont validés instantanément
   // ci-dessus via calculerPrixTotal, sans appel serveur. Le code de test
@@ -1801,12 +1807,20 @@ function initReservationPage() {
   // public (jamais exposé au navigateur) : seul le serveur peut confirmer
   // sa validité, d'où l'appel à /api/validate-promo ci-dessous — uniquement
   // quand le code saisi n'est pas déjà reconnu localement.
+  function ajouterCode(code) {
+    data.codesPromo.push(code);
+    data.codePromo = data.codesPromo[0] || "";
+    writeReservationLocal(data);
+    if (promoInput) promoInput.value = "";
+  }
+
   function verifierCodeDeTest(code) {
     // Navigateur trop ancien pour fetch() (extrêmement rare) : pas de repli
     // plus élaboré possible ici, le code de test reste simplement affiché
     // comme invalide plutôt que de laisser planter le gestionnaire de clic.
     if (typeof fetch !== "function") {
-      data._codePromoTestValide = false;
+      promoFeedback = t("Code promo invalide ou expiré.");
+      promoFeedbackSuccess = false;
       render();
       return;
     }
@@ -1817,30 +1831,64 @@ function initReservationPage() {
     })
       .then((r) => (r.ok ? r.json() : { valid: false }))
       .then((res) => {
-        // Le champ a pu changer pendant l'appel réseau : n'applique la
-        // réponse que si elle correspond toujours au code actuellement saisi.
-        if (data.codePromo !== code) return;
-        data._codePromoTestValide = !!res.valid;
+        if (res.valid) {
+          ajouterCode(code);
+          promoFeedback = t('Code "{code}" reconnu (code de test interne).', { code });
+          promoFeedbackSuccess = true;
+        } else {
+          promoFeedback = t("Code promo invalide ou expiré.");
+          promoFeedbackSuccess = false;
+        }
         render();
       })
       .catch(() => {
-        if (data.codePromo !== code) return;
-        data._codePromoTestValide = false;
+        promoFeedback = t("Impossible de vérifier ce code pour le moment.");
+        promoFeedbackSuccess = false;
         render();
       });
   }
 
   const promoInput = document.getElementById("promo-input");
   const promoApply = document.getElementById("promo-apply");
-  if (promoInput) promoInput.value = data.codePromo || "";
   if (promoApply) {
     promoApply.addEventListener("click", () => {
-      const code = (promoInput.value || "").trim();
-      data.codePromo = code;
-      data._codePromoTestValide = code ? null : undefined;
-      writeReservationLocal(data);
+      const code = (promoInput.value || "").trim().toUpperCase();
+      if (!code) return;
+      if (data.codesPromo.includes(code)) {
+        promoFeedback = t("Le code {code} est déjà appliqué.", { code });
+        promoFeedbackSuccess = false;
+        render();
+        return;
+      }
+      if (!getCodePromo(code)) {
+        promoFeedback = t("Vérification du code…");
+        promoFeedbackSuccess = false;
+        render();
+        verifierCodeDeTest(code);
+        return;
+      }
+      const validation = validerCodesPromo({ codesPromo: [...data.codesPromo, code], vehiculeId: data.vehiculeId, dateDebut: data.dateDebut });
+      if (!validation.valid) {
+        const erreur = validation.errors[0];
+        promoFeedback = erreur.type === "vehicle"
+          ? t("Le code {code} ne s'applique pas à ce véhicule.", { code })
+          : erreur.type === "fixed_rate_conflict"
+            ? t("Un seul tarif journalier fixe peut être appliqué.")
+            : t("Code promo invalide ou expiré.");
+        promoFeedbackSuccess = false;
+        render();
+        return;
+      }
+      ajouterCode(code);
+      const promo = getCodePromo(code);
+      const remise = promo.pourcentage !== undefined
+        ? t("{pourcentage} % de réduction", { pourcentage: promo.pourcentage })
+        : t("{montant} € de réduction", { montant: promo.montant });
+      promoFeedback = promo.type === "tarif_journalier_fixe"
+        ? t("Code {code} appliqué : {tarif} € par jour, sans remise durée.", { code, tarif: promo.tarifJournalier })
+        : t('Code "{code}" appliqué : {remise}.', { code, remise });
+      promoFeedbackSuccess = true;
       render();
-      if (code && !getCodePromo(code)) verifierCodeDeTest(code);
     });
   }
 
@@ -1850,10 +1898,15 @@ function initReservationPage() {
   // n'est pas dans le catalogue public : peut être le code de test interne,
   // on relance la vérification serveur pour refléter correctement son statut
   // plutôt que d'afficher à tort "Code promo invalide".
-  if (data.codePromo && !getCodePromo(data.codePromo)) {
-    data._codePromoTestValide = null;
+  const codeInconnuExistant = data.codesPromo.find((code) => !getCodePromo(code));
+  if (codeInconnuExistant) {
+    promoFeedback = t("Vérification du code…");
     render();
-    verifierCodeDeTest(data.codePromo);
+    // Retire temporairement le code de la liste : il ne sera remis que si le
+    // serveur confirme qu'il s'agit bien du code interne.
+    data.codesPromo = data.codesPromo.filter((code) => code !== codeInconnuExistant);
+    data.codePromo = data.codesPromo[0] || "";
+    verifierCodeDeTest(codeInconnuExistant);
   }
 
   // Barre de dates persistante : permet d'ajuster les dates directement
@@ -2072,7 +2125,11 @@ function initPaiementPage() {
     data.options.push("livraison-adresse");
     writeReservationLocal(data);
   }
-  if (typeof data.codePromo !== "string") data.codePromo = "";
+  if (!Array.isArray(data.codesPromo)) {
+    data.codesPromo = typeof data.codePromo === "string" && data.codePromo.trim() ? [data.codePromo] : [];
+  }
+  data.codesPromo = data.codesPromo.map((code) => String(code || "").trim().toUpperCase()).filter(Boolean);
+  data.codePromo = data.codesPromo[0] || "";
 
   // Le lieu de livraison est demandé ici, après le choix du véhicule et des
   // options, mais avant le paiement. Il reste dans les mêmes champs métier
@@ -2243,6 +2300,7 @@ function initPaiementPage() {
       dateFin: data.dateFin,
       heureFin: data.heureFin,
       options: data.options,
+      codesPromo: data.codesPromo,
       codePromo: data.codePromo,
       protection: data.protection,
       deliveryDistanceKm: data.deliveryDistanceKm,
@@ -2355,6 +2413,7 @@ function initPaiementPage() {
           adresseExactePriseAConfirmer: data.adresseExactePriseAConfirmer,
           adresseExacteRetourAConfirmer: data.adresseExacteRetourAConfirmer,
           options: data.options,
+          codesPromo: data.codesPromo,
           codePromo: data.codePromo,
           protection: data.protection,
           deliveryDistanceKm: data.deliveryDistanceKm,
@@ -2482,6 +2541,23 @@ function appendBreakdownRows(container, prix) {
     container.appendChild(row);
   }
 
+  if (prix.tarifJournalierFixe) {
+    const fixe = prix.tarifJournalierFixe;
+    const row = summaryRow(
+      t("Tarif fixe {code} — {tarif} / jour × {jours}", { code: fixe.code, tarif: formatPrixJour(fixe.tarifJournalier), jours: prix.jours }),
+      formatPrixJour(fixe.montantLocation)
+    );
+    row.classList.add("discount");
+    container.appendChild(row);
+  }
+
+  (prix.reductionsPromo || []).forEach((promo) => {
+    const suffixe = promo.type === "pourcentage" ? `-${promo.pourcentage}%` : `-${formatPrixJour(promo.montant)}`;
+    const row = summaryRow(t("Code promo {code} ({remise})", { code: promo.code, remise: suffixe }), `− ${formatPrixJour(promo.montantApplique)}`);
+    row.classList.add("discount");
+    container.appendChild(row);
+  });
+
   (prix.optionsSelectionnees || []).forEach((opt) => {
     // Le nom de l'option vient de js/data.js, donc en français : sa
     // traduction est indexée sur ce texte dans js/i18n.js.
@@ -2508,18 +2584,6 @@ function appendBreakdownRows(container, prix) {
       t("Supplément jeune conducteur — {jours}", { jours: libelleJours(prix.jours) }),
       formatPrixJour(prix.supplementJeuneConducteur.montant)
     ));
-  }
-
-  if (prix.codePromo) {
-    // .pourcentage OU .montant selon le type de code (voir CODES_PROMO,
-    // js/data.js) — jamais les deux à la fois.
-    const suffixePromo = prix.codePromo.pourcentage !== undefined ? `-${prix.codePromo.pourcentage}%` : `-${formatPrixJour(prix.codePromo.montant)}`;
-    const row = summaryRow(
-      t("Code promo {code} ({remise})", { code: prix.codePromo.code, remise: suffixePromo }),
-      `− ${formatPrixJour(prix.reductionPromoMontant)}`
-    );
-    row.classList.add("discount");
-    container.appendChild(row);
   }
 
   const totalRow = summaryRow("Total", formatPrixJour(prix.total));

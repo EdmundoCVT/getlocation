@@ -84,6 +84,7 @@ function validateReservationInput(payload) {
     lieuPriseType,
     lieuRetourType,
     options,
+    codesPromo,
     codePromo,
     conducteur,
     idempotencyKey,
@@ -172,13 +173,16 @@ function validateReservationInput(payload) {
   // même — existe-t-il, quel taux — est vérifiée par getCodePromo() lors du
   // calcul, jamais ici : un code inconnu ou expiré n'est pas une erreur de
   // requête, il est simplement ignoré par le calcul du total).
-  let codePromoNormalise = null;
-  if (codePromo !== undefined && codePromo !== null && codePromo !== "") {
-    if (!isNonEmptyString(codePromo, MAX_LEN.codePromo)) {
-      errors.push("Code promo invalide");
-    } else {
-      codePromoNormalise = codePromo;
-    }
+  let codesPromoNormalises = [];
+  const codesPromoBruts = Array.isArray(codesPromo)
+    ? codesPromo
+    : (codePromo !== undefined && codePromo !== null && codePromo !== "" ? [codePromo] : []);
+  if ((codesPromo !== undefined && !Array.isArray(codesPromo)) || codesPromoBruts.length > 10) {
+    errors.push("Codes promo invalides");
+  } else if (codesPromoBruts.some((code) => !isNonEmptyString(code, MAX_LEN.codePromo))) {
+    errors.push("Code promo invalide");
+  } else {
+    codesPromoNormalises = codesPromoBruts.map((code) => code.trim().toUpperCase());
   }
 
   if (!conducteur || typeof conducteur !== "object") {
@@ -221,7 +225,8 @@ function validateReservationInput(payload) {
     errors,
     vehicule,
     options: optionsNormalisees,
-    codePromo: codePromoNormalise,
+    codesPromo: codesPromoNormalises,
+    codePromo: codesPromoNormalises[0] || null,
     lieuPriseType: lieuPriseTypeNormalise,
     lieuRetourType: lieuRetourTypeNormalise,
     adresseExactePriseAConfirmer: lieuPriseTypeNormalise === "zone",

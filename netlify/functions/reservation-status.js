@@ -74,6 +74,10 @@ function toSafePublicView(reservation) {
     options: Array.isArray(reservation.options) ? reservation.options : [],
     optionsMontant: reservation.optionsMontant,
     codePromo: reservation.codePromo || null,
+    codesPromo: reservation.codesPromo || (reservation.codePromo ? [reservation.codePromo] : []),
+    tarifJournalierFixe: reservation.tarifJournalierFixe || null,
+    reductionsPromo: reservation.reductionsPromo || [],
+    locationNette: reservation.locationNette,
     reductionPromoMontant: reservation.reductionPromoMontant,
     total: reservation.total,
     conducteur: reservation.conducteur

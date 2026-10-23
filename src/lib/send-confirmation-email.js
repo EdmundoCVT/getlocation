@@ -85,6 +85,29 @@ function buildChecklistLignes(reservation, t) {
   return lignes;
 }
 
+function buildFinancialLines(reservation, t) {
+  if (typeof reservation.sousTotalBrut !== "number") return [];
+  const lignes = [[t("Location véhicule avant réductions"), reservation.sousTotalBrut]];
+  if (reservation.tarifJournalierFixe) {
+    lignes.push([t("Tarif journalier fixe {code} ({tarif}/jour)", {
+      code: reservation.tarifJournalierFixe.code,
+      tarif: formatEUR(reservation.tarifJournalierFixe.tarifJournalier)
+    }), reservation.tarifJournalierFixe.montantLocation]);
+  } else if (reservation.reductionDuree && reservation.reductionDuree.montant) {
+    lignes.push([t("Réduction durée"), -reservation.reductionDuree.montant]);
+  }
+  (reservation.reductionsPromo || []).forEach((promo) => {
+    lignes.push([t("Code promo {code}", { code: promo.code }), -promo.montantApplique]);
+  });
+  if (typeof reservation.locationNette === "number") lignes.push([t("Location véhicule nette"), reservation.locationNette]);
+  (reservation.options || []).forEach((option) => lignes.push([t(option.nom), option.montant]));
+  if (reservation.protection && reservation.protection.montant) lignes.push([t(reservation.protection.nom), reservation.protection.montant]);
+  if (reservation.supplementJeuneConducteur && reservation.supplementJeuneConducteur.montant) {
+    lignes.push([t("Supplément jeune conducteur"), reservation.supplementJeuneConducteur.montant]);
+  }
+  return lignes;
+}
+
 function buildConfirmationEmailContent(reservation, siteUrl) {
   // Langue dans laquelle le client a réservé (js/app.js l'envoie,
   // create-payment.js l'enregistre) : tout le corps de l'e-mail la suit.
@@ -105,6 +128,7 @@ function buildConfirmationEmailContent(reservation, siteUrl) {
   // Le lieu vient de js/data.js, donc en français : traduit comme sur le site.
   const lieuPrise = [t(reservation.lieuPrise || ""), libelleAdresseLivraison(reservation.adressePrise), reservation.adresseExactePriseAConfirmer ? t("Adresse exacte à confirmer avant la remise du véhicule") : ""].filter(Boolean).join(" — ");
   const lieuRetour = [t(reservation.lieuRetour || ""), libelleAdresseLivraison(reservation.adresseRetour), reservation.adresseExacteRetourAConfirmer ? t("Adresse exacte de restitution à confirmer avant la remise du véhicule") : ""].filter(Boolean).join(" — ");
+  const financialLines = buildFinancialLines(reservation, t);
 
   const subject = t("Confirmation de votre réservation GET LOCATION — {vehicule}", { vehicule: vehiculeNom });
 
@@ -117,6 +141,7 @@ function buildConfirmationEmailContent(reservation, siteUrl) {
     t("Prise en charge : {valeur}", { valeur: `${prise}${lieuPrise ? ` — ${lieuPrise}` : ""}` }),
     t("Retour : {valeur}", { valeur: `${retour}${lieuRetour ? ` — ${lieuRetour}` : ""}` }),
     t("Durée : {jours} jour(s)", { jours: reservation.jours }),
+    ...financialLines.map(([label, amount]) => `${label} : ${amount < 0 ? "-" : ""}${formatEUR(Math.abs(amount))}`),
     t("Montant total réglé : {valeur}", { valeur: total }),
     t("Caution du véhicule : {valeur} (prélevée avant la remise des clés)", { valeur: caution }),
     t("Référence de réservation : {valeur}", { valeur: reservation.id }),
@@ -139,6 +164,7 @@ function buildConfirmationEmailContent(reservation, siteUrl) {
   const documentsHtml = documentsUrl
     ? `<p><a href="${escapeHtml(documentsUrl)}" style="display:inline-block;padding:10px 18px;background:#fd5301;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;">${escapeHtml(t("Compléter mon dossier"))}</a></p>`
     : "";
+  const financialHtml = financialLines.map(([label, amount]) => `<li><strong>${escapeHtml(label)}${sep}</strong> ${amount < 0 ? "-" : ""}${escapeHtml(formatEUR(Math.abs(amount)))}</li>`).join("");
 
   const html = `<p>${escapeHtml(t("Bonjour {prenom},", { prenom }))}</p>
 <p>${escapeHtml(t("Votre réservation est confirmée. Voici son récapitulatif :"))}</p>
@@ -147,6 +173,7 @@ function buildConfirmationEmailContent(reservation, siteUrl) {
 <li><strong>${escapeHtml(t("Prise en charge"))}${sep}</strong> ${escapeHtml(prise)}${lieuPrise ? ` — ${escapeHtml(lieuPrise)}` : ""}</li>
 <li><strong>${escapeHtml(t("Retour"))}${sep}</strong> ${escapeHtml(retour)}${lieuRetour ? ` — ${escapeHtml(lieuRetour)}` : ""}</li>
 <li><strong>${escapeHtml(t("Durée"))}${sep}</strong> ${escapeHtml(t("{jours} jour(s)", { jours: reservation.jours }))}</li>
+${financialHtml}
 <li><strong>${escapeHtml(t("Montant total réglé"))}${sep}</strong> ${escapeHtml(total)}</li>
 <li><strong>${escapeHtml(t("Caution du véhicule"))}${sep}</strong> ${escapeHtml(caution)} ${escapeHtml(t("(prélevée avant la remise des clés)"))}</li>
 <li><strong>${escapeHtml(t("Référence de réservation"))}${sep}</strong> ${escapeHtml(reservation.id)}</li>

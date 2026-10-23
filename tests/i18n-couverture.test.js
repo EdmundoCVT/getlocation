@@ -113,9 +113,11 @@ test("les remises promo sont traduites par modèle, pas code par code", () => {
   // sinon l'affichage français changerait sans qu'on s'en aperçoive.
   Object.keys(data.CODES_PROMO).forEach((code) => {
     const promo = data.CODES_PROMO[code];
-    const reconstruit = promo.pourcentage !== undefined
-      ? `${promo.pourcentage} % de réduction`
-      : `${promo.montant} € de réduction`;
+    const reconstruit = promo.type === "tarif_journalier_fixe"
+      ? `Tarif fixe de ${promo.tarifJournalier} € par jour sur Opel Corsa`
+      : promo.pourcentage !== undefined
+        ? `${promo.pourcentage} % de réduction`
+        : `${promo.montant} € de réduction`;
     assert.equal(reconstruit, promo.description, `libellé promo divergent pour ${code}`);
   });
 });

@@ -92,6 +92,19 @@ function buildChecklistLignes(reservation) {
   return lignes;
 }
 
+function buildFinancialLines(reservation) {
+  if (typeof reservation.sousTotalBrut !== "number") return [];
+  const lignes = [["Location véhicule avant réductions", reservation.sousTotalBrut]];
+  if (reservation.tarifJournalierFixe) lignes.push([`Tarif journalier fixe ${reservation.tarifJournalierFixe.code} (${formatEUR(reservation.tarifJournalierFixe.tarifJournalier)}/jour)`, reservation.tarifJournalierFixe.montantLocation]);
+  else if (reservation.reductionDuree && reservation.reductionDuree.montant) lignes.push(["Réduction durée", -reservation.reductionDuree.montant]);
+  (reservation.reductionsPromo || []).forEach((promo) => lignes.push([`Code promo ${promo.code}`, -promo.montantApplique]));
+  if (typeof reservation.locationNette === "number") lignes.push(["Location véhicule nette", reservation.locationNette]);
+  (reservation.options || []).forEach((option) => lignes.push([option.nom, option.montant]));
+  if (reservation.protection && reservation.protection.montant) lignes.push([reservation.protection.nom, reservation.protection.montant]);
+  if (reservation.supplementJeuneConducteur && reservation.supplementJeuneConducteur.montant) lignes.push(["Supplément jeune conducteur", reservation.supplementJeuneConducteur.montant]);
+  return lignes;
+}
+
 function buildConfirmationEmailContent(reservation) {
   const vehicule = getVehiculeParId(reservation.vehiculeId);
   const vehiculeNom = vehicule ? vehicule.nom : reservation.vehiculeId;
@@ -105,6 +118,7 @@ function buildConfirmationEmailContent(reservation) {
   const whatsappUrl = buildWhatsappUrl(reservation.id);
   const lieuPrise = [reservation.lieuPrise, libelleAdresseLivraison(reservation.adressePrise), reservation.adresseExactePriseAConfirmer ? "Adresse exacte à confirmer avant la remise du véhicule" : ""].filter(Boolean).join(" — ");
   const lieuRetour = [reservation.lieuRetour, libelleAdresseLivraison(reservation.adresseRetour), reservation.adresseExacteRetourAConfirmer ? "Adresse exacte de restitution à confirmer avant la remise du véhicule" : ""].filter(Boolean).join(" — ");
+  const financialLines = buildFinancialLines(reservation);
 
   const subject = `Confirmation de votre réservation GET LOCATION — ${vehiculeNom}`;
 
@@ -117,6 +131,7 @@ function buildConfirmationEmailContent(reservation) {
     `Prise en charge : ${prise}${lieuPrise ? ` — ${lieuPrise}` : ""}`,
     `Retour : ${retour}${lieuRetour ? ` — ${lieuRetour}` : ""}`,
     `Durée : ${reservation.jours} jour(s)`,
+    ...financialLines.map(([label, amount]) => `${label} : ${amount < 0 ? "-" : ""}${formatEUR(Math.abs(amount))}`),
     `Montant total réglé : ${total}`,
     `Caution du véhicule : ${caution} (prélevée avant la remise des clés)`,
     `Référence de réservation : ${reservation.id}`,
@@ -135,6 +150,7 @@ function buildConfirmationEmailContent(reservation) {
   const text = lignes.join("\n");
 
   const checklistHtml = checklistLignes.map((l) => `<li>${escapeHtml(l)}</li>`).join("");
+  const financialHtml = financialLines.map(([label, amount]) => `<li><strong>${escapeHtml(label)} :</strong> ${amount < 0 ? "-" : ""}${escapeHtml(formatEUR(Math.abs(amount)))}</li>`).join("");
 
   const html = `<p>Bonjour ${escapeHtml(prenom)},</p>
 <p>Votre réservation est confirmée. Voici son récapitulatif :</p>
@@ -143,6 +159,7 @@ function buildConfirmationEmailContent(reservation) {
 <li><strong>Prise en charge :</strong> ${escapeHtml(prise)}${lieuPrise ? ` — ${escapeHtml(lieuPrise)}` : ""}</li>
 <li><strong>Retour :</strong> ${escapeHtml(retour)}${lieuRetour ? ` — ${escapeHtml(lieuRetour)}` : ""}</li>
 <li><strong>Durée :</strong> ${reservation.jours} jour(s)</li>
+${financialHtml}
 <li><strong>Montant total réglé :</strong> ${escapeHtml(total)}</li>
 <li><strong>Caution du véhicule :</strong> ${escapeHtml(caution)} (prélevée avant la remise des clés)</li>
 <li><strong>Référence de réservation :</strong> ${escapeHtml(reservation.id)}</li>

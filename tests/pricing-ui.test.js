@@ -35,6 +35,7 @@ function reservationPageHtml() {
       <div id="options-list"></div>
       <input type="text" id="promo-input">
       <button type="button" id="promo-apply">Appliquer</button>
+      <div id="promo-chips"></div>
       <div id="promo-message"></div>
       <button id="back-to-protection" data-back-to-protection>Retour</button>
       <button id="continue-to-payment">Paiement</button>
@@ -319,10 +320,50 @@ test("initReservationPage : applique un code promo valide et affiche un message 
   assert.match(window.document.getElementById("reservation-summary").textContent, new RegExp(String(totalAttendu)));
   assert.match(window.document.getElementById("promo-message").textContent, /appliqué/);
 
-  // La saisie brute est conservée telle quelle en local (la normalisation —
-  // casse/espaces — n'a lieu que dans le calcul via getCodePromo()).
+  // Les codes persistés sont normalisés afin de détecter les doublons même
+  // si leur casse diffère.
   const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
-  assert.equal(persisted.codePromo, "getloc10");
+  assert.equal(persisted.codePromo, "GETLOC10");
+  assert.deepEqual(persisted.codesPromo, ["GETLOC10"]);
+});
+
+test("initReservationPage : cumule plusieurs codes, affiche des chips et permet leur retrait", () => {
+  const window = newWindow(reservationPageHtml());
+  window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
+  window.initReservationPage();
+  const input = window.document.getElementById("promo-input");
+  const apply = window.document.getElementById("promo-apply");
+  ["CORSA50", "GETLOC10", "BIENVENUE20"].forEach((code) => {
+    input.value = code;
+    apply.click();
+  });
+  const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
+  assert.deepEqual(persisted.codesPromo, ["CORSA50", "GETLOC10", "BIENVENUE20"]);
+  assert.equal(window.document.querySelectorAll(".promo-chip").length, 3);
+  assert.match(window.document.getElementById("reservation-summary").textContent, /70/);
+  window.document.querySelector('[aria-label="Retirer le code GETLOC10"]').click();
+  assert.deepEqual(JSON.parse(window.localStorage.getItem("gl_reservation")).codesPromo, ["CORSA50", "BIENVENUE20"]);
+  assert.match(window.document.getElementById("reservation-summary").textContent, /80/);
+});
+
+test("initReservationPage : refuse un doublon et CORSA50 sur un mauvais véhicule", () => {
+  const window = newWindow(reservationPageHtml());
+  window.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation()));
+  window.initReservationPage();
+  const input = window.document.getElementById("promo-input");
+  const apply = window.document.getElementById("promo-apply");
+  input.value = "GETLOC10"; apply.click();
+  input.value = "getloc10"; apply.click();
+  assert.match(window.document.getElementById("promo-message").textContent, /déjà appliqué/);
+  assert.equal(window.document.querySelectorAll(".promo-chip").length, 1);
+
+  const otherWindow = newWindow(reservationPageHtml());
+  otherWindow.localStorage.setItem("gl_reservation", JSON.stringify(baseReservation({ vehiculeId: "peugeot-3008" })));
+  otherWindow.initReservationPage();
+  otherWindow.document.getElementById("promo-input").value = "CORSA50";
+  otherWindow.document.getElementById("promo-apply").click();
+  assert.match(otherWindow.document.getElementById("promo-message").textContent, /ne s'applique pas/);
+  assert.equal(otherWindow.document.querySelectorAll(".promo-chip").length, 0);
 });
 
 test("initReservationPage : un code promo invalide affiche une erreur et ne change pas le total", () => {

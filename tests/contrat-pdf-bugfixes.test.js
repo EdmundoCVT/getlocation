@@ -140,3 +140,18 @@ test("lignesDetailFinancier() construit le détail (sous-total, réduction duré
   assert.ok(labels.includes("Livraison du véhicule"));
   assert.equal(labels[labels.length - 1], "Total");
 });
+
+test("contrat : détaille CORSA50 et chaque remise sans réduire les extras", () => {
+  const win = buildWindow();
+  const prix = win.calculerPrixTotal({
+    vehiculeId: "opel-corsa", dateDebut: "2027-01-01", heureDebut: "10:00",
+    dateFin: "2027-01-12", heureFin: "10:00",
+    options: ["siege-enfant"], codesPromo: ["CORSA50", "GETLOC10", "BIENVENUE20"]
+  });
+  const lignes = Array.from(win.lignesDetailFinancier(prix), (ligne) => Array.from(ligne));
+  assert.ok(lignes.some(([label]) => label.includes("Tarif fixe CORSA50")));
+  assert.ok(lignes.some(([label]) => label.includes("GETLOC10")));
+  assert.ok(lignes.some(([label]) => label.includes("BIENVENUE20")));
+  assert.ok(lignes.some(([label, montant]) => label === "Siège enfant" && /110/.test(montant)));
+  assert.equal(prix.total, 585);
+});

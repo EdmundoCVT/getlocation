@@ -181,35 +181,37 @@ function reductionDureeApplicable(jours) { const reduction = PRICING.discountFor
 // plein.
 function prixJourMinimum(vehicule) { const rates = PRICING.VEHICLE_RATES[vehicule.id]; return rates ? Math.min(...Object.values(rates)) : vehicule.prixJour; }
 
-// Codes promo — liste simple codée en dur (pas d'interface d'administration
-// pour l'instant). Codes insensibles à la casse/espaces (voir
-// getCodePromo). Valeurs d'exemple à ajuster ici.
-//
-// Deux formes possibles : `pourcentage` (remise proportionnelle au total
-// avant promo) OU `montant` (remise fixe en euros, plafonnée au total avant
-// promo dans calculerPrixTotal — jamais de total négatif). Un code ne
-// déclare jamais les deux à la fois.
+// Codes promotionnels — source de vérité commune au navigateur et au
+// serveur. Les règles d'éligibilité sont déclaratives afin que de futurs
+// codes puissent limiter un véhicule ou une période sans ajouter un second
+// moteur de calcul.
 const CODES_PROMO = {
-  BIENVENUE20: { montant: 20, description: "20 € de réduction" },
-  GETLOC95: { pourcentage: 95, description: "95 % de réduction" },
-  GETLOC90: { pourcentage: 90, description: "90 % de réduction" },
-  GETLOC85: { pourcentage: 85, description: "85 % de réduction" },
-  GETLOC80: { pourcentage: 80, description: "80 % de réduction" },
-  GETLOC75: { pourcentage: 75, description: "75 % de réduction" },
-  GETLOC70: { pourcentage: 70, description: "70 % de réduction" },
-  GETLOC65: { pourcentage: 65, description: "65 % de réduction" },
-  GETLOC60: { pourcentage: 60, description: "60 % de réduction" },
-  GETLOC55: { pourcentage: 55, description: "55 % de réduction" },
-  GETLOC50: { pourcentage: 50, description: "50 % de réduction" },
-  GETLOC45: { pourcentage: 45, description: "45 % de réduction" },
-  GETLOC40: { pourcentage: 40, description: "40 % de réduction" },
-  GETLOC35: { pourcentage: 35, description: "35 % de réduction" },
-  GETLOC30: { pourcentage: 30, description: "30 % de réduction" },
-  GETLOC25: { pourcentage: 25, description: "25 % de réduction" },
-  GETLOC20: { pourcentage: 20, description: "20 % de réduction" },
-  GETLOC15: { pourcentage: 15, description: "15 % de réduction" },
-  GETLOC10: { pourcentage: 10, description: "10 % de réduction" },
-  GETLOC5: { pourcentage: 5, description: "5 % de réduction" }
+  BIENVENUE20: { type: "montant_fixe", montant: 20, description: "20 € de réduction" },
+  GETLOC95: { type: "pourcentage", pourcentage: 95, description: "95 % de réduction" },
+  GETLOC90: { type: "pourcentage", pourcentage: 90, description: "90 % de réduction" },
+  GETLOC85: { type: "pourcentage", pourcentage: 85, description: "85 % de réduction" },
+  GETLOC80: { type: "pourcentage", pourcentage: 80, description: "80 % de réduction" },
+  GETLOC75: { type: "pourcentage", pourcentage: 75, description: "75 % de réduction" },
+  GETLOC70: { type: "pourcentage", pourcentage: 70, description: "70 % de réduction" },
+  GETLOC65: { type: "pourcentage", pourcentage: 65, description: "65 % de réduction" },
+  GETLOC60: { type: "pourcentage", pourcentage: 60, description: "60 % de réduction" },
+  GETLOC55: { type: "pourcentage", pourcentage: 55, description: "55 % de réduction" },
+  GETLOC50: { type: "pourcentage", pourcentage: 50, description: "50 % de réduction" },
+  GETLOC45: { type: "pourcentage", pourcentage: 45, description: "45 % de réduction" },
+  GETLOC40: { type: "pourcentage", pourcentage: 40, description: "40 % de réduction" },
+  GETLOC35: { type: "pourcentage", pourcentage: 35, description: "35 % de réduction" },
+  GETLOC30: { type: "pourcentage", pourcentage: 30, description: "30 % de réduction" },
+  GETLOC25: { type: "pourcentage", pourcentage: 25, description: "25 % de réduction" },
+  GETLOC20: { type: "pourcentage", pourcentage: 20, description: "20 % de réduction" },
+  GETLOC15: { type: "pourcentage", pourcentage: 15, description: "15 % de réduction" },
+  GETLOC10: { type: "pourcentage", pourcentage: 10, description: "10 % de réduction" },
+  GETLOC5: { type: "pourcentage", pourcentage: 5, description: "5 % de réduction" },
+  CORSA50: {
+    type: "tarif_journalier_fixe",
+    tarifJournalier: 50,
+    vehiculeIds: ["opel-corsa"],
+    description: "Tarif fixe de 50 € par jour sur Opel Corsa"
+  }
 };
 
 // Normalise et recherche un code promo. Retourne null si absent/invalide.
@@ -218,7 +220,73 @@ function getCodePromo(code) {
   const normalise = String(code).trim().toUpperCase();
   if (!normalise || !CODES_PROMO[normalise]) return null;
   const promo = CODES_PROMO[normalise];
-  return { code: normalise, pourcentage: promo.pourcentage, montant: promo.montant, description: promo.description };
+  return {
+    code: normalise,
+    type: promo.type,
+    pourcentage: promo.pourcentage,
+    montant: promo.montant,
+    tarifJournalier: promo.tarifJournalier,
+    vehiculeIds: promo.vehiculeIds ? [...promo.vehiculeIds] : undefined,
+    validFrom: promo.validFrom,
+    validUntil: promo.validUntil,
+    maxUses: promo.maxUses,
+    description: promo.description
+  };
+}
+
+function normaliserCodesPromo(codesPromo, codePromo) {
+  const source = Array.isArray(codesPromo)
+    ? codesPromo
+    : ((typeof codePromo === "string" && codePromo.trim()) || (codePromo && typeof codePromo === "object" && codePromo.code) ? [codePromo] : []);
+  return source
+    .map((item) => item && typeof item === "object" ? item.code : item)
+    .map((code) => String(code || "").trim().toUpperCase())
+    .filter(Boolean);
+}
+
+// Valide la combinaison sans calculer de prix. Les erreurs sont structurées
+// pour être affichables par l'interface et refusées de la même façon côté
+// serveur. Un seul tarif journalier fixe est autorisé ; les pourcentages et
+// montants fixes restent cumulables.
+function validerCodesPromo({ codesPromo, codePromo, vehiculeId, dateDebut, usageCounts } = {}) {
+  const codes = normaliserCodesPromo(codesPromo, codePromo);
+  const promotions = [];
+  const errors = [];
+  const vus = new Set();
+  let nombreTarifsFixes = 0;
+  codes.forEach((code) => {
+    if (vus.has(code)) {
+      errors.push({ code, type: "duplicate", message: `Le code ${code} est déjà appliqué.` });
+      return;
+    }
+    vus.add(code);
+    const promo = getCodePromo(code);
+    if (!promo) {
+      errors.push({ code, type: "unknown", message: `Le code ${code} est invalide ou expiré.` });
+      return;
+    }
+    if (promo.vehiculeIds && !promo.vehiculeIds.includes(vehiculeId)) {
+      errors.push({ code, type: "vehicle", message: `Le code ${code} ne s'applique pas à ce véhicule.` });
+      return;
+    }
+    if (dateDebut && ((promo.validFrom && dateDebut < promo.validFrom) || (promo.validUntil && dateDebut > promo.validUntil))) {
+      errors.push({ code, type: "date", message: `Le code ${code} n'est pas valable à cette date.` });
+      return;
+    }
+    if (promo.maxUses && usageCounts && Number(usageCounts[code] || 0) >= promo.maxUses) {
+      errors.push({ code, type: "usage_limit", message: `Le code ${code} a atteint sa limite d'utilisation.` });
+      return;
+    }
+    if (promo.type === "tarif_journalier_fixe") {
+      nombreTarifsFixes += 1;
+      if (nombreTarifsFixes > 1) {
+        errors.push({ code, type: "fixed_rate_conflict", message: "Un seul tarif journalier fixe peut être appliqué." });
+        return;
+      }
+    }
+    promotions.push(promo);
+  });
+  return { valid: errors.length === 0, codes, promotions, errors };
 }
 
 // Catalogue des options proposées pendant la réservation (avant paiement).
@@ -653,11 +721,9 @@ function joursFacturablesDepuisHeures(dureeHeures) {
 //
 // Pipeline (dans cet ordre) :
 //   1. sous-total brut = prix/jour du véhicule × jours facturables
-//   2. réduction durée (5 jours ou plus, voir REDUCTIONS_DUREE) appliquée
-//      sur ce sous-total
-//   3. + options sélectionnées (voir OPTIONS)
-//   4. − réduction du code promo (si valide), appliquée sur le total obtenu
-//      à l'étape précédente
+//   2. tarif journalier fixe éventuel, sinon réduction durée
+//   3. promotions en pourcentage puis en montant fixe sur le véhicule seul
+//   4. + options, protection et suppléments, jamais remisés
 //
 // Les protections complémentaires ne constituent pas une assurance tous
 // risques. Le dépôt de garantie du véhicule (VEHICULES[].caution) reste une
@@ -676,7 +742,7 @@ function joursFacturablesDepuisHeures(dureeHeures) {
 // `protection` : identifiant du niveau retenu (voir PROTECTIONS). Absent ou
 // inconnu, la formule incluse « Essentiel » s'applique — 0 € — pour que les
 // réservations d'avant ce système gardent exactement leur montant.
-function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut = "00:00", dateFin, heureFin = "00:00", options, codePromo, permisDate, protection, deliveryDistanceKm }) {
+function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut = "00:00", dateFin, heureFin = "00:00", options, codesPromo, codePromo, permisDate, protection, deliveryDistanceKm }) {
   const vehicule = getVehiculeParId(vehiculeId);
   if (!vehicule) return null;
   const idsOptions = Array.isArray(options) ? [...new Set(options)] : [];
@@ -687,9 +753,21 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut = "00:00", dateFi
   const quote = PRICING.calculateQuote(quoteInput);
   if (!quote) return null;
   const jours = quote.days;
-  const sousTotalBrut = quote.rentalSubtotal;
-  const reductionDureeMontant = quote.discountAmount;
-  const sousTotal = quote.rentalAfterDiscount;
+  const sousTotalBrutCentimes = Math.round(quote.rentalSubtotal * 100);
+  const validationPromos = validerCodesPromo({ codesPromo, codePromo, vehiculeId, dateDebut });
+  // calculerPrixTotal reste tolérant pour les anciens appels d'affichage :
+  // seules les promotions valides sont calculées et les erreurs sont
+  // exposées. Le serveur, lui, refuse ces erreurs avant le paiement.
+  const promotions = validationPromos.promotions;
+  const promoTarifFixe = promotions.find((promo) => promo.type === "tarif_journalier_fixe") || null;
+  const tarifFixeCentimes = promoTarifFixe ? Math.round(promoTarifFixe.tarifJournalier * 100) : null;
+  const locationAvantPromosCentimes = promoTarifFixe
+    ? tarifFixeCentimes * jours
+    : Math.round(quote.rentalAfterDiscount * 100);
+  const reductionDureeMontantCentimes = promoTarifFixe ? 0 : Math.round(quote.discountAmount * 100);
+  const sousTotalBrut = sousTotalBrutCentimes / 100;
+  const reductionDureeMontant = reductionDureeMontantCentimes / 100;
+  const sousTotal = locationAvantPromosCentimes / 100;
   const optionsSelectionnees = idsOptions
     .map(id => getOptionParId(id))
     .filter(Boolean)
@@ -699,7 +777,8 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut = "00:00", dateFi
       type: opt.type,
       montant: KM_PACKAGE_OPTION_IDS.includes(opt.id) ? (quote.extraMileagePackage ? quote.extraMileagePackage.amount : 0) : opt.id === "livraison-adresse" ? (quote.delivery ? quote.delivery.amount : 0) : opt.type === "jour" ? opt.prix * jours : opt.prix
     }));
-  const optionsMontant = optionsSelectionnees.reduce((somme, o) => somme + o.montant, 0);
+  const optionsMontantCentimes = optionsSelectionnees.reduce((somme, o) => somme + Math.round(o.montant * 100), 0);
+  const optionsMontant = optionsMontantCentimes / 100;
 
   // Protection : une seule par réservation, facturée au maximum sur
   // `joursFacturesMax` jours (voir calculerProtection).
@@ -716,37 +795,57 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut = "00:00", dateFi
     : null;
   const supplementJeuneConducteurMontant = supplementJeuneConducteur ? supplementJeuneConducteur.montant : 0;
 
-  const baseAvantPromo = sousTotal + optionsMontant + protectionChoisie.montant + supplementJeuneConducteurMontant;
-  const promo = getCodePromo(codePromo);
-  // `montant` (remise fixe) plafonné à baseAvantPromo : un total ne devient
-  // jamais négatif, même si le code promo excède le montant de la
-  // location (ex. BIENVENUE20 sur une très courte location).
-  const reductionPromoMontant = !promo
-    ? 0
-    : promo.montant !== undefined
-      ? Math.min(promo.montant, baseAvantPromo)
-      : Math.round(baseAvantPromo * promo.pourcentage) / 100;
-
-  const total = baseAvantPromo - reductionPromoMontant;
+  // Les promotions classiques ne portent que sur le véhicule. Les remises
+  // en pourcentage sont appliquées séquentiellement (dans leur ordre
+  // d'ajout), puis les montants fixes, toujours au centime. Les options,
+  // protections, livraisons et suppléments ne sont jamais remisés.
+  let locationNetteCentimes = locationAvantPromosCentimes;
+  const reductionsPromo = [];
+  promotions.filter((promo) => promo.type === "pourcentage").forEach((promo) => {
+    const montantCentimes = Math.round(locationNetteCentimes * promo.pourcentage / 100);
+    locationNetteCentimes -= montantCentimes;
+    reductionsPromo.push({ ...promo, montantApplique: montantCentimes / 100 });
+  });
+  promotions.filter((promo) => promo.type === "montant_fixe").forEach((promo) => {
+    const montantCentimes = Math.min(Math.round(promo.montant * 100), locationNetteCentimes);
+    locationNetteCentimes -= montantCentimes;
+    reductionsPromo.push({ ...promo, montantApplique: montantCentimes / 100 });
+  });
+  const reductionPromoMontantCentimes = reductionsPromo.reduce((somme, promo) => somme + Math.round(promo.montantApplique * 100), 0);
+  const reductionPromoMontant = reductionPromoMontantCentimes / 100;
+  const extrasCentimes = optionsMontantCentimes
+    + Math.round(protectionChoisie.montant * 100)
+    + Math.round(supplementJeuneConducteurMontant * 100);
+  const baseAvantPromoCentimes = locationAvantPromosCentimes + extrasCentimes;
+  const baseAvantPromo = baseAvantPromoCentimes / 100;
+  const totalCentimes = locationNetteCentimes + extrasCentimes;
+  const total = totalCentimes / 100;
+  const ajustementTarifFixeMontant = promoTarifFixe ? (locationAvantPromosCentimes - sousTotalBrutCentimes) / 100 : 0;
   // Structure de présentation unique pour les pages publiques. Les montants
   // restent ceux du moteur existant : la TVA ne s'ajoute jamais au total,
   // elle décompose uniquement le prix TTC de location après remise durée.
-  const locationHT = Math.round((sousTotal / (1 + TVA_LOCATION_TAUX / 100)) * 100) / 100;
-  const locationTVA = Math.round((sousTotal - locationHT) * 100) / 100;
+  const locationNette = locationNetteCentimes / 100;
+  const locationHT = Math.round((locationNette / (1 + TVA_LOCATION_TAUX / 100)) * 100) / 100;
+  const locationTVA = Math.round((locationNette - locationHT) * 100) / 100;
   const lignesPrix = [
     { id: "location", libelle: "Frais de location", montant: sousTotalBrut, taxRate: TVA_LOCATION_TAUX, categorie: "location" },
-    ...(quote.discountRate ? [{ id: "remise-duree", libelle: "Remise durée", montant: -reductionDureeMontant, taxRate: TVA_LOCATION_TAUX, categorie: "remise" }] : []),
+    ...(!promoTarifFixe && quote.discountRate ? [{ id: "remise-duree", libelle: "Remise durée", montant: -reductionDureeMontant, taxRate: TVA_LOCATION_TAUX, categorie: "remise" }] : []),
+    ...(promoTarifFixe ? [{ id: "tarif-journalier-fixe", libelle: `Tarif fixe ${promoTarifFixe.code} (${promoTarifFixe.tarifJournalier} €/jour)`, montant: ajustementTarifFixeMontant, taxRate: TVA_LOCATION_TAUX, categorie: "tarif-promo" }] : []),
+    ...reductionsPromo.map((promo) => ({ id: `code-promo-${promo.code}`, libelle: `Code promo ${promo.code}`, montant: -promo.montantApplique, taxRate: TVA_LOCATION_TAUX, categorie: "remise" })),
     ...optionsSelectionnees.map((option) => ({ id: `option-${option.id}`, libelle: option.nom, montant: option.montant, taxRate: 0, categorie: "option" })),
     ...(protectionChoisie.montant ? [{ id: "protection", libelle: protectionChoisie.nom, montant: protectionChoisie.montant, taxRate: 0, categorie: "protection" }] : []),
-    ...(supplementJeuneConducteur ? [{ id: "jeune-conducteur", libelle: supplementJeuneConducteur.libelle, montant: supplementJeuneConducteurMontant, taxRate: 0, categorie: "supplement" }] : []),
-    ...(reductionPromoMontant ? [{ id: "code-promo", libelle: "Code promo", montant: -reductionPromoMontant, taxRate: 0, categorie: "remise" }] : [])
+    ...(supplementJeuneConducteur ? [{ id: "jeune-conducteur", libelle: supplementJeuneConducteur.libelle, montant: supplementJeuneConducteurMontant, taxRate: 0, categorie: "supplement" }] : [])
   ];
   const presentationPrix = {
     jours,
-    prixMoyenJour: Math.round((sousTotal / jours) * 100) / 100,
+    prixMoyenJour: Math.round((locationNette / jours) * 100) / 100,
     locationAvantRemise: sousTotalBrut,
     remiseDuree: reductionDureeMontant,
-    locationTTC: sousTotal,
+    tarifJournalierFixe: promoTarifFixe ? { ...promoTarifFixe, montantLocation: sousTotal } : null,
+    ajustementTarifFixeMontant,
+    reductionsPromo,
+    locationAvantCodesPromo: sousTotal,
+    locationTTC: locationNette,
     locationHT,
     locationTVA,
     lignes: lignesPrix,
@@ -757,7 +856,7 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut = "00:00", dateFi
     vehicule,
     jours,
     sousTotalBrut,
-    reductionDuree: quote.discountRate ? { taux: quote.discountRate, montant: reductionDureeMontant, libelle: quote.discountLabel } : null,
+    reductionDuree: !promoTarifFixe && quote.discountRate ? { taux: quote.discountRate, montant: reductionDureeMontant, libelle: quote.discountLabel } : null,
     sousTotal,
     tarifsJournaliers: quote.dailyRates,
     // Si les jours traversent plusieurs niveaux, le seul tarif/jour affiché
@@ -773,19 +872,29 @@ function calculerPrixTotal({ vehiculeId, dateDebut, heureDebut = "00:00", dateFi
     supplementJeuneConducteur,
     supplementJeuneConducteurMontant,
     baseAvantPromo,
-    codePromo: promo,
+    tarifJournalierFixe: promoTarifFixe ? { ...promoTarifFixe, montantLocation: sousTotal, ajustementMontant: ajustementTarifFixeMontant } : null,
+    codesPromo: promotions,
+    promoErrors: validationPromos.errors,
+    reductionsPromo,
+    locationNette,
+    // Champ singulier conservé pour les anciens consommateurs.
+    codePromo: promotions[0] || null,
     reductionPromoMontant,
     total,
-    totalCentimes: Math.round(total * 100),
+    totalCentimes,
     pricingSnapshot: {
       vehicule: { id: vehicule.id, nom: vehicule.nom },
       dates: { debut: dateDebut, fin: dateFin },
       tarifsJournaliers: quote.dailyRates,
       nombreJours: jours,
       sousTotalAvantRemise: sousTotalBrut,
-      tauxRemiseDuree: quote.discountRate,
+      tauxRemiseDuree: promoTarifFixe ? 0 : quote.discountRate,
       montantRemiseDuree: reductionDureeMontant,
       montantLocationApresRemise: sousTotal,
+      tarifJournalierFixe: promoTarifFixe ? { ...promoTarifFixe, montantLocation: sousTotal, ajustementMontant: ajustementTarifFixeMontant } : null,
+      codesPromo: promotions,
+      reductionsPromo,
+      montantLocationNet: locationNette,
       prixMoyenJour: presentationPrix.prixMoyenJour,
       locationHT,
       locationTVA,
@@ -976,6 +1085,8 @@ if (typeof module !== "undefined" && module.exports) {
     anciennetePermisAnnees,
     estJeuneConducteur,
     getCodePromo,
+    normaliserCodesPromo,
+    validerCodesPromo,
     getOptionParId,
     PROTECTIONS,
     PROTECTION_GARANTIES,

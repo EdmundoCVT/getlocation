@@ -50,6 +50,7 @@ function standardIncludedMileage(record, days) {
       dateFin: end.date,
       heureFin: end.time,
       options: optionIds(record),
+      codesPromo: record.codesPromo,
       codePromo: record.codePromo || "",
       protection: record.protection
     });
@@ -98,6 +99,7 @@ function agreedTotal(record) {
     dateFin: end.date,
     heureFin: end.time,
     options: optionIds(record),
+    codesPromo: record.codesPromo,
     codePromo: record.codePromo || "",
     protection: record.protection
   });
