@@ -43,6 +43,8 @@ test("renvoie une vue publique sûre (sans naissance/téléphone) pour une rése
     assurance: true,
     jours: 3,
     total: 264,
+    depotGarantie: 650,
+    cautionContractuelle: 650,
     conducteur: {
       nom: "Dupont",
       prenom: "Jean",
@@ -61,6 +63,7 @@ test("renvoie une vue publique sûre (sans naissance/téléphone) pour une rése
   assert.equal(json.status, "paid");
   assert.equal(json.vehicule.id, "peugeot-3008");
   assert.equal(json.total, 264);
+  assert.equal(json.depotGarantie, 650);
   assert.equal(json.conducteur.prenom, "Jean");
   assert.equal(json.conducteur.email, "jean@example.com");
 

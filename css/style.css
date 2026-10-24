@@ -3561,6 +3561,201 @@ textarea:focus-visible,
   .faq-item summary::after { transition: none; }
 }
 
+/* ===============================================================
+   Parcours client de confiance : réservation, paiement, dépôt,
+   confirmation. Ajustements locaux — aucune incidence back-office.
+   =============================================================== */
+.client-trust-flow [hidden] { display: none !important; }
+
+.client-trust-flow .btn-primary {
+  background: var(--violet);
+  color: var(--gris-fonce);
+  box-shadow: 0 10px 24px rgba(242, 118, 12, .22);
+}
+
+.client-trust-flow .btn-primary:hover {
+  background: #f05f00;
+  color: #101015;
+  box-shadow: 0 12px 28px rgba(242, 118, 12, .3);
+}
+
+.client-trust-flow .btn-primary:focus-visible,
+.client-trust-flow a:focus-visible,
+.client-trust-flow button:focus-visible,
+.client-trust-flow input:focus-visible,
+.client-trust-flow select:focus-visible {
+  outline-color: var(--bleu-ocean);
+  outline-width: 3px;
+}
+
+.client-trust-flow .spinner {
+  border-color: rgba(26, 26, 31, .28);
+  border-top-color: var(--gris-fonce);
+}
+
+.client-trust-flow .date-bar-edit,
+.client-trust-flow .checkout-back-link,
+.client-trust-flow .price-details-trigger {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.payment-title { margin-bottom: 6px; }
+.payment-intro { margin: 0 0 22px; color: #565660; }
+
+.delivery-distance-block {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid #dce5f2;
+  border-radius: 14px;
+  background: #f7faff;
+}
+
+.delivery-distance-block > label { color: var(--gris-fonce); font-size: .9rem; font-weight: 800; }
+.delivery-distance-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: stretch; }
+.delivery-distance-controls .btn { min-height: 48px; white-space: nowrap; }
+.delivery-distance-block .hint-text { margin: 0; color: #555d6b; font-size: .875rem; }
+
+.delivery-price-preview {
+  margin: 2px 0 0;
+  padding: 11px 12px;
+  border-radius: 10px;
+  background: #eaf2ff;
+  color: #12386f;
+  font-size: .95rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.trust-note {
+  margin: 10px 0 0;
+  color: #555d6b;
+  font-size: .875rem;
+  line-height: 1.5;
+}
+
+.payment-summary-card[open] > summary { border-bottom: 1px solid #ededf1; }
+
+.financial-commitment {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 2px solid var(--gris-fonce);
+}
+
+.financial-commitment h3 {
+  margin: 0 0 8px;
+  color: var(--gris-fonce);
+  font-size: 1rem;
+}
+
+.financial-commitment .summary-row { align-items: baseline; gap: 18px; }
+.financial-commitment .summary-row span:last-child { flex: 0 0 auto; text-align: right; font-variant-numeric: tabular-nums; }
+.financial-commitment .financial-total { color: var(--gris-fonce); font-size: 1.08rem; font-weight: 800; }
+.financial-commitment .financial-today { color: #12386f; font-size: 1.05rem; font-weight: 850; }
+
+.financial-pending-note {
+  margin: 10px 0 0;
+  color: #555d6b;
+  font-size: .875rem;
+  line-height: 1.5;
+}
+
+.financial-deposit {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #cfdcf0;
+  border-radius: 12px;
+  background: #f7faff;
+}
+
+.financial-deposit .financial-deposit-row { padding: 0 0 8px; border-bottom: 0; color: #12386f; font-weight: 850; }
+.financial-deposit p { margin: 0; color: #4f5967; font-size: .875rem; line-height: 1.5; }
+
+.confirmation-shell { max-width: 720px; }
+.confirm-check.is-warning { background: #eaf2ff; color: #12386f; }
+.confirmation-next { margin-top: 18px; }
+.confirmation-timeline { display: grid; gap: 0; margin: 18px 0 0; padding: 0; list-style: none; counter-reset: confirmation-step; }
+.confirmation-timeline li { position: relative; min-height: 68px; padding: 0 0 22px 48px; counter-increment: confirmation-step; }
+.confirmation-timeline li::before { content: counter(confirmation-step); position: absolute; top: 0; left: 0; display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid #ccd6e4; border-radius: 50%; background: #fff; color: #46515e; font-weight: 800; }
+.confirmation-timeline li::after { content: ""; position: absolute; top: 34px; bottom: 2px; left: 15px; width: 2px; background: #dfe5ed; }
+.confirmation-timeline li:last-child::after { display: none; }
+.confirmation-timeline li.is-complete::before { content: "✓"; border-color: var(--bleu-ocean); background: var(--bleu-ocean); color: #fff; }
+.confirmation-timeline strong,
+.confirmation-timeline span { display: block; }
+.confirmation-timeline strong { color: var(--gris-fonce); }
+.confirmation-timeline span { margin-top: 3px; color: #5a5f68; font-size: .9rem; line-height: 1.45; }
+
+.confirmation-contact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px solid #dce5f2;
+  border-radius: 14px;
+  background: #f7faff;
+}
+
+.confirmation-contact h2 { margin: 0 0 4px; font-size: 1.05rem; }
+.confirmation-contact p { margin: 0; color: #59616c; font-size: .9rem; }
+.confirmation-contact-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.confirmation-contact-actions .btn { min-height: 44px; padding: 9px 14px; }
+.confirmation-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 24px; }
+
+.deposit-page { min-height: 100vh; background: #f6f8fb; }
+.deposit-shell { max-width: 680px; padding-top: 48px; padding-bottom: 48px; }
+.deposit-card { padding: 30px; }
+.deposit-heading { display: flex; align-items: flex-start; gap: 14px; padding-bottom: 22px; border-bottom: 1px solid #e8ebf0; }
+.deposit-heading h1 { margin: 0 0 5px; font-size: 1.75rem; }
+.deposit-heading p { margin: 0; color: #58606c; line-height: 1.5; }
+.deposit-secure-mark { display: grid; place-items: center; flex: 0 0 auto; width: 38px; height: 38px; border-radius: 50%; background: var(--bleu-ocean); color: #fff; font-weight: 900; }
+.deposit-status { margin-top: 20px; padding: 14px; border-radius: 12px; background: #eaf2ff; color: #12386f; font-weight: 750; }
+.deposit-status.is-success { background: #e9f7ef; color: #1d6940; }
+.deposit-details { margin-top: 20px; }
+.deposit-summary { display: grid; gap: 0; margin: 0; }
+.deposit-summary > div { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 14px; padding: 10px 0; border-bottom: 1px dashed #dfe3e8; }
+.deposit-summary dt { color: #626975; font-size: .875rem; }
+.deposit-summary dd { margin: 0; color: var(--gris-fonce); font-weight: 750; overflow-wrap: anywhere; }
+.deposit-amount-block { margin-top: 22px; padding: 18px; border-radius: 14px; background: #fff3eb; }
+.deposit-amount-block > span { display: block; color: #744120; font-size: .875rem; font-weight: 800; }
+.deposit-amount-block strong { display: block; margin: 3px 0 6px; color: var(--gris-fonce); font-size: 2rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.deposit-amount-block p { margin: 0; color: #624d40; font-size: .9rem; line-height: 1.5; }
+.deposit-explanation { margin: 22px 0; }
+.deposit-explanation h2 { margin: 0 0 10px; font-size: 1.05rem; }
+.deposit-explanation ul { margin: 0; padding-left: 22px; color: #505761; }
+.deposit-explanation li { margin-bottom: 8px; line-height: 1.5; }
+.deposit-essential-message { margin: 16px 0 0; padding: 14px; border: 1px solid #cfdcf0; border-radius: 12px; background: #f7faff; color: #12386f; font-weight: 750; line-height: 1.5; }
+.deposit-card .btn-block { min-height: 52px; }
+.deposit-recovery { margin-top: 20px; padding: 16px; border: 1px solid #ecc9c9; border-radius: 12px; background: #fff7f7; }
+.deposit-recovery p { margin: 0 0 14px; color: #7b2727; font-weight: 700; }
+.deposit-recovery .btn { min-height: 44px; margin: 4px 6px 4px 0; }
+
+@media (max-width: 640px) {
+  .client-trust-flow .field label { font-size: .875rem; }
+  .client-trust-flow .hint-text,
+  .client-trust-flow .trust-note,
+  .client-trust-flow .financial-pending-note,
+  .client-trust-flow .financial-deposit p { font-size: .875rem; }
+  .client-trust-flow .date-bar-edit { min-height: 44px; max-width: 88px; }
+  .client-trust-flow .step { font-size: .78rem; }
+  .client-trust-flow .step-num { width: 28px; height: 28px; font-size: .75rem; }
+  .delivery-distance-controls { grid-template-columns: 1fr; }
+  .delivery-distance-controls .btn { width: 100%; }
+  .payment-summary-card > summary { font-size: .95rem; }
+  .financial-commitment .summary-row { font-size: .9rem; }
+  .confirmation-contact { align-items: stretch; flex-direction: column; }
+  .confirmation-contact-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .confirmation-contact-actions .btn { padding-inline: 8px; }
+  .deposit-shell { padding-top: 20px; padding-bottom: 20px; }
+  .deposit-card { padding: 20px 16px; }
+  .deposit-heading h1 { font-size: 1.5rem; }
+  .deposit-summary > div { grid-template-columns: 1fr; gap: 2px; }
+}
+
 /* ---------------------------------------------------------------
    Sélecteur de langue FR | EN (injecté dans la navigation par
    js/i18n.js, présent sur toutes les pages client) et mention de

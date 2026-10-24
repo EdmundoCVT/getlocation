@@ -80,6 +80,12 @@ function toSafePublicView(reservation) {
     locationNette: reservation.locationNette,
     reductionPromoMontant: reservation.reductionPromoMontant,
     total: reservation.total,
+    // Instantané historique : ne jamais relire le dépôt actuel du catalogue.
+    depotGarantie: reservation.depotGarantie !== null && reservation.depotGarantie !== undefined && reservation.depotGarantie !== "" && Number.isFinite(Number(reservation.depotGarantie))
+      ? Number(reservation.depotGarantie)
+      : reservation.cautionContractuelle !== null && reservation.cautionContractuelle !== undefined && reservation.cautionContractuelle !== "" && Number.isFinite(Number(reservation.cautionContractuelle))
+        ? Number(reservation.cautionContractuelle)
+        : null,
     conducteur: reservation.conducteur
       ? { prenom: reservation.conducteur.prenom, nom: reservation.conducteur.nom, email: reservation.conducteur.email }
       : null,

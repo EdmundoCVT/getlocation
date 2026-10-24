@@ -120,9 +120,9 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=52">
+<link rel="stylesheet" href="css/style.css?v=53">
 </head>
-<body>
+<body class="client-trust-flow payment-page">
 
 <div class="info-banner" id="info-banner">Paiement 100% sécurisé — vos données bancaires ne transitent jamais par nos serveurs.</div>
 
@@ -157,14 +157,16 @@
       <label for="bar-date-debut">Départ</label>
       <div class="datetime-group">
         <input type="date" id="bar-date-debut">
-        <select id="bar-heure-debut"></select>
+        <label class="sr-only" for="bar-heure-debut">Heure de départ</label>
+        <select id="bar-heure-debut" aria-label="Heure de départ"></select>
       </div>
     </div>
     <div class="field">
       <label for="bar-date-fin">Retour</label>
       <div class="datetime-group">
         <input type="date" id="bar-date-fin">
-        <select id="bar-heure-fin"></select>
+        <label class="sr-only" for="bar-heure-fin">Heure de retour</label>
+        <select id="bar-heure-fin" aria-label="Heure de retour"></select>
       </div>
     </div>
     <button type="button" class="btn btn-primary btn-sm" id="date-bar-apply">Mettre à jour le prix</button>
@@ -172,9 +174,11 @@
   </div>
 </div>
 
+<main id="main-content">
 <section class="section container">
   <a href="reservation.html#options" class="checkout-back-link" aria-label="Revenir aux options">← Revenir aux options</a>
-  <h1 class="sr-only">Paiement sécurisé de votre location</h1>
+  <h1 class="checkout-title payment-title">Paiement, livraison et récapitulatif</h1>
+  <p class="checkout-intro payment-intro">Vérifiez le lieu de livraison et le montant détaillé avant d’accéder au paiement sécurisé.</p>
   <div class="steps">
     <div class="step done"><span class="step-num">1</span> Véhicule</div>
     <div class="step-sep"></div>
@@ -234,11 +238,18 @@
               <button type="button" class="btn btn-secondary btn-sm" id="payment-adresse-prise-other-toggle">Autre ville</button>
               <button type="button" class="btn btn-secondary btn-sm" id="payment-adresse-prise-custom-toggle">Saisir une adresse</button>
             </div>
-            <select id="payment-adresse-prise-other" class="delivery-other-select" hidden></select>
+            <label class="sr-only" for="payment-adresse-prise-other">Autre ville de livraison</label>
+            <select id="payment-adresse-prise-other" class="delivery-other-select" aria-label="Autre ville de livraison" hidden></select>
             <div class="error-text" id="err-payment-adresse-prise" aria-live="polite"></div>
-            <label for="payment-delivery-distance">Distance aller depuis Saint-Laurent-du-Var (km)</label>
-            <input type="number" id="payment-delivery-distance" min="0" max="500" step="1" inputmode="numeric" placeholder="Ex. 15" required aria-describedby="payment-delivery-distance-help">
-            <p class="hint-text" id="payment-delivery-distance-help">20 € de prise en charge + 1 € / km aller (minimum 25 €). La récupération à une autre adresse est confirmée séparément.</p>
+            <div class="delivery-distance-block">
+              <label for="payment-delivery-distance">Distance aller jusqu’au lieu choisi (km)</label>
+              <div class="delivery-distance-controls">
+                <input type="number" id="payment-delivery-distance" min="0" max="500" step="1" inputmode="numeric" placeholder="Ex. 15" required aria-describedby="payment-delivery-distance-help payment-delivery-price">
+                <a id="payment-delivery-route" class="btn btn-secondary btn-sm" href="https://www.google.com/maps/dir/?api=1&origin=Saint-Laurent-du-Var" target="_blank" rel="noopener" hidden>Voir l’itinéraire</a>
+              </div>
+              <p class="hint-text" id="payment-delivery-distance-help">Relevez simplement la distance aller affichée par votre GPS depuis Saint-Laurent-du-Var. Le tarif est calculé automatiquement selon le barème existant : vous n’avez aucun calcul à faire.</p>
+              <p class="delivery-price-preview" id="payment-delivery-price" role="status" aria-live="polite">Choisissez un lieu et indiquez la distance pour connaître le prix de livraison.</p>
+            </div>
             <p class="hint-text delivery-later-hint" id="payment-adresse-prise-hint">Pas besoin de connaître l’adresse exacte maintenant. Vous pourrez nous communiquer le lieu précis de livraison jusqu’à 24 h avant la remise du véhicule.</p>
           </div>
           <div class="field field-full" id="payment-adresse-prise-custom" style="display:none;"></div>
@@ -256,9 +267,11 @@
               <div class="delivery-choice-grid delivery-city-grid" id="payment-adresse-retour-principal"></div>
             </details>
             <button type="button" class="btn btn-secondary btn-sm" id="payment-adresse-retour-other-toggle">Autre ville</button>
-            <select id="payment-adresse-retour-other" class="delivery-other-select" hidden></select>
+            <label class="sr-only" for="payment-adresse-retour-other">Autre ville de restitution</label>
+            <select id="payment-adresse-retour-other" class="delivery-other-select" aria-label="Autre ville de restitution" hidden></select>
             <div class="error-text" id="err-payment-adresse-retour" aria-live="polite"></div>
             <p class="hint-text delivery-later-hint" id="payment-adresse-retour-hint">Pas besoin de connaître l’adresse exacte maintenant. Vous pourrez nous communiquer le lieu précis de restitution jusqu’à 24 h avant la remise du véhicule.</p>
+            <p class="trust-note">Une restitution à une adresse différente est confirmée et chiffrée séparément par l’agence. Elle n’est pas incluse dans le montant payé aujourd’hui.</p>
           </div>
           <div class="field field-full" id="payment-adresse-retour-custom" style="display:none;"></div>
         </div>
@@ -277,20 +290,21 @@
         <div class="error-text" id="err-cgl-accept" aria-live="polite"></div>
         <button type="submit" class="btn btn-primary btn-block" id="pay-button" style="margin-top: 10px;">
           <span class="spinner"></span>
-          <span class="btn-label">Payer maintenant</span>
+          <span class="btn-label">Continuer vers le paiement sécurisé</span>
         </button>
-        <div class="error-text" id="payment-errors" aria-live="polite"></div>
+        <div class="error-text" id="payment-errors" role="alert" aria-live="assertive" tabindex="-1"></div>
         <div class="pay-lock">🔒 Paiement chiffré de bout en bout par Mollie — GETLOCATION ne stocke aucune donnée bancaire.</div>
         <div class="hint-text" style="text-align:center; margin-top:6px;">Le dépôt de garantie est demandé avant la remise des clés. C'est une garantie financière, pas un plafond des sommes pouvant rester à votre charge.</div>
       </form>
     </div>
 
-    <details class="card payment-summary-card ui-disclosure">
-      <summary><span>Résumé de la commande</span><strong id="payment-summary-total">—</strong></summary>
-      <div id="payment-summary" aria-live="polite"></div>
+    <details class="card payment-summary-card ui-disclosure" open>
+      <summary><span>Récapitulatif avant paiement</span><strong id="payment-summary-total">—</strong></summary>
+      <div id="payment-summary" aria-live="polite" aria-busy="false"></div>
     </details>
   </div>
 </section>
+</main>
 
 <footer class="site-footer">
   <div class="container footer-grid">
@@ -329,7 +343,7 @@
 
 <script src="js/pricing.js?v=1"></script>
 <script src="js/data.js?v=34"></script>
-<script src="js/i18n.js?v=49"></script>
-<script src="js/app.js?v=42"></script>
+<script src="js/i18n.js?v=50"></script>
+<script src="js/app.js?v=43"></script>
 </body>
 </html>

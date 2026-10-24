@@ -1,36 +1,62 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="referrer" content="no-referrer"><title>Dépôt de garantie | GetLocation</title>
-  <link rel="stylesheet" href="css/style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Dépôt de garantie | GETLOCATION</title>
+  <link rel="stylesheet" href="css/style.css?v=53">
 </head>
-<body>
-  <main class="container" style="max-width:620px;padding:48px 20px;">
-    <section class="card" style="padding:28px;">
-      <h1>Dépôt de garantie</h1>
-      <p id="depositMessage">Préparation de la page sécurisée…</p>
-      <a id="checkoutButton" class="btn btn-primary" hidden rel="noreferrer">Continuer vers le paiement sécurisé</a>
-      <p class="hint-text" style="margin-top:20px;">La saisie de votre carte et l’authentification 3D Secure sont traitées directement par Mollie. GetLocation ne reçoit jamais vos données de carte.</p>
+<body class="client-trust-flow deposit-page">
+  <main class="container deposit-shell" id="main-content">
+    <section class="card deposit-card" aria-labelledby="deposit-title">
+      <div class="deposit-heading">
+        <span class="deposit-secure-mark" aria-hidden="true">✓</span>
+        <div>
+          <h1 id="deposit-title">Dépôt de garantie</h1>
+          <p>Vérifiez les informations avant d’autoriser l’empreinte bancaire sécurisée.</p>
+        </div>
+      </div>
+
+      <div id="depositStatus" class="deposit-status" role="status" aria-live="polite" aria-busy="true">
+        Préparation des informations sécurisées…
+      </div>
+
+      <div id="depositDetails" class="deposit-details" hidden>
+        <dl class="deposit-summary">
+          <div><dt>Réservation</dt><dd id="depositReference">—</dd></div>
+          <div><dt>Véhicule</dt><dd id="depositVehicle">—</dd></div>
+          <div><dt>Location</dt><dd id="depositDates">—</dd></div>
+        </dl>
+
+        <section class="deposit-amount-block" aria-labelledby="deposit-amount-title">
+          <span id="deposit-amount-title">Dépôt de garantie</span>
+          <strong id="depositAmount">—</strong>
+          <p>Préautorisation bancaire — ce montant n’est pas ajouté au prix de votre location et n’est pas débité immédiatement.</p>
+        </section>
+
+        <div class="deposit-explanation">
+          <h2>Comment fonctionne l’empreinte bancaire ?</h2>
+          <ul>
+            <li>Le montant est temporairement réservé sur votre plafond de carte.</li>
+            <li id="depositValidity">La durée de validité sera indiquée après vérification du lien.</li>
+            <li>Après la restitution et l’état des lieux, GET LOCATION demande la mainlevée dans un délai de 7 jours ouvrables, sauf réserves prévues par les conditions de location. Le délai bancaire effectif peut être plus long.</li>
+          </ul>
+          <p class="deposit-essential-message">Le dépôt de garantie est une garantie financière distincte du prix de la location. Il ne constitue pas un plafond des sommes pouvant rester à votre charge.</p>
+        </div>
+
+        <a id="checkoutButton" class="btn btn-primary btn-block" hidden rel="noreferrer">Autoriser le dépôt avec Mollie</a>
+        <p class="pay-lock">Paiement et authentification 3D Secure traités directement par Mollie. GET LOCATION ne reçoit jamais vos données de carte.</p>
+      </div>
+
+      <div id="depositRecovery" class="deposit-recovery" hidden>
+        <p id="depositRecoveryText"></p>
+        <button type="button" class="btn btn-secondary" id="depositRetry">Réessayer</button>
+        <a href="tel:+33667485430" class="btn btn-secondary">Contacter GET LOCATION</a>
+      </div>
     </section>
   </main>
-  <script>
-  (async function () {
-    const token = new URL(location.href).searchParams.get('token');
-    const message = document.getElementById('depositMessage');
-    if (!token) { message.textContent = 'Ce lien est invalide.'; return; }
-    try {
-      const response = await fetch('/api/deposit-checkout?token=' + encodeURIComponent(token), { credentials: 'omit', referrerPolicy: 'no-referrer' });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Lien indisponible');
-      if (data.status === 'authorized' || data.status === 'paid') { message.textContent = 'Votre dépôt de garantie a bien été traité.'; return; }
-      if (!data.checkoutUrl) throw new Error('La page de paiement n’est plus disponible.');
-      const button = document.getElementById('checkoutButton');
-      button.href = data.checkoutUrl;
-      button.hidden = false;
-      message.textContent = 'Vous allez être redirigé vers Mollie pour autoriser le dépôt de garantie.';
-    } catch (error) { message.textContent = error.message; }
-  }());
-  </script>
+  <script src="js/deposit-page.js?v=1"></script>
 </body>
 </html>

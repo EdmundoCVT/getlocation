@@ -56,6 +56,8 @@ test("renvoie une vue publique sûre (sans naissance/téléphone) pour une rése
     assurance: true,
     jours: 3,
     total: 264,
+    depotGarantie: 650,
+    cautionContractuelle: 650,
     conducteur: {
       nom: "Dupont",
       prenom: "Jean",
@@ -74,6 +76,7 @@ test("renvoie une vue publique sûre (sans naissance/téléphone) pour une rése
   assert.equal(json.status, "paid");
   assert.equal(json.vehicule.id, "peugeot-3008");
   assert.equal(json.total, 264);
+  assert.equal(json.depotGarantie, 650, "le dépôt historique reste celui figé lors de la réservation");
   assert.equal(json.conducteur.prenom, "Jean");
   assert.equal(json.conducteur.email, "jean@example.com");
 
@@ -88,4 +91,12 @@ test("en-tête Cache-Control: no-store présent (donnée sensible/dynamique)", a
   const reservation = await createReservation(env, { vehiculeId: "opel-corsa" });
   const res = await handleReservationStatus(makeRequest({ id: reservation.id }), env);
   assert.equal(res.headers.get("Cache-Control"), "no-store");
+});
+
+test("une ancienne réservation sans instantané de dépôt n'invente pas un montant à 0 €", async () => {
+  const env = makeEnv();
+  const reservation = await createReservation(env, { vehiculeId: "opel-corsa" });
+  const res = await handleReservationStatus(makeRequest({ id: reservation.id }), env);
+  const json = await res.json();
+  assert.equal(json.depotGarantie, null);
 });

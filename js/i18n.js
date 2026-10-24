@@ -895,6 +895,11 @@
 
     // --- Paiement
     "← Revenir aux options": "← Back to extras",
+    "Heure de départ": "Pick-up time",
+    "Heure de retour": "Return time",
+    "Paiement, livraison et récapitulatif": "Payment, delivery and summary",
+    "Vérifiez le lieu de livraison et le montant détaillé avant d’accéder au paiement sécurisé.":
+      "Check the delivery location and full amount before continuing to secure payment.",
     "Paiement sécurisé de votre location": "Secure payment for your rental",
     "Vos coordonnées": "Your details",
     "Nom": "Last name",
@@ -919,6 +924,53 @@
     "Le dépôt de garantie est demandé avant la remise des clés. C'est une garantie financière, pas un plafond des sommes pouvant rester à votre charge.":
       "The security deposit is requested before the keys are handed over. It is a financial guarantee, not a cap on the amounts that may remain payable by you.",
     "Résumé de la commande": "Order summary",
+    "Autre ville de livraison": "Other delivery town",
+    "Distance aller jusqu’au lieu choisi (km)": "One-way distance to the selected location (km)",
+    "Voir l’itinéraire": "View route",
+    "Relevez simplement la distance aller affichée par votre GPS depuis Saint-Laurent-du-Var. Le tarif est calculé automatiquement selon le barème existant : vous n’avez aucun calcul à faire.":
+      "Simply enter the one-way distance shown by your GPS from Saint-Laurent-du-Var. The fee is calculated automatically using the current rate: you do not need to calculate anything.",
+    "Choisissez un lieu et indiquez la distance pour connaître le prix de livraison.":
+      "Select a location and enter the distance to see the delivery fee.",
+    "Autre ville de restitution": "Other return town",
+    "Une restitution à une adresse différente est confirmée et chiffrée séparément par l’agence. Elle n’est pas incluse dans le montant payé aujourd’hui.":
+      "A return at a different address is confirmed and priced separately by the agency. It is not included in the amount paid today.",
+    "Continuer vers le paiement sécurisé": "Continue to secure payment",
+    "Récapitulatif avant paiement": "Summary before payment",
+    "Livraison à calculer": "Delivery to be calculated",
+    "Indiquez la distance aller : le prix de livraison s’affichera immédiatement.":
+      "Enter the one-way distance: the delivery fee will appear immediately.",
+    "Choisissez le lieu où vous souhaitez recevoir le véhicule.":
+      "Select where you would like the vehicle delivered.",
+    "Indiquez la distance aller affichée par votre GPS, entre 0 et 500 km.":
+      "Enter the one-way distance shown by your GPS, between 0 and 500 km.",
+    "Choisissez le lieu de restitution ou décochez l’adresse différente.":
+      "Select the return location or untick the different-address option.",
+    "Merci d'accepter les conditions générales de location et la politique de confidentialité avant de payer.":
+      "Please accept the rental terms and privacy policy before paying.",
+    "Le paiement en ligne n'est pas encore disponible. Contactez-nous pour finaliser votre réservation :":
+      "Online payment is not available yet. Contact us to complete your booking:",
+    "Ce véhicule vient d'être réservé sur ces dates. Merci de modifier vos dates ou de choisir un autre véhicule.":
+      "This vehicle has just been booked for these dates. Change your dates or choose another vehicle.",
+    "Trop de tentatives. Merci de patienter quelques instants avant de réessayer.":
+      "Too many attempts. Wait a few moments before trying again.",
+    "Le paiement n'a pas pu être initialisé. Merci de réessayer.":
+      "The payment could not be started. Please try again.",
+    "Initialisation du paiement sécurisé…": "Starting secure payment…",
+    "À calculer": "To be calculated",
+    "Synthèse financière": "Payment summary",
+    "Paiement enregistré": "Payment recorded",
+    "Ce que vous allez payer": "What you will pay",
+    "Total location avant livraison": "Rental total before delivery",
+    "Total location": "Rental total",
+    "Payé aujourd’hui": "Paid today",
+    "Paiement aujourd’hui": "Payment today",
+    "Calculé après la distance": "Calculated after the distance is entered",
+    "Solde restant": "Remaining balance",
+    "Le total final et le paiement d’aujourd’hui incluront la livraison dès que sa distance sera indiquée.":
+      "The final total and today’s payment will include delivery once its distance has been entered.",
+    "Dépôt de garantie — séparé": "Security deposit — separate",
+    "Garantie financière distincte du prix de la location, demandée avant la remise des clés. Elle peut prendre la forme d’une préautorisation bancaire et ne constitue pas un plafond des sommes pouvant rester à votre charge.":
+      "A financial guarantee separate from the rental price, requested before the keys are handed over. It may take the form of a card pre-authorisation and is not a cap on the amounts that may remain payable by you.",
 
     // --- Confirmation
     "Réservation confirmée !": "Booking confirmed!",
@@ -927,6 +979,46 @@
     "Réf.": "Ref.",
     "Détails de votre réservation": "Your booking details",
     "Retour à l'accueil": "Back to home",
+    "Vérification de votre paiement…": "Checking your payment…",
+    "Nous vérifions la confirmation sécurisée envoyée par Mollie.":
+      "We are checking the secure confirmation sent by Mollie.",
+    "Que devez-vous faire maintenant ?": "What should you do next?",
+    "Réservation confirmée": "Booking confirmed",
+    "Votre paiement de location est enregistré.": "Your rental payment has been recorded.",
+    "Compléter votre dossier": "Complete your file",
+    "Utilisez le lien sécurisé reçu par e-mail pour transmettre les documents demandés.":
+      "Use the secure link sent by email to provide the requested documents.",
+    "Autoriser le dépôt de garantie": "Authorise the security deposit",
+    "Le montant et le lien sécurisé vous seront communiqués avant la remise des clés.":
+      "The amount and secure link will be sent to you before the keys are handed over.",
+    "Préparation et livraison": "Preparation and delivery",
+    "L’équipe GET LOCATION prépare le véhicule et confirme avec vous les détails de livraison.":
+      "The GET LOCATION team prepares the vehicle and confirms the delivery details with you.",
+    "Remise du véhicule": "Vehicle handover",
+    "Le véhicule et les clés vous sont remis au lieu convenu.":
+      "The vehicle and keys are handed over at the agreed location.",
+    "Une question sur votre réservation ?": "A question about your booking?",
+    "Indiquez votre référence à l’équipe GET LOCATION.": "Give the GET LOCATION team your reference.",
+    "Appeler": "Call",
+    "Vérifier à nouveau": "Check again",
+    "Paiement en cours de confirmation": "Payment confirmation in progress",
+    "Paiement non confirmé": "Payment not confirmed",
+    "Vérification momentanément indisponible": "Verification temporarily unavailable",
+    "Votre paiement de location est accepté. Un e-mail de confirmation vous a été envoyé.":
+      "Your rental payment has been accepted. A confirmation email has been sent to you.",
+    "Mollie traite encore votre paiement. Ne réalisez pas un second paiement : vérifiez à nouveau dans quelques instants.":
+      "Mollie is still processing your payment. Do not make a second payment: check again in a few moments.",
+    "La réservation n’a pas été confirmée. Aucun paiement accepté n’est associé à cette référence.":
+      "The booking has not been confirmed. No accepted payment is linked to this reference.",
+    "Nous ne pouvons pas confirmer le statut pour le moment. Si vous venez de payer, ne payez pas une seconde fois.":
+      "We cannot confirm the status at the moment. If you have just paid, do not pay a second time.",
+    "Chargement de votre confirmation…": "Loading your confirmation…",
+    "Votre paiement est en cours de confirmation. Ne payez pas une seconde fois. Utilisez « Vérifier à nouveau » dans quelques instants.":
+      "Your payment is being confirmed. Do not pay a second time. Use ‘Check again’ in a few moments.",
+    "Le paiement a été refusé, annulé ou a expiré. Contactez GET LOCATION si vous pensez qu’il s’agit d’une erreur.":
+      "The payment was declined, cancelled or expired. Contact GET LOCATION if you believe this is an error.",
+    "Impossible de vérifier cette réservation pour le moment. Si vous venez de payer, ne recommencez pas le paiement : vérifiez à nouveau ou contactez GET LOCATION.":
+      "We cannot check this booking at the moment. If you have just paid, do not restart the payment: check again or contact GET LOCATION.",
 
     // --- Dossier client (documents.html)
     "Compléter mon dossier": "Complete your file",
@@ -1335,6 +1427,11 @@
     "Kilométrage inclus": "Included mileage",
     "Code promo {code} ({remise})": "Promo code {code} ({remise})",
     "Tarif fixe {code} — {tarif} / jour × {jours}": "Fixed rate {code} — {tarif} / day × {jours}",
+    "Payer {montant} maintenant": "Pay {montant} now",
+    "Livraison à {lieu} : {montant}": "Delivery to {lieu}: {montant}",
+    "Livraison à {lieu}": "Delivery to {lieu}",
+    "{message} Aucun débit n’a été effectué sur cette page. Vérifiez les informations puis réessayez.":
+      "{message} No charge was made on this page. Check the information and try again.",
     "Retirer le code {code}": "Remove code {code}",
     "Code {code} retiré.": "Code {code} removed.",
     "Le code {code} est déjà appliqué.": "Code {code} has already been applied.",

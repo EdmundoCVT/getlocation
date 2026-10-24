@@ -181,6 +181,12 @@ function createFakeD1() {
             if (norm === "SELECT COUNT(*) AS pendingDeposits FROM deposits WHERE status = ?") {
               return { pendingDeposits: [...tables.deposits.values()].filter((d) => d.status === args[0]).length };
             }
+            if (norm === "SELECT * FROM deposits WHERE customer_link_hash = ? AND customer_link_expires_at > ?") {
+              const [hash, now] = args;
+              return [...tables.deposits.values()].find(
+                (deposit) => deposit.customer_link_hash === hash && deposit.customer_link_expires_at > now
+              ) || null;
+            }
             // ---- Lot 2 : compteur atomique (UPSERT + RETURNING), voir
             // src/lib/contract-numero.js. Émule la sémantique D1/SQLite —
             // suffisant en test (un seul thread JS, pas de concurrence

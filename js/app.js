@@ -2085,7 +2085,10 @@ function buildPaymentSummary(container, vehicule, data, prix) {
   const datesDiv = document.createElement("div");
   datesDiv.className = "hint-text";
   datesDiv.textContent = `${formatDateHeureFR(data.dateDebut, data.heureDebut)} — ${formatDateHeureFR(data.dateFin, data.heureFin)}`;
-  infoDiv.append(nameDiv, datesDiv);
+  const routeDiv = document.createElement("div");
+  routeDiv.className = "hint-text";
+  routeDiv.textContent = `${libelleLieu(data.lieuPrise, data.adressePrise, data.lieuPriseType)} → ${libelleLieu(data.lieuRetour, data.adresseRetour, data.lieuRetourType)}`;
+  infoDiv.append(nameDiv, datesDiv, routeDiv);
   // Les coordonnées ne sont saisies que sur cette page (voir plus bas) :
   // au premier rendu, `data.conducteur` n'existe pas encore.
   if (data.conducteur) {
@@ -2097,7 +2100,8 @@ function buildPaymentSummary(container, vehicule, data, prix) {
   vehicleBlock.appendChild(infoDiv);
   container.appendChild(vehicleBlock);
 
-  appendBreakdownRows(container, prix);
+  appendBreakdownRows(container, prix, { data, includeHighlights: false, includeTotal: false });
+  appendFinancialCommitment(container, prix, vehicule.caution, { deliveryPending: !prix.livraison });
 }
 
 function initPaiementPage() {
@@ -2186,7 +2190,9 @@ function initPaiementPage() {
     container.appendChild(button);
   }
 
-  function createDeliveryPicker({ frequent, principal, other, otherToggle, customToggle, custom, inputs, initialValue, initialType, isReturn }) {
+  let refreshDeliveryUI = function () {};
+
+  function createDeliveryPicker({ frequent, principal, other, otherToggle, customToggle, custom, inputs, initialValue, initialType, isReturn, onChange }) {
     const state = { value: initialValue || "", type: initialType || "" };
     const parsed = parseAdressePersonnalisee(state.value);
     if (parsed && inputs) Object.keys(inputs).forEach((key) => { inputs[key].value = parsed[key]; });
@@ -2228,6 +2234,7 @@ function initPaiementPage() {
       state.type = type;
       state.showOther = false;
       render();
+      if (typeof onChange === "function") onChange();
     }
     if (otherToggle) otherToggle.addEventListener("click", () => { state.showOther = true; render(); if (other) other.focus(); });
     if (other) other.addEventListener("change", () => { if (other.value) choose(other.value, "zone"); });
@@ -2251,10 +2258,10 @@ function initPaiementPage() {
 
   const initialTypePrise = data.lieuPriseType || (parseAdressePersonnalisee(data.adressePrise) ? "custom" : (LIEUX_FREQUENTS_LIVRAISON.includes(data.adressePrise) ? "frequent" : "zone"));
   const initialTypeRetour = data.lieuRetourType || (parseAdressePersonnalisee(data.adresseRetour) ? "custom" : (LIEUX_FREQUENTS_LIVRAISON.includes(data.adresseRetour) ? "frequent" : "zone"));
-  const deliveryPicker = createDeliveryPicker({ frequent: deliveryFrequent, principal: deliveryPrincipal, other: deliveryOther, otherToggle: deliveryOtherToggle, customToggle: deliveryCustomToggle, custom: deliveryCustom, inputs: deliveryInputs, initialValue: data.adressePrise, initialType: initialTypePrise });
+  const deliveryPicker = createDeliveryPicker({ frequent: deliveryFrequent, principal: deliveryPrincipal, other: deliveryOther, otherToggle: deliveryOtherToggle, customToggle: deliveryCustomToggle, custom: deliveryCustom, inputs: deliveryInputs, initialValue: data.adressePrise, initialType: initialTypePrise, onChange: () => refreshDeliveryUI() });
   const deliveryDistanceInput = document.getElementById("payment-delivery-distance");
   if (deliveryDistanceInput && Number.isInteger(data.deliveryDistanceKm)) deliveryDistanceInput.value = String(data.deliveryDistanceKm);
-  const returnPicker = createDeliveryPicker({ frequent: returnFrequent, principal: returnPrincipal, other: returnOther, otherToggle: returnOtherToggle, custom: returnCustom, inputs: returnInputs, initialValue: data.adresseRetour, initialType: initialTypeRetour, isReturn: true });
+  const returnPicker = createDeliveryPicker({ frequent: returnFrequent, principal: returnPrincipal, other: returnOther, otherToggle: returnOtherToggle, custom: returnCustom, inputs: returnInputs, initialValue: data.adresseRetour, initialType: initialTypeRetour, isReturn: true, onChange: () => refreshDeliveryUI() });
   if (data.adresseRetour && data.adresseRetour !== data.adressePrise) {
     if (returnToggle) returnToggle.checked = true;
     if (returnWrap) returnWrap.style.display = "flex";
@@ -2262,6 +2269,7 @@ function initPaiementPage() {
   if (returnToggle) returnToggle.addEventListener("change", () => {
     if (returnWrap) returnWrap.style.display = returnToggle.checked ? "flex" : "none";
     if (!returnToggle.checked) returnPicker.setValue("", "");
+    refreshDeliveryUI();
   });
 
   function validateDelivery() {
@@ -2271,8 +2279,19 @@ function initPaiementPage() {
     const distanceValide = Number.isInteger(distance) && distance >= 0 && distance <= 500;
     const ok = Boolean(prise.value && retour.value && distanceValide);
     const error = document.getElementById("err-payment-adresse-prise");
-    if (error) error.textContent = !prise.value ? "Merci d'indiquer le lieu de livraison." : (!distanceValide ? "Merci d'indiquer une distance de livraison valide." : "");
-    if (!prise && deliverySelect) deliverySelect.focus();
+    const returnError = document.getElementById("err-payment-adresse-retour");
+    if (error) error.textContent = !prise.value ? "Choisissez le lieu où vous souhaitez recevoir le véhicule." : (!distanceValide ? "Indiquez la distance aller affichée par votre GPS, entre 0 et 500 km." : "");
+    if (returnError) returnError.textContent = retour.value ? "" : "Choisissez le lieu de restitution ou décochez l’adresse différente.";
+    if (deliveryDistanceInput) deliveryDistanceInput.setAttribute("aria-invalid", distanceValide ? "false" : "true");
+    if (!prise.value) {
+      const firstChoice = deliveryFrequent && deliveryFrequent.querySelector("button");
+      if (firstChoice) firstChoice.focus();
+    } else if (!retour.value) {
+      const firstReturnChoice = returnFrequent && returnFrequent.querySelector("button");
+      if (firstReturnChoice) firstReturnChoice.focus();
+    } else if (!distanceValide && deliveryDistanceInput) {
+      deliveryDistanceInput.focus();
+    }
     if (ok) {
       data.lieuPrise = LIEU_LIVRAISON;
       data.lieuRetour = LIEU_LIVRAISON;
@@ -2311,10 +2330,56 @@ function initPaiementPage() {
     if (!prix) return;
     buildPaymentSummary(summary, vehicule, data, prix);
     const totalCompact = document.getElementById("payment-summary-total");
-    if (totalCompact) totalCompact.textContent = formatPrixJour(prix.total);
+    if (totalCompact) totalCompact.textContent = prix.livraison ? formatPrixJour(prix.total) : t("Livraison à calculer");
+    const payLabel = document.querySelector("#pay-button .btn-label");
+    if (payLabel) payLabel.textContent = prix.livraison
+      ? t("Payer {montant} maintenant", { montant: formatPrixJour(prix.total) })
+      : t("Continuer vers le paiement sécurisé");
   }
-  if (deliveryDistanceInput) deliveryDistanceInput.addEventListener("input", () => { data.deliveryDistanceKm = Number(deliveryDistanceInput.value); renderSummary(); });
+
+  refreshDeliveryUI = function () {
+    const prise = deliveryPicker.getValue();
+    const retour = returnToggle && returnToggle.checked ? returnPicker.getValue() : prise;
+    const rawDistance = deliveryDistanceInput ? deliveryDistanceInput.value.trim() : "";
+    const distance = rawDistance === "" ? null : Number(rawDistance);
+    const distanceValide = Number.isInteger(distance) && distance >= 0 && distance <= 500;
+    data.lieuPrise = LIEU_LIVRAISON;
+    data.lieuRetour = LIEU_LIVRAISON;
+    data.adressePrise = prise.value;
+    data.adresseRetour = retour.value;
+    data.lieuPriseType = prise.type;
+    data.lieuRetourType = retour.type;
+    data.adresseExactePriseAConfirmer = prise.type === "zone";
+    data.adresseExacteRetourAConfirmer = retour.type === "zone";
+    data.deliveryDistanceKm = distanceValide ? distance : null;
+
+    const routeLink = document.getElementById("payment-delivery-route");
+    if (routeLink) {
+      const destination = libelleAdresseLivraison(prise.value);
+      routeLink.hidden = !destination;
+      if (destination) routeLink.href = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent("Saint-Laurent-du-Var")}&destination=${encodeURIComponent(destination)}`;
+    }
+
+    const preview = document.getElementById("payment-delivery-price");
+    if (preview) {
+      if (!prise.value) {
+        preview.textContent = t("Choisissez un lieu et indiquez la distance pour connaître le prix de livraison.");
+      } else if (!distanceValide) {
+        preview.textContent = t("Indiquez la distance aller : le prix de livraison s’affichera immédiatement.");
+      } else {
+        const montant = PRICING.deliveryCost(distance);
+        preview.textContent = t("Livraison à {lieu} : {montant}", { lieu: t(libelleAdresseLivraison(prise.value)), montant: formatPrixJour(montant) });
+      }
+    }
+    writeReservationLocal(data);
+    renderSummary();
+  };
+
+  if (deliveryDistanceInput) deliveryDistanceInput.addEventListener("input", refreshDeliveryUI);
+  if (deliveryInputs) Object.values(deliveryInputs).forEach((input) => input.addEventListener("input", refreshDeliveryUI));
+  if (returnInputs) Object.values(returnInputs).forEach((input) => input.addEventListener("input", refreshDeliveryUI));
   renderSummary();
+  refreshDeliveryUI();
 
   // Barre de dates persistante : le client peut encore ajuster ses dates ici,
   // au moment où il voit le prix final — ex. rajouter un jour — sans revenir
@@ -2390,6 +2455,9 @@ function initPaiementPage() {
 
     payButton.classList.add("loading");
     payButton.disabled = true;
+    payButton.setAttribute("aria-busy", "true");
+    const payLabel = payButton.querySelector(".btn-label");
+    if (payLabel) payLabel.textContent = t("Initialisation du paiement sécurisé…");
 
     try {
       const response = await fetch(`/api/create-payment`, {
@@ -2466,9 +2534,16 @@ function initPaiementPage() {
       // côté serveur lors de la création du paiement).
       window.location.href = result.checkoutUrl;
     } catch (err) {
-      if (paymentErrors) paymentErrors.textContent = err.message;
+      if (paymentErrors) {
+        paymentErrors.textContent = t("{message} Aucun débit n’a été effectué sur cette page. Vérifiez les informations puis réessayez.", {
+          message: t(err.message)
+        });
+      }
       payButton.classList.remove("loading");
       payButton.disabled = false;
+      payButton.setAttribute("aria-busy", "false");
+      renderSummary();
+      if (paymentErrors) paymentErrors.focus({ preventScroll: false });
     }
   });
 }
@@ -2501,25 +2576,68 @@ function initConfirmationPage() {
     return;
   }
 
-  container.textContent = "Chargement de votre confirmation…";
+  const title = document.getElementById("confirmation-title");
+  const subtitle = document.getElementById("confirmation-subtitle");
+  const icon = document.getElementById("confirmation-icon");
+  const reference = document.getElementById("confirmation-reference");
+  const nextSteps = document.getElementById("confirmation-next");
+  const contact = document.getElementById("confirmation-contact");
+  const retry = document.getElementById("confirmation-retry");
 
-  fetch(`/api/reservation-status?id=${encodeURIComponent(reservationId)}`)
-    .then((response) => {
+  function setState(state) {
+    const paid = state === "paid";
+    if (title) title.textContent = paid
+      ? t("Réservation confirmée !")
+      : state === "pending_payment"
+        ? t("Paiement en cours de confirmation")
+        : state === "cancelled" || state === "expired"
+          ? t("Paiement non confirmé")
+          : t("Vérification momentanément indisponible");
+    if (subtitle) subtitle.textContent = paid
+      ? t("Votre paiement de location est accepté. Un e-mail de confirmation vous a été envoyé.")
+      : state === "pending_payment"
+        ? t("Mollie traite encore votre paiement. Ne réalisez pas un second paiement : vérifiez à nouveau dans quelques instants.")
+        : state === "cancelled" || state === "expired"
+          ? t("La réservation n’a pas été confirmée. Aucun paiement accepté n’est associé à cette référence.")
+          : t("Nous ne pouvons pas confirmer le statut pour le moment. Si vous venez de payer, ne payez pas une seconde fois.");
+    if (icon) {
+      icon.textContent = paid ? "✓" : state === "pending_payment" ? "…" : "!";
+      icon.classList.toggle("is-warning", !paid);
+    }
+    if (reference) reference.hidden = !paid;
+    if (nextSteps) nextSteps.hidden = !paid;
+    if (contact) contact.hidden = !paid;
+    if (retry) retry.hidden = paid;
+  }
+
+  async function loadConfirmation() {
+    container.textContent = t("Chargement de votre confirmation…");
+    container.setAttribute("aria-busy", "true");
+    if (retry) retry.disabled = true;
+    try {
+      const response = await fetch(`/api/reservation-status?id=${encodeURIComponent(reservationId)}`);
       if (!response.ok) throw new Error("reservation_status_error");
-      return response.json();
-    })
-    .then((data) => {
+      const data = await response.json();
       if (data.status === "paid") {
         const refEl = document.getElementById("confirmation-ref");
         if (refEl) refEl.textContent = "GL-" + data.id.slice(-8).toUpperCase();
+        setState("paid");
         renderConfirmationDetails(container, data);
       } else {
+        setState(data.status);
         renderConfirmationPendingOrError(container, data.status);
       }
-    })
-    .catch(() => {
+    } catch (_error) {
+      setState(null);
       renderConfirmationPendingOrError(container, null);
-    });
+    } finally {
+      container.setAttribute("aria-busy", "false");
+      if (retry) retry.disabled = false;
+    }
+  }
+
+  if (retry) retry.addEventListener("click", loadConfirmation);
+  loadConfirmation();
 }
 
 // Construit les lignes détaillées du prix (sous-total, remise durée,
@@ -2528,8 +2646,11 @@ function initConfirmationPage() {
 // /.netlify/functions/reservation-status (voir renderConfirmationDetails).
 // Réutilisé sur reservation.html, paiement.html et confirmation.html pour
 // garantir un affichage cohérent du détail du prix sur tout le tunnel.
-function appendBreakdownRows(container, prix) {
-  appendPriceHighlights(container, prix);
+function appendBreakdownRows(container, prix, options = {}) {
+  const includeHighlights = options.includeHighlights !== false;
+  const includeTotal = options.includeTotal !== false;
+  const contextData = options.data || null;
+  if (includeHighlights) appendPriceHighlights(container, prix);
   container.appendChild(summaryRow(t("Location ({jours})", { jours: libelleJours(prix.jours) }), formatPrixJour(prix.sousTotalBrut)));
 
   if (prix.reductionDuree) {
@@ -2561,7 +2682,13 @@ function appendBreakdownRows(container, prix) {
   (prix.optionsSelectionnees || []).forEach((opt) => {
     // Le nom de l'option vient de js/data.js, donc en français : sa
     // traduction est indexée sur ce texte dans js/i18n.js.
-    container.appendChild(summaryRow(t(opt.nom), formatPrixJour(opt.montant)));
+    const isDelivery = opt.id === "livraison-adresse";
+    const place = contextData && contextData.adressePrise
+      ? libelleAdresseLivraison(contextData.adressePrise)
+      : contextData && libelleLieu(contextData.lieuPrise, contextData.adressePrise, contextData.lieuPriseType);
+    const label = isDelivery && place ? t("Livraison à {lieu}", { lieu: t(place) }) : t(opt.nom);
+    const value = isDelivery && !prix.livraison ? t("À calculer") : formatPrixJour(opt.montant);
+    container.appendChild(summaryRow(label, value));
   });
 
   // Protection : toujours affichée, y compris la formule incluse — le client
@@ -2586,9 +2713,58 @@ function appendBreakdownRows(container, prix) {
     ));
   }
 
-  const totalRow = summaryRow("Total", formatPrixJour(prix.total));
-  totalRow.classList.add("total");
-  container.appendChild(totalRow);
+  if (includeTotal) {
+    const totalRow = summaryRow(t("Total"), formatPrixJour(prix.total));
+    totalRow.classList.add("total");
+    container.appendChild(totalRow);
+  }
+}
+
+function appendFinancialCommitment(container, prix, depositAmount, { deliveryPending = false, confirmed = false } = {}) {
+  const block = document.createElement("section");
+  block.className = "financial-commitment";
+  block.setAttribute("aria-label", t("Synthèse financière"));
+
+  const title = document.createElement("h3");
+  title.textContent = confirmed ? t("Paiement enregistré") : t("Ce que vous allez payer");
+  block.appendChild(title);
+
+  const total = summaryRow(
+    deliveryPending ? t("Total location avant livraison") : t("Total location"),
+    formatPrixJour(prix.total)
+  );
+  total.classList.add("financial-total");
+  block.appendChild(total);
+
+  const today = summaryRow(
+    confirmed ? t("Payé aujourd’hui") : t("Paiement aujourd’hui"),
+    deliveryPending ? t("Calculé après la distance") : formatPrixJour(prix.total)
+  );
+  today.classList.add("financial-today");
+  block.appendChild(today);
+
+  block.appendChild(summaryRow(t("Solde restant"), deliveryPending ? "—" : formatPrixJour(0)));
+
+  if (deliveryPending) {
+    const pending = document.createElement("p");
+    pending.className = "financial-pending-note";
+    pending.textContent = t("Le total final et le paiement d’aujourd’hui incluront la livraison dès que sa distance sera indiquée.");
+    block.appendChild(pending);
+  }
+
+  if (depositAmount !== null && depositAmount !== undefined && depositAmount !== "" && Number.isFinite(Number(depositAmount))) {
+    const deposit = document.createElement("div");
+    deposit.className = "financial-deposit";
+    deposit.id = confirmed ? "confirmation-deposit-disclosure" : "payment-deposit-disclosure";
+    const depositHeader = summaryRow(t("Dépôt de garantie — séparé"), formatPrixJour(Number(depositAmount)));
+    depositHeader.classList.add("financial-deposit-row");
+    const explanation = document.createElement("p");
+    explanation.textContent = t("Garantie financière distincte du prix de la location, demandée avant la remise des clés. Elle peut prendre la forme d’une préautorisation bancaire et ne constitue pas un plafond des sommes pouvant rester à votre charge.");
+    deposit.append(depositHeader, explanation);
+    block.appendChild(deposit);
+  }
+
+  container.appendChild(block);
 }
 
 function summaryRow(label, value) {
@@ -2635,7 +2811,9 @@ function renderConfirmationDetails(container, data) {
   // champs que calculerPrixTotal(), à l'exception d'"options" (au lieu
   // d'"optionsSelectionnees") — réutilisation directe d'appendBreakdownRows.
   if (typeof data.sousTotalBrut === "number") {
-    appendBreakdownRows(container, { ...data, optionsSelectionnees: data.options });
+    const pricing = { ...data, optionsSelectionnees: data.options };
+    appendBreakdownRows(container, pricing, { data, includeHighlights: false, includeTotal: false });
+    appendFinancialCommitment(container, pricing, data.depotGarantie, { confirmed: true });
   } else {
     // Repli pour d'anciennes réservations enregistrées avant l'ajout du
     // détail complet (sousTotalBrut/options/codePromo absents en base).
@@ -2652,11 +2830,11 @@ function renderConfirmationPendingOrError(container, status) {
   msg.className = "hint-text";
   msg.setAttribute("aria-live", "polite");
   if (status === "pending_payment") {
-    msg.textContent = "Votre paiement est en cours de confirmation. Rafraîchissez cette page dans quelques instants.";
+    msg.textContent = t("Votre paiement est en cours de confirmation. Ne payez pas une seconde fois. Utilisez « Vérifier à nouveau » dans quelques instants.");
   } else if (status === "cancelled" || status === "expired") {
-    msg.textContent = "Cette réservation n'a pas abouti (paiement refusé, annulé ou expiré). Contactez-nous si vous pensez qu'il s'agit d'une erreur.";
+    msg.textContent = t("Le paiement a été refusé, annulé ou a expiré. Contactez GET LOCATION si vous pensez qu’il s’agit d’une erreur.");
   } else {
-    msg.textContent = "Impossible de retrouver cette réservation pour le moment. Si vous venez de payer, patientez quelques instants puis rafraîchissez la page.";
+    msg.textContent = t("Impossible de vérifier cette réservation pour le moment. Si vous venez de payer, ne recommencez pas le paiement : vérifiez à nouveau ou contactez GET LOCATION.");
   }
   container.appendChild(msg);
 }

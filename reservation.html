@@ -114,9 +114,9 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=52">
+<link rel="stylesheet" href="css/style.css?v=53">
 </head>
-<body>
+<body class="client-trust-flow reservation-page">
 
 
 <header class="site-header">
@@ -150,14 +150,16 @@
       <label for="bar-date-debut">Départ</label>
       <div class="datetime-group">
         <input type="date" id="bar-date-debut">
-        <select id="bar-heure-debut"></select>
+        <label class="sr-only" for="bar-heure-debut">Heure de départ</label>
+        <select id="bar-heure-debut" aria-label="Heure de départ"></select>
       </div>
     </div>
     <div class="field">
       <label for="bar-date-fin">Retour</label>
       <div class="datetime-group">
         <input type="date" id="bar-date-fin">
-        <select id="bar-heure-fin"></select>
+        <label class="sr-only" for="bar-heure-fin">Heure de retour</label>
+        <select id="bar-heure-fin" aria-label="Heure de retour"></select>
       </div>
     </div>
     <button type="button" class="btn btn-primary btn-sm" id="date-bar-apply">Mettre à jour le prix</button>
@@ -165,6 +167,7 @@
   </div>
 </div>
 
+<main id="main-content">
 <section class="section container">
   <h1 class="checkout-title">Finalisez votre réservation</h1>
   <p class="checkout-intro">Choisissez votre niveau de protection, puis ajoutez uniquement les options dont vous avez besoin.</p>
@@ -224,6 +227,7 @@
     </aside>
   </div>
 </section>
+</main>
 
 <footer class="site-footer">
   <div class="container footer-grid">
@@ -262,7 +266,7 @@
 
 <script src="js/pricing.js?v=1"></script>
 <script src="js/data.js?v=34"></script>
-<script src="js/i18n.js?v=49"></script>
-<script src="js/app.js?v=42"></script>
+<script src="js/i18n.js?v=50"></script>
+<script src="js/app.js?v=43"></script>
 </body>
 </html>

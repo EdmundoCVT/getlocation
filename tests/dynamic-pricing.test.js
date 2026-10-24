@@ -25,3 +25,30 @@ test("10 — une période inférieure ne baisse jamais la saison", () => {
   const result = levelForDate("2027-07-15", [{ name: "Événement de test", start: "2027-07-15", end: "2027-07-15", level: "high" }]);
   assert.deepEqual(result, { level: "veryHigh", event: null });
 });
+
+test("livraison A — sans livraison, aucun frais n'est ajouté", () => {
+  const price = calculerPrixTotal({ vehiculeId: "opel-corsa", dateDebut: "2026-10-05", dateFin: "2026-10-08", options: [] });
+  assert.equal(price.livraison, null);
+  assert.equal(price.total, 165);
+});
+
+test("livraison B — distance connue, le barème existant reste 20 € + 1 €/km avec minimum 25 €", () => {
+  const price = calculerPrixTotal({
+    vehiculeId: "opel-corsa", dateDebut: "2026-10-05", dateFin: "2026-10-08",
+    options: ["livraison-adresse"], deliveryDistanceKm: 15
+  });
+  assert.equal(price.livraison.amount, 35);
+  assert.equal(price.total, 200);
+});
+
+test("livraison C/D — un retour différent ou identique ne change pas silencieusement le tarif aller", () => {
+  const commun = {
+    vehiculeId: "opel-corsa", dateDebut: "2026-10-05", dateFin: "2026-10-08",
+    options: ["livraison-adresse"], deliveryDistanceKm: 15,
+    lieuPrise: "Livraison à l'adresse de votre choix", adressePrise: "Nice"
+  };
+  const memeLieu = calculerPrixTotal({ ...commun, lieuRetour: commun.lieuPrise, adresseRetour: "Nice" });
+  const autreLieu = calculerPrixTotal({ ...commun, lieuRetour: commun.lieuPrise, adresseRetour: "Cannes" });
+  assert.equal(memeLieu.total, 200);
+  assert.equal(autreLieu.total, memeLieu.total);
+});
