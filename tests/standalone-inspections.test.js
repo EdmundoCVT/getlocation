@@ -4,11 +4,13 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { handleStandaloneInspections, DIAGNOSTIC_PREFIX } = require("../src/api/standalone-inspections.js");
 const { handleStandaloneInspectionMedia } = require("../src/api/standalone-inspection-media.js");
+const { createInspectionRevision } = require("../src/lib/inspection-revisions.js");
 const { makeAgencyEnv, loginAgency, agencyRequest } = require("./helpers/agency-session.js");
 const { createFakeKv } = require("./helpers/fake-kv.js");
 
 function bucket(){const map=new Map();return{objects:map,async put(key,value,meta){map.set(key,{value,meta});},async get(key){const x=map.get(key);return x&&{body:x.value,httpMetadata:x.meta&&x.meta.httpMetadata,async arrayBuffer(){if(x.value instanceof ArrayBuffer)return x.value;if(ArrayBuffer.isView(x.value))return x.value.buffer.slice(x.value.byteOffset,x.value.byteOffset+x.value.byteLength);return new Uint8Array(x.value).buffer;},writeHttpMetadata(h){h.set("Content-Type",x.meta.httpMetadata.contentType);}}},async delete(key){map.delete(key);}};}
 const signaturePng = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+const realisticSignature = bytes => "data:image/png;base64," + "A".repeat(Math.max(4, bytes - 22));
 function report(km) { return { dateHeure: "2026-10-13T18:00", km, carburant: 80, propreteExterieure: 4, propreteInterieure: 4, cles: 2, clesAccessoires: "Deux clés", agent: "Edmundo", dommages: "", sketchVehicleType: "car", marks: [], utilityMarks: [], signatures: { client: { name: "Client", imageDataUrl: signaturePng }, agence: { name: "Agence", imageDataUrl: signaturePng } } }; }
 
 test("EDL retour autonome : V1/V2 complètes sans départ, médias, signatures et PDF immuables", async () => {
@@ -94,6 +96,60 @@ test("EDL retour V2 : une signature historique inchangée est conservée et tout
   assert.match((await rejected.json()).error, /carburant/i);
 });
 
+test("EDL V2 réaliste : deux signatures de 100/200 Ko, médias R2 et sauvegardes successives", async () => {
+  const storage = bucket(), kv = createFakeKv(), env = makeAgencyEnv({ DOCUMENTS_BUCKET: storage, RESERVATIONS_KV: kv }), session = await loginAgency(env);
+  const id = "edl_abababababababab", base = report(42000);
+  base.signatures = {
+    client: { name: "Client iPhone", imageDataUrl: realisticSignature(100 * 1024), signedAt: "2026-10-28T06:00:00Z" },
+    agence: { name: "Agence iPhone", imageDataUrl: realisticSignature(200 * 1024), signedAt: "2026-10-28T06:01:00Z" }
+  };
+  const media = Array.from({ length: 8 }, (_, index) => ({ key: `inspection-standalone/${id}/retour/v1/photo-${index}.jpg`, slot: "dommage", capturedAt: "2026-10-28T06:02:00Z", createdAt: "2026-10-28T06:02:00Z", contentType: "image/jpeg" }));
+  const v1 = { revision: 1, status: "finalized", snapshot: structuredClone(base), media, pdfKey: `inspection-pdf-standalone/${id}/retour/v1.pdf`, finalizedAt: "2026-10-28T06:03:00Z" };
+  await kv.put("standalone-inspection:" + id, JSON.stringify({ id, mode: "retour", dossier: { depart: null, retour: v1.snapshot, media: { depart: [], retour: media } }, inspectionRevisions: { retour: [v1] }, status: "finalized", updatedAt: "2026-10-28T06:03:00Z" }));
+  const created = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create-revision", id, stage: "retour", baseRevision: 1 } }), env);
+  assert.equal(created.status, 201);
+  let v2 = (await created.json()).revision, v1Before = JSON.stringify(v1), lastDiagnostic;
+  for (const km of [42001, 42002, 42003]) {
+    const requestBody = { action: "update-stage", id, revision: 2, stage: { ...v2.snapshot, km }, finalize: false };
+    assert.ok(Buffer.byteLength(JSON.stringify(requestBody)) > 300 * 1024, "le body contient deux signatures réalistes");
+    const saved = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: requestBody }), env);
+    assert.equal(saved.status, 200);
+    const payload = await saved.json(); v2 = payload.revision; lastDiagnostic = payload.diagnostic;
+  }
+  const stored = JSON.parse(await kv.get("standalone-inspection:" + id));
+  assert.equal(JSON.stringify(stored.inspectionRevisions.retour[0]), v1Before, "V1 reste byte-for-byte inchangée");
+  assert.equal(stored.inspectionRevisions.retour[1].snapshot.km, 42003);
+  assert.equal(stored.inspectionRevisions.retour[1].media.length, 8);
+  assert.equal(lastDiagnostic.revisionCount, 2);
+  assert.equal(lastDiagnostic.signatureCopies, 6, "V1 dossier + V1 historique + V2 possèdent chacun deux signatures");
+  assert.ok(lastDiagnostic.recordBytes > 900 * 1024);
+  assert.equal(storage.objects.size, 0, "une sauvegarde de brouillon ne génère aucun PDF ni objet R2");
+});
+
+test("croissance V1 à V5 : les signatures héritées augmentent linéairement", () => {
+  const stage = "depart", snapshot = report(1000);
+  snapshot.signatures = {
+    client: { name: "Client", imageDataUrl: realisticSignature(50 * 1024), signedAt: "2026-10-28T06:00:00Z" },
+    agence: { name: "Agence", imageDataUrl: realisticSignature(100 * 1024), signedAt: "2026-10-28T06:01:00Z" }
+  };
+  const record = { mode: stage, dossier: { [stage]: snapshot, media: { [stage]: [] } }, inspectionRevisions: { [stage]: [{ revision: 1, status: "finalized", snapshot: structuredClone(snapshot), media: [], pdfKey: "v1.pdf" }] } };
+  const measures = [];
+  for (let version = 1; version <= 5; version++) {
+    const serialized = JSON.stringify(record), revisions = JSON.stringify(record.inspectionRevisions);
+    const copies = (serialized.match(/"imageDataUrl"/g) || []).length;
+    measures.push({ recordBytes: Buffer.byteLength(serialized), inspectionRevisionsBytes: Buffer.byteLength(revisions), signatureCopies: copies });
+    if (version < 5) {
+      const created = createInspectionRevision(record, stage, record.dossier[stage], [], "Edmundo", version);
+      created.revisions.at(-1).status = "finalized";
+      created.revisions.at(-1).pdfKey = `v${version + 1}.pdf`;
+      record.inspectionRevisions = created.inspectionRevisions;
+    }
+  }
+  assert.deepEqual(measures.map(item => item.signatureCopies), [4, 6, 8, 10, 12]);
+  const growth = measures.slice(1).map((item, index) => item.recordBytes - measures[index].recordBytes);
+  assert.ok(Math.max(...growth) - Math.min(...growth) < 100, "la croissance par version reste linéaire");
+});
+
 test("update-stage renvoie un diagnostic safe et laisse un breadcrumb temporaire corrélable", async () => {
   const kv = createFakeKv(), env = makeAgencyEnv({ DOCUMENTS_BUCKET: bucket(), RESERVATIONS_KV: kv }), session = await loginAgency(env);
   const createResponse = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create", mode: "retour", client: { prenom: "Test", nom: "Diagnostic" }, vehicule: { nom: "Véhicule test" } } }), env);
@@ -101,6 +157,7 @@ test("update-stage renvoie un diagnostic safe et laisse un breadcrumb temporaire
   const id = "edlreq_ab12cd34";
   const request = agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "update-stage", id: inspection.id, revision: 1, stage: report(12345), finalize: false } });
   request.headers.set("X-EDL-Request-ID", id);
+  request.headers.set("X-EDL-Body-Bytes", "1234");
   const response = await handleStandaloneInspections(request, env);
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("X-EDL-Request-ID"), id);
@@ -112,16 +169,34 @@ test("update-stage renvoie un diagnostic safe et laisse un breadcrumb temporaire
   assert.ok(body.diagnostic.recordBytes > body.diagnostic.snapshotBytes);
   assert.ok(body.diagnostic.signatureBytes > 100);
   assert.equal(body.diagnostic.mediaCount, 0);
+  assert.equal(body.diagnostic.bodyBytes, 1234);
   assert.ok(Array.isArray(body.diagnostic.timings));
 
-  const breadcrumbRaw = await kv.get(DIAGNOSTIC_PREFIX + id);
+  const breadcrumbRaw = await kv.get(DIAGNOSTIC_PREFIX + id + ":m");
   const breadcrumb = JSON.parse(breadcrumbRaw);
-  assert.equal(breadcrumb.s, "b");
+  assert.equal(breadcrumb.v, 2);
+  assert.equal(breadcrumb.s, "m");
   assert.equal(breadcrumb.z[0], body.diagnostic.recordBytes);
-  assert.ok(Buffer.byteLength(breadcrumbRaw) < 150, "le breadcrumb reste strictement compact");
+  assert.ok(Buffer.byteLength(breadcrumbRaw) < 300, "le breadcrumb reste strictement compact");
+  assert.deepEqual([...kv._raw.keys()].filter(key => key.startsWith(DIAGNOSTIC_PREFIX + id + ":")).map(key => key.slice(-1)).sort(), [..."abcdefghijklm"], "chaque étape utilise une clé KV distincte");
   const lookup = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections?diagnostic=" + id + "&id=" + inspection.id, { session }), env);
   assert.equal(lookup.status, 200);
-  assert.equal((await lookup.json()).diagnostic.stage, "after-kv-write");
+  assert.equal((await lookup.json()).diagnostic.stage, "after-audit-log");
+});
+
+test("update-stage persiste snapshot-validation avant une erreur applicative précoce", async () => {
+  const kv = createFakeKv(), env = makeAgencyEnv({ DOCUMENTS_BUCKET: bucket(), RESERVATIONS_KV: kv }), session = await loginAgency(env);
+  const createResponse = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create", mode: "retour", client: {}, vehicule: {} } }), env);
+  const inspection = (await createResponse.json()).inspection, id = "edlreq_1234abcd";
+  const request = agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "update-stage", id: inspection.id, revision: 1, stage: { ...report(12345), carburant: 75 }, finalize: false } });
+  request.headers.set("X-EDL-Request-ID", id);
+  const response = await handleStandaloneInspections(request, env);
+  assert.equal(response.status, 400);
+  const breadcrumbRaw = await kv.get(DIAGNOSTIC_PREFIX + id + ":f"), breadcrumb = JSON.parse(breadcrumbRaw);
+  assert.equal(breadcrumb.s, "f");
+  assert.equal(breadcrumb.i, inspection.id);
+  assert.equal(breadcrumb.r, 1);
+  assert.ok(Buffer.byteLength(breadcrumbRaw) < 180);
 });
 
 test("EDL autonome : un binding KV absent retourne une erreur JSON diagnostiquable", async () => {

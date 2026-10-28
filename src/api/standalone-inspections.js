@@ -13,6 +13,21 @@ const DIAGNOSTIC_PREFIX = "diagnostic:standalone:";
 const DIAGNOSTIC_TTL_SECONDS = 10 * 60;
 const ID = /^edl_[a-f0-9-]{16,64}$/;
 const REQUEST_ID = /^edlreq_[a-f0-9]{8}$/;
+const DIAGNOSTIC_STAGES = {
+  a: "handler-entered",
+  b: "auth-ok",
+  c: "body-read",
+  d: "record-read",
+  e: "revision-read",
+  f: "snapshot-validation",
+  g: "before-revision-update",
+  h: "after-revision-update",
+  i: "before-serialization",
+  j: "after-serialization",
+  k: "before-kv-write",
+  l: "after-kv-write",
+  m: "after-audit-log"
+};
 function requestId(request) {
   const supplied = request.headers.get("x-edl-request-id");
   return REQUEST_ID.test(supplied || "") ? supplied : "edlreq_" + crypto.randomUUID().replace(/-/g, "").slice(0, 8);
@@ -31,33 +46,54 @@ async function withRequestId(response, id) {
   return json(body, response.status, id);
 }
 function byteLength(value) { return new TextEncoder().encode(value).byteLength; }
-function signatureMetrics(value) {
-  let signatureBytes = 0, signatureCopies = 0;
-  const visit = item => {
-    if (!item || typeof item !== "object") return;
-    if (Array.isArray(item)) { item.forEach(visit); return; }
-    for (const [key, child] of Object.entries(item)) {
-      if (key === "imageDataUrl" && typeof child === "string") { signatureBytes += byteLength(child); signatureCopies++; }
-      else visit(child);
-    }
-  };
-  visit(value);
-  return { signatureBytes, signatureCopies };
+function requestBodyBytes(request) {
+  const raw = request.headers.get("content-length") || request.headers.get("x-edl-body-bytes");
+  if (raw === null) return null;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : null;
 }
-function diagnosticSizes(record, stage, snapshot, serializedRecord) {
+function serializeRecordWithMetrics(record, stage, snapshot) {
+  let signatureBytes = 0, signatureCopies = 0;
+  const serializedRecord = JSON.stringify(record, (key, value) => {
+    if (key === "imageDataUrl" && typeof value === "string") {
+      signatureBytes += byteLength(value);
+      signatureCopies++;
+    }
+    return value;
+  });
   const revisions = record.inspectionRevisions && Array.isArray(record.inspectionRevisions[stage]) ? record.inspectionRevisions[stage] : [];
   const current = revisions.find(item => item.snapshot === snapshot) || revisions[revisions.length - 1] || {};
-  return {
+  return { serializedRecord, sizes: {
     recordBytes: byteLength(serializedRecord),
     revisionCount: revisions.length,
     inspectionRevisionsBytes: byteLength(JSON.stringify(record.inspectionRevisions || {})),
     snapshotBytes: byteLength(JSON.stringify(snapshot || {})),
-    ...signatureMetrics(record),
+    signatureBytes,
+    signatureCopies,
     mediaCount: Array.isArray(current.media) ? current.media.length : 0
+  } };
+}
+async function writeDiagnosticBreadcrumb(env, id, startedAt, code, details = {}) {
+  if (!env.RESERVATIONS_KV || !id || !DIAGNOSTIC_STAGES[code]) return;
+  const payload = {
+    v: 2,
+    q: id,
+    s: code,
+    t: Math.max(0, Date.now() - startedAt),
+    ...(details.inspectionId ? { i: details.inspectionId } : {}),
+    ...(Number.isInteger(details.revision) ? { r: details.revision } : {}),
+    ...(Number.isFinite(details.bodyBytes) ? { b: details.bodyBytes } : {}),
+    ...(details.expectedUpdatedAt ? { u: details.expectedUpdatedAt } : {}),
+    ...(details.sizes ? { z: [details.sizes.recordBytes, details.sizes.revisionCount, details.sizes.snapshotBytes, details.sizes.signatureBytes, details.sizes.signatureCopies, details.sizes.mediaCount, details.sizes.inspectionRevisionsBytes] } : {})
   };
+  // Une clé par étape évite la limite Workers KV d'une écriture par seconde
+  // sur une même clé. Le lecteur choisit ensuite l'étape alphabétique la plus
+  // avancée (a…m). Les anciens breadcrumbs mono-clé restent lisibles.
+  try { await env.RESERVATIONS_KV.put(DIAGNOSTIC_PREFIX + id + ":" + code, JSON.stringify(payload), { expirationTtl: DIAGNOSTIC_TTL_SECONDS }); }
+  catch (_) { /* Le diagnostic ne doit jamais bloquer la sauvegarde métier. */ }
 }
 function publicDiagnostic(diagnostic) {
-  return { stage: diagnostic.stage, timings: diagnostic.timings, ...(diagnostic.sizes || {}) };
+  return { stage: diagnostic.stage, timings: diagnostic.timings, ...(Number.isFinite(diagnostic.bodyBytes) ? { bodyBytes: diagnostic.bodyBytes } : {}), ...(diagnostic.sizes || {}) };
 }
 function text(value, max = 300) { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
 function safeMode(value) { return value === "retour" ? "retour" : value === "depart" ? "depart" : null; }
@@ -99,11 +135,34 @@ async function contracts(env, needle) {
 }
 async function readDiagnostic(env, id, inspectionId) {
   if (!REQUEST_ID.test(id || "") || !ID.test(inspectionId || "")) return null;
-  const raw = await env.RESERVATIONS_KV.get(DIAGNOSTIC_PREFIX + id);
+  const baseKey = DIAGNOSTIC_PREFIX + id;
+  let raw = null;
+  try {
+    const page = await env.RESERVATIONS_KV.list({ prefix: baseKey + ":", limit: 20 });
+    const latest = (page.keys || []).map(key => key.name).filter(name => /^[a-m]$/.test(name.slice(-1))).sort().at(-1);
+    if (latest) raw = await env.RESERVATIONS_KV.get(latest);
+  } catch (_) { /* Repli sur l'ancien breadcrumb mono-clé. */ }
+  if (!raw) raw = await env.RESERVATIONS_KV.get(baseKey);
   if (!raw) return null;
   let diagnostic;
   try { diagnostic = JSON.parse(raw); } catch (_) { return null; }
-  if (diagnostic && diagnostic.s === "b" && Array.isArray(diagnostic.z)) {
+  if (diagnostic && diagnostic.v === 2 && DIAGNOSTIC_STAGES[diagnostic.s]) {
+    diagnostic = {
+      stage: DIAGNOSTIC_STAGES[diagnostic.s],
+      expectedUpdatedAt: diagnostic.u,
+      bodyBytes: diagnostic.b,
+      timings: [{ stage: DIAGNOSTIC_STAGES[diagnostic.s], durationMs: diagnostic.t }],
+      ...(Array.isArray(diagnostic.z) ? { sizes: {
+        recordBytes: diagnostic.z[0],
+        revisionCount: diagnostic.z[1],
+        snapshotBytes: diagnostic.z[2],
+        signatureBytes: diagnostic.z[3],
+        signatureCopies: diagnostic.z[4],
+        mediaCount: diagnostic.z[5],
+        inspectionRevisionsBytes: diagnostic.z[6]
+      } } : {})
+    };
+  } else if (diagnostic && diagnostic.s === "b" && Array.isArray(diagnostic.z)) {
     diagnostic = {
       stage: "before-kv-write",
       expectedUpdatedAt: diagnostic.u,
@@ -121,7 +180,7 @@ async function readDiagnostic(env, id, inspectionId) {
   }
   const record = await read(env, inspectionId);
   let stage = diagnostic.stage || "unknown";
-  if (record && diagnostic.expectedUpdatedAt && record.updatedAt === diagnostic.expectedUpdatedAt) stage = "after-kv-write";
+  if (record && diagnostic.expectedUpdatedAt && record.updatedAt === diagnostic.expectedUpdatedAt && stage !== "after-kv-write" && stage !== "after-audit-log") stage = "after-kv-write";
   if (stage === "after-kv-write" && env.AGENCY_DB) {
     try {
       const audit = await env.AGENCY_DB.prepare("SELECT id FROM audit_log WHERE entity_id = ? AND metadata LIKE ? ORDER BY id DESC LIMIT 1").bind(inspectionId, `%${id}%`).first();
@@ -132,6 +191,8 @@ async function readDiagnostic(env, id, inspectionId) {
 }
 async function handleStandaloneInspectionsRequest(request, env, id = null) {
   const startedAt = Date.now(), timings = [];
+  const bodyBytes = requestBodyBytes(request);
+  const breadcrumb = (code, details = {}) => writeDiagnosticBreadcrumb(env, id, startedAt, code, { bodyBytes, ...details });
   const mark = (stage, since) => timings.push({ stage, durationMs: Math.max(0, Date.now() - since) });
   const reply = (body, status = 200) => json(body, status, id);
   if (!env.RESERVATIONS_KV) return reply({ error: "Stockage des états des lieux indisponible" }, 503);
@@ -139,6 +200,7 @@ async function handleStandaloneInspectionsRequest(request, env, id = null) {
   const auth = await requireAgencySession(request, env, request.method === "GET" ? {} : { requireCsrf: true, requireOrigin: true });
   mark("auth", authStarted);
   if (auth.error) return withRequestId(auth.error, id);
+  if (request.method === "POST") await breadcrumb("b");
   const url = new URL(request.url);
   if (request.method === "GET") {
     if (url.searchParams.get("diagnostic")) {
@@ -162,6 +224,7 @@ async function handleStandaloneInspectionsRequest(request, env, id = null) {
   const readBodyStarted = Date.now();
   const body = await request.json().catch(() => null); mark("request-read", readBodyStarted);
   if (!body || typeof body !== "object") return reply({ error: "Requête invalide" }, 400);
+  await breadcrumb("c", { inspectionId: body.id, revision: Number(body.revision) });
   if (body.action === "create") {
     const mode = safeMode(body.mode); if (!mode) return reply({ error: "Type d’état des lieux invalide" }, 400);
     const now = new Date().toISOString(), id = createId();
@@ -169,6 +232,7 @@ async function handleStandaloneInspectionsRequest(request, env, id = null) {
     if (body.linkedContractId) { const contract = await getReservation(env, text(body.linkedContractId, 100)); if (!contract) return reply({ error: "Contrat associé introuvable" }, 404); record.linkedContractId = contract.id; record.linkedContractNumero = contract.contractNumero || null; }
     await write(env, record); return reply({ inspection: record }, 201);
   }
+  await breadcrumb("d", { inspectionId: body.id, revision: Number(body.revision) });
   const kvReadStarted = Date.now();
   const record = await read(env, body.id); mark("kv-read", kvReadStarted);
   if (!record) return reply({ error: "État des lieux introuvable" }, 404);
@@ -221,52 +285,50 @@ async function handleStandaloneInspectionsRequest(request, env, id = null) {
     const dossier = record.dossier && typeof record.dossier === "object" ? record.dossier : { status: "draft", depart: null, retour: null, media: { depart: [], retour: [] } };
     dossier.media = dossier.media && typeof dossier.media === "object" ? dossier.media : { depart: [], retour: [] };
     record.dossier = dossier;
+    await breadcrumb("e", { inspectionId: record.id, revision });
     const revisionStarted = Date.now();
     const previous = Number.isInteger(revision)
       ? listInspectionRevisions(record, stage, dossier[stage], dossier.media[stage], record.createdBy).find(item => item.revision === revision)
       : dossier[stage];
     mark("revision-read", revisionStarted);
     let report;
+    await breadcrumb("f", { inspectionId: record.id, revision });
     const validationStarted = Date.now();
     try { report = validateRevisionReport(body.stage, previous && previous.snapshot || previous); mark("snapshot-validation", validationStarted); }
-    catch (error) { mark("snapshot-validation", validationStarted); return reply({ error: error.message || "État des lieux invalide", diagnostic: publicDiagnostic({ stage: "snapshot-validation", timings }) }, 400); }
+    catch (error) { mark("snapshot-validation", validationStarted); return reply({ error: error.message || "État des lieux invalide", diagnostic: publicDiagnostic({ stage: "snapshot-validation", timings, bodyBytes }) }, 400); }
     if (Number.isInteger(revision)) {
-      const diagnostic = { stage: "revision-update", timings, sizes: null };
+      const diagnostic = { stage: "revision-update", timings, sizes: null, bodyBytes };
       try {
+        await breadcrumb("g", { inspectionId: record.id, revision });
         const updateStarted = Date.now();
         const result = body.finalize ? await finalizeRevisionWithPdf({ env, record, stage, revision, snapshot: report, fallbackSnapshot: dossier[stage], fallbackMedia: dossier.media[stage], actor: auth.session.operator, standalone: true }) : updateInspectionRevisionDraft(record, stage, dossier[stage], dossier.media[stage], auth.session.operator, revision, report);
         mark(body.finalize ? "revision-finalize" : "revision-update", updateStarted);
         record.inspectionRevisions = result.inspectionRevisions;
         record.status = body.finalize ? "finalized" : record.status;
+        await breadcrumb("h", { inspectionId: record.id, revision });
 
+        await breadcrumb("i", { inspectionId: record.id, revision });
         const serializationStarted = Date.now();
         record.updatedAt = new Date().toISOString();
-        const serializedRecord = JSON.stringify(record);
-        diagnostic.sizes = diagnosticSizes(record, stage, result.revision && result.revision.snapshot || report, serializedRecord);
+        const serialized = serializeRecordWithMetrics(record, stage, result.revision && result.revision.snapshot || report);
+        const serializedRecord = serialized.serializedRecord;
+        diagnostic.sizes = serialized.sizes;
         diagnostic.stage = "before-kv-write";
         mark("record-serialization", serializationStarted);
-
-        // Un seul breadcrumb temporaire avant la phase suspecte. Il ne contient
-        // aucune donnée métier et permet au back-office de retrouver l'étape
-        // atteinte même si Cloudflare interrompt le Worker avant sa réponse.
-        try {
-          const sizes = diagnostic.sizes;
-          await env.RESERVATIONS_KV.put(DIAGNOSTIC_PREFIX + id, JSON.stringify({
-            s: "b",
-            u: record.updatedAt,
-            z: [sizes.recordBytes, sizes.revisionCount, sizes.snapshotBytes, sizes.signatureBytes, sizes.signatureCopies, sizes.mediaCount, sizes.inspectionRevisionsBytes]
-          }), { expirationTtl: DIAGNOSTIC_TTL_SECONDS });
-        } catch (_) { /* L'instrumentation ne doit jamais bloquer la sauvegarde métier. */ }
+        await breadcrumb("j", { inspectionId: record.id, revision, expectedUpdatedAt: record.updatedAt, sizes: diagnostic.sizes });
+        await breadcrumb("k", { inspectionId: record.id, revision, expectedUpdatedAt: record.updatedAt, sizes: diagnostic.sizes });
 
         const writeStarted = Date.now();
         await env.RESERVATIONS_KV.put(PREFIX + record.id, serializedRecord);
         mark("kv-write", writeStarted);
         diagnostic.stage = "after-kv-write";
+        await breadcrumb("l", { inspectionId: record.id, revision, expectedUpdatedAt: record.updatedAt, sizes: diagnostic.sizes });
 
         const auditStarted = Date.now();
         await recordAuditEvent(env, { actor: auth.session.operator, eventType: body.finalize ? "inspection_revision_finalized" : "inspection_revision_updated", entityType: "standalone_inspection", entityId: record.id, metadata: { stage, revision, requestId: id } });
         mark("audit-log", auditStarted);
         diagnostic.stage = "after-audit-log";
+        await breadcrumb("m", { inspectionId: record.id, revision, expectedUpdatedAt: record.updatedAt, sizes: diagnostic.sizes });
         mark("total", startedAt);
         return reply({ inspection: record, revision: result.revision, diagnostic: publicDiagnostic(diagnostic) });
       } catch (error) {
@@ -312,6 +374,8 @@ async function handleStandaloneInspectionsRequest(request, env, id = null) {
 }
 async function handleStandaloneInspections(request, env) {
   const id = request.method === "POST" ? requestId(request) : null;
+  const startedAt = Date.now();
+  if (id) await writeDiagnosticBreadcrumb(env, id, startedAt, "a", { bodyBytes: requestBodyBytes(request) });
   try { return await handleStandaloneInspectionsRequest(request, env, id); }
   catch (error) {
     const status = Number.isInteger(error && error.status) ? error.status : 500;

@@ -246,8 +246,9 @@
       await queue; await Promise.all(Object.values(pads).map(pad => pad.ready()));
       const version = revision, body = readStage();
       saveRequestId = standaloneId ? newRequestId() : "";
+      const standalonePayload = standaloneId ? JSON.stringify({ action: "update-stage", id: standaloneId, revision: inspectionRevision, stage: body, finalize: Boolean(finalize) }) : "";
       const response = standaloneId
-        ? await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json", "X-EDL-Request-ID": saveRequestId }, body: JSON.stringify({ action: "update-stage", id: standaloneId, revision: inspectionRevision, stage: body, finalize: Boolean(finalize) }) }))
+        ? await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json", "X-EDL-Request-ID": saveRequestId, "X-EDL-Body-Bytes": String(new TextEncoder().encode(standalonePayload).byteLength) }, body: standalonePayload }))
         : await json(await api("/api/contract-dossier-agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, action: "update-" + mode, revision: inspectionRevision, finalize: Boolean(finalize) }) }));
       dossier = standaloneId ? response.inspection.dossier : response.dossier;
       if (response.revision) { inspectionRevision = response.revision.revision; revisionList = revisionList.map(item => item.revision === inspectionRevision ? { ...item, ...response.revision } : item); dossier[mode] = response.revision.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: response.revision.media || [] }; }
