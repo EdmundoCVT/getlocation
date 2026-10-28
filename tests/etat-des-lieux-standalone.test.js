@@ -137,12 +137,14 @@ test("V3 : brouillon EDL possède une sauvegarde explicite, différée et visibl
   assert.match(source, /recoverTechnicalDiagnostic/);
   assert.match(source, /showTechnicalDiagnostic/);
 });
-test("V3 : une version finalisée propose directement une correction, sans créer deux brouillons", () => {
+test("V3 : une version finalisée peut créer une correction même si un autre brouillon existe", () => {
   const source = fs.readFileSync(path.join(root, "js", "inspection-page.js"), "utf8");
   assert.match(page, /id="createRevision"/);
   assert.match(source, /function createOrResumeRevision\(\)/);
-  assert.match(source, /Une correction est déjà en cours/);
+  assert.match(source, /Créer une version depuis V/);
+  assert.doesNotMatch(source, /Une correction est déjà en cours/);
   assert.match(source, /action: "create-revision"/);
+  assert.match(source, /baseRevision: inspectionRevision/);
   assert.match(source, /Retirer de cette version/);
 });
 test("PDF utilitaire : le renderer utilise deux grilles, jamais une page par vue", () => {

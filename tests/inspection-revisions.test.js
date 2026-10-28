@@ -76,20 +76,31 @@ test("les sauvegardes successives d'un brouillon ne créent ni PDF ni archive", 
   assert.equal(third.revision.snapshot.km, 130);
 });
 
-test("une seule correction brouillon est autorisée et une ancienne version finalisée peut servir de base", () => {
+test("plusieurs brouillons parallèles peuvent repartir de la même version finalisée sans se modifier", () => {
   const v1 = { revision: 1, status: "finalized", snapshot: { km: 100, signatures: { client: { signedAt: "a" }, agence: { signedAt: "b" } } }, media: [{ key: "v1.jpg" }], pdfKey: "v1.pdf" };
-  const v2 = { revision: 2, status: "finalized", snapshot: { km: 200, signatures: { client: { signedAt: "c" }, agence: { signedAt: "d" } } }, media: [{ key: "v2.jpg" }], pdfKey: "v2.pdf" };
-  const created = createInspectionRevision({ inspectionRevisions: { depart: [v1, v2] } }, "depart", null, null, "agent", 1);
-  assert.equal(created.revision.revision, 3);
-  assert.equal(created.revision.basedOnRevision, 1);
-  assert.equal(created.revision.snapshot.km, 100);
-  assert.deepEqual(created.revision.media, [{ key: "v1.jpg" }]);
-  assert.deepEqual(created.revision.snapshot.signatures, v1.snapshot.signatures);
-  created.revision.snapshot.signatures.client.signedAt = "edited-in-v3";
-  assert.equal(v1.snapshot.signatures.client.signedAt, "a", "la copie de signature V3 ne modifie pas V1");
-  assert.throws(() => createInspectionRevision({ inspectionRevisions: created.inspectionRevisions }, "depart", null, null, "agent", 2), /Une correction est déjà en cours : V3/);
-  assert.equal(created.inspectionRevisions.depart[0].snapshot.km, 100);
-  assert.equal(created.inspectionRevisions.depart[1].snapshot.km, 200);
+  const v2Created = createInspectionRevision({ inspectionRevisions: { depart: [v1] } }, "depart", null, null, "agent", 1, "Correction A");
+  const v3Created = createInspectionRevision({ inspectionRevisions: v2Created.inspectionRevisions }, "depart", null, null, "agent", 1, "Correction B");
+  const v4Created = createInspectionRevision({ inspectionRevisions: v3Created.inspectionRevisions }, "depart", null, null, "agent", 1, "Correction C");
+  assert.deepEqual(v4Created.inspectionRevisions.depart.map(item => [item.revision, item.status, item.basedOnRevision]), [[1, "finalized", undefined], [2, "draft", 1], [3, "draft", 1], [4, "draft", 1]]);
+  assert.deepEqual(v4Created.revision.media, [{ key: "v1.jpg" }]);
+  assert.deepEqual(v4Created.revision.snapshot.signatures, v1.snapshot.signatures);
+
+  const v2Saved = updateInspectionRevisionDraft({ inspectionRevisions: v4Created.inspectionRevisions }, "depart", null, null, "agent", 2, { km: 120, signatures: { client: { signedAt: "v2-client" }, agence: { signedAt: "v2-agence" } } });
+  const v3Saved = updateInspectionRevisionDraft({ inspectionRevisions: v2Saved.inspectionRevisions }, "depart", null, null, "agent", 3, { km: 130, signatures: { client: { signedAt: "v3-client" }, agence: { signedAt: "v3-agence" } } });
+  const v3Finalized = finalizeInspectionRevision({ inspectionRevisions: v3Saved.inspectionRevisions }, "depart", null, null, "agent", 3);
+  const revisions = v3Finalized.inspectionRevisions.depart;
+  assert.equal(revisions[0].snapshot.km, 100);
+  assert.equal(revisions[0].snapshot.signatures.client.signedAt, "a");
+  assert.equal(revisions[1].status, "draft");
+  assert.equal(revisions[1].snapshot.km, 120);
+  assert.equal(revisions[1].snapshot.signatures.client.signedAt, "v2-client");
+  assert.equal(revisions[2].status, "finalized");
+  assert.equal(revisions[2].snapshot.km, 130);
+  assert.equal(revisions[3].status, "draft");
+  assert.equal(revisions[3].snapshot.km, 100);
+  assert.doesNotThrow(() => updateInspectionRevisionDraft({ inspectionRevisions: v3Finalized.inspectionRevisions }, "depart", null, null, "agent", 2, { km: 121, signatures: revisions[1].snapshot.signatures }));
+  assert.throws(() => createInspectionRevision({ inspectionRevisions: v3Finalized.inspectionRevisions }, "depart", null, null, "agent", 2), /La version source doit être finalisée\./);
+  assert.throws(() => createInspectionRevision({ inspectionRevisions: v3Finalized.inspectionRevisions }, "depart", null, null, "agent", 99), /La version source doit être finalisée\./);
 });
 
 test("Drive crée des sources et noms distincts pour chaque révision EDL", () => {
@@ -108,6 +119,20 @@ test("finalisation serveur archive le PDF avant de finaliser, sans toucher V1", 
   const put = new Map(), env = { DOCUMENTS_BUCKET: { async put(key, value) { put.set(key, value); } } };
   const out = await finalizeRevisionWithPdf({ env, record: { id: "res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", inspectionRevisions: { depart: [v1, v2] } }, stage: "depart", revision: 2, snapshot: v2.snapshot, fallbackSnapshot: null, fallbackMedia: [], standalone: false });
   assert.equal(out.revision.status, "finalized"); assert.ok(out.revision.pdfKey); assert.ok(put.has(out.revision.pdfKey)); assert.deepEqual(out.inspectionRevisions.depart[0], v1Before);
+});
+
+test("finaliser V3 et son PDF laisse le brouillon V2 strictement indépendant", async () => {
+  const v1 = { revision: 1, status: "finalized", snapshot: { km: 1, signatures: { client: { signedAt: "a" }, agence: { signedAt: "b" } } }, media: [{ key: "v1.jpg" }], pdfKey: "v1.pdf" };
+  const v2 = { revision: 2, status: "draft", snapshot: { km: 2, signatures: { client: { signedAt: "c" }, agence: { signedAt: "d" } } }, media: [{ key: "v1.jpg" }], pdfKey: null, basedOnRevision: 1 };
+  const v3 = { revision: 3, status: "draft", snapshot: { km: 3, signatures: { client: { signedAt: "e" }, agence: { signedAt: "f" } } }, media: [{ key: "v1.jpg" }], pdfKey: null, basedOnRevision: 1 };
+  const v1Before = structuredClone(v1), v2Before = structuredClone(v2), written = [];
+  const env = { DOCUMENTS_BUCKET: { async put(key) { written.push(key); } } };
+  const out = await finalizeRevisionWithPdf({ env, record: { id: "res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", inspectionRevisions: { depart: [v1, v2, v3] } }, stage: "depart", revision: 3, snapshot: v3.snapshot, fallbackSnapshot: null, fallbackMedia: [], standalone: false });
+  assert.deepEqual(out.inspectionRevisions.depart[0], v1Before);
+  assert.deepEqual(out.inspectionRevisions.depart[1], v2Before);
+  assert.equal(out.inspectionRevisions.depart[2].status, "finalized");
+  assert.equal(out.inspectionRevisions.depart[2].pdfKey, "inspection-pdf/res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/depart/v3.pdf");
+  assert.deepEqual(written, ["inspection-pdf/res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/depart/v3.pdf"]);
 });
 
 test("finalisation remplace un ancien PDF navigateur sur un brouillon sans toucher V1", async () => {

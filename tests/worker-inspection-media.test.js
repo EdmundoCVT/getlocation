@@ -12,6 +12,7 @@ let ip = 20;
 function fakeBucket() {
   const objects = new Map();
   return {
+    objects,
     async put(key, body, options = {}) { objects.set(key, { body, options }); },
     async get(key) {
       const value = objects.get(key);
@@ -138,6 +139,27 @@ test("photo inspection liée : une photo V5 utilise la clé et les médias de V5
   assert.equal(persisted.inspectionRevisions.depart[3].media.length, 1, "V4 reste inchangée");
   assert.equal(persisted.inspectionRevisions.depart[4].media.length, 1, "V5 peut retirer son héritage sans toucher V4");
   assert.equal(persisted.inspectionRevisions.depart[4].media[0].capturedAt, "2026-10-13T12:30");
+});
+
+test("photo inspection liée : retirer un média partagé de V2 conserve V1, V3 et l'objet R2", async () => {
+  const e = env();
+  const { reservationId, token } = await setup(e);
+  const sharedKey = `inspection/${reservationId}/depart/v1/shared.jpg`;
+  await e.DOCUMENTS_BUCKET.put(sharedKey, new Uint8Array([1, 2, 3]), { httpMetadata: { contentType: "image/jpeg" } });
+  const stored = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
+  const shared = { key: sharedKey, slot: "avant", createdAt: "2026-10-01T09:00:00.000Z" };
+  stored.inspectionRevisions = { depart: [
+    { revision: 1, status: "finalized", snapshot: {}, media: [shared], pdfKey: "v1.pdf" },
+    { revision: 2, status: "draft", snapshot: {}, media: [shared], pdfKey: null, basedOnRevision: 1 },
+    { revision: 3, status: "draft", snapshot: {}, media: [shared], pdfKey: null, basedOnRevision: 1 }
+  ] };
+  await e.RESERVATIONS_KV.put(reservationId, JSON.stringify(stored));
+
+  const removed = await handleInspectionMedia(request("https://getlocation.fr/api/inspection-media", token, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: sharedKey, stage: "depart", revision: 2 }) }), e);
+  assert.equal(removed.status, 200);
+  const persisted = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
+  assert.deepEqual(persisted.inspectionRevisions.depart.map(item => item.media.map(media => media.key)), [[sharedKey], [], [sharedKey]]);
+  assert.ok(e.DOCUMENTS_BUCKET.objects.has(sharedKey), "un retrait logique ne supprime jamais le blob partagé");
 });
 
 test("photo inspection liée : les uploads ciblent explicitement V2, V3, V4 et V5", async () => {

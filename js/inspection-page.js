@@ -61,7 +61,7 @@
     $("pdf").disabled = saving || !finalized;
     $("pdf").textContent = finalized ? "Voir le PDF officiel" : "PDF officiel après finalisation";
     $("createRevision").hidden = !finalized;
-    if (finalized) { const draft = revisionList.find(item => item.status === "draft"); $("createRevision").disabled = saving; $("createRevision").textContent = draft ? "Reprendre V" + draft.revision : "Créer une nouvelle version"; }
+    if (finalized) { $("createRevision").disabled = saving; $("createRevision").textContent = "Créer une version depuis V" + inspectionRevision; }
     $("photos").querySelectorAll("input,button").forEach(control => { control.disabled = saving || pendingCount > 0 || finalized; });
   }
   function scheduleAutosave() { clearTimeout(autosaveTimer); autosaveTimer = setTimeout(() => { if (dirty && !saving && !finalized) save(false); }, 1400); }
@@ -275,8 +275,6 @@
   $("stickyFinalize").onclick = () => save(true);
   function revisionUrl(nextRevision) { const url = new URL(location.href); url.searchParams.set("revision", String(nextRevision)); return url.pathname + url.search + url.hash; }
   async function createOrResumeRevision() {
-    const draft = revisionList.find(item => item.status === "draft");
-    if (draft) { message("Une correction est déjà en cours : V" + draft.revision + ". Ouverture de ce brouillon."); location.href = revisionUrl(draft.revision); return; }
     const button = $("createRevision"); button.disabled = true; button.textContent = "Création…";
     try {
       const response = standaloneId
@@ -285,7 +283,7 @@
       const next = response.revision && response.revision.revision;
       if (!Number.isInteger(next)) throw new Error("Nouvelle révision introuvable.");
       location.href = revisionUrl(next);
-    } catch (error) { button.disabled = false; button.textContent = "Créer une nouvelle version"; message(error.message); }
+    } catch (error) { button.disabled = false; button.textContent = "Créer une version depuis V" + inspectionRevision; message(error.message); }
   }
   $("createRevision").onclick = createOrResumeRevision;
   function officialPdfUrl() {

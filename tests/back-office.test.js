@@ -268,7 +268,7 @@ test("bibliothèque EDL : Comparatif apparaît uniquement pour un couple finalis
   assert.equal([...standalone.querySelectorAll("a")].some((item) => item.textContent === "Comparatif"), false);
 });
 
-test("bibliothèque EDL : V3 brouillon est la version courante, visible et ouvrable sans créer V4", () => {
+test("bibliothèque EDL : V3 brouillon reste modifiable et chaque version finalisée reste une base disponible", () => {
   const window = buildWindow();
   window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   window.__backOffice.renderInspectionListForTest([], [{
@@ -292,7 +292,9 @@ test("bibliothèque EDL : V3 brouillon est la version courante, visible et ouvra
   assert.match(history.textContent, /V3 — Brouillon/);
   assert.match(history.textContent, /V2 — Finalisée/);
   assert.match(history.textContent, /V1 — Finalisée/);
-  assert.ok([...history.querySelectorAll("button")].filter((button) => button.textContent === "Modifier V3").length >= 2, "un brouillon existant est repris, jamais remplacé par V4");
+  assert.ok([...history.querySelectorAll("a")].some((link) => link.textContent === "Modifier V3"));
+  assert.ok([...history.querySelectorAll("button")].some((button) => button.textContent === "Créer une version depuis V2"));
+  assert.ok([...history.querySelectorAll("button")].some((button) => button.textContent === "Créer une version depuis V1"));
 });
 
 test("bibliothèque EDL : une V4 finalisée propose directement Créer V5 avec motif", () => {
@@ -379,7 +381,7 @@ test("bibliothèque EDL : l'historique peut créer V4 à partir de V1 avec son m
     inspectionRevisions: { depart: [1, 2, 3].map((revision) => ({ revision, status: "finalized", basedOnRevision: revision > 1 ? revision - 1 : null })) }
   }]);
   [...window.document.querySelectorAll("#inspectionList button")].find((button) => button.textContent === "Historique").click();
-  [...window.document.querySelectorAll(".inspection-history button")].find((button) => button.textContent === "Créer une nouvelle version à partir de V1").click();
+  [...window.document.querySelectorAll(".inspection-history button")].find((button) => button.textContent === "Créer une version depuis V1").click();
   const form = window.document.querySelector("dialog form");
   form.elements.revisionReason.value = "Retour aux données initiales";
   form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
@@ -388,6 +390,35 @@ test("bibliothèque EDL : l'historique peut créer V4 à partir de V1 avec son m
   assert.equal(body.baseRevision, 1);
   assert.equal(body.revisionReason, "Retour aux données initiales");
   assert.match(popup.location.href, /revision=4$/);
+});
+
+test("bibliothèque EDL : V1 finalisée crée V3 sans fermer ni remplacer V2 brouillon", async () => {
+  const window = buildWindow(), calls = [], popup = { closed: false, document: {}, location: { href: "about:blank" }, close() { this.closed = true; } };
+  window.open = () => popup;
+  window.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    if (String(url) === "/api/standalone-inspections" && options.method === "POST") return apiResponse(201, { revision: { revision: 3 } }, String(url));
+    if (String(url).includes("agency-rentals")) return apiResponse(200, { rentals: [] }, String(url));
+    return apiResponse(200, { inspections: [] }, String(url));
+  };
+  window.__backOffice.renderInspectionListForTest([], [{
+    id: "edl_parallel_drafts", mode: "depart", client: {}, vehicule: { nom: "Toyota Proace" },
+    inspectionRevisions: { depart: [
+      { revision: 1, status: "finalized", pdfKey: "v1.pdf" },
+      { revision: 2, status: "draft", basedOnRevision: 1, pdfKey: null }
+    ] }
+  }]);
+  [...window.document.querySelectorAll("#inspectionList button")].find((button) => button.textContent === "Historique").click();
+  const history = window.document.querySelector(".inspection-history");
+  assert.ok([...history.querySelectorAll("a")].some((link) => link.textContent === "Modifier V2"));
+  [...history.querySelectorAll("button")].find((button) => button.textContent === "Créer une version depuis V1").click();
+  const form = window.document.querySelector("dialog form");
+  form.elements.revisionReason.value = "Correction parallèle";
+  form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  await flushAsync();
+  const body = JSON.parse(calls.find((call) => call.url === "/api/standalone-inspections" && call.options.method === "POST").options.body);
+  assert.deepEqual(body, { action: "create-revision", baseRevision: 1, revisionReason: "Correction parallèle", id: "edl_parallel_drafts", stage: "depart" });
+  assert.equal(popup.location.href, "/etat-des-lieux.html?standalone=edl_parallel_drafts&mode=depart&revision=3");
 });
 
 test("bibliothèque EDL : une réponse HTML create-revision expose HTTP, source et base sans Unexpected token", async () => {

@@ -456,6 +456,30 @@ test("agence : create-revision liée conserve base et motif propres à V4", asyn
   assert.equal(stored.inspectionRevisions.depart[3].revisionReason, "Correction kilométrage");
 });
 
+test("agence : deux corrections liées peuvent rester en brouillon depuis la même V1 finalisée", async () => {
+  const e = env();
+  const { agencyToken, reservationId } = await setupReservationPayee(e);
+  const record = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
+  const v1 = { revision: 1, status: "finalized", snapshot: { km: 100, signatures: { client: { signedAt: "a" }, agence: { signedAt: "b" } } }, media: [{ key: "v1.jpg" }], pdfKey: "v1.pdf" };
+  record.contractDossier = { depart: v1.snapshot, media: { depart: v1.media, retour: [] } };
+  record.inspectionRevisions = { depart: [v1] };
+  await e.RESERVATIONS_KV.put(reservationId, JSON.stringify(record));
+
+  const first = await handleContractDossierAgency(agencyPost(agencyToken, { action: "create-revision", mode: "depart", baseRevision: 1, revisionReason: "Correction A" }), e);
+  assert.equal(first.status, 201);
+  assert.equal((await first.json()).revision.revision, 2);
+  const second = await handleContractDossierAgency(agencyPost(agencyToken, { action: "create-revision", mode: "depart", baseRevision: 1, revisionReason: "Correction B" }), e);
+  assert.equal(second.status, 201);
+  const v3 = (await second.json()).revision;
+  assert.equal(v3.revision, 3);
+  assert.equal(v3.basedOnRevision, 1);
+  assert.equal(v3.snapshot.km, 100);
+
+  const stored = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
+  assert.deepEqual(stored.inspectionRevisions.depart.map(item => [item.revision, item.status, item.basedOnRevision]), [[1, "finalized", undefined], [2, "draft", 1], [3, "draft", 1]]);
+  assert.deepEqual(stored.inspectionRevisions.depart[0], v1);
+});
+
 // --- Réservation non payée : jamais d'écriture ----------------------------
 
 test("aucune écriture sur le dossier contrat tant que la réservation n'est pas payée", async () => {
