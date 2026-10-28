@@ -24,6 +24,16 @@ function missingDriveComponents(checks) {
   return Object.entries(checks).filter(([, present]) => !present).map(([name]) => ({ agencyDb: "AGENCY_DB", driveRootFolderId: "GOOGLE_DRIVE_ROOT_FOLDER_ID", googleServiceAccountKey: "GOOGLE_SERVICE_ACCOUNT_KEY" })[name]);
 }
 function driveConfigured(env) { return Object.values(driveConfigurationChecks(env)).every(Boolean); }
+function isStandaloneInspection(record) { return Boolean(record && (record.kind === "standalone-inspection" || /^edl_/.test(record.id || ""))); }
+async function getDriveRecord(env, id) {
+  const reservation = await getReservation(env, id);
+  if (reservation) return reservation;
+  if (!/^edl_[a-f0-9-]{16,64}$/.test(id || "") || !env.RESERVATIONS_KV) return null;
+  const raw = await env.RESERVATIONS_KV.get(`standalone-inspection:${id}`);
+  if (!raw) return null;
+  try { const record = JSON.parse(raw); return isStandaloneInspection(record) ? record : null; }
+  catch (_) { return null; }
+}
 function sharedDriveUrl(path, base = DRIVE_API, list = false) {
   const url = new URL(`${base}${path}`);
   // Obligatoire pour tout accès à un dossier/fichier d'un Drive partagé.
@@ -72,6 +82,19 @@ async function upload(env, reservationId, sourceKey, parentId, name, body, conte
   return result.id;
 }
 function safeSnapshot(record) {
+  if (isStandaloneInspection(record)) {
+    return {
+      id: record.id,
+      kind: "standalone-inspection",
+      mode: record.mode,
+      status: record.status || "draft",
+      createdAt: record.createdAt || null,
+      updatedAt: record.updatedAt || null,
+      client: record.client ? { prenom: record.client.prenom || null, nom: record.client.nom || null } : null,
+      vehicule: record.vehicule ? { nom: record.vehicule.nom || null, immatriculation: record.vehicule.immatriculation || null, vehicleFamily: record.vehicule.vehicleFamily || null } : null,
+      linkedContractNumero: record.linkedContractNumero || null
+    };
+  }
   const dossier = record.contractDossier || {};
   return { id: record.id, contractNumero: record.contractNumero || null, status: record.status, createdAt: record.createdAt, updatedAt: record.updatedAt, contractLanguage: contractLanguage(record), vehiculeId: record.vehiculeId || null, immatriculation: record.immat || record.immatriculation || null, conducteur: record.conducteur ? { prenom: record.conducteur.prenom || null, nom: record.conducteur.nom || null } : { prenom: record.prenom || null, nom: record.nom || null }, periodeDebut: record.periodeDebut || record.depart || null, periodeFin: record.periodeFin || record.retour || null, contractVersion: contractVersionInfo(record), contractDossier: { status: dossier.status || "draft", cglVersion: dossier.cglVersion || null, fields: dossier.fields || null, depart: dossier.depart || null, retour: dossier.retour || null, observations: dossier.observations || "", media: dossier.media || { depart: [], retour: [] }, signature: dossier.signature ? { signedAt: dossier.signature.signedAt || null, signatureId: dossier.signature.signatureId || null } : null } };
 }
@@ -85,21 +108,76 @@ async function enqueueDriveSync(env, reservationId) {
   return reservationId;
 }
 
-function jobsForRecord(record) {
-  const version = contractVersionInfo(record), stem = `${safePart(record.contractNumero || record.id)}-V${version.version}`;
-  const signed = version.status === "signed" || version.status === "archived";
-  const jobs = [{ sourceKey: `snapshot-v${version.version}-${signed ? "SIGNE" : "BROUILLON"}`, jobType: "snapshot", targetFolder: "contracts", filename: `${stem}-DOSSIER.json`, contentType: "application/json", immutable: signed ? 1 : 0 }];
-  const dossier = record.contractDossier || {}, media = dossier.media || {};
-  for (const stage of ["depart", "retour"]) for (const item of Array.isArray(media[stage]) ? media[stage] : []) if (item && item.key) jobs.push({ sourceKey: item.key, jobType: "r2", sourceR2Key: item.key, targetFolder: "inspections", filename: `${safePart(record.contractNumero || record.id)}-${stage.toUpperCase()}-${safePart(item.slot || "photo")}.${(item.contentType || "image/jpeg").split("/")[1] || "jpg"}`, contentType: item.contentType || "image/jpeg", immutable: 0 });
-  for (const item of Array.isArray(record.documentFiles) ? record.documentFiles : []) if (item && item.key) jobs.push({ sourceKey: item.key, jobType: "r2", sourceR2Key: item.key, targetFolder: "documents", filename: `${safePart(record.contractNumero || record.id)}-${safePart(item.type || "document")}`, contentType: item.contentType || "application/octet-stream", immutable: 0 });
-  for (const item of Array.isArray(record.drivePdfFiles) ? record.drivePdfFiles : []) if (item && item.key) jobs.push({ sourceKey: item.sourceKey, jobType: "r2", sourceR2Key: item.key, targetFolder: item.kind && item.kind.indexOf("edl-") === 0 ? "inspections" : "contracts", filename: `${safePart(record.contractNumero || record.id)}-V${item.version}-${item.kind === "contract-signed" ? "SIGNE" : item.kind === "contract-draft" ? "BROUILLON" : item.kind === "edl-depart" ? "EDL-DEPART" : "EDL-RETOUR"}.pdf`, contentType: "application/pdf", immutable: item.immutable ? 1 : 0 });
-  // Révisions EDL modernes : chaque PDF et média conserve une sourceKey
-  // distincte. Une V2 ne peut donc jamais remplacer l'archive Drive de V1.
+function mediaExtension(item) {
+  const subtype = String(item && item.contentType || "image/jpeg").split("/")[1] || "jpg";
+  return subtype === "jpeg" ? "jpg" : subtype.replace(/[^a-z0-9]/gi, "") || "jpg";
+}
+function inspectionFolderKey(stage, revision, kind = null) { return `inspection:${stage}:v${revision}${kind ? `:${kind}` : ""}`; }
+function inspectionManifest(record, stage, revisionNumber) {
+  const revision = ((record.inspectionRevisions && record.inspectionRevisions[stage]) || []).find(item => Number(item.revision) === Number(revisionNumber));
+  if (!revision) throw new DriveBackupError("Révision EDL introuvable pour le manifeste");
+  const client = record.conducteur || record.client || record;
+  const vehicle = record.vehicule || {};
+  const files = (revision.media || []).filter(item => item && item.key).map((item, index) => ({
+    filename: `${String(index + 1).padStart(2, "0")}-${safePart(item.slot || "photo").toLowerCase()}.${mediaExtension(item)}`,
+    sourceR2Key: item.key,
+    slot: item.slot || null,
+    capturedAt: item.capturedAt || null,
+    createdAt: item.createdAt || null,
+    originalName: item.originalName || null,
+    size: Number(item.size) || null,
+    contentType: item.contentType || "image/jpeg"
+  }));
+  return {
+    inspectionId: record.id,
+    contractNumero: record.contractNumero || record.linkedContractNumero || null,
+    client: { prenom: client.prenom || null, nom: client.nom || null },
+    vehicle: { nom: vehicle.nom || record.vehiculeId || null, immatriculation: vehicle.immatriculation || record.immatriculation || record.immat || null },
+    stage,
+    revision: revision.revision,
+    basedOnRevision: revision.basedOnRevision || null,
+    status: revision.status,
+    finalizedAt: revision.finalizedAt || null,
+    photoCount: files.length,
+    photos: files,
+    pdf: revision.pdfKey ? { filename: `GETLOCATION-EDL-${stage.toUpperCase()}-V${revision.revision}.pdf`, sourceR2Key: revision.pdfKey } : null
+  };
+}
+function addRevisionJobs(jobs, record) {
   for (const stage of ["depart", "retour"]) for (const revision of Array.isArray(record.inspectionRevisions && record.inspectionRevisions[stage]) ? record.inspectionRevisions[stage] : []) {
     const tag = `edl-${stage}-r${revision.revision}`;
-    if (revision.pdfKey) jobs.push({ sourceKey: `${record.id}:${tag}:pdf`, jobType: "r2", sourceR2Key: revision.pdfKey, targetFolder: "inspections", filename: `${safePart(record.contractNumero || record.id)}-EDL-${stage.toUpperCase()}-V${revision.revision}.pdf`, contentType: "application/pdf", immutable: revision.status === "finalized" ? 1 : 0 });
-    for (const item of Array.isArray(revision.media) ? revision.media : []) if (item && item.key) jobs.push({ sourceKey: `${record.id}:${tag}:media:${item.key}`, jobType: "r2", sourceR2Key: item.key, targetFolder: "inspections", filename: `${safePart(record.contractNumero || record.id)}-EDL-${stage.toUpperCase()}-V${revision.revision}-${safePart(item.slot || "photo")}.${(item.contentType || "image/jpeg").split("/")[1] || "jpg"}`, contentType: item.contentType || "image/jpeg", immutable: revision.status === "finalized" ? 1 : 0 });
+    // Le namespace v2 force une copie unique vers la nouvelle arborescence
+    // versionnée pour les dossiers auparavant synchronisés à plat. Les
+    // exécutions suivantes restent idempotentes via drive_sync_files.
+    const sourcePrefix = `drive-archive-v2:${record.id}:${tag}`;
+    const versionFolder = inspectionFolderKey(stage, revision.revision);
+    jobs.push({ sourceKey: `${sourcePrefix}:manifest`, jobType: "inspection-manifest", targetFolder: versionFolder, filename: "manifest.json", contentType: "application/json", immutable: revision.status === "finalized" ? 1 : 0 });
+    if (revision.pdfKey) jobs.push({ sourceKey: `${sourcePrefix}:pdf`, jobType: "r2", sourceR2Key: revision.pdfKey, targetFolder: inspectionFolderKey(stage, revision.revision, "pdf"), filename: `GETLOCATION-EDL-${stage.toUpperCase()}-V${revision.revision}.pdf`, contentType: "application/pdf", immutable: revision.status === "finalized" ? 1 : 0 });
+    for (const [index, item] of (Array.isArray(revision.media) ? revision.media : []).entries()) if (item && item.key) jobs.push({ sourceKey: `${sourcePrefix}:media:${item.key}`, jobType: "r2", sourceR2Key: item.key, targetFolder: inspectionFolderKey(stage, revision.revision, "photos"), filename: `${String(index + 1).padStart(2, "0")}-${safePart(item.slot || "photo").toLowerCase()}.${mediaExtension(item)}`, contentType: item.contentType || "image/jpeg", immutable: 1 });
   }
+}
+
+function jobsForRecord(record) {
+  const standalone = isStandaloneInspection(record);
+  let jobs;
+  if (standalone) {
+    jobs = [{ sourceKey: "standalone-snapshot", jobType: "snapshot", targetFolder: "contracts", filename: `${safePart(record.id)}-DOSSIER.json`, contentType: "application/json", immutable: 0 }];
+  } else {
+    const version = contractVersionInfo(record), stem = `${safePart(record.contractNumero || record.id)}-V${version.version}`;
+    const signed = version.status === "signed" || version.status === "archived";
+    jobs = [{ sourceKey: `snapshot-v${version.version}-${signed ? "SIGNE" : "BROUILLON"}`, jobType: "snapshot", targetFolder: "contracts", filename: `${stem}-DOSSIER.json`, contentType: "application/json", immutable: signed ? 1 : 0 }];
+  }
+  const dossier = standalone ? record.dossier || {} : record.contractDossier || {}, media = dossier.media || {};
+  for (const stage of ["depart", "retour"]) {
+    const hasVersionedMedia = Array.isArray(record.inspectionRevisions && record.inspectionRevisions[stage]);
+    if (hasVersionedMedia) continue;
+    for (const item of Array.isArray(media[stage]) ? media[stage] : []) if (item && item.key) jobs.push({ sourceKey: item.key, jobType: "r2", sourceR2Key: item.key, targetFolder: "inspections", filename: `${safePart(record.contractNumero || record.id)}-${stage.toUpperCase()}-${safePart(item.slot || "photo")}.${mediaExtension(item)}`, contentType: item.contentType || "image/jpeg", immutable: 1 });
+  }
+  for (const item of Array.isArray(record.documentFiles) ? record.documentFiles : []) if (item && item.key) jobs.push({ sourceKey: item.key, jobType: "r2", sourceR2Key: item.key, targetFolder: "documents", filename: `${safePart(record.contractNumero || record.id)}-${safePart(item.type || "document")}`, contentType: item.contentType || "application/octet-stream", immutable: 0 });
+  for (const item of Array.isArray(record.drivePdfFiles) ? record.drivePdfFiles : []) if (item && item.key) jobs.push({ sourceKey: item.sourceKey, jobType: "r2", sourceR2Key: item.key, targetFolder: item.kind && item.kind.indexOf("edl-") === 0 ? "inspections" : "contracts", filename: `${safePart(record.contractNumero || record.id)}-V${item.version}-${item.kind === "contract-signed" ? "SIGNE" : item.kind === "contract-draft" ? "BROUILLON" : item.kind === "edl-depart" ? "EDL-DEPART" : "EDL-RETOUR"}.pdf`, contentType: "application/pdf", immutable: item.immutable ? 1 : 0 });
+  // Une version archive toutes ses photos, y compris celles héritées. La clé
+  // R2 originale est réutilisée sans dupliquer le binaire dans R2.
+  addRevisionJobs(jobs, record);
   return jobs;
 }
 function driveJobsManifest(jobs) {
@@ -131,7 +209,8 @@ async function progress(env, reservationId) {
 function folderProgress(serializedFolders) {
   let folders = {};
   try { folders = JSON.parse(serializedFolders || "{}"); } catch (e) { /* l'état sera recréé à la prochaine synchronisation */ }
-  return { completed: DRIVE_FOLDER_KEYS.filter((key) => Boolean(folders[key])).length, total: DRIVE_FOLDER_KEYS.length };
+  const total = Number.isInteger(folders.__total) && folders.__total >= DRIVE_FOLDER_KEYS.length ? folders.__total : DRIVE_FOLDER_KEYS.length;
+  return { completed: Object.entries(folders).filter(([key, value]) => !key.startsWith("__") && Boolean(value)).length, total };
 }
 function driveSyncDiagnostic(row, files, jobError = null) {
   if (!row) return null;
@@ -161,10 +240,42 @@ function parseLastRun(value) {
     };
   } catch (e) { return null; }
 }
+function driveFolderPlan(record) {
+  const standalone = isStandaloneInspection(record);
+  const date = new Date(record.createdAt || Date.now());
+  const client = record.conducteur || record.client || record;
+  const vehicle = record.vehicule || {};
+  const clientName = safePart(`${client.nom || ""} ${client.prenom || ""}`);
+  const standaloneRoot = `${safePart(vehicle.immatriculation || record.immatriculation || record.immat || record.id)} - ${clientName}`;
+  const path = [
+    ["clients", null, standalone ? "EDL AUTONOMES" : "DOSSIERS CLIENTS"],
+    ["year", "clients", String(date.getFullYear())],
+    ["month", "year", `${String(date.getMonth() + 1).padStart(2, "0")} - ${date.toLocaleDateString("fr-FR", { month: "long" }).replace(/^./, (x) => x.toUpperCase())}`],
+    ["root", "month", standalone ? standaloneRoot : `${safePart(record.contractNumero || record.id)} - ${clientName}`],
+    ["contracts", "root", standalone ? "01 - Informations" : "01 - Contrats"],
+    ["inspections", "root", "02 - États des lieux"],
+    ["documents", "root", standalone ? "03 - Documents" : "03 - Documents client"],
+    ["deposit", "root", standalone ? "04 - Autres" : "04 - Dépôt de garantie"]
+  ];
+  for (const stage of ["depart", "retour"]) {
+    const revisions = Array.isArray(record.inspectionRevisions && record.inspectionRevisions[stage]) ? record.inspectionRevisions[stage] : [];
+    if (!revisions.length) continue;
+    const stageKey = `inspection:${stage}`;
+    path.push([stageKey, "inspections", stage === "depart" ? "Départ" : "Retour"]);
+    for (const revision of revisions) {
+      const versionKey = inspectionFolderKey(stage, revision.revision);
+      path.push([versionKey, stageKey, `V${revision.revision}`]);
+      path.push([inspectionFolderKey(stage, revision.revision, "pdf"), versionKey, "PDF"]);
+      path.push([inspectionFolderKey(stage, revision.revision, "photos"), versionKey, "Photos originales"]);
+    }
+  }
+  return path;
+}
 async function ensureFolderStep(env, record, outbox, accessToken) {
   const ids = JSON.parse(outbox.drive_folders_json || "{}");
-  const path = [["clients", env.GOOGLE_DRIVE_ROOT_FOLDER_ID, "DOSSIERS CLIENTS"], ["year", "clients", String(new Date(record.createdAt || Date.now()).getFullYear())], ["month", "year", `${String(new Date(record.createdAt || Date.now()).getMonth() + 1).padStart(2, "0")} - ${new Date(record.createdAt || Date.now()).toLocaleDateString("fr-FR", { month: "long" }).replace(/^./, (x) => x.toUpperCase())}`], ["root", "month", `${safePart(record.contractNumero || record.id)} - ${safePart(`${(record.conducteur || record).nom || ""} ${(record.conducteur || record).prenom || ""}`)}`], ["contracts", "root", "01 - Contrats"], ["inspections", "root", "02 - États des lieux"], ["documents", "root", "03 - Documents client"], ["deposit", "root", "04 - Dépôt de garantie"]];
-  for (const [key, parent, name] of path) if (!ids[key]) { const now = new Date().toISOString(); ids[key] = await folder(env, parent === env.GOOGLE_DRIVE_ROOT_FOLDER_ID ? parent : ids[parent], name, accessToken); await env.AGENCY_DB.prepare("UPDATE drive_sync_outbox SET status='processing', drive_folders_json=?, last_attempt_at=?, last_error=NULL, drive_last_run_json=?, updated_at=? WHERE reservation_id=?").bind(JSON.stringify(ids), now, JSON.stringify({ stage: "folders", pendingBefore: 0, selected: 0, attempted: 0, syncedThisRun: 0, failedThisRun: 0 }), now, record.id).run(); return null; }
+  const path = driveFolderPlan(record);
+  ids.__total = path.length;
+  for (const [key, parent, name] of path) if (!ids[key]) { const now = new Date().toISOString(); const parentId = parent ? ids[parent] : env.GOOGLE_DRIVE_ROOT_FOLDER_ID; ids[key] = await folder(env, parentId, name, accessToken); await env.AGENCY_DB.prepare("UPDATE drive_sync_outbox SET status='processing', drive_folders_json=?, last_attempt_at=?, last_error=NULL, drive_last_run_json=?, updated_at=? WHERE reservation_id=?").bind(JSON.stringify(ids), now, JSON.stringify({ stage: "folders", pendingBefore: 0, selected: 0, attempted: 0, syncedThisRun: 0, failedThisRun: 0 }), now, record.id).run(); return null; }
   return ids;
 }
 async function syncDriveBackup(env, reservationId, actor = null) {
@@ -185,7 +296,7 @@ async function syncDriveBackup(env, reservationId, actor = null) {
     // Un seul jeton OAuth par invocation : avec trois envois cela fait au
     // plus quatre sous-requêtes externes (OAuth + trois appels Drive).
     const accessToken = await getAccessToken(env, DRIVE_SCOPE);
-    const record = await getReservation(env, reservationId);
+    const record = await getDriveRecord(env, reservationId);
     if (!record) throw new DriveBackupError("Dossier introuvable");
     const outbox = await env.AGENCY_DB.prepare("SELECT * FROM drive_sync_outbox WHERE reservation_id=?").bind(record.id).first();
     await prepareDriveJobs(env, record, outbox || {});
@@ -199,7 +310,17 @@ async function syncDriveBackup(env, reservationId, actor = null) {
     for (const job of selected) {
       attempted += 1;
       try {
-        const body = job.job_type === "snapshot" ? JSON.stringify(safeSnapshot(record), null, 2) : new Uint8Array(await (await env.DOCUMENTS_BUCKET.get(job.source_r2_key)).arrayBuffer());
+        let body;
+        if (job.job_type === "snapshot") body = JSON.stringify(safeSnapshot(record), null, 2);
+        else if (job.job_type === "inspection-manifest") {
+          const match = /^inspection:(depart|retour):v(\d+)$/.exec(job.target_folder || "");
+          if (!match) throw new DriveBackupError("Manifeste EDL invalide");
+          body = JSON.stringify(inspectionManifest(record, match[1], Number(match[2])), null, 2);
+        } else {
+          const object = await env.DOCUMENTS_BUCKET.get(job.source_r2_key);
+          if (!object) throw new DriveBackupError("Fichier R2 introuvable");
+          body = new Uint8Array(await object.arrayBuffer());
+        }
         await upload(env, record.id, job.source_key, folders[job.target_folder], job.filename, body, job.content_type, Boolean(job.immutable), accessToken);
         syncedThisRun += 1;
         jobUpdates.push(env.AGENCY_DB.prepare("UPDATE drive_sync_jobs SET status='synced', attempt_count=attempt_count+1, last_error=NULL, synced_at=?, updated_at=? WHERE reservation_id=? AND source_key=?").bind(now, now, record.id, job.source_key));
@@ -215,7 +336,7 @@ async function syncDriveBackup(env, reservationId, actor = null) {
     const reason = (err && err.message) || "Erreur Google Drive";
     const run = JSON.stringify({ stage: "global-error", pendingBefore: 0, selected: 0, attempted: 0, syncedThisRun: 0, failedThisRun: 0 });
     await env.AGENCY_DB.prepare("UPDATE drive_sync_outbox SET status='error', attempt_count=attempt_count+1, last_attempt_at=?, last_error=?, drive_last_run_json=?, updated_at=? WHERE reservation_id=?").bind(now, reason.slice(0, 500), run, now, reservationId).run().catch(() => undefined);
-    await recordAuditEvent(env, { actor, eventType: "drive_backup_failed", entityType: "contract", entityId: reservationId, metadata: { error: reason.slice(0, 180) } });
+    await recordAuditEvent(env, { actor, eventType: "drive_backup_failed", entityType: /^edl_/.test(reservationId || "") ? "standalone_inspection" : "contract", entityId: reservationId, metadata: { error: reason.slice(0, 180) } });
     return { ok: false, reason };
   }
 }
@@ -230,4 +351,4 @@ async function getDriveSyncStatus(env, reservationId) {
 // Le cron ne traite qu'un dossier par invocation : 3 opérations Drive au
 // maximum (ou une étape de dossier), jamais une boucle non bornée.
 async function retryPendingDriveSyncs(env) { if (!env || !env.AGENCY_DB) return; const rows = await env.AGENCY_DB.prepare("SELECT reservation_id FROM drive_sync_outbox WHERE status IN ('pending','processing','error') ORDER BY updated_at ASC LIMIT 1").all(); for (const row of rows.results || []) await syncDriveBackup(env, row.reservation_id, null); }
-module.exports = { driveConfigured, driveConfigurationChecks, enqueueDriveSync, syncDriveBackup, getDriveSyncStatus, retryPendingDriveSyncs, safeSnapshot, sharedDriveUrl, driveSyncDiagnostic, driveJobsManifest, jobsForRecord, takeDriveJobs };
+module.exports = { driveConfigured, driveConfigurationChecks, enqueueDriveSync, syncDriveBackup, getDriveSyncStatus, retryPendingDriveSyncs, safeSnapshot, sharedDriveUrl, driveSyncDiagnostic, driveJobsManifest, jobsForRecord, takeDriveJobs, driveFolderPlan, inspectionManifest, getDriveRecord };

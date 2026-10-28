@@ -87,6 +87,7 @@ test("photo inspection : conserve l’original, sert la copie optimisée et pers
   assert.equal(response.status, 200);
   const item = (await response.json()).item;
   assert.match(item.key, /\.heic$/); assert.match(item.optimizedKey, /-pdf\.jpg$/);
+  assert.equal(item.originalName, "preuve.heic");
   assert.equal(item.size, 12); assert.equal(item.optimizedSize, 13);
   assert.deepEqual([item.originalWidth, item.originalHeight, item.optimizedWidth, item.optimizedHeight], [4032, 3024, 1920, 1440]);
   assert.ok(e.DOCUMENTS_BUCKET.objects.has(item.key)); assert.ok(e.DOCUMENTS_BUCKET.objects.has(item.optimizedKey));
@@ -96,6 +97,19 @@ test("photo inspection : conserve l’original, sert la copie optimisée et pers
   assert.equal(await original.text(), "ORIGINAL-6MO", "l’original reste accessible avec authentification");
   const stored = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
   assert.equal(stored.inspectionRevisions.depart[0].media[0].optimizedKey, item.optimizedKey);
+});
+
+test("photo inspection : une panne de l’outbox Drive ne bloque jamais l’original R2", async () => {
+  const e = env();
+  e.AGENCY_DB = { prepare() { throw new Error("D1 Drive indisponible"); } };
+  const { token } = await setup(e);
+  const form = new FormData();
+  form.set("stage", "depart"); form.set("revision", "1"); form.set("slot", "avant");
+  form.set("file", new File(["ORIGINAL-R2"], "preuve.jpg", { type: "image/jpeg" }));
+  const response = await handleInspectionMedia(request("https://getlocation.fr/api/inspection-media", token, { method: "POST", body: form }), e);
+  assert.equal(response.status, 200);
+  const item = (await response.json()).item;
+  assert.ok(e.DOCUMENTS_BUCKET.objects.has(item.key), "l'original R2 reste acquis malgré l'indisponibilité Drive");
 });
 
 test("photo inspection : un média historique sans optimizedKey continue de servir son original", async () => {

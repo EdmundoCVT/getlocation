@@ -48,6 +48,7 @@ async function storeInspectionMediaFiles({ env, prefix, form, customMetadata }) 
   const metadata = {
     key,
     ...(optimizedKey ? { optimizedKey } : {}),
+    originalName: String(original.name || "photo").slice(0, 180),
     contentType: original.type,
     size: originalBytes.byteLength,
     ...(optimizedBytes ? { optimizedSize: optimizedBytes.byteLength } : {})

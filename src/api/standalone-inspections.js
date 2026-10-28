@@ -7,6 +7,7 @@ const { recordAuditEvent } = require("../lib/audit-log.js");
 const { listInspectionRevisions, getInspectionRevision, createInspectionRevision, updateInspectionRevisionDraft } = require("../lib/inspection-revisions.js");
 const { finalizeRevisionWithPdf } = require("../lib/finalize-inspection-revision.js");
 const { summarizeInspectionRevisions } = require("../lib/inspection-revision-summary.js");
+const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
 
 const PREFIX = "standalone-inspection:";
 const DIAGNOSTIC_PREFIX = "diagnostic:standalone:";
@@ -130,7 +131,14 @@ function publicItem(record) {
   return { id: record.id, mode: record.mode, client: record.client || {}, vehicule: record.vehicule || {}, linkedContractId: record.linkedContractId || null, linkedContractNumero: record.linkedContractNumero || null, pairedInspectionId: record.pairedInspectionId || null, pairedAt: record.pairedAt || null, pairedBy: record.pairedBy || null, dateHeure: record.dossier && record.dossier[record.mode] && record.dossier[record.mode].dateHeure || record.createdAt, status: record.status || "draft", pdf: record.pdf || null, inspectionRevisions: summarizeInspectionRevisions(record.inspectionRevisions), archivedAt: record.archivedAt || null, archivedBy: record.archivedBy || null, updatedAt: record.updatedAt };
 }
 async function read(env, id) { const raw = ID.test(id || "") && await env.RESERVATIONS_KV.get(PREFIX + id); return raw ? JSON.parse(raw) : null; }
-async function write(env, record) { record.updatedAt = new Date().toISOString(); await env.RESERVATIONS_KV.put(PREFIX + record.id, JSON.stringify(record)); return record; }
+async function write(env, record) {
+  record.updatedAt = new Date().toISOString();
+  await env.RESERVATIONS_KV.put(PREFIX + record.id, JSON.stringify(record));
+  // La sauvegarde métier est acquise avant l'outbox. Une panne D1/Drive ne
+  // doit jamais invalider une création, une photo ou une correction EDL.
+  await enqueueDriveSync(env, record.id).catch(() => null);
+  return record;
+}
 function createId() { return "edl_" + crypto.randomUUID(); }
 async function contracts(env, needle) {
   const q = text(needle, 100).toLocaleLowerCase("fr-FR");
@@ -317,6 +325,7 @@ async function handleStandaloneInspectionsRequest(request, env, id = null) {
 
         const writeStarted = Date.now();
         await env.RESERVATIONS_KV.put(PREFIX + record.id, serializedRecord);
+        await enqueueDriveSync(env, record.id).catch(() => null);
         mark("kv-write", writeStarted);
         diagnostic.stage = "after-kv-write";
 

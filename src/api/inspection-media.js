@@ -42,7 +42,7 @@ async function handleUpload(request,env,reservation){
   const existing=reservation.contractDossier||{status:"draft",fields:null,depart:null,retour:null,observations:""};
   const item={...stored.item,slot,createdAt:new Date().toISOString(),...(capturedAt?{capturedAt}:{})};
   // 30 photos max par phase, suffisant pour une inspection détaillée.
-  try { const media=getRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision); const saved=setRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision,[...(media||[]),item].slice(-30)); const updated={...reservation,inspectionRevisions:saved.inspectionRevisions,updatedAt:new Date().toISOString()}; await env.RESERVATIONS_KV.put(reservation.id,JSON.stringify(updated)); enqueueDriveSync(env,updated.id).catch(()=>undefined); } catch(error) { await removeStoredFiles(env.DOCUMENTS_BUCKET,stored.keys); return json({error:error.message},error.status||409); }
+  try { const media=getRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision); const saved=setRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision,[...(media||[]),item].slice(-30)); const updated={...reservation,inspectionRevisions:saved.inspectionRevisions,updatedAt:new Date().toISOString()}; await env.RESERVATIONS_KV.put(reservation.id,JSON.stringify(updated)); await enqueueDriveSync(env,updated.id).catch(()=>null); } catch(error) { await removeStoredFiles(env.DOCUMENTS_BUCKET,stored.keys); return json({error:error.message},error.status||409); }
   return json({ok:true,item});
 }
 
@@ -64,7 +64,7 @@ async function handleCapturedAtUpdate(request,env,reservation){
       return updatedItem;
     });
   if(!updatedItem)return json({error:"Photo introuvable"},404);
-  const saved=setRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision,media); await env.RESERVATIONS_KV.put(reservation.id,JSON.stringify({...reservation,inspectionRevisions:saved.inspectionRevisions,updatedAt:new Date().toISOString()}));
+  const saved=setRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision,media); await env.RESERVATIONS_KV.put(reservation.id,JSON.stringify({...reservation,inspectionRevisions:saved.inspectionRevisions,updatedAt:new Date().toISOString()})); await enqueueDriveSync(env,reservation.id).catch(()=>null);
   return json({ok:true,item:updatedItem});
 }
 
@@ -92,7 +92,7 @@ async function handleDelete(request,env,reservation){
   const existing=reservation.contractDossier||{};
   const media=getRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision)||[];
   const saved=setRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision,media.filter(x=>x&&x.key!==key));
-  await env.RESERVATIONS_KV.put(reservation.id,JSON.stringify({...reservation,inspectionRevisions:saved.inspectionRevisions,updatedAt:new Date().toISOString()}));
+  await env.RESERVATIONS_KV.put(reservation.id,JSON.stringify({...reservation,inspectionRevisions:saved.inspectionRevisions,updatedAt:new Date().toISOString()})); await enqueueDriveSync(env,reservation.id).catch(()=>null);
   return json({ok:true});
 }
 
