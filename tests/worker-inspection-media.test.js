@@ -75,6 +75,38 @@ test("photo inspection : createdAt reste immuable et capturedAt est modifiable p
   assert.equal(stored.inspectionRevisions.depart[0].media[0].capturedAt, "2026-10-01T10:05", "la date métier est conservée après rechargement");
 });
 
+test("photo inspection : conserve l’original, sert la copie optimisée et persiste leurs métadonnées", async () => {
+  const e = env();
+  const { reservationId, token } = await setup(e);
+  const form = new FormData();
+  form.set("stage", "depart"); form.set("revision", "1"); form.set("slot", "dommage");
+  form.set("file", new File(["ORIGINAL-6MO"], "preuve.heic", { type: "image/heic" }));
+  form.set("optimizedFile", new File(["JPEG-OPTIMISE"], "preuve-pdf.jpg", { type: "image/jpeg" }));
+  form.set("originalWidth", "4032"); form.set("originalHeight", "3024"); form.set("optimizedWidth", "1920"); form.set("optimizedHeight", "1440");
+  const response = await handleInspectionMedia(request("https://getlocation.fr/api/inspection-media", token, { method: "POST", body: form }), e);
+  assert.equal(response.status, 200);
+  const item = (await response.json()).item;
+  assert.match(item.key, /\.heic$/); assert.match(item.optimizedKey, /-pdf\.jpg$/);
+  assert.equal(item.size, 12); assert.equal(item.optimizedSize, 13);
+  assert.deepEqual([item.originalWidth, item.originalHeight, item.optimizedWidth, item.optimizedHeight], [4032, 3024, 1920, 1440]);
+  assert.ok(e.DOCUMENTS_BUCKET.objects.has(item.key)); assert.ok(e.DOCUMENTS_BUCKET.objects.has(item.optimizedKey));
+  const preview = await handleInspectionMedia(request(`https://getlocation.fr/api/inspection-media?key=${encodeURIComponent(item.key)}`, token), e);
+  assert.equal(await preview.text(), "JPEG-OPTIMISE", "l’aperçu privé choisit le dérivé");
+  const original = await handleInspectionMedia(request(`https://getlocation.fr/api/inspection-media?key=${encodeURIComponent(item.key)}&variant=original`, token), e);
+  assert.equal(await original.text(), "ORIGINAL-6MO", "l’original reste accessible avec authentification");
+  const stored = JSON.parse(await e.RESERVATIONS_KV.get(reservationId));
+  assert.equal(stored.inspectionRevisions.depart[0].media[0].optimizedKey, item.optimizedKey);
+});
+
+test("photo inspection : un média historique sans optimizedKey continue de servir son original", async () => {
+  const e = env(); const { reservationId, token } = await setup(e);
+  const key = `inspection/${reservationId}/depart/v1/legacy.jpg`;
+  e.DOCUMENTS_BUCKET.objects.set(key, { body: new TextEncoder().encode("LEGACY"), options: { httpMetadata: { contentType: "image/jpeg" } } });
+  const stored = JSON.parse(await e.RESERVATIONS_KV.get(reservationId)); stored.inspectionRevisions.depart[0].media = [{ key, slot: "avant", contentType: "image/jpeg" }]; await e.RESERVATIONS_KV.put(reservationId, JSON.stringify(stored));
+  const response = await handleInspectionMedia(request(`https://getlocation.fr/api/inspection-media?key=${encodeURIComponent(key)}`, token), e);
+  assert.equal(response.status, 200); assert.equal(await response.text(), "LEGACY");
+});
+
 test("photo inspection : une ancienne photo sans capturedAt reste compatible", async () => {
   const e = env();
   const { reservationId, token } = await setup(e);

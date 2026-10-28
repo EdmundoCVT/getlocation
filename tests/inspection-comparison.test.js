@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { PDFDocument } = require("pdf-lib");
 const { handleAgencyInspectionComparison } = require("../src/api/agency-inspection-comparison.js");
+const { generateInspectionComparisonPdf } = require("../src/lib/inspection-comparison-pdf.js");
 const { makeAgencyEnv, loginAgency, agencyRequest } = require("./helpers/agency-session.js");
 const { createFakeKv } = require("./helpers/fake-kv.js");
 
@@ -54,4 +55,12 @@ test("comparatif : absent sans deux versions finalisées et protégé par sessio
   assert.notEqual(unauthorized.status, 200);
   const missing = await handleAgencyInspectionComparison(agencyRequest(url, { session }), env);
   assert.equal(missing.status, 404);
+});
+
+test("comparatif : les photos modernes utilisent optimizedKey, les historiques restent compatibles", async () => {
+  const requested = [], image = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "images", "opel-corsa.jpg"));
+  const env = { DOCUMENTS_BUCKET: { async get(key) { requested.push(key); return { httpMetadata: { contentType: "image/jpeg" }, async arrayBuffer() { return image; } }; } } };
+  const revision = (stage, media) => ({ revision: 1, snapshot: snapshot(stage === "depart" ? 10 : 20), media });
+  await generateInspectionComparisonPdf({ env, id: "comparison", reference: "GL-COMPARE", depart: revision("depart", [{ key: "depart-original", optimizedKey: "depart-pdf", contentType: "image/jpeg" }]), retour: revision("retour", [{ key: "retour-legacy", contentType: "image/jpeg" }]), vehicle: {}, rental: {} });
+  assert.deepEqual(requested, ["depart-pdf", "retour-legacy"]);
 });

@@ -12,6 +12,7 @@
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") + "T" + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
   }
   function date(value) { if (!value) return "Non renseignée"; const d = new Date(value); return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString("fr-FR"); }
+  function bytes(value) { const size = Number(value); if (!Number.isFinite(size)) return ""; return size >= 1024 * 1024 ? (size / (1024 * 1024)).toFixed(1) + " Mo" : Math.max(1, Math.round(size / 1024)) + " Ko"; }
   async function parseApiResponse(response) {
     const contentType = response && response.headers && typeof response.headers.get === "function" ? response.headers.get("content-type") || "" : "";
     const responseUrl = response && response.url || "";
@@ -90,14 +91,16 @@
     };
     load(); return wrap;
   }
-  function renderReadOnly(root, items, cache, open) {
+  function renderReadOnly(root, items, cache, open, openOriginal) {
     root.replaceChildren();
     if (!items.length) { const p = document.createElement("p"); p.textContent = "Aucune photo enregistrée."; root.append(p); }
     items.forEach(item => {
       const figure = document.createElement("figure"), caption = document.createElement("figcaption"); figure.className = "photo-item";
       caption.textContent = (labels[item.slot] || item.label || "Photo") + " · Date/heure de la photo : " + date(item.capturedAt || item.dateHeure) + (item.createdAt ? " · Importée le : " + date(item.createdAt) : "");
-      figure.append(preview(item, cache, open), caption); root.append(figure);
+      figure.append(preview(item, cache, open), caption);
+      if (openOriginal && item.key) { const actions = document.createElement("div"); actions.className = "photo-actions"; actions.append(button("Voir l’original" + (item.size ? " · " + bytes(item.size) : ""), () => openOriginal(item), "outline")); figure.append(actions); }
+      root.append(figure);
     });
   }
-  global.InspectionMedia = { labels, slots: Object.keys(labels), local, date, parseApiResponse, decode, createCache, preview, renderReadOnly, button };
+  global.InspectionMedia = { labels, slots: Object.keys(labels), local, date, bytes, parseApiResponse, decode, createCache, preview, renderReadOnly, button };
 }(window));

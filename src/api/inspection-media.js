@@ -5,16 +5,13 @@ const { resolveContractAgencyAccess } = require("./contract-dossier-agency.js");
 const { updateContractDossier } = require("../lib/reservation-store.js");
 const { enqueueDriveSync } = require("../lib/google-drive-backup.js");
 const { getRevisionMedia, setRevisionMedia, revisionMediaPrefix } = require("../lib/inspection-revisions.js");
+const { storeInspectionMediaFiles, removeStoredFiles, mediaObjectKey } = require("../lib/inspection-media-files.js");
 
-const MAX_BYTES = 8 * 1024 * 1024;
-const TYPES = new Set(["image/jpeg","image/png","image/webp","image/heic","image/heif"]);
 const SLOTS = new Set(["avant","arriere","gauche","droite","avant-gauche","avant-droit","arriere-gauche","arriere-droit","interieur","tableau-de-bord","jante","dommage","autre"]);
 
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});}
 function safeStage(v){return v==="depart"||v==="retour"?v:null;}
 function safeSlot(v){return SLOTS.has(v)?v:null;}
-function ext(type){if(type==="image/png")return"png";if(type==="image/webp")return"webp";if(type==="image/heic")return"heic";if(type==="image/heif")return"heif";return"jpg";}
-function uid(){return crypto.randomUUID().replace(/-/g,"").slice(0,20);}
 
 // Date métier choisie par l'agence. Elle reste volontairement distincte de
 // `createdAt`, qui est l'horodatage serveur de l'import et ne peut jamais être
@@ -38,16 +35,14 @@ async function handleUpload(request,env,reservation){
   const slot=safeSlot(form.get("slot"));
   const file=form.get("file");
   if(!stage||!Number.isInteger(revision)||revision<1||!slot||!file||typeof file.arrayBuffer!=="function")return json({error:"Photo, révision ou catégorie invalide"},400);
-  if(!TYPES.has(file.type)||file.size<=0||file.size>MAX_BYTES)return json({error:"Format non accepté ou photo trop volumineuse (8 Mo max.)"},400);
-  const key=`${revisionMediaPrefix(reservation.id,stage,revision,false)}${Date.now()}-${uid()}.${ext(file.type)}`;
-  const bytes=await file.arrayBuffer();
-  if(bytes.byteLength>MAX_BYTES)return json({error:"Photo trop volumineuse"},400);
-  await env.DOCUMENTS_BUCKET.put(key,bytes,{httpMetadata:{contentType:file.type},customMetadata:{reservationId:reservation.id,stage,revision:String(revision),slot}});
-  const existing=reservation.contractDossier||{status:"draft",fields:null,depart:null,retour:null,observations:""};
   const capturedAt=safeCapturedAt(form.get("capturedAt"));
-  const item={key,slot,contentType:file.type,size:bytes.byteLength,createdAt:new Date().toISOString(),...(capturedAt?{capturedAt}:{})};
+  let stored;
+  try { stored=await storeInspectionMediaFiles({env,prefix:revisionMediaPrefix(reservation.id,stage,revision,false),form,customMetadata:{reservationId:reservation.id,stage,revision,slot}}); }
+  catch(error){return json({error:error.message},error.status||500);}
+  const existing=reservation.contractDossier||{status:"draft",fields:null,depart:null,retour:null,observations:""};
+  const item={...stored.item,slot,createdAt:new Date().toISOString(),...(capturedAt?{capturedAt}:{})};
   // 30 photos max par phase, suffisant pour une inspection détaillée.
-  try { const media=getRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision); const saved=setRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision,[...(media||[]),item].slice(-30)); const updated={...reservation,inspectionRevisions:saved.inspectionRevisions,updatedAt:new Date().toISOString()}; await env.RESERVATIONS_KV.put(reservation.id,JSON.stringify(updated)); enqueueDriveSync(env,updated.id).catch(()=>undefined); } catch(error) { await env.DOCUMENTS_BUCKET.delete(key); return json({error:error.message},error.status||409); }
+  try { const media=getRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision); const saved=setRevisionMedia(reservation,stage,existing[stage],existing.media&&existing.media[stage],null,revision,[...(media||[]),item].slice(-30)); const updated={...reservation,inspectionRevisions:saved.inspectionRevisions,updatedAt:new Date().toISOString()}; await env.RESERVATIONS_KV.put(reservation.id,JSON.stringify(updated)); enqueueDriveSync(env,updated.id).catch(()=>undefined); } catch(error) { await removeStoredFiles(env.DOCUMENTS_BUCKET,stored.keys); return json({error:error.message},error.status||409); }
   return json({ok:true,item});
 }
 
@@ -75,10 +70,12 @@ async function handleCapturedAtUpdate(request,env,reservation){
 
 async function handleRead(request,env,reservation){
   if(!env.DOCUMENTS_BUCKET)return new Response(null,{status:503});
-  const key=new URL(request.url).searchParams.get("key")||"";
+  const url=new URL(request.url), key=url.searchParams.get("key")||"", variant=url.searchParams.get("variant")==="original"?"original":"optimized";
   const prefix=`inspection/${reservation.id}/`;
   if(!key.startsWith(prefix))return new Response(null,{status:403});
-  const obj=await env.DOCUMENTS_BUCKET.get(key);
+  const dossier=reservation.contractDossier||{}, objectKey=mediaObjectKey(reservation,key,variant,dossier.media);
+  let obj=await env.DOCUMENTS_BUCKET.get(objectKey);
+  if(!obj&&variant!=="original"&&objectKey!==key)obj=await env.DOCUMENTS_BUCKET.get(key);
   if(!obj)return new Response(null,{status:404});
   const headers=new Headers();
   obj.writeHttpMetadata(headers);

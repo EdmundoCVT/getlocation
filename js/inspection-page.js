@@ -5,15 +5,16 @@
   const legacy = params.get("source") === "legacy", legacyId = params.get("legacyId") || "";
   const standaloneId = params.get("standalone") || "";
   const token = new URLSearchParams(location.hash.slice(1)).get("agencyToken");
-  const $ = id => document.getElementById(id), M = window.InspectionMedia;
+  const $ = id => document.getElementById(id), M = window.InspectionMedia, ImageOptimizer = window.InspectionImageOptimizer;
   let dossier, reservation, family = "car", sketch, sketchVehicleType = "car", utilitySketchLegacy = false, pads = {}, dirty = false, revision = 0, inspectionRevision = 0, saving = false, pendingCount = 0, csrfToken = "", finalized = false, autosaveTimer = null, saveFailed = false, lastSavedAt = null, revisionList = [];
-  let media = { depart: [], retour: [] }, editableMedia = new Set(), queue = Promise.resolve();
+  let media = { depart: [], retour: [] }, editableMedia = new Set(), queue = Promise.resolve(), failedUploads = new Map();
   const scores = {};
   const api = (url, options = {}) => fetch(url, { ...options, credentials: "same-origin", headers: { ...(token ? { Authorization: "Bearer " + token } : {}), ...(standaloneId && csrfToken ? { "X-Agency-Csrf": csrfToken } : {}), ...options.headers } });
   const mediaUrl = () => standaloneId ? "/api/standalone-inspection-media?id=" + encodeURIComponent(standaloneId) : "/api/inspection-media";
-  const mediaReadUrl = key => mediaUrl() + (standaloneId ? "&" : "?") + "key=" + encodeURIComponent(key);
+  const mediaReadUrl = (key, variant) => mediaUrl() + (standaloneId ? "&" : "?") + "key=" + encodeURIComponent(key) + (variant ? "&variant=" + encodeURIComponent(variant) : "");
   const json = M.parseApiResponse;
   const cache = M.createCache(item => api(legacy ? "/api/legacy-inspection-media?id=" + encodeURIComponent(legacyId) + "&key=" + encodeURIComponent(item.key) : mediaReadUrl(item.key)));
+  const originalCache = M.createCache(item => api(legacy ? "/api/legacy-inspection-media?id=" + encodeURIComponent(legacyId) + "&key=" + encodeURIComponent(item.key) : mediaReadUrl(item.key, "original")));
   const message = value => { $("message").textContent = value; };
   function newRequestId() {
     const random = globalThis.crypto && typeof globalThis.crypto.randomUUID === "function" ? globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 8) : Math.random().toString(16).slice(2, 10).padEnd(8, "0");
@@ -86,6 +87,10 @@
     $("lightboxImage").src = url; $("lightboxImage").alt = caption; $("lightboxCaption").textContent = caption;
     if (!$("lightbox").open) $("lightbox").showModal();
   }
+  async function openOriginal(item) {
+    try { openPhoto(await originalCache.get(item), (M.labels[item.slot] || item.label || "Photo") + " — original"); }
+    catch (error) { message("Original inaccessible : " + error.message); }
+  }
   $("closeLightbox").onclick = () => $("lightbox").close();
   $("mode").textContent = mode === "depart" ? "DÉPART" : "RETOUR";
   $("signatureMode").textContent = mode;
@@ -113,7 +118,7 @@
     const grid = document.createElement("dl"); grid.className = "legacy-grid";
     fieldGrid(grid, [["Date et heure", stage.dateHeure], ["Kilométrage", stage.km], ["Carburant", stage.carburant], ["Propreté", stage.proprete], ["Nombre de clés", stage.cles], ["Accessoires", stage.accessoires], ["Agent", stage.agent], ["Client signé (EDL)", stage.clientSigne], ["Agence signée (EDL)", stage.agenceSigne], ["Remarques", stage.remarques]]); section.append(grid);
     if ((stage.marques || []).length) { const draw = document.createElement("div"); window.renderLegacyInspectionSketch(draw, stage.marques); section.append(draw); }
-    const photos = document.createElement("div"); photos.className = "readonly-photos"; M.renderReadOnly(photos, stage.photos || [], cache, openPhoto); section.append(photos);
+    const photos = document.createElement("div"); photos.className = "readonly-photos"; M.renderReadOnly(photos, stage.photos || [], cache, openPhoto, openOriginal); section.append(photos);
     // Contract signatures are deliberately separate from inspection signatures.
     if (view.contractSignature) {
       const title = document.createElement("h3"), label = document.createElement("p"); title.textContent = "Signature du contrat"; label.textContent = M.date(view.contractSignature.signedAt); section.append(title, label);
@@ -163,7 +168,37 @@
     M.slots.forEach(slot => {
       const a = media.depart.filter(item => item.slot === slot), b = media.retour.filter(item => item.slot === slot); if (!a.length && !b.length) return;
       const card = document.createElement("section"), title = document.createElement("h3"), pair = document.createElement("div"); card.className = "comparison-card"; title.textContent = M.labels[slot]; pair.className = "comparison-pair"; card.append(title, pair);
-      [a, b].forEach((items, index) => { const column = document.createElement("div"), caption = document.createElement("strong"), photos = document.createElement("div"); caption.textContent = index ? "Retour" : "Départ"; column.append(caption, photos); M.renderReadOnly(photos, items, cache, openPhoto); pair.append(column); }); root.append(card);
+      [a, b].forEach((items, index) => { const column = document.createElement("div"), caption = document.createElement("strong"), photos = document.createElement("div"); caption.textContent = index ? "Retour" : "Départ"; column.append(caption, photos); M.renderReadOnly(photos, items, cache, openPhoto, openOriginal); pair.append(column); }); root.append(card);
+    });
+  }
+  function uploadFiles(slot, files) {
+    const selected = [...files];
+    return mutation(async () => {
+      if (!ImageOptimizer) throw new Error("Le module d’optimisation photo n’est pas chargé. Rechargez la page.");
+      if (media[mode].length + selected.length > 30) throw new Error("Maximum 30 photos par état des lieux. Aucun ancien média ne sera supprimé.");
+      let nextIndex = 0;
+      try {
+        await ImageOptimizer.sequential(selected, async (file, index) => {
+          nextIndex = index;
+          message("Préparation de la photo " + (index + 1) + " / " + selected.length + "…");
+          const optimized = await ImageOptimizer.optimize(file);
+          message("Envoi de la photo " + (index + 1) + " / " + selected.length + "…");
+          const form = new FormData();
+          form.append("stage", mode); form.append("revision", String(inspectionRevision)); form.append("slot", slot); form.append("capturedAt", M.local(new Date()));
+          form.append("file", file); form.append("optimizedFile", optimized.blob, optimized.fileName);
+          for (const name of ["originalWidth", "originalHeight", "optimizedWidth", "optimizedHeight"]) form.append(name, String(optimized[name]));
+          const out = await json(await api(mediaUrl(), { method: "POST", body: form }));
+          media[mode].push(out.item); editableMedia.add(out.item.key); rememberMedia(); nextIndex = index + 1;
+        });
+        failedUploads.delete(slot);
+        message(selected.length === 1 ? "Photo importée et optimisée pour le PDF." : selected.length + " photos importées et optimisées pour le PDF.");
+      } catch (error) {
+        failedUploads.set(slot, selected.slice(nextIndex));
+        const retryError = new Error(error.message + " Vous pouvez réessayer sans reprendre les photos déjà envoyées.");
+        retryError.status = error.status; throw retryError;
+      } finally {
+        renderPhotos(); renderComparison();
+      }
     });
   }
   function renderPhotos() {
@@ -172,21 +207,10 @@
       const card = document.createElement("section"), title = document.createElement("h3"), sources = document.createElement("div"); card.className = "photo-slot"; card.dataset.slot = slot; title.textContent = M.labels[slot]; sources.className = "photo-sources";
       [["Prendre une photo", true], ["Choisir dans la photothèque", false]].forEach(([text, camera]) => {
         const label = document.createElement("label"), input = document.createElement("input"); label.className = "photo-add"; label.textContent = text; input.type = "file"; input.accept = "image/*"; input.multiple = !camera; input.className = "file-input"; input.setAttribute("aria-label", text + " — " + M.labels[slot]); if (camera) input.setAttribute("capture", "environment"); label.append(input); sources.append(label);
-        input.onchange = () => {
-          const files = [...(input.files || [])]; input.value = "";
-          if (!files.length) return;
-          mutation(async () => {
-            if (media[mode].length + files.length > 30) throw new Error("Maximum 30 photos par état des lieux. Aucun ancien média ne sera supprimé.");
-            for (const file of files) {
-              message("Import de " + file.name + "…");
-              const form = new FormData(); form.append("stage", mode); form.append("revision", String(inspectionRevision)); form.append("slot", slot); form.append("capturedAt", M.local(new Date())); form.append("file", file);
-              const out = await json(await api(mediaUrl(), { method: "POST", body: form }));
-              media[mode].push(out.item); editableMedia.add(out.item.key); rememberMedia(); renderPhotos(); renderComparison();
-            }
-            message("Photo(s) importée(s) et enregistrée(s).");
-          });
-        };
-      }); card.append(title, sources);
+        input.onchange = () => { const files = [...(input.files || [])]; input.value = ""; if (files.length) uploadFiles(slot, files); };
+      });
+      if (failedUploads.has(slot)) { const retry = M.button("Réessayer l’import", () => uploadFiles(slot, failedUploads.get(slot)), "outline"); retry.classList.add("photo-retry"); sources.append(retry); }
+      card.append(title, sources);
       media[mode].filter(item => item.slot === slot).forEach(item => {
         const photo = document.createElement("div"), field = document.createElement("label"), input = document.createElement("input"), small = document.createElement("p"), actions = document.createElement("div"); photo.className = "photo-item"; photo.dataset.key = item.key;
         field.className = "field"; field.textContent = "Date et heure de la photo"; input.type = "datetime-local"; input.value = M.local(item.capturedAt); field.append(input);
@@ -199,12 +223,13 @@
             finally { input.disabled = false; }
           });
         };
-        small.className = "imported"; small.textContent = item.createdAt ? "Importée le : " + M.date(item.createdAt) : "Date d’import non renseignée";
+        small.className = "imported"; small.textContent = (item.createdAt ? "Importée le : " + M.date(item.createdAt) : "Date d’import non renseignée") + (item.optimizedKey ? " · Original " + M.bytes(item.size) + " · Copie PDF " + M.bytes(item.optimizedSize) : " · Original utilisé pour l’aperçu et le PDF");
         actions.className = "photo-actions";
         actions.append(M.button("Agrandir", async () => { try { openPhoto(await cache.get(item), M.labels[slot]); } catch (error) { message(error.message); } }));
+        actions.append(M.button("Voir l’original", () => openOriginal(item), "outline"));
         const removeFromRevision = (label, confirmation) => actions.append(M.button(label, () => {
           if (!confirm(confirmation)) return;
-          mutation(async () => { await json(await api(mediaUrl(), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key, stage: mode, revision: inspectionRevision }) })); media[mode] = media[mode].filter(photo => photo.key !== item.key); editableMedia.delete(item.key); rememberMedia(); cache.forget(item.key); renderPhotos(); renderComparison(); message("Photo retirée de cette révision."); });
+          mutation(async () => { await json(await api(mediaUrl(), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key, stage: mode, revision: inspectionRevision }) })); media[mode] = media[mode].filter(photo => photo.key !== item.key); editableMedia.delete(item.key); rememberMedia(); cache.forget(item.key); originalCache.forget(item.key); renderPhotos(); renderComparison(); message("Photo retirée de cette révision."); });
         }, "danger"));
         if (!finalized) removeFromRevision(editableMedia.has(item.key) ? "Supprimer" : "Retirer de cette version", editableMedia.has(item.key) ? "Supprimer cette nouvelle photo ?" : "Retirer uniquement cette photo de la révision en cours ? La version historique reste inchangée.");
         else { const note = document.createElement("small"); note.textContent = "Photo historique conservée"; actions.append(note); }
@@ -212,7 +237,7 @@
           photo.classList.add("photo-missing");
           if (!finalized && !actions.querySelector(".remove-missing-photo")) { const button = M.button("Retirer de cette révision", () => {
             if (!confirm("Retirer uniquement cette référence de la révision en cours ?")) return;
-            mutation(async () => { await json(await api(mediaUrl(), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key, stage: mode, revision: inspectionRevision }) })); media[mode] = media[mode].filter(photo => photo.key !== item.key); cache.forget(item.key); renderPhotos(); renderComparison(); message("Photo introuvable retirée de cette révision."); });
+            mutation(async () => { await json(await api(mediaUrl(), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: item.key, stage: mode, revision: inspectionRevision }) })); media[mode] = media[mode].filter(photo => photo.key !== item.key); cache.forget(item.key); originalCache.forget(item.key); renderPhotos(); renderComparison(); message("Photo introuvable retirée de cette révision."); });
           }, "danger"); button.classList.add("remove-missing-photo"); actions.append(button); }
         };
         photo.append(M.preview(item, cache, openPhoto, onMissing), field, small, actions); card.append(photo);
@@ -332,7 +357,7 @@
       const values = [["Kilométrage départ", depart.km + " km"], ["Carburant départ", depart.carburant + " %"], ["Propreté extérieure", depart.propreteExterieure == null ? depart.proprete : depart.propreteExterieure + " / 5"], ["Propreté intérieure", depart.propreteInterieure == null ? depart.proprete : depart.propreteInterieure + " / 5"], ["Kilomètres parcourus", stage.km == null ? "—" : stage.km - depart.km + " km"]];
       fieldGrid($("departureValues"), values); $("departDamage").textContent = "Dommages déjà présents au départ : " + (depart.dommages || "Non renseignés");
       const departLegacy = depart.sketchVehicleType === "utility" && depart.utilitySketchVersion !== "views-v1" && Array.isArray(depart.utilityMarks) && depart.utilityMarks.length > 0 && depart.utilityMarks.every(mark => !mark.view);
-      window.createInspectionSketch($("departureSketch"), { vehicleType: depart.sketchVehicleType === "utility" ? "utility" : "car", utilityLegacy: departLegacy, marks: (depart.sketchVehicleType === "utility" ? depart.utilityMarks : depart.marks) || [], readOnly: true, onExpand: view => openPhoto(view.asset, "Schéma utilitaire — " + view.label) }); M.renderReadOnly($("departurePhotos"), media.depart, cache, openPhoto);
+      window.createInspectionSketch($("departureSketch"), { vehicleType: depart.sketchVehicleType === "utility" ? "utility" : "car", utilityLegacy: departLegacy, marks: (depart.sketchVehicleType === "utility" ? depart.utilityMarks : depart.marks) || [], readOnly: true, onExpand: view => openPhoto(view.asset, "Schéma utilitaire — " + view.label) }); M.renderReadOnly($("departurePhotos"), media.depart, cache, openPhoto, openOriginal);
       $("km").addEventListener("input", () => { values[4][1] = $("km").value === "" ? "—" : Number($("km").value) - depart.km + " km"; fieldGrid($("departureValues"), values); });
     }
     renderPhotos(); renderComparison(); status();

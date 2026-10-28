@@ -27,9 +27,13 @@ async function assetBytes(env, path) {
 }
 async function r2Image(env, item) {
   try {
-    const object = await env.DOCUMENTS_BUCKET.get(item.key);
+    // Les nouvelles photos possèdent une copie JPEG dédiée au PDF. Les
+    // médias historiques continuent de fonctionner avec leur clé originale.
+    let objectKey = item.optimizedKey || item.key;
+    let object = await env.DOCUMENTS_BUCKET.get(objectKey);
+    if (!object && item.optimizedKey) { objectKey = item.key; object = await env.DOCUMENTS_BUCKET.get(objectKey); }
     if (!object) return null;
-    const type = object.httpMetadata && object.httpMetadata.contentType || item.contentType || "";
+    const type = object.httpMetadata && object.httpMetadata.contentType || (objectKey === item.optimizedKey ? "image/jpeg" : item.contentType) || "";
     if (!/^image\/(jpeg|png)$/i.test(type)) return null;
     return { bytes: new Uint8Array(await object.arrayBuffer()), type };
   } catch (_) { return null; }

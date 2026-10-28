@@ -70,6 +70,46 @@ test("une photo R2 manquante n'empêche pas le PDF officiel", async () => {
   assert.equal(pdf.getPageCount(), 3);
 });
 
+test("le PDF officiel préfère optimizedKey et reste compatible avec les médias historiques", async () => {
+  const requested = [];
+  const input = scenario(2, "car", "depart");
+  input.media[0].optimizedKey = "photo-0-pdf.jpg";
+  input.env = { ...env, DOCUMENTS_BUCKET: { async get(key) { requested.push(key); return env.DOCUMENTS_BUCKET.get(key); } } };
+  await generateInspectionPdf(input);
+  assert.deepEqual(requested, ["photo-0-pdf.jpg", "photo-1"], "la photo moderne utilise le dérivé, l’ancienne son original");
+});
+
+test("un dérivé R2 absent retombe sur l’original sans bloquer le PDF", async () => {
+  const requested = [], input = scenario(1, "car", "depart"); input.media[0].optimizedKey = "missing-pdf.jpg";
+  input.env = { ...env, DOCUMENTS_BUCKET: { async get(key) { requested.push(key); return key === "missing-pdf.jpg" ? null : env.DOCUMENTS_BUCKET.get(key); } } };
+  const output = await generateInspectionPdf(input);
+  assert.ok(output.byteLength > 0); assert.deepEqual(requested, ["missing-pdf.jpg", "photo-0"]);
+});
+
+test("12 originaux lourds utilisent leurs dérivés et gardent le PDF sous 10 Mo", async () => {
+  const heavySize = 3 * 1024 * 1024;
+  const heavyJpeg = Buffer.concat([jpeg, Buffer.alloc(heavySize - jpeg.length)]);
+  const originalInput = scenario(12, "car", "retour");
+  originalInput.env = { ...env, DOCUMENTS_BUCKET: { async get() { return { httpMetadata: { contentType: "image/jpeg" }, async arrayBuffer() { return heavyJpeg; } }; } } };
+  const optimizedInput = scenario(12, "car", "retour");
+  optimizedInput.media = optimizedInput.media.map((item, index) => ({ ...item, optimizedKey: `photo-${index}-pdf.jpg`, optimizedSize: jpeg.length, optimizedWidth: 1000, optimizedHeight: 750 }));
+  optimizedInput.env = { ...env, DOCUMENTS_BUCKET: { async get(key) { return { httpMetadata: { contentType: "image/jpeg" }, async arrayBuffer() { return /-pdf\.jpg$/.test(key) ? jpeg : heavyJpeg; } }; } } };
+  const before = await generateInspectionPdf(originalInput), after = await generateInspectionPdf(optimizedInput);
+  assert.ok(after.byteLength < 10 * 1024 * 1024, `PDF optimisé : ${after.byteLength} octets`);
+  assert.ok(after.byteLength < before.byteLength / 5, `avant ${before.byteLength}, après ${after.byteLength}`);
+});
+
+test("1, 5, 10, 20 et 30 photos lourdes utilisent uniquement les dérivés", async () => {
+  for (const count of [1, 5, 10, 20, 30]) {
+    const requested = [], input = scenario(count, "car", "depart");
+    input.media = input.media.map((item, index) => ({ ...item, size: 3 * 1024 * 1024, optimizedKey: `photo-${index}-pdf.jpg`, optimizedSize: jpeg.length }));
+    input.env = { ...env, DOCUMENTS_BUCKET: { async get(key) { requested.push(key); return env.DOCUMENTS_BUCKET.get(key); } } };
+    const output = await generateInspectionPdf(input);
+    assert.equal(requested.length, count); assert.ok(requested.every(key => /-pdf\.jpg$/.test(key)), `${count} dérivés`);
+    assert.ok(output.byteLength < 10 * 1024 * 1024, `${count} photos : PDF sous l’objectif de 10 Mo`);
+  }
+});
+
 test("les PDF clients départ V2 et retour V3 masquent toute indication de version", async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "inspection-pdf-version-"));
   try {

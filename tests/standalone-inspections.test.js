@@ -394,6 +394,24 @@ test("EDL standalone : upload et capturedAt restent versionnés sur V4 puis V5",
   assert.equal(stored.inspectionRevisions.depart[4].media.length, 3, "V5 hérite de V4 puis reçoit sa propre photo");
 });
 
+test("EDL standalone : l’original et le dérivé PDF restent associés dans la révision", async () => {
+  const storage = bucket(), env = makeAgencyEnv({ DOCUMENTS_BUCKET: storage, RESERVATIONS_KV: createFakeKv() }), session = await loginAgency(env);
+  const id = "edl_ffffffffffffffff", stage = "retour";
+  await env.RESERVATIONS_KV.put("standalone-inspection:" + id, JSON.stringify({ id, mode: stage, dossier: { retour: {}, media: { retour: [] } }, inspectionRevisions: { retour: [{ revision: 1, status: "draft", snapshot: {}, media: [] }] } }));
+  const form = new FormData(); form.set("stage", stage); form.set("revision", "1"); form.set("slot", "arriere");
+  form.set("file", new File(["ORIGINAL"], "retour.png", { type: "image/png" })); form.set("optimizedFile", new File(["DERIVE"], "retour-pdf.jpg", { type: "image/jpeg" }));
+  form.set("originalWidth", "3024"); form.set("originalHeight", "4032"); form.set("optimizedWidth", "1440"); form.set("optimizedHeight", "1920");
+  const upload = await handleStandaloneInspectionMedia(new Request("https://getlocation.fr/api/standalone-inspection-media?id=" + id, { method: "POST", headers: { origin: "https://getlocation.fr", cookie: "agency_session=" + session.cookie, "x-agency-csrf": session.csrfToken }, body: form }), env);
+  assert.equal(upload.status, 200); const item = (await upload.json()).item;
+  assert.ok(storage.objects.has(item.key)); assert.ok(storage.objects.has(item.optimizedKey));
+  const preview = await handleStandaloneInspectionMedia(agencyRequest(`https://getlocation.fr/api/standalone-inspection-media?id=${id}&key=${encodeURIComponent(item.key)}`, { session }), env);
+  assert.equal(await preview.text(), "DERIVE");
+  const original = await handleStandaloneInspectionMedia(agencyRequest(`https://getlocation.fr/api/standalone-inspection-media?id=${id}&key=${encodeURIComponent(item.key)}&variant=original`, { session }), env);
+  assert.equal(await original.text(), "ORIGINAL");
+  const stored = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + id));
+  assert.equal(stored.inspectionRevisions.retour[0].media[0].optimizedKey, item.optimizedKey);
+});
+
 test("EDL standalone : une panne R2 renvoie toujours du JSON, jamais une page HTML", async () => {
   const env = makeAgencyEnv({ DOCUMENTS_BUCKET: { async put() { throw new Error("R2 indisponible"); } }, RESERVATIONS_KV: createFakeKv() }), session = await loginAgency(env), id = "edl_eeeeeeeeeeeeeeee";
   await env.RESERVATIONS_KV.put("standalone-inspection:" + id, JSON.stringify({ id, mode: "depart", dossier: { depart: {}, media: { depart: [] } }, inspectionRevisions: { depart: [{ revision: 1, status: "draft", snapshot: {}, media: [] }] } }));
