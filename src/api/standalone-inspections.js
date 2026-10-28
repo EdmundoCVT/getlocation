@@ -4,7 +4,7 @@ const { requireAgencySession } = require("../lib/agency-auth.js");
 const { listReservations, getReservation } = require("../lib/reservation-store.js");
 const { validateConditionReport } = require("../lib/validate-contract-dossier.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
-const { listInspectionRevisions, createInspectionRevision, updateInspectionRevisionDraft } = require("../lib/inspection-revisions.js");
+const { listInspectionRevisions, getInspectionRevision, createInspectionRevision, updateInspectionRevisionDraft } = require("../lib/inspection-revisions.js");
 const { finalizeRevisionWithPdf } = require("../lib/finalize-inspection-revision.js");
 const { summarizeInspectionRevisions } = require("../lib/inspection-revision-summary.js");
 
@@ -56,7 +56,9 @@ function serializeRecordWithMetrics(record, stage, snapshot) {
   let signatureBytes = 0, signatureCopies = 0;
   const serializedRecord = JSON.stringify(record, (key, value) => {
     if (key === "imageDataUrl" && typeof value === "string") {
-      signatureBytes += byteLength(value);
+      // Une data URL base64 est ASCII : sa longueur est son nombre d’octets.
+      // Évite un TextEncoder et son allocation binaire pour chaque signature.
+      signatureBytes += value.length;
       signatureCopies++;
     }
     return value;
@@ -66,8 +68,10 @@ function serializeRecordWithMetrics(record, stage, snapshot) {
   return { serializedRecord, sizes: {
     recordBytes: byteLength(serializedRecord),
     revisionCount: revisions.length,
-    inspectionRevisionsBytes: byteLength(JSON.stringify(record.inspectionRevisions || {})),
-    snapshotBytes: byteLength(JSON.stringify(snapshot || {})),
+    // Ces deux métriques exigeaient auparavant deux sérialisations lourdes
+    // supplémentaires. Le record persistant n'est maintenant sérialisé qu'une fois.
+    inspectionRevisionsBytes: null,
+    snapshotBytes: null,
     signatureBytes,
     signatureCopies,
     mediaCount: Array.isArray(current.media) ? current.media.length : 0
@@ -200,7 +204,6 @@ async function handleStandaloneInspectionsRequest(request, env, id = null) {
   const auth = await requireAgencySession(request, env, request.method === "GET" ? {} : { requireCsrf: true, requireOrigin: true });
   mark("auth", authStarted);
   if (auth.error) return withRequestId(auth.error, id);
-  if (request.method === "POST") await breadcrumb("b");
   const url = new URL(request.url);
   if (request.method === "GET") {
     if (url.searchParams.get("diagnostic")) {
@@ -224,7 +227,6 @@ async function handleStandaloneInspectionsRequest(request, env, id = null) {
   const readBodyStarted = Date.now();
   const body = await request.json().catch(() => null); mark("request-read", readBodyStarted);
   if (!body || typeof body !== "object") return reply({ error: "Requête invalide" }, 400);
-  await breadcrumb("c", { inspectionId: body.id, revision: Number(body.revision) });
   if (body.action === "create") {
     const mode = safeMode(body.mode); if (!mode) return reply({ error: "Type d’état des lieux invalide" }, 400);
     const now = new Date().toISOString(), id = createId();
@@ -232,7 +234,6 @@ async function handleStandaloneInspectionsRequest(request, env, id = null) {
     if (body.linkedContractId) { const contract = await getReservation(env, text(body.linkedContractId, 100)); if (!contract) return reply({ error: "Contrat associé introuvable" }, 404); record.linkedContractId = contract.id; record.linkedContractNumero = contract.contractNumero || null; }
     await write(env, record); return reply({ inspection: record }, 201);
   }
-  await breadcrumb("d", { inspectionId: body.id, revision: Number(body.revision) });
   const kvReadStarted = Date.now();
   const record = await read(env, body.id); mark("kv-read", kvReadStarted);
   if (!record) return reply({ error: "État des lieux introuvable" }, 404);
@@ -285,14 +286,12 @@ async function handleStandaloneInspectionsRequest(request, env, id = null) {
     const dossier = record.dossier && typeof record.dossier === "object" ? record.dossier : { status: "draft", depart: null, retour: null, media: { depart: [], retour: [] } };
     dossier.media = dossier.media && typeof dossier.media === "object" ? dossier.media : { depart: [], retour: [] };
     record.dossier = dossier;
-    await breadcrumb("e", { inspectionId: record.id, revision });
     const revisionStarted = Date.now();
     const previous = Number.isInteger(revision)
-      ? listInspectionRevisions(record, stage, dossier[stage], dossier.media[stage], record.createdBy).find(item => item.revision === revision)
+      ? getInspectionRevision(record, stage, dossier[stage], dossier.media[stage], record.createdBy, revision)
       : dossier[stage];
     mark("revision-read", revisionStarted);
     let report;
-    await breadcrumb("f", { inspectionId: record.id, revision });
     const validationStarted = Date.now();
     try { report = validateRevisionReport(body.stage, previous && previous.snapshot || previous); mark("snapshot-validation", validationStarted); }
     catch (error) { mark("snapshot-validation", validationStarted); return reply({ error: error.message || "État des lieux invalide", diagnostic: publicDiagnostic({ stage: "snapshot-validation", timings, bodyBytes }) }, 400); }
@@ -302,12 +301,11 @@ async function handleStandaloneInspectionsRequest(request, env, id = null) {
         await breadcrumb("g", { inspectionId: record.id, revision });
         const updateStarted = Date.now();
         const result = body.finalize ? await finalizeRevisionWithPdf({ env, record, stage, revision, snapshot: report, fallbackSnapshot: dossier[stage], fallbackMedia: dossier.media[stage], actor: auth.session.operator, standalone: true }) : updateInspectionRevisionDraft(record, stage, dossier[stage], dossier.media[stage], auth.session.operator, revision, report);
+        if (Array.isArray(result.updateTimings)) timings.push(...result.updateTimings);
         mark(body.finalize ? "revision-finalize" : "revision-update", updateStarted);
         record.inspectionRevisions = result.inspectionRevisions;
         record.status = body.finalize ? "finalized" : record.status;
-        await breadcrumb("h", { inspectionId: record.id, revision });
 
-        await breadcrumb("i", { inspectionId: record.id, revision });
         const serializationStarted = Date.now();
         record.updatedAt = new Date().toISOString();
         const serialized = serializeRecordWithMetrics(record, stage, result.revision && result.revision.snapshot || report);
@@ -315,22 +313,19 @@ async function handleStandaloneInspectionsRequest(request, env, id = null) {
         diagnostic.sizes = serialized.sizes;
         diagnostic.stage = "before-kv-write";
         mark("record-serialization", serializationStarted);
-        await breadcrumb("j", { inspectionId: record.id, revision, expectedUpdatedAt: record.updatedAt, sizes: diagnostic.sizes });
         await breadcrumb("k", { inspectionId: record.id, revision, expectedUpdatedAt: record.updatedAt, sizes: diagnostic.sizes });
 
         const writeStarted = Date.now();
         await env.RESERVATIONS_KV.put(PREFIX + record.id, serializedRecord);
         mark("kv-write", writeStarted);
         diagnostic.stage = "after-kv-write";
-        await breadcrumb("l", { inspectionId: record.id, revision, expectedUpdatedAt: record.updatedAt, sizes: diagnostic.sizes });
 
         const auditStarted = Date.now();
         await recordAuditEvent(env, { actor: auth.session.operator, eventType: body.finalize ? "inspection_revision_finalized" : "inspection_revision_updated", entityType: "standalone_inspection", entityId: record.id, metadata: { stage, revision, requestId: id } });
         mark("audit-log", auditStarted);
         diagnostic.stage = "after-audit-log";
-        await breadcrumb("m", { inspectionId: record.id, revision, expectedUpdatedAt: record.updatedAt, sizes: diagnostic.sizes });
         mark("total", startedAt);
-        return reply({ inspection: record, revision: result.revision, diagnostic: publicDiagnostic(diagnostic) });
+        return reply({ revision: result.revision, status: record.status, updatedAt: record.updatedAt, revisionCount: (result.revisions || result.inspectionRevisions[stage] || []).length, diagnostic: publicDiagnostic(diagnostic) });
       } catch (error) {
         const status = Number.isInteger(error && error.status) ? error.status : 500;
         mark("total", startedAt);
@@ -345,7 +340,7 @@ async function handleStandaloneInspectionsRequest(request, env, id = null) {
     const stage = safeMode(record.mode), role = body.role === "client" || body.role === "agence" ? body.role : null;
     const revision = Number(body.revision);
     if (Number.isInteger(revision)) {
-      const current = listInspectionRevisions(record, stage, record.dossier[stage], record.dossier.media && record.dossier.media[stage], record.createdBy).find(item => item.revision === revision);
+      const current = getInspectionRevision(record, stage, record.dossier[stage], record.dossier.media && record.dossier.media[stage], record.createdBy, revision);
       const signature = current && current.snapshot && current.snapshot.signatures && current.snapshot.signatures[role];
       if (!signature || !signature.signedAt) return reply({ error: "Signature introuvable" }, 404);
       try { const displaySignedAt = displaySignatureTime(body.displaySignedAt); const snapshot = { ...current.snapshot, signatures: { ...current.snapshot.signatures, [role]: { ...signature, ...(displaySignedAt ? { displaySignedAt } : {}) } } }; if (!displaySignedAt) delete snapshot.signatures[role].displaySignedAt; const saved = updateInspectionRevisionDraft(record, stage, record.dossier[stage], record.dossier.media && record.dossier.media[stage], auth.session.operator, revision, snapshot); record.inspectionRevisions = saved.inspectionRevisions; await write(env, record); return reply({ inspection: record, revision: saved.revision }); } catch (error) { return reply({ error: error.message }, error.status || 409); }

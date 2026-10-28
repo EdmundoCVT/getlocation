@@ -250,7 +250,8 @@
       const response = standaloneId
         ? await json(await api("/api/standalone-inspections", { method: "POST", headers: { "Content-Type": "application/json", "X-EDL-Request-ID": saveRequestId, "X-EDL-Body-Bytes": String(new TextEncoder().encode(standalonePayload).byteLength) }, body: standalonePayload }))
         : await json(await api("/api/contract-dossier-agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, action: "update-" + mode, revision: inspectionRevision, finalize: Boolean(finalize) }) }));
-      dossier = standaloneId ? response.inspection.dossier : response.dossier;
+      if (standaloneId) { if (response.inspection && response.inspection.dossier) dossier = response.inspection.dossier; }
+      else dossier = response.dossier;
       if (response.revision) { inspectionRevision = response.revision.revision; revisionList = revisionList.map(item => item.revision === inspectionRevision ? { ...item, ...response.revision } : item); dossier[mode] = response.revision.snapshot || dossier[mode]; dossier.media = { ...(dossier.media || {}), [mode]: response.revision.media || [] }; }
       finalized = Boolean(response.revision ? response.revision.status === "finalized" : dossier[mode] && dossier[mode].finalizedAt);
       if (revision === version) { dirty = false; saveFailed = false; lastSavedAt = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); for (const role of ["client", "agence"]) pads[role].acknowledge(dossier[mode].signatures && dossier[mode].signatures[role]); }

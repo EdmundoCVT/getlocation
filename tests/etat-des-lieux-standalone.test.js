@@ -145,6 +145,9 @@ test("V3 : une version finalisée peut créer une correction même si un autre b
   assert.doesNotMatch(source, /Une correction est déjà en cours/);
   assert.match(source, /action: "create-revision"/);
   assert.match(source, /baseRevision: inspectionRevision/);
+  assert.match(source, /if \(standaloneId\) \{ if \(response\.inspection && response\.inspection\.dossier\) dossier = response\.inspection\.dossier; \}/);
+  assert.match(source, /dossier\[mode\] = response\.revision\.snapshot \|\| dossier\[mode\]/, "la réponse standalone allégée réhydrate le dossier depuis la seule révision retournée");
+  assert.match(page, /inspection-page\.js\?v=13/);
   assert.match(source, /Retirer de cette version/);
 });
 test("PDF utilitaire : le renderer utilise deux grilles, jamais une page par vue", () => {

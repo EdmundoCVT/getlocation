@@ -166,25 +166,26 @@ test("update-stage renvoie un diagnostic safe et laisse un breadcrumb temporaire
   assert.equal(body.diagnostic.stage, "after-audit-log");
   assert.equal(body.diagnostic.revisionCount, 1);
   assert.equal(body.diagnostic.signatureCopies, 2);
-  assert.ok(body.diagnostic.recordBytes > body.diagnostic.snapshotBytes);
+  assert.equal(body.diagnostic.snapshotBytes, null, "aucune sérialisation supplémentaire du snapshot pour le diagnostic");
+  assert.equal(body.diagnostic.inspectionRevisionsBytes, null, "aucune sérialisation supplémentaire de l'historique pour le diagnostic");
   assert.ok(body.diagnostic.signatureBytes > 100);
   assert.equal(body.diagnostic.mediaCount, 0);
   assert.equal(body.diagnostic.bodyBytes, 1234);
   assert.ok(Array.isArray(body.diagnostic.timings));
 
-  const breadcrumbRaw = await kv.get(DIAGNOSTIC_PREFIX + id + ":m");
+  const breadcrumbRaw = await kv.get(DIAGNOSTIC_PREFIX + id + ":k");
   const breadcrumb = JSON.parse(breadcrumbRaw);
   assert.equal(breadcrumb.v, 2);
-  assert.equal(breadcrumb.s, "m");
+  assert.equal(breadcrumb.s, "k");
   assert.equal(breadcrumb.z[0], body.diagnostic.recordBytes);
   assert.ok(Buffer.byteLength(breadcrumbRaw) < 300, "le breadcrumb reste strictement compact");
-  assert.deepEqual([...kv._raw.keys()].filter(key => key.startsWith(DIAGNOSTIC_PREFIX + id + ":")).map(key => key.slice(-1)).sort(), [..."abcdefghijklm"], "chaque étape utilise une clé KV distincte");
+  assert.deepEqual([...kv._raw.keys()].filter(key => key.startsWith(DIAGNOSTIC_PREFIX + id + ":")).map(key => key.slice(-1)).sort(), ["a", "g", "k"], "seuls trois checkpoints KV essentiels sont écrits");
   const lookup = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections?diagnostic=" + id + "&id=" + inspection.id, { session }), env);
   assert.equal(lookup.status, 200);
-  assert.equal((await lookup.json()).diagnostic.stage, "after-audit-log");
+  assert.equal((await lookup.json()).diagnostic.stage, "after-kv-write");
 });
 
-test("update-stage persiste snapshot-validation avant une erreur applicative précoce", async () => {
+test("update-stage renvoie l'erreur de validation sans multiplier les breadcrumbs KV", async () => {
   const kv = createFakeKv(), env = makeAgencyEnv({ DOCUMENTS_BUCKET: bucket(), RESERVATIONS_KV: kv }), session = await loginAgency(env);
   const createResponse = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create", mode: "retour", client: {}, vehicule: {} } }), env);
   const inspection = (await createResponse.json()).inspection, id = "edlreq_1234abcd";
@@ -192,11 +193,55 @@ test("update-stage persiste snapshot-validation avant une erreur applicative pr�
   request.headers.set("X-EDL-Request-ID", id);
   const response = await handleStandaloneInspections(request, env);
   assert.equal(response.status, 400);
-  const breadcrumbRaw = await kv.get(DIAGNOSTIC_PREFIX + id + ":f"), breadcrumb = JSON.parse(breadcrumbRaw);
-  assert.equal(breadcrumb.s, "f");
-  assert.equal(breadcrumb.i, inspection.id);
-  assert.equal(breadcrumb.r, 1);
-  assert.ok(Buffer.byteLength(breadcrumbRaw) < 180);
+  const body = await response.json();
+  assert.equal(body.diagnostic.stage, "snapshot-validation");
+  assert.deepEqual([...kv._raw.keys()].filter(key => key.startsWith(DIAGNOSTIC_PREFIX + id + ":")).map(key => key.slice(-1)), ["a"]);
+});
+
+test("bug production : V3 autonome avec signatures héritées se sauvegarde puis se finalise sans toucher V1/V2", async () => {
+  const storage = bucket(), env = makeAgencyEnv({ DOCUMENTS_BUCKET: storage, RESERVATIONS_KV: createFakeKv() }), session = await loginAgency(env);
+  const id = "edl_5151515151515151";
+  const imageDataUrl = "data:image/jpeg;base64," + fs.readFileSync(path.join(__dirname, "..", "images", "opel-corsa.jpg")).toString("base64");
+  assert.ok(imageDataUrl.length > 50000, "la signature de test est réaliste");
+  const snapshot = report(50000);
+  snapshot.signatures = {
+    client: { name: "Client", imageDataUrl, signedAt: "2026-10-28T06:00:00Z" },
+    agence: { name: "Agence", imageDataUrl, signedAt: "2026-10-28T06:01:00Z" }
+  };
+  const media = [{ key: `inspection-standalone/${id}/retour/v1/photo.jpg`, slot: "avant" }];
+  const v1 = { revision: 1, status: "finalized", snapshot: structuredClone(snapshot), media, pdfKey: "v1.pdf", finalizedAt: "2026-10-28T06:02:00Z" };
+  const v2 = { revision: 2, status: "draft", snapshot: structuredClone(snapshot), media: structuredClone(media), pdfKey: null, basedOnRevision: 1 };
+  const v3 = { revision: 3, status: "draft", snapshot: structuredClone(snapshot), media: structuredClone(media), pdfKey: null, basedOnRevision: 1 };
+  const v1Before = JSON.stringify(v1), v2Before = JSON.stringify(v2);
+  await env.RESERVATIONS_KV.put("standalone-inspection:" + id, JSON.stringify({ id, kind: "standalone-inspection", mode: "retour", status: "finalized", dossier: { retour: v1.snapshot, media: { depart: [], retour: media } }, inspectionRevisions: { retour: [v1, v2, v3] } }));
+
+  const saveRequest = agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "update-stage", id, revision: 3, stage: { ...snapshot, km: 50200 }, finalize: false } });
+  saveRequest.headers.set("X-EDL-Request-ID", "edlreq_51515151");
+  const saved = await handleStandaloneInspections(saveRequest, env);
+  assert.equal(saved.status, 200);
+  assert.match(saved.headers.get("content-type"), /application\/json/);
+  const savedBody = await saved.json();
+  assert.equal(savedBody.inspection, undefined, "la réponse n'embarque plus tout l'historique lourd");
+  assert.equal(savedBody.revision.revision, 3);
+  assert.equal(savedBody.revision.snapshot.km, 50200);
+  const timingStages = savedBody.diagnostic.timings.map(item => item.stage);
+  for (const stage of ["list-revisions-update", "target-clone", "snapshot-assign", "revision-update", "record-serialization"]) assert.ok(timingStages.includes(stage), `timing ${stage} présent`);
+  let persisted = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + id));
+  assert.equal(JSON.stringify(persisted.inspectionRevisions.retour[0]), v1Before);
+  assert.equal(JSON.stringify(persisted.inspectionRevisions.retour[1]), v2Before);
+
+  const finalized = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "update-stage", id, revision: 3, stage: savedBody.revision.snapshot, finalize: true } }), env);
+  assert.equal(finalized.status, 200);
+  assert.match(finalized.headers.get("content-type"), /application\/json/);
+  const finalizedBody = await finalized.json();
+  assert.equal(finalizedBody.revision.status, "finalized");
+  assert.match(finalizedBody.revision.pdfKey, /\/retour\/v3\.pdf$/);
+  persisted = JSON.parse(await env.RESERVATIONS_KV.get("standalone-inspection:" + id));
+  assert.equal(JSON.stringify(persisted.inspectionRevisions.retour[0]), v1Before);
+  assert.equal(JSON.stringify(persisted.inspectionRevisions.retour[1]), v2Before);
+  assert.equal(persisted.inspectionRevisions.retour[2].status, "finalized");
+  assert.ok(storage.objects.has(persisted.inspectionRevisions.retour[2].pdfKey));
+  assert.ok(storage.objects.has("v1.pdf") === false, "le PDF historique V1 n'est ni lu ni réécrit");
 });
 
 test("EDL autonome : un binding KV absent retourne une erreur JSON diagnostiquable", async () => {

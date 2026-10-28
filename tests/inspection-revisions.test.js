@@ -103,6 +103,55 @@ test("plusieurs brouillons parallèles peuvent repartir de la même version fina
   assert.throws(() => createInspectionRevision({ inspectionRevisions: v3Finalized.inspectionRevisions }, "depart", null, null, "agent", 99), /La version source doit être finalisée\./);
 });
 
+test("copy-on-write : sauvegarder V3 ne sérialise ni ne clone V1/V2 et réutilise les chaînes de signature", () => {
+  const imageDataUrl = "data:image/png;base64," + "A".repeat(200 * 1024);
+  const snapshot = km => ({ km, dommages: "", signatures: { client: { name: "Client", imageDataUrl, signedAt: "a" }, agence: { name: "Agence", imageDataUrl, signedAt: "b" } } });
+  const v1 = { revision: 1, status: "finalized", snapshot: snapshot(1), media: [{ key: "v1.jpg" }], pdfKey: "v1.pdf" };
+  const v2 = { revision: 2, status: "draft", snapshot: snapshot(2), media: [{ key: "v1.jpg" }], pdfKey: null };
+  const v3 = { revision: 3, status: "draft", snapshot: snapshot(3), media: [{ key: "v1.jpg" }], pdfKey: null };
+  const v1Before = JSON.stringify(v1), v2Before = JSON.stringify(v2), incoming = snapshot(300);
+  const stringify = JSON.stringify, parse = JSON.parse;
+  let stringifyCalls = 0, parseCalls = 0;
+  JSON.stringify = (...args) => { stringifyCalls++; return stringify(...args); };
+  JSON.parse = (...args) => { parseCalls++; return parse(...args); };
+  let saved;
+  try { saved = updateInspectionRevisionDraft({ inspectionRevisions: { depart: [v1, v2, v3] } }, "depart", null, null, "agent", 3, incoming); }
+  finally { JSON.stringify = stringify; JSON.parse = parse; }
+  assert.equal(stringifyCalls, 0);
+  assert.equal(parseCalls, 0);
+  assert.strictEqual(saved.inspectionRevisions.depart[0], v1, "V1 est réutilisée sans copie");
+  assert.strictEqual(saved.inspectionRevisions.depart[1], v2, "V2 est réutilisée sans copie");
+  assert.notStrictEqual(saved.inspectionRevisions.depart[2], v3, "seule l'enveloppe V3 est remplacée");
+  assert.notStrictEqual(saved.revision.snapshot.signatures.client, incoming.signatures.client, "l'objet signature V3 reste indépendant");
+  assert.strictEqual(saved.revision.snapshot.signatures.client.imageDataUrl, imageDataUrl, "la chaîne base64 immutable est réutilisée");
+  incoming.signatures.client.name = "Mutation tardive";
+  assert.equal(saved.revision.snapshot.signatures.client.name, "Client");
+  assert.equal(JSON.stringify(v1), v1Before);
+  assert.equal(JSON.stringify(v2), v2Before);
+});
+
+test("charge copy-on-write : 10 sauvegardes à 50/100/200 Ko et V10 restent proportionnelles à la cible", () => {
+  for (const signatureKb of [50, 100, 200]) {
+    const imageDataUrl = "data:image/png;base64," + "A".repeat(signatureKb * 1024);
+    const snapshot = km => ({ km, signatures: { client: { imageDataUrl, signedAt: "a" }, agence: { imageDataUrl, signedAt: "b" } } });
+    let record = { inspectionRevisions: { depart: [1, 2, 3].map(revision => ({ revision, status: revision === 1 ? "finalized" : "draft", snapshot: snapshot(revision), media: [], pdfKey: revision === 1 ? "v1.pdf" : null })) } };
+    const v1 = record.inspectionRevisions.depart[0], v2 = record.inspectionRevisions.depart[1];
+    for (let pass = 0; pass < 10; pass++) record = { inspectionRevisions: updateInspectionRevisionDraft(record, "depart", null, null, "agent", 3, snapshot(300 + pass)).inspectionRevisions };
+    assert.strictEqual(record.inspectionRevisions.depart[0], v1);
+    assert.strictEqual(record.inspectionRevisions.depart[1], v2);
+    assert.equal(record.inspectionRevisions.depart[2].snapshot.km, 309);
+  }
+
+  const imageDataUrl = "data:image/png;base64," + "B".repeat(200 * 1024);
+  const snapshot = km => ({ km, signatures: { client: { imageDataUrl, signedAt: "a" }, agence: { imageDataUrl, signedAt: "b" } } });
+  const revisions = Array.from({ length: 10 }, (_, index) => ({ revision: index + 1, status: index ? "draft" : "finalized", snapshot: snapshot(index + 1), media: [], pdfKey: index ? null : "v1.pdf" }));
+  const historical = revisions.slice(0, 9);
+  let record = { inspectionRevisions: { depart: revisions } };
+  for (let pass = 0; pass < 10; pass++) record = { inspectionRevisions: updateInspectionRevisionDraft(record, "depart", null, null, "agent", 10, snapshot(1000 + pass)).inspectionRevisions };
+  historical.forEach((revision, index) => assert.strictEqual(record.inspectionRevisions.depart[index], revision));
+  assert.equal(record.inspectionRevisions.depart[9].snapshot.km, 1009);
+});
+
 test("Drive crée des sources et noms distincts pour chaque révision EDL", () => {
   const jobs = jobsForRecord({ id: "res_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", contractNumero: "GL-1", contractVersion: { version: 1 }, inspectionRevisions: { depart: [
     { revision: 1, status: "finalized", pdfKey: "inspection-pdf/x/depart/v1.pdf", media: [{ key: "legacy/a.jpg", slot: "avant", contentType: "image/jpeg" }] },

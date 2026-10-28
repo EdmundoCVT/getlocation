@@ -2,15 +2,19 @@
 // modifiable dès qu'un document est versionné; les champs historiques ne sont
 // qu'une lecture V1 de compatibilité.
 const STAGES = new Set(["depart", "retour"]);
-const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+// Copie les tableaux/objets sans sérialiser les grosses chaînes base64. Les
+// primitives JS (dont les strings immuables) peuvent être partagées en mémoire
+// sans créer de mutation croisée entre deux révisions.
+function clone(value) { if (Array.isArray(value)) return value.map(clone); if (value && typeof value === "object") { const copy = {}; for (const key of Object.keys(value)) copy[key] = clone(value[key]); return copy; } return value; }
 const validStage = stage => STAGES.has(stage);
 function fail(message, status = 409) { const error = new Error(message); error.status = status; throw error; }
 function revisionReason(value) { return typeof value === "string" ? value.trim().slice(0, 500) : ""; }
 function legacyRevision(stage, snapshot, media, actor) { if (!snapshot) return []; const finalized = Boolean(snapshot.finalizedAt || snapshot.completedAt); return [{ revision: 1, status: finalized ? "finalized" : "draft", snapshot: clone(snapshot), media: clone(media || []), pdfKey: null, finalizedAt: snapshot.finalizedAt || (finalized ? snapshot.completedAt : null), createdAt: snapshot.completedAt || null, createdBy: actor || null, basedOnRevision: null, legacy: true }]; }
-function listInspectionRevisions(container, stage, fallbackSnapshot, fallbackMedia, actor) { if (!validStage(stage)) return []; const stored = container && container.inspectionRevisions && container.inspectionRevisions[stage]; return Array.isArray(stored) && stored.length ? clone(stored) : legacyRevision(stage, fallbackSnapshot, fallbackMedia, actor); }
+function storedInspectionRevisions(container, stage, fallbackSnapshot, fallbackMedia, actor) { if (!validStage(stage)) return []; const stored = container && container.inspectionRevisions && container.inspectionRevisions[stage]; return Array.isArray(stored) && stored.length ? stored : legacyRevision(stage, fallbackSnapshot, fallbackMedia, actor); }
+function listInspectionRevisions(container, stage, fallbackSnapshot, fallbackMedia, actor) { return clone(storedInspectionRevisions(container, stage, fallbackSnapshot, fallbackMedia, actor)); }
 function getInspectionDocument(container, stage, fallbackSnapshot, fallbackMedia, actor) { return { stage, revisions: listInspectionRevisions(container, stage, fallbackSnapshot, fallbackMedia, actor) }; }
-function getInspectionRevision(container, stage, fallbackSnapshot, fallbackMedia, actor, revision) { return listInspectionRevisions(container, stage, fallbackSnapshot, fallbackMedia, actor).find(item => item.revision === Number(revision)) || null; }
-function getLatestInspectionRevision(container, stage, fallbackSnapshot, fallbackMedia, actor) { const revisions = listInspectionRevisions(container, stage, fallbackSnapshot, fallbackMedia, actor); return revisions.length ? revisions[revisions.length - 1] : null; }
+function getInspectionRevision(container, stage, fallbackSnapshot, fallbackMedia, actor, revision) { const item = storedInspectionRevisions(container, stage, fallbackSnapshot, fallbackMedia, actor).find(entry => entry.revision === Number(revision)); return item ? clone(item) : null; }
+function getLatestInspectionRevision(container, stage, fallbackSnapshot, fallbackMedia, actor) { const revisions = storedInspectionRevisions(container, stage, fallbackSnapshot, fallbackMedia, actor); return revisions.length ? clone(revisions[revisions.length - 1]) : null; }
 const latestInspectionRevision = getLatestInspectionRevision;
 function materializeInspectionRevisions(container, stage, fallbackSnapshot, fallbackMedia, actor) { return { ...((container && container.inspectionRevisions) || {}), [stage]: listInspectionRevisions(container, stage, fallbackSnapshot, fallbackMedia, actor) }; }
 function initializeInspectionRevision(container, stage, fallbackSnapshot, fallbackMedia, actor) {
@@ -21,10 +25,25 @@ function initializeInspectionRevision(container, stage, fallbackSnapshot, fallba
   const revision = { revision: 1, status: "draft", snapshot: null, media: [], pdfKey: null, finalizedAt: null, createdAt: now, createdBy: actor || null, basedOnRevision: null, revisionReason: null };
   return { revisions: [revision], revision: clone(revision), inspectionRevisions: { ...((container && container.inspectionRevisions) || {}), [stage]: [revision] }, created: true };
 }
-function withRevision(container, stage, fallbackSnapshot, fallbackMedia, actor, revision, mutate) { if (!validStage(stage)) fail("Type d’état des lieux invalide", 400); const revisions = listInspectionRevisions(container, stage, fallbackSnapshot, fallbackMedia, actor); const index = revisions.findIndex(item => item.revision === Number(revision)); if (index < 0) fail("Révision introuvable", 404); if (revisions[index].status !== "draft") fail("Cette révision finalisée est immuable"); const next = clone(revisions[index]); mutate(next); revisions[index] = next; return { revisions, revision: clone(next), inspectionRevisions: { ...((container && container.inspectionRevisions) || {}), [stage]: revisions } }; }
+function withRevision(container, stage, fallbackSnapshot, fallbackMedia, actor, revision, mutate) {
+  if (!validStage(stage)) fail("Type d’état des lieux invalide", 400);
+  let started = Date.now();
+  const stored = storedInspectionRevisions(container, stage, fallbackSnapshot, fallbackMedia, actor);
+  const revisions = stored.slice();
+  const updateTimings = [{ stage: "list-revisions-update", durationMs: Math.max(0, Date.now() - started) }];
+  const index = revisions.findIndex(item => item.revision === Number(revision));
+  if (index < 0) fail("Révision introuvable", 404);
+  if (revisions[index].status !== "draft") fail("Cette révision finalisée est immuable");
+  started = Date.now();
+  const next = { ...revisions[index] };
+  updateTimings.push({ stage: "target-clone", durationMs: Math.max(0, Date.now() - started) });
+  const mutationTimings = mutate(next) || [];
+  revisions[index] = next;
+  return { revisions, revision: next, inspectionRevisions: { ...((container && container.inspectionRevisions) || {}), [stage]: revisions }, updateTimings: [...updateTimings, ...mutationTimings] };
+}
 function createInspectionRevision(container, stage, fallbackSnapshot, fallbackMedia, actor, baseRevision, reason) { const revisions = listInspectionRevisions(container, stage, fallbackSnapshot, fallbackMedia, actor); const requested = Number(baseRevision); const base = Number.isInteger(requested) ? revisions.find(item => item.revision === requested) : revisions.slice().reverse().find(item => item.status === "finalized"); if (!base || base.status !== "finalized") fail("La version source doit être finalisée."); const snapshot = clone(base.snapshot || {}); delete snapshot.completedAt; delete snapshot.finalizedAt; const next = { revision: Math.max(...revisions.map(item => item.revision)) + 1, status: "draft", snapshot, media: clone(base.media || []), pdfKey: null, finalizedAt: null, createdAt: new Date().toISOString(), createdBy: actor || null, basedOnRevision: base.revision, revisionReason: revisionReason(reason) || null }; const all = [...revisions, next]; return { revisions: all, revision: clone(next), inspectionRevisions: { ...((container && container.inspectionRevisions) || {}), [stage]: all } }; }
-function updateInspectionRevisionDraft(container, stage, fallbackSnapshot, fallbackMedia, actor, revision, snapshot) { return withRevision(container, stage, fallbackSnapshot, fallbackMedia, actor, revision, next => { next.snapshot = clone(snapshot); next.updatedAt = new Date().toISOString(); }); }
-function finalizeInspectionRevision(container, stage, fallbackSnapshot, fallbackMedia, actor, revision, snapshot) { return withRevision(container, stage, fallbackSnapshot, fallbackMedia, actor, revision, next => { next.snapshot = clone(snapshot || next.snapshot); if (!next.snapshot || !next.snapshot.signatures || !next.snapshot.signatures.client || !next.snapshot.signatures.agence) fail("Les deux signatures sont requises", 400); next.status = "finalized"; next.finalizedAt = new Date().toISOString(); }); }
+function updateInspectionRevisionDraft(container, stage, fallbackSnapshot, fallbackMedia, actor, revision, snapshot) { return withRevision(container, stage, fallbackSnapshot, fallbackMedia, actor, revision, next => { const started = Date.now(); next.snapshot = clone(snapshot); next.updatedAt = new Date().toISOString(); return [{ stage: "snapshot-assign", durationMs: Math.max(0, Date.now() - started) }]; }); }
+function finalizeInspectionRevision(container, stage, fallbackSnapshot, fallbackMedia, actor, revision, snapshot) { return withRevision(container, stage, fallbackSnapshot, fallbackMedia, actor, revision, next => { const started = Date.now(); next.snapshot = clone(snapshot || next.snapshot); if (!next.snapshot || !next.snapshot.signatures || !next.snapshot.signatures.client || !next.snapshot.signatures.agence) fail("Les deux signatures sont requises", 400); next.status = "finalized"; next.finalizedAt = new Date().toISOString(); return [{ stage: "snapshot-assign", durationMs: Math.max(0, Date.now() - started) }]; }); }
 function getRevisionMedia(container, stage, fallbackSnapshot, fallbackMedia, actor, revision) { const item = getInspectionRevision(container, stage, fallbackSnapshot, fallbackMedia, actor, revision); return item ? clone(item.media || []) : null; }
 function setRevisionMedia(container, stage, fallbackSnapshot, fallbackMedia, actor, revision, media) { return withRevision(container, stage, fallbackSnapshot, fallbackMedia, actor, revision, next => { next.media = clone(media || []); next.updatedAt = new Date().toISOString(); }); }
 function getRevisionPdf(container, stage, fallbackSnapshot, fallbackMedia, actor, revision) { const item = getInspectionRevision(container, stage, fallbackSnapshot, fallbackMedia, actor, revision); return item && item.pdfKey || null; }
