@@ -136,6 +136,61 @@ test("création EDL indépendante : réserve la fenêtre avant la requête puis 
   assert.match(source, /create\.disabled=true/);
 });
 
+test("création EDL indépendante : renouvelle un CSRF obsolète puis rejoue le POST une seule fois", async () => {
+  const window = buildWindow();
+  const csrfA = "a".repeat(64), csrfB = "b".repeat(64), calls = [];
+  window.__backOffice.setAgencyCsrfTokenForTest(csrfA);
+  window.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    if (String(url) === "/api/agency-session") return apiResponse(200, { authenticated: true, csrfToken: csrfB }, String(url));
+    const posts = calls.filter((call) => call.url === "/api/standalone-inspections");
+    return posts.length === 1
+      ? apiResponse(403, { error: "Jeton CSRF invalide" }, String(url))
+      : apiResponse(201, { inspection: { id: "edl_test" } }, String(url));
+  };
+
+  const result = await window.__backOffice.apiPostForTest("/api/standalone-inspections", { action: "create" });
+  const posts = calls.filter((call) => call.url === "/api/standalone-inspections");
+  assert.equal(result.status, 201);
+  assert.equal(posts.length, 2, "un essai initial et un seul retry");
+  assert.equal(calls.filter((call) => call.url === "/api/agency-session").length, 1);
+  assert.equal(posts[0].options.headers["X-Agency-Csrf"], csrfA);
+  assert.equal(posts[1].options.headers["X-Agency-Csrf"], csrfB);
+  assert.equal(posts[0].options.credentials, "same-origin");
+  assert.equal(posts[1].options.body, posts[0].options.body);
+});
+
+test("création EDL indépendante : une session expirée bloque le retry et conserve l'erreur explicite", async () => {
+  const window = buildWindow();
+  const calls = [];
+  window.__backOffice.setAgencyCsrfTokenForTest("a".repeat(64));
+  window.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    if (String(url) === "/api/agency-session") return apiResponse(200, { authenticated: false }, String(url));
+    return apiResponse(403, { error: "Jeton CSRF invalide" }, String(url));
+  };
+
+  await assert.rejects(
+    window.__backOffice.apiPostForTest("/api/standalone-inspections", { action: "create" }),
+    /Votre session agence a expiré\. Reconnectez-vous pour enregistrer vos modifications\./
+  );
+  assert.equal(calls.filter((call) => call.url === "/api/standalone-inspections").length, 1, "aucun retry métier");
+});
+
+test("création EDL indépendante : les autres 403 ne rafraîchissent pas la session", async () => {
+  const window = buildWindow();
+  const calls = [];
+  window.__backOffice.setAgencyCsrfTokenForTest("a".repeat(64));
+  window.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    return apiResponse(403, { error: "Origine non autorisée" }, String(url));
+  };
+
+  const result = await window.__backOffice.apiPostForTest("/api/standalone-inspections", { action: "create" });
+  assert.equal(result.status, 403);
+  assert.equal(calls.length, 1);
+});
+
 test("création EDL : propose explicitement départ/retour et lié/indépendant", () => {
   const window = buildWindow();
   window.__backOffice.openStandaloneInspectionCreationForTest();

@@ -589,11 +589,15 @@ window.__backOffice = {
   renderCreatedDepositLinkForTest: renderCreatedDepositLink,
   renderSyncStatusForTest: function(rental){ currentRental = rental; renderSyncStatus(); },
   renderInspectionListForTest: function(rentals, standalone){ inspectionItems = (rentals || []).flatMap(normalizeRentalInspections).concat((standalone || []).map(normalizeStandaloneInspection)); inspectionFilter = 'all'; inspectionModeFilter = 'all'; inspectionLoadFailed = false; document.getElementById('inspectionSearch').value = ''; document.getElementById('inspectionSort').value = 'recent'; renderInspectionList(); },
-  showInspectionSectionForTest: function(){ showSection('inspectionsSection'); }
+  showInspectionSectionForTest: function(){ showSection('inspectionsSection'); },
+  apiPostForTest: apiPost,
+  setAgencyCsrfTokenForTest: function(token){ agenceCsrfToken = token; }
 };
 
 // ================= Appels API agence ================= //
 var agenceCsrfToken = null;
+var agenceCsrfRefreshPromise = null;
+var AGENCY_SESSION_EXPIRED_MESSAGE = 'Votre session agence a expiré. Reconnectez-vous pour enregistrer vos modifications.';
 
 function parseBackOfficeApiResponse(r, url){
   var type=r.headers&&r.headers.get?r.headers.get('content-type')||'':'',status=Number(r.status)||0;
@@ -611,13 +615,31 @@ function parseBackOfficeApiResponse(r, url){
 function apiGet(url){
   return fetch(url, { credentials: 'same-origin' }).then(function(r){ return parseBackOfficeApiResponse(r,url); });
 }
+function refreshAgencyCsrfToken(){
+  if(agenceCsrfRefreshPromise)return agenceCsrfRefreshPromise;
+  agenceCsrfRefreshPromise=apiGet('/api/agency-session').then(function(res){
+    var token=res.ok&&res.json&&res.json.authenticated===true&&typeof res.json.csrfToken==='string'&&/^[a-f0-9]{64}$/.test(res.json.csrfToken)?res.json.csrfToken:null;
+    if(!token){var error=new Error(AGENCY_SESSION_EXPIRED_MESSAGE);error.code='AGENCY_SESSION_EXPIRED';throw error;}
+    agenceCsrfToken=token;
+    return token;
+  }).finally(function(){agenceCsrfRefreshPromise=null;});
+  return agenceCsrfRefreshPromise;
+}
 function apiPost(url, body){
-  return fetch(url, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json', 'X-Agency-Csrf': agenceCsrfToken || '' },
-    body: JSON.stringify(body)
-  }).then(function(r){ return parseBackOfficeApiResponse(r,url); });
+  var serializedBody=JSON.stringify(body),initialToken=agenceCsrfToken||'';
+  function send(token){
+    return fetch(url, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-Agency-Csrf': token || '' },
+      body: serializedBody
+    }).then(function(r){ return parseBackOfficeApiResponse(r,url); });
+  }
+  return send(initialToken).then(function(res){
+    if(res.status!==403||!res.json||res.json.error!=='Jeton CSRF invalide')return res;
+    if(agenceCsrfToken&&agenceCsrfToken!==initialToken)return send(agenceCsrfToken);
+    return refreshAgencyCsrfToken().then(send);
+  });
 }
 function alerteConnexion(){ alert('Connexion au serveur impossible. Vérifiez votre connexion et réessayez.'); }
 
