@@ -149,7 +149,7 @@ async function handleCreatePayment(request, env) {
     return new Response(JSON.stringify({ error: "Requête invalide" }), { status: 400, headers });
   }
 
-  const { valid, errors, vehicule, options, codesPromo, enfantAge, enfantPoids, protection, lieuPriseType, lieuRetourType, adresseExactePriseAConfirmer, adresseExacteRetourAConfirmer, deliveryDistanceKm } = validateReservationInput(payload);
+  const { valid, errors, vehicule, options, codesPromo, enfantAge, enfantPoids, protection, lieuPriseType, lieuRetourType, adresseExactePriseAConfirmer, adresseExacteRetourAConfirmer, deliveryDistanceKm, deliveryDistanceSource, deliveryReferenceLabel } = validateReservationInput(payload);
   if (!valid) {
     return new Response(JSON.stringify({ error: "Requête invalide", details: errors }), { status: 400, headers });
   }
@@ -236,6 +236,8 @@ async function handleCreatePayment(request, env) {
     adresseExactePriseAConfirmer,
     adresseExacteRetourAConfirmer,
     deliveryDistanceKm,
+    deliveryDistanceSource,
+    deliveryReferenceLabel,
     jours: prix.jours,
     sousTotalBrut: prix.sousTotalBrut,
     reductionDuree: prix.reductionDuree,

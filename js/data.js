@@ -2,19 +2,20 @@
 // Location de véhicules dans les Alpes-Maritimes (06) / Côte d'Azur.
 // À remplacer par de vraies données (base de données / CMS) en production.
 //
-// IMPORTANT : le moteur js/pricing.js est la source de vérité des tarifs.
-// horaires et les règles de calcul de durée. Il est chargé tel quel par le
+// IMPORTANT : le moteur js/pricing.js est la source de vérité des tarifs,
+// des horaires et des règles de calcul de durée. Il est chargé tel quel par le
 // navigateur (balise <script>, variables globales) ET requis tel quel par les
 // fonctions Netlify côté serveur (voir l'export gardé en bas de fichier) afin
 // que le prix affiché au client et le prix recalculé par le serveur ne
 // puissent jamais diverger. Ne dupliquez pas ces valeurs ailleurs : modifiez
-// uniquement ce fichier.
+// uniquement js/pricing.js.
 
 // `GETLOCATION_PRICING` est chargé juste avant ce fichier dans le site.
 // Le repli ne sert qu'aux aperçus/tests qui évaluent historiquement data.js
 // seul : il évite une erreur de chargement, sans être utilisé en production.
 const PRICING = typeof module !== "undefined" && module.exports ? require("./pricing.js") : globalThis.GETLOCATION_PRICING || {
   VEHICLE_RATES: { "opel-corsa": { normal: 55 }, "peugeot-2008-hybrid": { normal: 65 }, "peugeot-3008": { normal: 99 }, "toyota-proace-city": { normal: 89 } },
+  DELIVERY: { baseFee: 20, includedKm: 5, perExtraKm: 1 },
   DURATION_DISCOUNTS: [],
   discountForDays: () => ({ rate: 0, label: null }),
   includedMileage: (_id, days) => days * 200,
@@ -32,13 +33,37 @@ const PRICING = typeof module !== "undefined" && module.exports ? require("./pri
 };
 const LIEU_LIVRAISON = "Livraison à l'adresse de votre choix";
 const ADRESSE_PERSONNALISEE = "Saisir une adresse personnalisée";
-const LIEUX_FREQUENTS_LIVRAISON = [
-  "Aéroport Nice Côte d’Azur",
-  "Gare SNCF Nice Saint-Augustin",
-  "Gare SNCF Nice-Ville",
-  "Gare SNCF Cagnes-sur-Mer"
+
+// Distances TARIFAIRES de référence, et non distances routières garanties.
+// Cette table stabilise le prix indépendamment du trafic, de l'itinéraire ou
+// d'un fournisseur GPS. Elle est partagée par le navigateur et le Worker ;
+// la formule monétaire reste exclusivement dans js/pricing.js.
+const DELIVERY_REFERENCE_LOCATIONS = [
+  { label: "Saint-Laurent-du-Var", distanceKm: 0, category: "ville" },
+  { label: "Gare SNCF de Saint-Laurent-du-Var", distanceKm: 1, category: "gare" },
+  { label: "Aéroport Nice Côte d’Azur", distanceKm: 5, category: "aeroport", group: "frequent" },
+  { label: "Gare SNCF Nice Saint-Augustin", distanceKm: 5, category: "gare", group: "frequent" },
+  { label: "Cagnes-sur-Mer", distanceKm: 5, category: "ville" },
+  { label: "Gare SNCF Cagnes-sur-Mer", distanceKm: 6, category: "gare", group: "frequent" },
+  { label: "Villeneuve-Loubet", distanceKm: 8, category: "ville" },
+  { label: "Nice", distanceKm: 10, category: "ville", group: "principal" },
+  { label: "Gare SNCF Nice-Ville", distanceKm: 10, category: "gare", group: "frequent" },
+  { label: "Biot", distanceKm: 13, category: "ville" },
+  { label: "Antibes", distanceKm: 18, category: "ville", group: "principal" },
+  { label: "Gare SNCF d'Antibes", distanceKm: 18, category: "gare" },
+  { label: "Juan-les-Pins", distanceKm: 21, category: "ville" },
+  { label: "Mougins", distanceKm: 24, category: "ville" },
+  { label: "Le Cannet", distanceKm: 26, category: "ville" },
+  { label: "Cannes", distanceKm: 28, category: "ville", group: "principal" },
+  { label: "Gare SNCF de Cannes", distanceKm: 28, category: "gare" },
+  { label: "Cannes-la-Bocca", distanceKm: 32, category: "ville" },
+  { label: "Gare SNCF de Cannes-la-Bocca", distanceKm: 32, category: "gare" },
+  { label: "Monaco", distanceKm: 32, category: "ville" },
+  { label: "Grasse", distanceKm: 33, category: "ville", group: "principal" },
+  { label: "Gare SNCF de Grasse", distanceKm: 34, category: "gare" }
 ];
-const VILLES_PRINCIPALES_LIVRAISON = ["Nice", "Cannes", "Antibes", "Grasse"];
+const LIEUX_FREQUENTS_LIVRAISON = DELIVERY_REFERENCE_LOCATIONS.filter((lieu) => lieu.group === "frequent").map((lieu) => lieu.label);
+const VILLES_PRINCIPALES_LIVRAISON = DELIVERY_REFERENCE_LOCATIONS.filter((lieu) => lieu.group === "principal").map((lieu) => lieu.label);
 
 const LIEUX = [
   LIEU_LIVRAISON
@@ -51,29 +76,11 @@ const LIEUX = [
 // plus rapide et sans risque de faute de frappe. L'adresse exacte ou le
 // point de rencontre détaillé est demandé dans le dossier sécurisé après
 // paiement, jamais dans l'URL de réservation.
-const VILLES_LIVRAISON = [
-  "Grasse",
-  "Cannes",
-  "Cannes-la-Bocca",
-  "Le Cannet",
-  "Mougins",
-  "Antibes",
-  "Juan-les-Pins",
-  "Biot",
-  "Villeneuve-Loubet",
-  "Cagnes-sur-Mer",
-  "Saint-Laurent-du-Var",
-  "Nice",
-  "Monaco",
-  "Gare SNCF de Grasse",
-  "Gare SNCF de Cannes",
-  "Gare SNCF de Cannes-la-Bocca",
-  "Gare SNCF d'Antibes",
-  "Gare SNCF Cagnes-sur-Mer",
-  "Gare SNCF de Saint-Laurent-du-Var",
-  "Gare SNCF Nice-Ville",
-  "Gare SNCF Nice Saint-Augustin"
-];
+const VILLES_LIVRAISON = DELIVERY_REFERENCE_LOCATIONS.map((lieu) => lieu.label);
+
+function getDeliveryReferenceLocation(label) {
+  return DELIVERY_REFERENCE_LOCATIONS.find((lieu) => lieu.label === label) || null;
+}
 
 function formatAdressePersonnalisee(rue, codePostal, ville) {
   return `${ADRESSE_PERSONNALISEE} — ${String(rue || "").trim()}, ${String(codePostal || "").trim()} ${String(ville || "").trim()}`;
@@ -320,7 +327,7 @@ const OPTIONS = [
     ]
   },
   { id: "rehausseur", nom: "Rehausseur", description: "Une solution pratique pour installer un enfant plus grand avec la ceinture du véhicule, sans avoir à emporter votre propre équipement.", type: "jour", prix: 5 },
-  { id: "livraison-adresse", nom: "Livraison du véhicule", description: "Livraison à l'adresse ou au point de rendez-vous choisi sur la Côte d'Azur", type: "forfait", prix: 20 }
+  { id: "livraison-adresse", nom: "Livraison du véhicule", description: "Livraison à l'adresse ou au point de rendez-vous choisi sur la Côte d'Azur", type: "forfait", prix: PRICING.DELIVERY.baseFee }
 ];
 
 // ---------------------------------------------------------------------
@@ -1047,8 +1054,10 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     LIEU_LIVRAISON,
     ADRESSE_PERSONNALISEE,
+    DELIVERY_REFERENCE_LOCATIONS,
     LIEUX_FREQUENTS_LIVRAISON,
     VILLES_PRINCIPALES_LIVRAISON,
+    getDeliveryReferenceLocation,
     formatAdressePersonnalisee,
     parseAdressePersonnalisee,
     libelleAdresseLivraison,

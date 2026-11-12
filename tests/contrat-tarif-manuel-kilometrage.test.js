@@ -12,6 +12,7 @@ const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
 
+const pricingJsSource = fs.readFileSync(path.join(__dirname, "..", "js", "pricing.js"), "utf8");
 const dataJsSource = fs.readFileSync(path.join(__dirname, "..", "js", "data.js"), "utf8");
 const html = fs.readFileSync(path.join(__dirname, "..", "contrat.html"), "utf8");
 
@@ -31,11 +32,12 @@ function extractScriptBody() {
 // directement, pas genererPDF), mais texteConditionsLocation()/
 // sectionsConditionsLocation() sont appelées ailleurs dans le script au
 // chargement ; un DOM minimal suffit.
-function buildWindow() {
+function buildWindow(withCanonicalPricing = false) {
   const dom = new JSDOM(`<!DOCTYPE html><body><div id="contractText"></div></body>`, {
     url: "https://getlocation.fr/contrat.html",
     runScripts: "outside-only"
   });
+  if (withCanonicalPricing) dom.window.eval(pricingJsSource);
   dom.window.eval(dataJsSource);
   dom.window.eval(extractScriptBody());
   return dom.window;
@@ -64,6 +66,20 @@ test("appliquerTarifManuel : inactif par défaut, total = tarif calculé", () =>
   assert.equal(tarif.tarifManuelActif, false);
   assert.equal(tarif.total, prix.total);
   assert.equal(tarif.tarifCalcule, prix.total);
+});
+
+test("nouveau contrat agence : la livraison applique la formule canonique à sa distance", () => {
+  const win = buildWindow(true);
+  const sansLivraison = win.calculerPrixContrat(donneesBase);
+  const avecLivraison = win.calculerPrixContrat({
+    ...donneesBase,
+    livraison: true,
+    deliveryDistanceKm: 28
+  });
+
+  assert.equal(avecLivraison.livraison.distanceKm, 28);
+  assert.equal(avecLivraison.livraison.amount, 43);
+  assert.equal(avecLivraison.total - sansLivraison.total, 43);
 });
 
 test("appliquerTarifManuel : actif avec montant vide ou non numérique => reste inactif", () => {

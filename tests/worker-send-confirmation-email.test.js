@@ -67,6 +67,20 @@ test("confirmation : détaille le tarif fixe, les remises véhicule et les extra
   }
 });
 
+test("confirmation historique : conserve le montant livraison figé sans appliquer la nouvelle grille", () => {
+  const reservation = makeReservation({
+    sousTotalBrut: 108,
+    locationNette: 108,
+    options: [{ id: "livraison-adresse", nom: "Livraison du véhicule", montant: 30 }],
+    deliveryDistanceKm: 10,
+    total: 138
+  });
+  const { text, html } = buildConfirmationEmailContent(reservation);
+  assert.match(text, /Livraison du véhicule\s*: 30\s*€/);
+  assert.match(html, /Livraison du véhicule.*30(?:,00)?\s*€/s);
+  assert.match(text, /Montant total réglé\s*: 138\s*€/);
+});
+
 test("buildConfirmationEmailContent : affiche l'adresse personnalisée complète sans libellé technique", () => {
   const adresse = formatAdressePersonnalisee("12 avenue Jean Médecin", "06000", "Nice");
   const { text, html } = buildConfirmationEmailContent(makeReservation({ adressePrise: adresse, adresseRetour: adresse }));

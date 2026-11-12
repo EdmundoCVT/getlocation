@@ -2244,6 +2244,7 @@ function initPaiementPage() {
       state.showOther = false;
       render();
       if (inputs && inputs.rue) inputs.rue.focus();
+      if (typeof onChange === "function") onChange();
     });
     render();
     return {
@@ -2260,6 +2261,7 @@ function initPaiementPage() {
   const initialTypeRetour = data.lieuRetourType || (parseAdressePersonnalisee(data.adresseRetour) ? "custom" : (LIEUX_FREQUENTS_LIVRAISON.includes(data.adresseRetour) ? "frequent" : "zone"));
   const deliveryPicker = createDeliveryPicker({ frequent: deliveryFrequent, principal: deliveryPrincipal, other: deliveryOther, otherToggle: deliveryOtherToggle, customToggle: deliveryCustomToggle, custom: deliveryCustom, inputs: deliveryInputs, initialValue: data.adressePrise, initialType: initialTypePrise, onChange: () => refreshDeliveryUI() });
   const deliveryDistanceInput = document.getElementById("payment-delivery-distance");
+  const deliveryDistanceManual = document.getElementById("payment-delivery-distance-manual");
   if (deliveryDistanceInput && Number.isInteger(data.deliveryDistanceKm)) deliveryDistanceInput.value = String(data.deliveryDistanceKm);
   const returnPicker = createDeliveryPicker({ frequent: returnFrequent, principal: returnPrincipal, other: returnOther, otherToggle: returnOtherToggle, custom: returnCustom, inputs: returnInputs, initialValue: data.adresseRetour, initialType: initialTypeRetour, isReturn: true, onChange: () => refreshDeliveryUI() });
   if (data.adresseRetour && data.adresseRetour !== data.adressePrise) {
@@ -2275,21 +2277,22 @@ function initPaiementPage() {
   function validateDelivery() {
     const prise = deliveryPicker.getValue();
     const retour = returnToggle && returnToggle.checked ? returnPicker.getValue() : prise;
-    const distance = deliveryDistanceInput ? Number(deliveryDistanceInput.value) : NaN;
+    const reference = getDeliveryReferenceLocation(prise.value);
+    const distance = reference ? reference.distanceKm : (deliveryDistanceInput ? Number(deliveryDistanceInput.value) : NaN);
     const distanceValide = Number.isInteger(distance) && distance >= 0 && distance <= 500;
     const ok = Boolean(prise.value && retour.value && distanceValide);
     const error = document.getElementById("err-payment-adresse-prise");
     const returnError = document.getElementById("err-payment-adresse-retour");
-    if (error) error.textContent = !prise.value ? "Choisissez le lieu où vous souhaitez recevoir le véhicule." : (!distanceValide ? "Indiquez la distance aller affichée par votre GPS, entre 0 et 500 km." : "");
+    if (error) error.textContent = !prise.value ? "Choisissez le lieu où vous souhaitez recevoir le véhicule." : (!distanceValide ? "Indiquez la distance aller de l’adresse personnalisée, entre 0 et 500 km." : "");
     if (returnError) returnError.textContent = retour.value ? "" : "Choisissez le lieu de restitution ou décochez l’adresse différente.";
-    if (deliveryDistanceInput) deliveryDistanceInput.setAttribute("aria-invalid", distanceValide ? "false" : "true");
+    if (deliveryDistanceInput) deliveryDistanceInput.setAttribute("aria-invalid", !reference && !distanceValide ? "true" : "false");
     if (!prise.value) {
       const firstChoice = deliveryFrequent && deliveryFrequent.querySelector("button");
       if (firstChoice) firstChoice.focus();
     } else if (!retour.value) {
       const firstReturnChoice = returnFrequent && returnFrequent.querySelector("button");
       if (firstReturnChoice) firstReturnChoice.focus();
-    } else if (!distanceValide && deliveryDistanceInput) {
+    } else if (!reference && !distanceValide && deliveryDistanceInput) {
       deliveryDistanceInput.focus();
     }
     if (ok) {
@@ -2340,9 +2343,16 @@ function initPaiementPage() {
   refreshDeliveryUI = function () {
     const prise = deliveryPicker.getValue();
     const retour = returnToggle && returnToggle.checked ? returnPicker.getValue() : prise;
+    const reference = getDeliveryReferenceLocation(prise.value);
+    const distanceManuelleRequise = prise.type === "custom";
     const rawDistance = deliveryDistanceInput ? deliveryDistanceInput.value.trim() : "";
-    const distance = rawDistance === "" ? null : Number(rawDistance);
+    const distance = reference ? reference.distanceKm : (rawDistance === "" ? null : Number(rawDistance));
     const distanceValide = Number.isInteger(distance) && distance >= 0 && distance <= 500;
+    if (deliveryDistanceManual) deliveryDistanceManual.hidden = !distanceManuelleRequise;
+    if (deliveryDistanceInput) {
+      deliveryDistanceInput.required = distanceManuelleRequise;
+      deliveryDistanceInput.disabled = !distanceManuelleRequise;
+    }
     data.lieuPrise = LIEU_LIVRAISON;
     data.lieuRetour = LIEU_LIVRAISON;
     data.adressePrise = prise.value;
@@ -2356,16 +2366,16 @@ function initPaiementPage() {
     const routeLink = document.getElementById("payment-delivery-route");
     if (routeLink) {
       const destination = libelleAdresseLivraison(prise.value);
-      routeLink.hidden = !destination;
+      routeLink.hidden = !distanceManuelleRequise || !destination;
       if (destination) routeLink.href = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent("Saint-Laurent-du-Var")}&destination=${encodeURIComponent(destination)}`;
     }
 
     const preview = document.getElementById("payment-delivery-price");
     if (preview) {
       if (!prise.value) {
-        preview.textContent = t("Choisissez un lieu et indiquez la distance pour connaître le prix de livraison.");
+        preview.textContent = t("Choisissez un lieu pour connaître le prix de livraison.");
       } else if (!distanceValide) {
-        preview.textContent = t("Indiquez la distance aller : le prix de livraison s’affichera immédiatement.");
+        preview.textContent = t("Indiquez la distance aller de l’adresse personnalisée : le prix de livraison s’affichera immédiatement.");
       } else {
         const montant = PRICING.deliveryCost(distance);
         preview.textContent = t("Livraison à {lieu} : {montant}", { lieu: t(libelleAdresseLivraison(prise.value)), montant: formatPrixJour(montant) });

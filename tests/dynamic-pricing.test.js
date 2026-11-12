@@ -15,9 +15,9 @@ test("7 — Grand Prix de Monaco : niveau exceptionnelle", () => { const q = quo
 test("8 — Proace 30 jours : remise et kilométrage", () => { const q = quote("toyota-proace-city", "2027-07-01", "2027-07-31"); assert.equal(q.rentalSubtotal, 3270); assert.equal(q.rentalAfterDiscount, 2616); assert.equal(q.includedKm, 6000); });
 test("9 — forfait km et livraison", () => {
   const q = quote("opel-corsa", "2026-10-05", "2026-10-08", { extraMileagePackageId: "km-200", deliveryDistanceKm: 15 });
-  assert.equal(q.rentalAfterDiscount, 165); assert.equal(q.extraMileagePackage.amount, 60); assert.equal(q.delivery.amount, 35); assert.equal(q.total, 260); assert.equal(q.includedKm + q.extraMileagePackage.km, 800);
+  assert.equal(q.rentalAfterDiscount, 165); assert.equal(q.extraMileagePackage.amount, 60); assert.equal(q.delivery.amount, 30); assert.equal(q.total, 255); assert.equal(q.includedKm + q.extraMileagePackage.km, 800);
   const price = calculerPrixTotal({ vehiculeId: "opel-corsa", dateDebut: "2026-10-05", dateFin: "2026-10-08", options: ["km-200", "livraison-adresse"], deliveryDistanceKm: 15 });
-  assert.equal(price.total, 260);
+  assert.equal(price.total, 255);
   assert.deepEqual(price.pricingSnapshot.dates, { debut: "2026-10-05", fin: "2026-10-08" });
   assert.equal(price.pricingSnapshot.kilometresInclus, 800);
 });
@@ -32,13 +32,13 @@ test("livraison A — sans livraison, aucun frais n'est ajouté", () => {
   assert.equal(price.total, 165);
 });
 
-test("livraison B — distance connue, le barème existant reste 20 € + 1 €/km avec minimum 25 €", () => {
+test("livraison B — 20 € incluent 5 km, puis chaque km supplémentaire coûte 1 €", () => {
   const price = calculerPrixTotal({
     vehiculeId: "opel-corsa", dateDebut: "2026-10-05", dateFin: "2026-10-08",
     options: ["livraison-adresse"], deliveryDistanceKm: 15
   });
-  assert.equal(price.livraison.amount, 35);
-  assert.equal(price.total, 200);
+  assert.equal(price.livraison.amount, 30);
+  assert.equal(price.total, 195);
 });
 
 test("livraison C/D — un retour différent ou identique ne change pas silencieusement le tarif aller", () => {
@@ -49,6 +49,6 @@ test("livraison C/D — un retour différent ou identique ne change pas silencie
   };
   const memeLieu = calculerPrixTotal({ ...commun, lieuRetour: commun.lieuPrise, adresseRetour: "Nice" });
   const autreLieu = calculerPrixTotal({ ...commun, lieuRetour: commun.lieuPrise, adresseRetour: "Cannes" });
-  assert.equal(memeLieu.total, 200);
+  assert.equal(memeLieu.total, 195);
   assert.equal(autreLieu.total, memeLieu.total);
 });

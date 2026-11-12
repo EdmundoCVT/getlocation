@@ -5,7 +5,7 @@
 // dates/heures bien formées et futures, longueurs de chaînes bornées) —
 // ne calcule et ne fait jamais confiance à un prix fourni par le client.
 
-const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, LIEUX_FREQUENTS_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS, HEURE_OUVERTURE, HEURE_FERMETURE, instantEuropeParis } = require("../../../js/data.js");
+const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, LIEUX_FREQUENTS_LIVRAISON, VILLES_LIVRAISON, getDeliveryReferenceLocation, parseAdressePersonnalisee, CGL_VERSION, OPTIONS, HEURE_OUVERTURE, HEURE_FERMETURE, instantEuropeParis } = require("../../../js/data.js");
 
 const MAX_LEN = {
   nom: 100,
@@ -44,6 +44,13 @@ function isHeureReservationAutorisee(v) {
 
 function isValidEmail(v) {
   return typeof v === "string" && v.length <= MAX_LEN.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+
+function normaliserEntier(valeur, min, max) {
+  if (valeur === undefined || valeur === null || valeur === "") return null;
+  const nombre = Number(valeur);
+  if (!Number.isInteger(nombre) || nombre < min || nombre > max) return null;
+  return nombre;
 }
 
 // Âge en années révolues à partir d'une date de naissance "YYYY-MM-DD" —
@@ -89,7 +96,8 @@ function validateReservationInput(payload) {
     conducteur,
     idempotencyKey,
     cglAccepted,
-    cglVersion
+    cglVersion,
+    deliveryDistanceKm
   } = payload;
 
   const vehicule = typeof vehiculeId === "string" ? getVehiculeParId(vehiculeId) : null;
@@ -168,6 +176,10 @@ function validateReservationInput(payload) {
   if ((lieuPrise === LIEU_LIVRAISON || lieuRetour === LIEU_LIVRAISON) && !optionsNormalisees.includes("livraison-adresse")) {
     optionsNormalisees.push("livraison-adresse");
   }
+  const livraisonPrise = lieuPrise === LIEU_LIVRAISON;
+  const deliveryReference = livraisonPrise ? getDeliveryReferenceLocation(adressePrise) : null;
+  const deliveryDistanceNormalisee = deliveryReference ? deliveryReference.distanceKm : normaliserEntier(deliveryDistanceKm, 0, 500);
+  if (livraisonPrise && deliveryDistanceNormalisee === null) errors.push("Distance de livraison invalide");
 
   // Code promo : facultatif, simple chaîne bornée (la validité du code lui-
   // même — existe-t-il, quel taux — est vérifiée par getCodePromo() lors du
@@ -230,7 +242,10 @@ function validateReservationInput(payload) {
     lieuPriseType: lieuPriseTypeNormalise,
     lieuRetourType: lieuRetourTypeNormalise,
     adresseExactePriseAConfirmer: lieuPriseTypeNormalise === "zone",
-    adresseExacteRetourAConfirmer: lieuRetourTypeNormalise === "zone"
+    adresseExacteRetourAConfirmer: lieuRetourTypeNormalise === "zone",
+    deliveryDistanceKm: livraisonPrise ? deliveryDistanceNormalisee : null,
+    deliveryDistanceSource: livraisonPrise ? (deliveryReference ? "reference" : "manual") : null,
+    deliveryReferenceLabel: deliveryReference ? deliveryReference.label : null
   };
 }
 

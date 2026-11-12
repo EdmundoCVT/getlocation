@@ -126,10 +126,10 @@ test("protection, options enfant, livraison, jeune conducteur et remise durée s
     deliveryDistanceKm: 0
   });
   assert.equal(resultat.protection.montant, 100); // 5 j × 20 €
-  assert.equal(resultat.optionsMontant, 50 + 25); // siège 5 j × 10 € + livraison minimum 25 €
+  assert.equal(resultat.optionsMontant, 50 + 20); // siège 5 j × 10 € + livraison 0–5 km à 20 €
   assert.equal(resultat.supplementJeuneConducteur.montant, 150); // 5 j × 30 €
   assert.equal(resultat.reductionDuree.montant, 13.75); // 5 % après valorisation journalière
-  assert.equal(resultat.total, 275 - 13.75 + 100 + 75 + 150);
+  assert.equal(resultat.total, 275 - 13.75 + 100 + 70 + 150);
 });
 
 test("changer de formule remplace le montant au lieu de s'y ajouter", () => {

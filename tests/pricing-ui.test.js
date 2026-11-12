@@ -277,7 +277,7 @@ test("initReservationPage : la livraison est ajoutée et facturée sans case à 
 
   const persisted = JSON.parse(window.localStorage.getItem("gl_reservation"));
   assert.ok(persisted.options.includes("livraison-adresse"));
-  assert.match(window.document.getElementById("reservation-summary").textContent, /155/); // 130 € + minimum livraison 25 €
+  assert.match(window.document.getElementById("reservation-summary").textContent, /150/); // 130 € + livraison 0 km à 20 €
 });
 
 test("initReservationPage : cocher une option recalcule le total et le persiste", () => {

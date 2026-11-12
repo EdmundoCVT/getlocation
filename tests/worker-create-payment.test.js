@@ -14,7 +14,7 @@ const assert = require("node:assert/strict");
 const { createFakeKv } = require("./helpers/fake-kv.js");
 const { handleCreatePayment } = require("../src/api/create-payment.js");
 const { createReservation, getReservation } = require("../src/lib/reservation-store.js");
-const { CGL_VERSION } = require("../js/data.js");
+const { CGL_VERSION, formatAdressePersonnalisee } = require("../js/data.js");
 
 function makeEnv(overrides = {}) {
   return { RESERVATIONS_KV: createFakeKv(), RATE_LIMITS_KV: createFakeKv(), ...overrides };
@@ -149,6 +149,72 @@ test("une nouvelle réservation Peugeot 2008 fige le dépôt catalogue à 750 �
     const stored = await getReservation(env, body.reservationId);
     assert.equal(stored.depotGarantie, 750);
     assert.equal(stored.cautionContractuelle, 750);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("destination connue : Cannes ignore 1 km falsifié, fige 28 km et facture 43 €", async () => {
+  const env = makeEnv({ MOLLIE_API_KEY: "test_dummy_for_unit_tests" });
+  const originalFetch = globalThis.fetch;
+  let molliePayload;
+  globalThis.fetch = async (_url, init) => {
+    molliePayload = JSON.parse(init.body);
+    return new Response(JSON.stringify({
+      id: "tr_delivery_cannes",
+      _links: { checkout: { href: "https://www.mollie.com/checkout/test" } }
+    }), { status: 201, headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    const res = await handleCreatePayment(makeRequest({ body: validPayload({
+      lieuPrise: "Livraison à l'adresse de votre choix",
+      lieuRetour: "Livraison à l'adresse de votre choix",
+      adressePrise: "Cannes",
+      adresseRetour: "Cannes",
+      deliveryDistanceKm: 1,
+      options: []
+    }) }), env);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    const stored = await getReservation(env, body.reservationId);
+    const delivery = stored.options.find((option) => option.id === "livraison-adresse");
+    assert.equal(stored.deliveryDistanceKm, 28);
+    assert.equal(stored.deliveryDistanceSource, "reference");
+    assert.equal(stored.deliveryReferenceLabel, "Cannes");
+    assert.equal(delivery.montant, 43);
+    assert.equal(stored.pricingSnapshot.livraison.distanceKm, 28);
+    assert.equal(stored.pricingSnapshot.livraison.amount, 43);
+    assert.equal(molliePayload.amount.value, stored.total.toFixed(2));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("adresse personnalisée : le serveur conserve la distance validée et applique la nouvelle formule", async () => {
+  const env = makeEnv({ MOLLIE_API_KEY: "test_dummy_for_unit_tests" });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    id: "tr_delivery_custom",
+    _links: { checkout: { href: "https://www.mollie.com/checkout/test" } }
+  }), { status: 201, headers: { "Content-Type": "application/json" } });
+  try {
+    const adresse = formatAdressePersonnalisee("12 avenue Jean Médecin", "06000", "Nice");
+    const res = await handleCreatePayment(makeRequest({ body: validPayload({
+      lieuPrise: "Livraison à l'adresse de votre choix",
+      lieuRetour: "Livraison à l'adresse de votre choix",
+      adressePrise: adresse,
+      adresseRetour: adresse,
+      lieuPriseType: "custom",
+      lieuRetourType: "custom",
+      deliveryDistanceKm: 6,
+      options: []
+    }) }), env);
+    assert.equal(res.status, 200);
+    const stored = await getReservation(env, (await res.json()).reservationId);
+    const delivery = stored.options.find((option) => option.id === "livraison-adresse");
+    assert.equal(stored.deliveryDistanceKm, 6);
+    assert.equal(stored.deliveryDistanceSource, "manual");
+    assert.equal(delivery.montant, 21);
   } finally {
     globalThis.fetch = originalFetch;
   }

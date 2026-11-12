@@ -2,6 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { validateReservationInput } = require("../netlify/functions/lib/validate-reservation-input.js");
+const { validateReservationInput: validateWorkerReservationInput } = require("../src/lib/validate-reservation-input.js");
 const { CGL_VERSION, LIEU_LIVRAISON, LIEUX_FREQUENTS_LIVRAISON, VILLES_LIVRAISON, OPTIONS, formatAdressePersonnalisee } = require("../js/data.js");
 
 // Dates calculées par rapport à aujourd'hui (plutôt que codées en dur) pour
@@ -180,6 +181,22 @@ test("accepte une ville de livraison valide (Côte d'Azur) quand le lieu est \"L
   }
 });
 
+test("destination connue : le serveur ignore la distance navigateur et impose la référence", () => {
+  for (const validator of [validateReservationInput, validateWorkerReservationInput]) {
+    const result = validator(basePayload({
+      lieuPrise: LIEU_LIVRAISON,
+      lieuRetour: LIEU_LIVRAISON,
+      adressePrise: "Cannes",
+      adresseRetour: "Cannes",
+      deliveryDistanceKm: 1
+    }));
+    assert.equal(result.valid, true, result.errors.join(", "));
+    assert.equal(result.deliveryDistanceKm, 28);
+    assert.equal(result.deliveryDistanceSource, "reference");
+    assert.equal(result.deliveryReferenceLabel, "Cannes");
+  }
+});
+
 test("normalise le type de lieu et marque l'adresse de zone comme à confirmer", () => {
   const frequent = validateReservationInput(basePayload({
     lieuPrise: LIEU_LIVRAISON, lieuRetour: LIEU_LIVRAISON,
@@ -222,11 +239,28 @@ test("ajoute toujours le supplément livraison côté serveur, même si le navig
 
 test("accepte une adresse personnalisée complète et rejette un code postal invalide", () => {
   const adresse = formatAdressePersonnalisee("12 avenue Jean Médecin", "06000", "Nice");
-  const accepte = validateReservationInput(basePayload({ lieuPrise: LIEU_LIVRAISON, lieuRetour: LIEU_LIVRAISON, adressePrise: adresse, adresseRetour: adresse }));
+  const accepte = validateReservationInput(basePayload({ lieuPrise: LIEU_LIVRAISON, lieuRetour: LIEU_LIVRAISON, adressePrise: adresse, adresseRetour: adresse, deliveryDistanceKm: 6 }));
   assert.equal(accepte.valid, true, accepte.errors.join(", "));
+  assert.equal(accepte.deliveryDistanceKm, 6);
+  assert.equal(accepte.deliveryDistanceSource, "manual");
 
   const invalide = formatAdressePersonnalisee("12 avenue Jean Médecin", "6000", "Nice");
-  assert.equal(validateReservationInput(basePayload({ lieuPrise: LIEU_LIVRAISON, lieuRetour: LIEU_LIVRAISON, adressePrise: invalide, adresseRetour: invalide })).valid, false);
+  assert.equal(validateReservationInput(basePayload({ lieuPrise: LIEU_LIVRAISON, lieuRetour: LIEU_LIVRAISON, adressePrise: invalide, adresseRetour: invalide, deliveryDistanceKm: 6 })).valid, false);
+});
+
+test("adresse personnalisée : la distance métier reste obligatoire et entière", () => {
+  const adresse = formatAdressePersonnalisee("12 avenue Jean Médecin", "06000", "Nice");
+  for (const distance of [undefined, -1, 5.5, "inconnue"]) {
+    const result = validateWorkerReservationInput(basePayload({
+      lieuPrise: LIEU_LIVRAISON,
+      lieuRetour: LIEU_LIVRAISON,
+      adressePrise: adresse,
+      adresseRetour: adresse,
+      deliveryDistanceKm: distance
+    }));
+    assert.equal(result.valid, false, String(distance));
+    assert.ok(result.errors.includes("Distance de livraison invalide"));
+  }
 });
 
 test("rejette une adresse libre (texte arbitraire) à la place d'une ville de livraison", () => {

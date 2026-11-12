@@ -59,6 +59,9 @@ function buildContractPrefillData(reservation) {
     email: reservation.conducteur.email || "",
     secondConducteur: aOption("second-conducteur"),
     livraison: aOption("livraison-adresse") || reservation.lieuPrise === LIEU_LIVRAISON,
+    deliveryDistanceKm: reservation.deliveryDistanceKm !== null && reservation.deliveryDistanceKm !== undefined && reservation.deliveryDistanceKm !== "" && Number.isFinite(Number(reservation.deliveryDistanceKm))
+      ? Number(reservation.deliveryDistanceKm)
+      : null,
     livraisonRue: adressePersonnalisee ? adressePersonnalisee.rue : "",
     livraisonCP: adressePersonnalisee ? adressePersonnalisee.codePostal : "",
     livraisonVille: adressePersonnalisee ? adressePersonnalisee.ville : (reservation.adressePrise || "")

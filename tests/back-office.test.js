@@ -103,6 +103,31 @@ test("euros : convertit des centimes en libellé français, gère l'absence de v
   assert.equal(window.__backOffice.euros(undefined), "—");
 });
 
+test("livraisons : affiche la distance et le montant historiques renvoyés sans les recalculer", async () => {
+  const window = buildWindow();
+  window.fetch = async () => apiResponse(200, {
+    deliveries: [{
+      id: "res_historique",
+      client: "Camille Martin",
+      vehicule: "Peugeot 3008",
+      destination: "Nice",
+      deliveryDistanceKm: 10,
+      deliveryDistanceSource: "reference",
+      deliveryAmount: 30,
+      dateDebut: "2026-09-10",
+      heureDebut: "10:00"
+    }]
+  });
+
+  await window.__backOffice.loadDeliveriesForTest();
+
+  const text = window.document.getElementById("deliveryList").textContent;
+  assert.match(text, /Nice/);
+  assert.match(text, /10 km tarifaires de référence/);
+  assert.match(text, /30,00 €/);
+  assert.doesNotMatch(text, /25,00 €/);
+});
+
 test("statusBadge : libellé français correct pour chaque statut de location", () => {
   const window = buildWindow();
   assert.match(window.__backOffice.statusBadge("brouillon"), /Brouillon/);
@@ -209,7 +234,7 @@ test("l'espace interne présente une navigation unique et un tableau de bord", (
   assert.equal(window.document.querySelectorAll("[data-internal-view]").length >= 8, true);
   assert.match(window.document.querySelector(".internal-nav").textContent, /Contrats/);
   assert.match(window.document.querySelector(".internal-nav").textContent, /Planning/);
-  assert.match(window.document.getElementById("deliveriesSection").textContent, /LIVRAISON/);
+  assert.match(window.document.getElementById("deliveriesSection").textContent, /livraisons/i);
   assert.ok(!html.includes("docs.google.com/spreadsheets/d/"), "l'URL du fichier ne doit jamais figurer dans l'asset public");
 });
 

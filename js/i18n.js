@@ -649,8 +649,6 @@
     "Lieu de prise en charge": "Pick-up location",
     "Lieu de livraison": "Delivery location",
     "Distance aller depuis Saint-Laurent-du-Var (km)": "One-way distance from Saint-Laurent-du-Var (km)",
-    "20 € de prise en charge + 1 € / km aller (minimum 25 €). La récupération à une autre adresse est confirmée séparément.":
-      "€20 handling fee + €1 per one-way km (minimum €25). Collection from another address is confirmed separately.",
     "Restituer à un endroit différent": "Return to a different location",
     "Lieu de restitution": "Return location",
     "Où souhaitez-vous recevoir le véhicule ?": "Where would you like to receive the vehicle?",
@@ -925,24 +923,26 @@
       "The security deposit is requested before the keys are handed over. It is a financial guarantee, not a cap on the amounts that may remain payable by you.",
     "Résumé de la commande": "Order summary",
     "Autre ville de livraison": "Other delivery town",
-    "Distance aller jusqu’au lieu choisi (km)": "One-way distance to the selected location (km)",
+    "Distance aller jusqu’à l’adresse personnalisée (km)": "One-way distance to the custom address (km)",
+    "Livraison : 20 € jusqu’à 5 km, puis 1 € par km supplémentaire.":
+      "Delivery: €20 up to 5 km, then €1 per additional km.",
     "Voir l’itinéraire": "View route",
-    "Relevez simplement la distance aller affichée par votre GPS depuis Saint-Laurent-du-Var. Le tarif est calculé automatiquement selon le barème existant : vous n’avez aucun calcul à faire.":
-      "Simply enter the one-way distance shown by your GPS from Saint-Laurent-du-Var. The fee is calculated automatically using the current rate: you do not need to calculate anything.",
-    "Choisissez un lieu et indiquez la distance pour connaître le prix de livraison.":
-      "Select a location and enter the distance to see the delivery fee.",
+    "Pour une adresse personnalisée, indiquez la distance aller depuis Saint-Laurent-du-Var. Les destinations proposées utilisent automatiquement leur distance tarifaire de référence.":
+      "For a custom address, enter the one-way distance from Saint-Laurent-du-Var. Listed destinations automatically use their reference pricing distance.",
+    "Choisissez un lieu pour connaître le prix de livraison.":
+      "Select a location to see the delivery fee.",
     "Autre ville de restitution": "Other return town",
     "Une restitution à une adresse différente est confirmée et chiffrée séparément par l’agence. Elle n’est pas incluse dans le montant payé aujourd’hui.":
       "A return at a different address is confirmed and priced separately by the agency. It is not included in the amount paid today.",
     "Continuer vers le paiement sécurisé": "Continue to secure payment",
     "Récapitulatif avant paiement": "Summary before payment",
     "Livraison à calculer": "Delivery to be calculated",
-    "Indiquez la distance aller : le prix de livraison s’affichera immédiatement.":
-      "Enter the one-way distance: the delivery fee will appear immediately.",
+    "Indiquez la distance aller de l’adresse personnalisée : le prix de livraison s’affichera immédiatement.":
+      "Enter the one-way distance to the custom address: the delivery fee will appear immediately.",
     "Choisissez le lieu où vous souhaitez recevoir le véhicule.":
       "Select where you would like the vehicle delivered.",
-    "Indiquez la distance aller affichée par votre GPS, entre 0 et 500 km.":
-      "Enter the one-way distance shown by your GPS, between 0 and 500 km.",
+    "Indiquez la distance aller de l’adresse personnalisée, entre 0 et 500 km.":
+      "Enter the one-way distance to the custom address, between 0 and 500 km.",
     "Choisissez le lieu de restitution ou décochez l’adresse différente.":
       "Select the return location or untick the different-address option.",
     "Merci d'accepter les conditions générales de location et la politique de confidentialité avant de payer.":

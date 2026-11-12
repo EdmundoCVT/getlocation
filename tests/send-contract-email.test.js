@@ -62,12 +62,14 @@ test("buildContractPrefillData : reprend les champs connus de la réservation, l
 test("buildContractPrefillData : détecte la livraison et préremplit sa zone sans inventer l'adresse exacte", () => {
   const data = buildContractPrefillData(makeReservation({
     options: [{ id: "second-conducteur" }, { id: "livraison-adresse" }],
-    adressePrise: "Nice"
+    adressePrise: "Nice",
+    deliveryDistanceKm: 10
   }));
   assert.equal(data.secondConducteur, true);
   assert.equal(data.livraison, true);
   assert.equal(data.livraisonRue, "");
   assert.equal(data.livraisonVille, "Nice");
+  assert.equal(data.deliveryDistanceKm, 10);
 });
 
 test("buildContractPrefillData : répartit une adresse personnalisée dans les champs du contrat", () => {

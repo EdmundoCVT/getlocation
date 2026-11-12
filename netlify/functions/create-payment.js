@@ -164,7 +164,7 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "Requête invalide" }) };
   }
 
-  const { valid, errors, vehicule, options, codesPromo, lieuPriseType, lieuRetourType, adresseExactePriseAConfirmer, adresseExacteRetourAConfirmer } = validateReservationInput(payload);
+  const { valid, errors, vehicule, options, codesPromo, lieuPriseType, lieuRetourType, adresseExactePriseAConfirmer, adresseExacteRetourAConfirmer, deliveryDistanceKm, deliveryDistanceSource, deliveryReferenceLabel } = validateReservationInput(payload);
   if (!valid) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "Requête invalide", details: errors }) };
   }
@@ -182,7 +182,7 @@ exports.handler = async (event) => {
   if (!validationPromos.valid) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "Requête invalide", details: validationPromos.errors.map((item) => item.message) }) };
   }
-  const prix = calculerPrixTotal({ ...payload, options, codesPromo: codesPublics });
+  const prix = calculerPrixTotal({ ...payload, options, codesPromo: codesPublics, deliveryDistanceKm });
   if (!prix || !isFinite(prix.totalCentimes) || prix.totalCentimes < 50) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "Impossible de calculer le prix pour cette demande" }) };
   }
@@ -238,6 +238,9 @@ exports.handler = async (event) => {
     lieuRetourType,
     adresseExactePriseAConfirmer,
     adresseExacteRetourAConfirmer,
+    deliveryDistanceKm,
+    deliveryDistanceSource,
+    deliveryReferenceLabel,
     jours: prix.jours,
     sousTotalBrut: prix.sousTotalBrut,
     reductionDuree: prix.reductionDuree,

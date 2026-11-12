@@ -12,7 +12,7 @@ const { getClientById } = require("../lib/clients.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
 const { attemptSync, getSyncStatusForRental } = require("../lib/sheet-sync-outbox.js");
 const { listReservations } = require("../lib/reservation-store.js");
-const { getVehiculeParId } = require("../../js/data.js");
+const { getVehiculeParId, LIEU_LIVRAISON, libelleAdresseLivraison } = require("../../js/data.js");
 const { summarizeInspectionRevisions } = require("../lib/inspection-revision-summary.js");
 const { resolveContractDeposit } = require("../lib/contract-deposit.js");
 
@@ -186,6 +186,30 @@ function d1RentalInspectionItem(rental) {
   };
 }
 
+function reservationDeliveryItem(reservation) {
+  const deliveryOption = Array.isArray(reservation.options)
+    ? reservation.options.find((option) => option && option.id === "livraison-adresse")
+    : null;
+  if (!deliveryOption && reservation.lieuPrise !== LIEU_LIVRAISON) return null;
+  const vehicule = getVehiculeParId(reservation.vehiculeId);
+  const hasDistance = reservation.deliveryDistanceKm !== null && reservation.deliveryDistanceKm !== undefined && reservation.deliveryDistanceKm !== "";
+  const distance = hasDistance ? Number(reservation.deliveryDistanceKm) : NaN;
+  const amount = deliveryOption && Number(deliveryOption.montant);
+  return {
+    id: reservation.id,
+    contractNumero: reservation.contractNumero || null,
+    dateDebut: reservation.dateDebut || null,
+    heureDebut: reservation.heureDebut || null,
+    vehicule: vehicule ? vehicule.nom : reservation.vehiculeId,
+    client: reservation.conducteur ? [reservation.conducteur.prenom, reservation.conducteur.nom].filter(Boolean).join(" ") : "",
+    destination: libelleAdresseLivraison(reservation.adressePrise) || reservation.adressePrise || "",
+    deliveryDistanceKm: Number.isFinite(distance) && distance >= 0 ? distance : null,
+    deliveryDistanceSource: reservation.deliveryDistanceSource || null,
+    deliveryAmount: Number.isFinite(amount) && amount >= 0 ? amount : null,
+    status: reservation.status || null
+  };
+}
+
 function candidateKeys(item) {
   const keys = [`id:${item.id}`];
   if (item.contractNumero) keys.push(`contract:${item.contractNumero}`);
@@ -299,6 +323,12 @@ async function handleGet(request, env, headers) {
   if (auth.error) return auth.error;
 
   const url = new URL(request.url);
+  if (url.searchParams.get("view") === "deliveries") {
+    const reservations = await listReservations(env);
+    const deliveries = reservations.map(reservationDeliveryItem).filter(Boolean)
+      .sort((a, b) => `${b.dateDebut || ""} ${b.heureDebut || ""}`.localeCompare(`${a.dateDebut || ""} ${a.heureDebut || ""}`));
+    return new Response(JSON.stringify({ deliveries }), { status: 200, headers });
+  }
   if (url.searchParams.get("view") === "inspection") {
     // Historique unifié sans migration : réservations payées et contrats
     // manuels en KV, plus locations historiques/manualisées dans D1.
@@ -416,4 +446,4 @@ async function handleAgencyRentals(request, env) {
   return request.method === "GET" ? handleGet(request, env, headers) : handlePost(request, env, headers);
 }
 
-module.exports = { handleAgencyRentals, manualContractInspectionItem };
+module.exports = { handleAgencyRentals, manualContractInspectionItem, reservationDeliveryItem };

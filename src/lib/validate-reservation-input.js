@@ -12,7 +12,7 @@
 // confirmée en production — ne pas laisser les deux diverger si l'une des
 // deux est modifiée avant la suppression définitive de l'ancienne.
 
-const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, LIEUX_FREQUENTS_LIVRAISON, VILLES_LIVRAISON, parseAdressePersonnalisee, CGL_VERSION, OPTIONS, anciennetePermisAnnees, PROTECTIONS, PROTECTION_PAR_DEFAUT, HEURE_OUVERTURE, HEURE_FERMETURE, instantEuropeParis } = require("../../js/data.js");
+const { getVehiculeParId, LIEUX, LIEU_LIVRAISON, LIEUX_FREQUENTS_LIVRAISON, VILLES_LIVRAISON, getDeliveryReferenceLocation, parseAdressePersonnalisee, CGL_VERSION, OPTIONS, anciennetePermisAnnees, PROTECTIONS, PROTECTION_PAR_DEFAUT, HEURE_OUVERTURE, HEURE_FERMETURE, instantEuropeParis } = require("../../js/data.js");
 
 const MAX_LEN = {
   nom: 100,
@@ -191,11 +191,13 @@ function validateReservationInput(payload) {
   if ((lieuPrise === LIEU_LIVRAISON || lieuRetour === LIEU_LIVRAISON) && !optionsNormalisees.includes("livraison-adresse")) {
     optionsNormalisees.push("livraison-adresse");
   }
-  // La distance est un paramètre métier, jamais un montant : le Worker
-  // applique ensuite lui-même la formule livraison (prise en charge + km,
-  // minimum). La récupération à une autre adresse reste sans tarif auto.
+  // Une destination connue impose sa distance tarifaire serveur : toute
+  // distance fournie par le navigateur est alors ignorée. Seule une adresse
+  // personnalisée conserve la distance métier entière saisie par le client.
+  // La récupération à une autre adresse reste sans tarif automatique.
   const livraisonPrise = lieuPrise === LIEU_LIVRAISON;
-  const deliveryDistanceNormalisee = normaliserEntier(deliveryDistanceKm, 0, 500);
+  const deliveryReference = livraisonPrise ? getDeliveryReferenceLocation(adressePrise) : null;
+  const deliveryDistanceNormalisee = deliveryReference ? deliveryReference.distanceKm : normaliserEntier(deliveryDistanceKm, 0, 500);
   if (livraisonPrise && deliveryDistanceNormalisee === null) errors.push("Distance de livraison invalide");
 
   // Compatibilité : le nouveau client envoie une liste, les anciens clients
@@ -304,7 +306,9 @@ function validateReservationInput(payload) {
     adresseExacteRetourAConfirmer: lieuRetourTypeNormalise === "zone",
     enfantAge: avecSiegeEnfant ? enfantAgeNormalise : null,
     enfantPoids: avecSiegeEnfant ? enfantPoidsNormalise : null,
-    deliveryDistanceKm: livraisonPrise ? deliveryDistanceNormalisee : null
+    deliveryDistanceKm: livraisonPrise ? deliveryDistanceNormalisee : null,
+    deliveryDistanceSource: livraisonPrise ? (deliveryReference ? "reference" : "manual") : null,
+    deliveryReferenceLabel: deliveryReference ? deliveryReference.label : null
   };
 }
 

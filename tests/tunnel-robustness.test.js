@@ -62,7 +62,9 @@ function paiementFormHtml() {
       <input type="checkbox" id="payment-retour-different">
       <div id="err-payment-adresse-prise"></div>
       <div id="err-payment-adresse-retour"></div>
-      <input type="number" id="payment-delivery-distance" aria-invalid="false">
+      <div id="payment-delivery-distance-manual" hidden>
+        <input type="number" id="payment-delivery-distance" aria-invalid="false">
+      </div>
       <a id="payment-delivery-route" hidden></a>
       <div id="payment-delivery-price"></div>
       <input type="checkbox" id="cgl-accept">
@@ -143,7 +145,7 @@ test("initPaiementPage : les lieux fréquents se choisissent en un clic", () => 
   assert.match(window.document.querySelector("#payment-adresse-prise-principal").textContent, /Nice/);
 });
 
-test("initPaiementPage : le tarif existant est calculé automatiquement depuis la distance GPS", () => {
+test("initPaiementPage : Nice utilise automatiquement sa distance tarifaire de référence", () => {
   const window = newWindow(paiementFormHtml(), "https://getlocation.fr/paiement.html");
   window.localStorage.setItem("gl_reservation", JSON.stringify({
     vehiculeId: "opel-corsa", dateDebut: "2026-08-10", heureDebut: "10:00",
@@ -157,14 +159,42 @@ test("initPaiementPage : le tarif existant est calculé automatiquement depuis l
     .find((element) => element.textContent === "Nice");
   nice.click();
   const distance = window.document.getElementById("payment-delivery-distance");
-  distance.value = "15";
+
+  assert.equal(distance.disabled, true);
+  assert.equal(window.document.getElementById("payment-delivery-distance-manual").hidden, true);
+  assert.match(window.document.getElementById("payment-delivery-price").textContent, /Livraison à Nice\s*:\s*25/);
+  assert.match(window.document.getElementById("payment-summary").textContent, /Livraison à Nice/);
+  assert.match(window.document.getElementById("payment-summary-total").textContent, /155/);
+  assert.match(window.document.querySelector("#pay-button .btn-label").textContent, /Payer 155/);
+  assert.match(window.document.getElementById("payment-delivery-route").href, /google\.com\/maps\/dir/);
+});
+
+test("initPaiementPage : une adresse personnalisée conserve la distance métier et la nouvelle formule", () => {
+  const window = newWindow(paiementFormHtml(), "https://getlocation.fr/paiement.html");
+  window.localStorage.setItem("gl_reservation", JSON.stringify({
+    vehiculeId: "opel-corsa", dateDebut: "2026-08-10", heureDebut: "10:00",
+    dateFin: "2026-08-12", heureFin: "10:00", jours: 2,
+    lieuPrise: "Livraison à l'adresse de votre choix", lieuRetour: "Livraison à l'adresse de votre choix",
+    options: ["livraison-adresse"], _savedAt: Date.now()
+  }));
+  window.initPaiementPage();
+  window.document.getElementById("payment-adresse-prise-custom-toggle").click();
+  for (const [id, value] of [
+    ["payment-adresse-prise-rue", "12 avenue Jean Médecin"],
+    ["payment-adresse-prise-codePostal", "06000"],
+    ["payment-adresse-prise-ville", "Nice"]
+  ]) {
+    const input = window.document.getElementById(id);
+    input.value = value;
+    input.dispatchEvent(new window.Event("input", { bubbles: true }));
+  }
+  const distance = window.document.getElementById("payment-delivery-distance");
+  distance.value = "6";
   distance.dispatchEvent(new window.Event("input", { bubbles: true }));
 
-  assert.match(window.document.getElementById("payment-delivery-price").textContent, /Livraison à Nice\s*:\s*35/);
-  assert.match(window.document.getElementById("payment-summary").textContent, /Livraison à Nice/);
-  assert.match(window.document.getElementById("payment-summary-total").textContent, /165/);
-  assert.match(window.document.querySelector("#pay-button .btn-label").textContent, /Payer 165/);
-  assert.match(window.document.getElementById("payment-delivery-route").href, /google\.com\/maps\/dir/);
+  assert.equal(window.document.getElementById("payment-delivery-distance-manual").hidden, false);
+  assert.match(window.document.getElementById("payment-delivery-price").textContent, /21/);
+  assert.match(window.document.getElementById("payment-summary-total").textContent, /151/);
 });
 
 test("initPaiementPage : une restitution différente ne crée aucun second frais implicite", () => {
@@ -179,9 +209,6 @@ test("initPaiementPage : une restitution différente ne crée aucun second frais
   const choose = (selector, label) => [...window.document.querySelectorAll(selector)]
     .find((element) => element.textContent === label).click();
   choose("#payment-adresse-prise-principal button", "Nice");
-  const distance = window.document.getElementById("payment-delivery-distance");
-  distance.value = "15";
-  distance.dispatchEvent(new window.Event("input", { bubbles: true }));
   const samePlaceTotal = window.document.getElementById("payment-summary-total").textContent;
 
   const differentReturn = window.document.getElementById("payment-retour-different");
@@ -190,7 +217,7 @@ test("initPaiementPage : une restitution différente ne crée aucun second frais
   choose("#payment-adresse-retour-principal button", "Cannes");
 
   assert.equal(window.document.getElementById("payment-summary-total").textContent, samePlaceTotal);
-  assert.match(window.document.getElementById("payment-summary").textContent, /165/);
+  assert.match(window.document.getElementById("payment-summary").textContent, /155/);
 });
 
 test("initPaiementPage : Autre ville et adresse personnalisée restent masquées avant le choix", () => {
@@ -206,6 +233,8 @@ test("initPaiementPage : Autre ville et adresse personnalisée restent masquées
   assert.equal(other.hidden, false);
   window.document.getElementById("payment-adresse-prise-custom-toggle").click();
   assert.equal(window.document.getElementById("payment-adresse-prise-custom").style.display, "grid");
+  assert.equal(window.document.getElementById("payment-delivery-distance-manual").hidden, false);
+  assert.equal(window.document.getElementById("payment-delivery-distance").disabled, false);
   assert.ok(window.document.getElementById("payment-adresse-prise-rue"));
 });
 

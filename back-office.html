@@ -279,10 +279,8 @@
     <section id="deliveriesSection" hidden>
       <h1 class="section-title">Livraisons</h1>
       <p class="section-subtitle">Suivi opérationnel des remises et récupérations.</p>
-      <div class="card">
-        <p>Le suivi détaillé des livraisons reste actuellement dans l'onglet « LIVRAISON » de Google Sheets. Les locations D1 conservent déjà leurs lieux de prise et de retour, mais ne disposent pas encore d'un statut opérationnel de livraison fiable.</p>
-        <div class="section-actions" data-google-sheets-link></div>
-      </div>
+      <div id="deliveryList" class="deposit-list"><p class="hint-text">Chargement des livraisons…</p></div>
+      <div class="card"><p class="hint-text">Les montants affichés sont les montants figés dans chaque réservation, jamais un recalcul de la grille actuelle.</p><div class="section-actions" data-google-sheets-link></div></div>
     </section>
 
     <!-- ---- Dépôts : traitement existant depuis une location ---- -->
@@ -456,8 +454,8 @@
   </div>
 </main>
 
-<script src="js/pricing.js?v=1"></script>
-<script src="js/data.js?v=34"></script>
+<script src="js/pricing.js?v=2"></script>
+<script src="js/data.js?v=35"></script>
 <script src="js/agency-quote.js?v=2"></script>
 <script src="js/backoffice-shell.js?v=1"></script>
 <script>
@@ -587,6 +585,7 @@ window.__backOffice = {
   openStandaloneInspectionCreationForTest: openStandaloneInspectionCreation,
   openDepositCreationForTest: openDepositCreation,
   renderCreatedDepositLinkForTest: renderCreatedDepositLink,
+  loadDeliveriesForTest: loadDeliveries,
   renderSyncStatusForTest: function(rental){ currentRental = rental; renderSyncStatus(); },
   renderInspectionListForTest: function(rentals, standalone){ inspectionItems = (rentals || []).flatMap(normalizeRentalInspections).concat((standalone || []).map(normalizeStandaloneInspection)); inspectionFilter = 'all'; inspectionModeFilter = 'all'; inspectionLoadFailed = false; document.getElementById('inspectionSearch').value = ''; document.getElementById('inspectionSort').value = 'recent'; renderInspectionList(); },
   showInspectionSectionForTest: function(){ showSection('inspectionsSection'); },
@@ -643,6 +642,22 @@ function apiPost(url, body){
 }
 function alerteConnexion(){ alert('Connexion au serveur impossible. Vérifiez votre connexion et réessayez.'); }
 
+function loadDeliveries(){
+  var target=document.getElementById('deliveryList');
+  if(!target)return Promise.resolve();
+  target.innerHTML='<p class="hint-text">Chargement des livraisons…</p>';
+  return apiGet('/api/agency-rentals?view=deliveries').then(function(res){
+    if(!res.ok)throw new Error(res.json.error||'Chargement impossible');
+    var items=res.json.deliveries||[];
+    if(!items.length){target.innerHTML='<p class="hint-text">Aucune livraison enregistrée.</p>';return;}
+    target.innerHTML=items.map(function(item){
+      var distance=item.deliveryDistanceKm==null?'Distance non figée':item.deliveryDistanceKm+' km '+(item.deliveryDistanceSource==='reference'?'tarifaires de référence':'tarifaires');
+      var amount=item.deliveryAmount==null?'Montant non figé':euros(Math.round(item.deliveryAmount*100));
+      return '<article class="card deposit-list-card"><div class="deposit-list-top"><div><h3>'+escapeHtml(item.destination||'Destination non renseignée')+'</h3><p>'+escapeHtml([item.client,item.vehicule,item.contractNumero||item.id].filter(Boolean).join(' · '))+'</p></div><strong>'+escapeHtml(amount)+'</strong></div><p>'+escapeHtml(distance)+(item.dateDebut?' · '+escapeHtml(formatDateFR(item.dateDebut)+' '+(item.heureDebut||'')):'')+'</p></article>';
+    }).join('');
+  }).catch(function(error){target.innerHTML='<p class="error-text">'+escapeHtml(error.message||'Chargement impossible')+'</p>';});
+}
+
 // ================= Connexion ================= //
 function showSection(id){
   ['dashboardSection', 'quoteSection', 'statisticsSection', 'planningSection', 'deliveriesSection', 'inspectionsSection', 'depositsSection', 'vehiclesSection', 'settingsSection', 'searchSection', 'clientFormSection', 'clientSheetSection', 'rentalFormSection', 'rentalDetailSection'].forEach(function(s){
@@ -656,6 +671,7 @@ function showSection(id){
   // sur le bouton historique du menu. Le chargement métier appartient donc
   // au changement de section, pas à un unique écouteur de clic.
   if(id === 'inspectionsSection' && typeof loadInspections === 'function') loadInspections();
+  if(id === 'deliveriesSection' && typeof loadDeliveries === 'function') loadDeliveries();
 }
 
 function setSidebarOpen(open){

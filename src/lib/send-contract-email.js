@@ -77,6 +77,9 @@ function buildContractPrefillData(reservation) {
     rehausseur: aOption("rehausseur"),
     secondConducteur: aOption("second-conducteur"),
     livraison: aOption("livraison-adresse") || reservation.lieuPrise === LIEU_LIVRAISON,
+    deliveryDistanceKm: reservation.deliveryDistanceKm !== null && reservation.deliveryDistanceKm !== undefined && reservation.deliveryDistanceKm !== "" && Number.isFinite(Number(reservation.deliveryDistanceKm))
+      ? Number(reservation.deliveryDistanceKm)
+      : null,
     // La zone choisie avant paiement n'est pas une adresse postale. Celle-ci
     // reste vide jusqu'à sa saisie dans le dossier documentaire sécurisé.
     livraisonRue: adressePersonnalisee ? adressePersonnalisee.rue : "",

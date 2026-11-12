@@ -284,7 +284,7 @@
         </div>
         <div class="check-row">
           <input type="checkbox" id="livraison-toggle">
-          <label for="livraison-toggle">Adresse de livraison (lieu de prise en charge) <strong>(+20 €)</strong></label>
+          <label for="livraison-toggle">Adresse de livraison (lieu de prise en charge) <strong>20 € jusqu’à 5 km, puis 1 €/km supplémentaire</strong></label>
         </div>
         <div class="second-conducteur" id="livraisonBlock">
           <div class="grid">
@@ -299,6 +299,10 @@
             <div class="field">
               <label for="livraisonVille">Ville</label>
               <input id="livraisonVille" type="text" placeholder="Grasse">
+            </div>
+            <div class="field">
+              <label for="livraisonDistanceKm">Distance tarifaire aller (km)</label>
+              <input id="livraisonDistanceKm" type="number" min="0" max="500" step="1" inputmode="numeric" placeholder="Ex. 33">
             </div>
           </div>
         </div>
@@ -977,8 +981,8 @@
 
 </div>
 
-<script src="js/pricing.js?v=1"></script>
-<script src="js/data.js?v=34"></script>
+<script src="js/pricing.js?v=2"></script>
+<script src="js/data.js?v=35"></script>
 <script src="js/contrat-en.js?v=4"></script>
 <script src="js/backoffice-shell.js?v=1"></script>
 <script>
@@ -1002,8 +1006,6 @@ const LIEUX_CONTRAT = ["Livraison à l'adresse de votre choix"];
 // (tarification, options, garanties de l'article 4, état des lieux), sans
 // créer d'obligation nouvelle.
 const DECLARATION_LOCATAIRE_TEXTE = "En signant ce contrat, le locataire déclare : l'exactitude des informations fournies ci-dessus ; être titulaire d'un permis de conduire valable ; avoir pris connaissance du présent contrat ainsi que des Conditions Générales de Location (cgl.html) ; accepter la tarification convenue et les options éventuellement sélectionnées ; avoir pris connaissance des garanties, limites et conditions applicables indiquées à l'article 4 ; reconnaître l'état du véhicule tel qu'indiqué lors de sa remise (voir tableau de remise et restitution).";
-const SUPPLEMENT_LIVRAISON = getOptionParId('livraison-adresse').prix;
-
 function dureeHeures(a,b){
   var h = (new Date(b) - new Date(a)) / (1000*60*60);
   return Math.max(h, 1);
@@ -1046,6 +1048,7 @@ function calculerPrixContrat(data){
     codesPromo: data.codesPromo,
     codePromo: data.codePromo || '',
     protection: data.protection || getProtectionParDefaut(),
+    deliveryDistanceKm: data.deliveryDistanceKm,
     // Supplément jeune conducteur : déduit de la date de délivrance du
     // permis déjà saisie dans le formulaire agence (JJ/MM/AAAA), exactement
     // comme sur le site. Aucune case à cocher : la règle est la même pour
@@ -1923,7 +1926,7 @@ function construirePayload(data, sigData, stamp){
     // Langue contractuelle de la version : elle pilote les textes, les CGL
     // versionnées et les rendus PDF, jamais la langue du navigateur.
     langueClient: data.langueClient === 'en' ? 'en' : 'fr',
-    livraison: data.livraison ? 'Oui (+20 €)' : 'Non',
+    livraison: data.livraison ? 'Oui' : 'Non',
     depart: formatDateHeureFR(data.depart, data.langueClient),
     retour: formatDateHeureFR(data.retour, data.langueClient),
     duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
@@ -3286,7 +3289,7 @@ function initDossierAgencyView(token){
       immatriculation: f.immatriculation || (r.vehicule ? r.vehicule.immatriculation : ''),
       lieu: lieuAffiche,
       lieuRetour: r.lieuRetour || lieuAffiche,
-      livraison: f.livraison ? 'Oui (+20 €)' : 'Non',
+      livraison: f.livraison ? 'Oui' : 'Non',
       depart: formatDateHeureFR(departISO, r.langue),
       retour: formatDateHeureFR(retourISO, r.langue),
       duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
@@ -3743,7 +3746,7 @@ function initDossierClientView(token){
       immatriculation: r.immatriculation,
       lieu: lieuAffiche,
       lieuRetour: r.lieuRetour || lieuAffiche,
-      livraison: f.livraison ? 'Oui (+20 €)' : 'Non',
+      livraison: f.livraison ? 'Oui' : 'Non',
       depart: formatDateHeureFR(departISO, r.langue),
       retour: formatDateHeureFR(retourISO, r.langue),
       duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
@@ -4172,8 +4175,10 @@ function initOwnerView(prefill, versionId){
     document.getElementById('livraisonRue').required = show;
     document.getElementById('livraisonCP').required = show;
     document.getElementById('livraisonVille').required = show;
+    document.getElementById('livraisonDistanceKm').required = show;
     updateSummary();
   });
+  document.getElementById('livraisonDistanceKm').addEventListener('input', updateSummary);
 
   tarifManuelToggle.addEventListener('change', function(){
     tarifManuelBlock.classList.toggle('show', tarifManuelToggle.checked);
@@ -4292,6 +4297,7 @@ function initOwnerView(prefill, versionId){
       retour: inputRetour.value,
       secondConducteur: secondToggle.checked,
       livraison: livraisonToggle.checked,
+      deliveryDistanceKm: document.getElementById('livraisonDistanceKm').value,
       kmForfait: selectKmForfait.value,
       protection: selectProtection ? selectProtection.value : getProtectionParDefaut(),
       siegeEnfant: siegeEnfantToggle.checked,
@@ -4426,9 +4432,11 @@ function initOwnerView(prefill, versionId){
       livraisonBlock.classList.add('show');
       document.getElementById('livraisonRue').value = prefill.livraisonRue || '';
       document.getElementById('livraisonVille').value = prefill.livraisonVille || '';
+      document.getElementById('livraisonDistanceKm').value = prefill.deliveryDistanceKm != null ? prefill.deliveryDistanceKm : '';
       document.getElementById('livraisonRue').required = true;
       document.getElementById('livraisonCP').required = true;
       document.getElementById('livraisonVille').required = true;
+      document.getElementById('livraisonDistanceKm').required = true;
     }
     updateSummary();
     regenererLien();
@@ -4511,6 +4519,7 @@ function initOwnerView(prefill, versionId){
       livraisonRue: document.getElementById('livraisonRue').value,
       livraisonCP: document.getElementById('livraisonCP').value,
       livraisonVille: document.getElementById('livraisonVille').value,
+      deliveryDistanceKm: document.getElementById('livraisonDistanceKm').value,
       notes: document.getElementById('notes').value,
       remarques: document.getElementById('remarques').value,
       tarifManuel: tarifManuelToggle.checked,
@@ -4709,9 +4718,11 @@ function initOwnerView(prefill, versionId){
     document.getElementById('livraisonRue').required = livraisonToggle.checked;
     document.getElementById('livraisonCP').required = livraisonToggle.checked;
     document.getElementById('livraisonVille').required = livraisonToggle.checked;
+    document.getElementById('livraisonDistanceKm').required = livraisonToggle.checked;
     document.getElementById('livraisonRue').value = rawData.livraisonRue || '';
     document.getElementById('livraisonCP').value = rawData.livraisonCP || '';
     document.getElementById('livraisonVille').value = rawData.livraisonVille || '';
+    document.getElementById('livraisonDistanceKm').value = rawData.deliveryDistanceKm != null ? rawData.deliveryDistanceKm : '';
 
     tarifManuelToggle.checked = !!(inclureDonneesInstance && rawData.tarifManuel);
     tarifManuelBlock.classList.toggle('show', tarifManuelToggle.checked);

@@ -25,7 +25,7 @@
   ].map(([name, start, end, level]) => ({ name, start, end, level }));
   const DURATION_DISCOUNTS = [[5, 6, .05], [7, 13, .10], [14, 29, .15], [30, Infinity, .20]];
   const EXTRA_MILEAGE_PACKAGES = { "km-200": { km: 200, amount: 60 }, "km-supplementaire": { km: 300, amount: 100 }, "km-400": { km: 400, amount: 150 } };
-  const DELIVERY = { pickupFee: 20, perKm: 1, minimum: 25 };
+  const DELIVERY = { baseFee: 20, includedKm: 5, perExtraKm: 1 };
 
   const PARIS_TIME_ZONE = "Europe/Paris";
   const parisDateParts = new Intl.DateTimeFormat("en-CA", { timeZone: PARIS_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
@@ -106,15 +106,27 @@
   // source de vérité commune au devis, à la réservation et au PDF : aucun
   // palier dégressif ne doit venir contredire cette règle commerciale.
   function includedMileage(_vehicleId, days) { const billedDays = Math.max(0, Number(days) || 0); return billedDays * 200; }
-  function deliveryCost(distanceKm) { const km = Number(distanceKm); return Number.isFinite(km) && km >= 0 ? Math.max(DELIVERY.minimum, DELIVERY.pickupFee + km * DELIVERY.perKm) : 0; }
+  // Les distances de référence sont entières. Pour une adresse personnalisée,
+  // tout kilomètre supplémentaire commencé est arrondi au kilomètre supérieur
+  // avant tarification : aucun montant issu d'une distance GPS brute n'affiche
+  // de centimes.
+  function billableDeliveryDistance(distanceKm) {
+    if (distanceKm === null || distanceKm === undefined || distanceKm === "") return null;
+    const km = Number(distanceKm);
+    return Number.isFinite(km) && km >= 0 ? Math.ceil(km) : null;
+  }
+  function deliveryCost(distanceKm) {
+    const km = billableDeliveryDistance(distanceKm);
+    return km === null ? 0 : DELIVERY.baseFee + Math.max(0, km - DELIVERY.includedKm) * DELIVERY.perExtraKm;
+  }
   function calculateQuote({ vehicleId, dateDebut, heureDebut = "00:00", dateFin, heureFin = "00:00", extraMileagePackageId, deliveryDistanceKm }) {
     const rates = VEHICLE_RATES[vehicleId]; const period = rentalPeriod(dateDebut, heureDebut, dateFin, heureFin); if (!rates || !period) return null;
     const { days } = period;
     const dailyRates = Array.from({ length: days }, (_, index) => { const date = dateAtParis(period.start + index * 86400000); const season = levelForDate(date); return { date, level: season.level, levelLabel: LEVELS[season.level], event: season.event, rate: rates[season.level] }; });
     const rentalSubtotalCents = dailyRates.reduce((sum, day) => sum + day.rate * 100, 0); const discount = discountForDays(days); const discountCents = Math.round(rentalSubtotalCents * discount.rate); const rentalAfterDiscountCents = rentalSubtotalCents - discountCents;
-    const packageInfo = EXTRA_MILEAGE_PACKAGES[extraMileagePackageId] || null; const deliveryCents = deliveryDistanceKm === undefined || deliveryDistanceKm === null || deliveryDistanceKm === "" ? 0 : Math.round(deliveryCost(deliveryDistanceKm) * 100);
+    const packageInfo = EXTRA_MILEAGE_PACKAGES[extraMileagePackageId] || null; const billableDeliveryKm = billableDeliveryDistance(deliveryDistanceKm); const deliveryCents = billableDeliveryKm === null ? 0 : Math.round(deliveryCost(billableDeliveryKm) * 100);
     const includedKm = includedMileage(vehicleId, days); const totalCents = rentalAfterDiscountCents + (packageInfo ? packageInfo.amount * 100 : 0) + deliveryCents;
-    return { days, dailyRates, rentalSubtotal: rentalSubtotalCents / 100, rentalSubtotalCents, discountRate: discount.rate, discountLabel: discount.label, discountAmount: discountCents / 100, discountCents, rentalAfterDiscount: rentalAfterDiscountCents / 100, rentalAfterDiscountCents, includedKm, extraMileagePackage: packageInfo ? { id: extraMileagePackageId, ...packageInfo } : null, delivery: deliveryCents ? { distanceKm: Number(deliveryDistanceKm), amount: deliveryCents / 100 } : null, total: totalCents / 100, totalCents };
+    return { days, dailyRates, rentalSubtotal: rentalSubtotalCents / 100, rentalSubtotalCents, discountRate: discount.rate, discountLabel: discount.label, discountAmount: discountCents / 100, discountCents, rentalAfterDiscount: rentalAfterDiscountCents / 100, rentalAfterDiscountCents, includedKm, extraMileagePackage: packageInfo ? { id: extraMileagePackageId, ...packageInfo } : null, delivery: billableDeliveryKm === null ? null : { distanceKm: billableDeliveryKm, amount: deliveryCents / 100 }, total: totalCents / 100, totalCents };
   }
-  return { LEVELS, LEVEL_PRIORITY, VEHICLE_RATES, MONTH_SEASONS, SPECIAL_PERIODS, DURATION_DISCOUNTS, EXTRA_MILEAGE_PACKAGES, DELIVERY, PARIS_TIME_ZONE, parisInstant, rentalPeriod, rentalDays, levelForDate, discountForDays, includedMileage, deliveryCost, calculateQuote };
+  return { LEVELS, LEVEL_PRIORITY, VEHICLE_RATES, MONTH_SEASONS, SPECIAL_PERIODS, DURATION_DISCOUNTS, EXTRA_MILEAGE_PACKAGES, DELIVERY, PARIS_TIME_ZONE, parisInstant, rentalPeriod, rentalDays, levelForDate, discountForDays, includedMileage, billableDeliveryDistance, deliveryCost, calculateQuote };
 });

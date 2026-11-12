@@ -83,7 +83,7 @@ test("moteur tarifaire existant conserve les tarifs automatiques et frais de liv
   const automatic = pricing.calculateQuote({ vehicleId: "opel-corsa", dateDebut: "2026-10-01", heureDebut: "10:00", dateFin: "2026-10-03", heureFin: "10:00" });
   assert.equal(automatic.days, 2);
   assert.equal(automatic.rentalSubtotal, 110);
-  assert.equal(pricing.deliveryCost(10), 30);
+  assert.equal(pricing.deliveryCost(10), 25);
   const totals = makeWindow().GETLOCATION_AGENCY_QUOTE.calculateTotals({ rentalSubtotal: 200, delivery: 20, returnFee: 5, extras: [{ amount: 15 }], discountType: "percent", discountValue: 10 });
   assert.deepEqual({ beforeDiscount: totals.beforeDiscount, discount: totals.discount, total: totals.total }, { beforeDiscount: 240, discount: 24, total: 216 });
   assert.equal(makeWindow().GETLOCATION_AGENCY_QUOTE.calculateTotals({ rentalSubtotal: 20, discountValue: 50 }).total, 0, "une remise ne rend jamais le total négatif");

@@ -35,6 +35,30 @@ test("GET : 401 sans session agence", async () => {
   assert.equal(res.status, 401);
 });
 
+test("GET view=deliveries : expose destination, distance et montant figés sans recalcul historique", async () => {
+  const env = makeAgencyEnv({ RESERVATIONS_KV: createFakeKv() });
+  const session = await loginAgency(env);
+  await createReservation(env, {
+    vehiculeId: "opel-corsa",
+    dateDebut: "2027-09-10",
+    heureDebut: "10:00",
+    lieuPrise: "Livraison à l'adresse de votre choix",
+    adressePrise: "Nice",
+    deliveryDistanceKm: 10,
+    deliveryDistanceSource: "reference",
+    options: [{ id: "livraison-adresse", nom: "Livraison du véhicule", montant: 30 }],
+    conducteur: { prenom: "Client", nom: "Historique" }
+  });
+
+  const res = await handleAgencyRentals(agencyRequest("https://getlocation.fr/api/agency-rentals?view=deliveries", { session }), env);
+  assert.equal(res.status, 200);
+  const { deliveries } = await res.json();
+  assert.equal(deliveries.length, 1);
+  assert.equal(deliveries[0].destination, "Nice");
+  assert.equal(deliveries[0].deliveryDistanceKm, 10);
+  assert.equal(deliveries[0].deliveryAmount, 30, "le montant historique stocké ne doit pas devenir 25 €");
+});
+
 test("GET view=inspection : agrège KV/D1, reconnaît l'historique et ne renvoie aucune donnée sensible", async () => {
   const env = makeAgencyEnv({ RESERVATIONS_KV: createFakeKv() });
   const session = await loginAgency(env);

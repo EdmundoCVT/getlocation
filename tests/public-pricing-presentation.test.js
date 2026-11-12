@@ -49,7 +49,7 @@ test("la TVA concerne uniquement la location, jamais livraison, options ou prote
   assert.equal(p.presentationPrix.lignes.find((line) => line.id === "option-livraison-adresse").taxRate, 0);
   assert.equal(p.presentationPrix.lignes.find((line) => line.id === "option-siege-enfant").taxRate, 0);
   assert.equal(p.presentationPrix.lignes.find((line) => line.id === "protection").taxRate, 0);
-  assert.equal(p.total, 308.75 + 30 + 20 + 60, "aucune TVA ne doit être ajoutée une seconde fois");
+  assert.equal(p.total, 308.75 + 25 + 20 + 60, "aucune TVA ne doit être ajoutée une seconde fois");
 });
 
 test("cartes : aucun tarif sans recherche, puis prix moyen et modal cohérents après les dates", () => {
