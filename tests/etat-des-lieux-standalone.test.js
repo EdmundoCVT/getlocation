@@ -30,6 +30,48 @@ async function view({ mode = "retour", legacy = false, family = "car", revisions
   return { dom, doc: dom.window.document, requests };
 }
 
+async function standaloneView({ expireOnRefresh = false } = {}) {
+  const CSRF_A = "a".repeat(64), CSRF_B = "b".repeat(64), requests = [];
+  let sessionCalls = 0, writeCalls = 0;
+  const snapshot = { dateHeure: "2026-11-12T10:00", km: 120, carburant: 80, cles: 2, clesAccessoires: "Deux clés", agent: "Agent", dommages: "Rayure conservée", marks: [], utilityMarks: [], signatures: {}, propreteExterieure: 4, propreteInterieure: 4 };
+  function response(body, status = 200, url = "https://getlocation.fr/api/test") {
+    const value = new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+    Object.defineProperty(value, "url", { value: url });
+    return value;
+  }
+  const dom = new JSDOM(page, {
+    url: "https://getlocation.fr/etat-des-lieux.html?mode=retour&standalone=edl_aaaaaaaaaaaaaaaa",
+    runScripts: "outside-only",
+    beforeParse(window) {
+      window.PDFLib = require("pdf-lib");
+      window.Headers = Headers; window.Response = Response; window.TextEncoder = TextEncoder;
+      window.HTMLCanvasElement.prototype.getContext = () => ({ beginPath() {}, arc() {}, fill() {}, moveTo() {}, lineTo() {}, stroke() {}, clearRect() {}, drawImage() {} });
+      window.HTMLCanvasElement.prototype.toDataURL = () => "data:image/png;base64,AA==";
+      window.fetch = async (url, options = {}) => {
+        requests.push({ url, options });
+        if (url === "/api/agency-session") {
+          sessionCalls++;
+          if (sessionCalls === 1) return response({ authenticated: true, csrfToken: CSRF_A }, 200, "https://getlocation.fr/api/agency-session");
+          return response(expireOnRefresh ? { authenticated: false } : { authenticated: true, csrfToken: CSRF_B }, 200, "https://getlocation.fr/api/agency-session");
+        }
+        if (String(url).startsWith("/api/standalone-inspections?id=")) {
+          return response({ inspection: { id: "edl_aaaaaaaaaaaaaaaa", mode: "retour", client: { prenom: "Jean", nom: "Test" }, vehicule: { nom: "Véhicule test", immatriculation: "AA-000-AA" }, dossier: { depart: null, retour: snapshot, media: { depart: [], retour: [] } }, inspectionRevisions: { retour: [{ revision: 1, status: "draft", snapshot, media: [] }] } } }, 200, "https://getlocation.fr/api/standalone-inspections");
+        }
+        if (url === "/api/standalone-inspections" && options.method === "POST") {
+          writeCalls++;
+          if (writeCalls === 1) return response({ error: "Jeton CSRF invalide" }, 403, "https://getlocation.fr/api/standalone-inspections");
+          const body = JSON.parse(options.body);
+          return response({ revision: { revision: 1, status: "draft", snapshot: body.stage, media: [] } }, 200, "https://getlocation.fr/api/standalone-inspections");
+        }
+        throw new Error("Requête inattendue : " + url);
+      };
+    }
+  });
+  for (const script of ["inspection-sketch", "legacy-inspection-sketch", "inspection-media-view", "inspection-signature", "inspection-document", "inspection-page"]) dom.window.eval(fs.readFileSync(path.join(root, "js", script + ".js"), "utf8"));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  return { dom, doc: dom.window.document, requests, counters: () => ({ sessionCalls, writeCalls }), CSRF_A, CSRF_B };
+}
+
 test("une V2 draft moderne reste éditable malgré le finalizedAt legacy de V1", async () => {
   const v1 = { revision: 1, status: "finalized", finalizedAt: "2026-10-13T10:00:00Z", snapshot: { dateHeure: "2026-10-13T10:00", km: 100, carburant: 100, signatures: { client: { name: "Client", signedAt: "2026-10-13T10:00:00Z" }, agence: { name: "Agence", signedAt: "2026-10-13T10:01:00Z" } } }, media: [] };
   const v2 = { revision: 2, status: "draft", finalizedAt: null, basedOnRevision: 1, snapshot: { dateHeure: "2026-10-12T18:30", km: 110, carburant: 80, signatures: { client: { name: "Client", signedAt: "2026-10-13T10:00:00Z" }, agence: { name: "Agence", signedAt: "2026-10-13T10:01:00Z" } } }, media: [] };
@@ -137,6 +179,40 @@ test("V3 : brouillon EDL possède une sauvegarde explicite, différée et visibl
   assert.match(source, /recoverTechnicalDiagnostic/);
   assert.match(source, /showTechnicalDiagnostic/);
 });
+test("standalone : l’autosave renouvelle un CSRF obsolète puis remet dirty à false", async () => {
+  const { dom, doc, requests, counters, CSRF_A, CSRF_B } = await standaloneView();
+  const km = doc.getElementById("km");
+  km.value = "321";
+  km.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  assert.equal(doc.getElementById("saveStatus").textContent, "Modifications non enregistrées");
+
+  await new Promise(resolve => setTimeout(resolve, 1600));
+
+  assert.deepEqual(counters(), { sessionCalls: 2, writeCalls: 2 });
+  const writes = requests.filter(item => item.url === "/api/standalone-inspections" && item.options.method === "POST");
+  assert.equal(new Headers(writes[0].options.headers).get("x-agency-csrf"), CSRF_A);
+  assert.equal(new Headers(writes[1].options.headers).get("x-agency-csrf"), CSRF_B);
+  assert.match(doc.getElementById("saveStatus").textContent, /Modifications enregistrées/);
+  assert.equal(km.value, "321");
+  assert.equal(doc.getElementById("dommages").value, "Rayure conservée");
+  dom.window.close();
+});
+test("standalone : une session expirée conserve le formulaire et ne rejoue pas l’écriture", async () => {
+  const { dom, doc, counters } = await standaloneView({ expireOnRefresh: true });
+  const km = doc.getElementById("km"), damages = doc.getElementById("dommages");
+  km.value = "654"; damages.value = "Observation non enregistrée";
+  km.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  damages.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  doc.getElementById("stickySave").click();
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  assert.deepEqual(counters(), { sessionCalls: 2, writeCalls: 1 });
+  assert.match(doc.getElementById("message").textContent, /Votre session agence a expiré\. Reconnectez-vous pour enregistrer vos modifications\./);
+  assert.equal(km.value, "654");
+  assert.equal(damages.value, "Observation non enregistrée");
+  assert.equal(doc.getElementById("saveStatus").textContent, "Échec de la sauvegarde — réessayez");
+  dom.window.close();
+});
 test("V3 : une version finalisée peut créer une correction même si un autre brouillon existe", () => {
   const source = fs.readFileSync(path.join(root, "js", "inspection-page.js"), "utf8");
   assert.match(page, /id="createRevision"/);
@@ -147,7 +223,7 @@ test("V3 : une version finalisée peut créer une correction même si un autre b
   assert.match(source, /baseRevision: inspectionRevision/);
   assert.match(source, /if \(standaloneId\) \{ if \(response\.inspection && response\.inspection\.dossier\) dossier = response\.inspection\.dossier; \}/);
   assert.match(source, /dossier\[mode\] = response\.revision\.snapshot \|\| dossier\[mode\]/, "la réponse standalone allégée réhydrate le dossier depuis la seule révision retournée");
-  assert.match(page, /inspection-page\.js\?v=14/);
+  assert.match(page, /inspection-page\.js\?v=15/);
   assert.match(source, /Retirer de cette version/);
 });
 test("PDF utilitaire : le renderer utilise deux grilles, jamais une page par vue", () => {

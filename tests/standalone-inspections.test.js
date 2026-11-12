@@ -13,6 +13,40 @@ const signaturePng = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQA
 const realisticSignature = bytes => "data:image/png;base64," + "A".repeat(Math.max(4, bytes - 22));
 function report(km) { return { dateHeure: "2026-10-13T18:00", km, carburant: 80, propreteExterieure: 4, propreteInterieure: 4, cles: 2, clesAccessoires: "Deux clés", agent: "Edmundo", dommages: "", sketchVehicleType: "car", marks: [], utilityMarks: [], signatures: { client: { name: "Client", imageDataUrl: signaturePng }, agence: { name: "Agence", imageDataUrl: signaturePng } } }; }
 
+test("ancien CSRF : aucun R2/KV modifié, puis le nouveau CSRF produit un seul média", async () => {
+  const storage = bucket(), kv = createFakeKv(), env = makeAgencyEnv({ DOCUMENTS_BUCKET: storage, RESERVATIONS_KV: kv });
+  const sessionA = await loginAgency(env);
+  const created = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session: sessionA, body: { action: "create", mode: "depart", client: { prenom: "Test", nom: "CSRF" }, vehicule: { nom: "Véhicule test" } } }), env);
+  const inspection = (await created.json()).inspection;
+  const sessionB = await loginAgency(env);
+  const recordKey = "standalone-inspection:" + inspection.id;
+  const before = await kv.get(recordKey);
+
+  function uploadRequest(csrfToken) {
+    const form = new FormData();
+    form.set("stage", "depart"); form.set("revision", "1"); form.set("slot", "dommage"); form.set("capturedAt", "2026-11-12T10:30");
+    form.set("file", new File(["original"], "preuve.jpg", { type: "image/jpeg" }));
+    form.set("optimizedFile", new File(["optimisee"], "preuve-pdf.jpg", { type: "image/jpeg" }));
+    form.set("originalWidth", "4032"); form.set("optimizedWidth", "2000");
+    return new Request("https://getlocation.fr/api/standalone-inspection-media?id=" + inspection.id, { method: "POST", headers: { origin: "https://getlocation.fr", cookie: "agency_session=" + sessionB.cookie, "x-agency-csrf": csrfToken }, body: form });
+  }
+
+  const rejected = await handleStandaloneInspectionMedia(uploadRequest(sessionA.csrfToken), env);
+  assert.equal(rejected.status, 403);
+  assert.deepEqual(await rejected.json(), { error: "Jeton CSRF invalide" });
+  assert.equal(storage.objects.size, 0, "le rejet CSRF précède tout put R2");
+  assert.equal(await kv.get(recordKey), before, "le rejet CSRF précède toute écriture KV");
+
+  const retried = await handleStandaloneInspectionMedia(uploadRequest(sessionB.csrfToken), env);
+  assert.equal(retried.status, 200);
+  const uploaded = await retried.json();
+  assert.equal(storage.objects.size, 2, "un original et une copie PDF, sans doublon de retry");
+  const stored = JSON.parse(await kv.get(recordKey));
+  assert.equal(stored.inspectionRevisions.depart[0].media.length, 1);
+  assert.equal(stored.inspectionRevisions.depart[0].media[0].key, uploaded.item.key);
+  assert.equal(stored.inspectionRevisions.depart[0].media[0].optimizedKey, uploaded.item.optimizedKey);
+});
+
 test("EDL retour autonome : V1/V2 complètes sans départ, médias, signatures et PDF immuables", async () => {
   const storage = bucket(), env = makeAgencyEnv({ DOCUMENTS_BUCKET: storage, RESERVATIONS_KV: createFakeKv() }), session = await loginAgency(env);
   const created = await handleStandaloneInspections(agencyRequest("https://getlocation.fr/api/standalone-inspections", { method: "POST", session, body: { action: "create", mode: "retour", client: { prenom: "Retour", nom: "Autonome" }, vehicule: { nom: "Toyota Proace", immatriculation: "AA-123-AA" } } }), env);

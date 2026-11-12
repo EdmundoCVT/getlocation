@@ -1,15 +1,106 @@
 // Front-end V3 only. The existing agency dossier/media APIs remain authoritative.
-(function () {
+(function (root, factory) {
+  "use strict";
+  const createInspectionApiClient = factory();
+  if (typeof module === "object" && module.exports) module.exports = { createInspectionApiClient };
+  if (root) root.createInspectionApiClient = createInspectionApiClient;
+}(typeof window !== "undefined" ? window : null, function () {
+  "use strict";
+  const SESSION_EXPIRED_MESSAGE = "Votre session agence a expiré. Reconnectez-vous pour enregistrer vos modifications.";
+  const VALID_CSRF = /^[a-f0-9]{64}$/;
+
+  function createInspectionApiClient({ fetchImpl, standalone, authorizationToken = "", runtime = globalThis }) {
+    let csrfToken = "";
+    let csrfRefreshPromise = null;
+    const doFetch = fetchImpl || runtime.fetch.bind(runtime);
+    const FormDataCtor = runtime.FormData;
+    const HeadersCtor = runtime.Headers;
+
+    function sessionExpiredError() {
+      const error = new Error(SESSION_EXPIRED_MESSAGE);
+      error.status = 401;
+      error.code = "AGENCY_SESSION_EXPIRED";
+      return error;
+    }
+
+    async function refreshSession() {
+      if (csrfRefreshPromise) return csrfRefreshPromise;
+      csrfRefreshPromise = (async () => {
+        const response = await doFetch("/api/agency-session", { credentials: "same-origin" });
+        let session;
+        try { session = await response.json(); }
+        catch (_) { throw new Error("Impossible de vérifier la session agence. Réessayez sans recharger la page."); }
+        if (!response.ok) {
+          const error = new Error("Impossible de vérifier la session agence. Réessayez sans recharger la page.");
+          error.status = response.status; throw error;
+        }
+        if (session.authenticated !== true || !VALID_CSRF.test(session.csrfToken || "")) {
+          csrfToken = "";
+          throw sessionExpiredError();
+        }
+        csrfToken = session.csrfToken;
+        return session;
+      })().finally(() => { csrfRefreshPromise = null; });
+      return csrfRefreshPromise;
+    }
+
+    function cloneBody(body) {
+      if (!FormDataCtor || !(body instanceof FormDataCtor)) return body;
+      const copy = new FormDataCtor();
+      for (const [name, value] of body.entries()) {
+        if (typeof value === "string") copy.append(name, value);
+        else copy.append(name, value, value.name || "fichier");
+      }
+      return copy;
+    }
+
+    function requestOptions(options, method, tokenForAttempt) {
+      const headers = new HeadersCtor(options.headers || {});
+      if (authorizationToken) headers.set("Authorization", "Bearer " + authorizationToken);
+      const write = !["GET", "HEAD", "OPTIONS"].includes(method);
+      if (standalone && write && tokenForAttempt) headers.set("X-Agency-Csrf", tokenForAttempt);
+      else if (standalone && !write) headers.delete("X-Agency-Csrf");
+      return { ...options, ...(options.method ? { method } : {}), credentials: "same-origin", headers, ...(Object.prototype.hasOwnProperty.call(options, "body") ? { body: cloneBody(options.body) } : {}) };
+    }
+
+    async function isInvalidCsrf(response) {
+      if (!response || response.status !== 403 || typeof response.clone !== "function") return false;
+      try { return (await response.clone().json()).error === "Jeton CSRF invalide"; }
+      catch (_) { return false; }
+    }
+
+    async function api(url, options = {}) {
+      const method = String(options.method || "GET").toUpperCase();
+      const standaloneWrite = Boolean(standalone && !["GET", "HEAD", "OPTIONS"].includes(method));
+      const tokenForFirstAttempt = csrfToken;
+      const first = await doFetch(url, requestOptions(options, method, tokenForFirstAttempt));
+      if (!standaloneWrite || !(await isInvalidCsrf(first))) return first;
+
+      // Une autre écriture concurrente peut avoir déjà renouvelé le token.
+      // Sinon, toutes les erreurs simultanées partagent la même promesse GET.
+      if (csrfToken === tokenForFirstAttempt) await refreshSession();
+      if (!VALID_CSRF.test(csrfToken)) throw sessionExpiredError();
+      return doFetch(url, requestOptions(options, method, csrfToken));
+    }
+
+    return { fetch: api, refreshSession, getCsrfToken: () => csrfToken };
+  }
+
+  return createInspectionApiClient;
+}));
+
+if (typeof window !== "undefined" && window.document) (function () {
   "use strict";
   const params = new URLSearchParams(location.search), mode = params.get("mode") === "retour" ? "retour" : "depart", requestedRevision = Number(params.get("revision"));
   const legacy = params.get("source") === "legacy", legacyId = params.get("legacyId") || "";
   const standaloneId = params.get("standalone") || "";
   const token = new URLSearchParams(location.hash.slice(1)).get("agencyToken");
   const $ = id => document.getElementById(id), M = window.InspectionMedia, ImageOptimizer = window.InspectionImageOptimizer;
-  let dossier, reservation, family = "car", sketch, sketchVehicleType = "car", utilitySketchLegacy = false, pads = {}, dirty = false, revision = 0, inspectionRevision = 0, saving = false, pendingCount = 0, csrfToken = "", finalized = false, autosaveTimer = null, saveFailed = false, lastSavedAt = null, revisionList = [];
+  let dossier, reservation, family = "car", sketch, sketchVehicleType = "car", utilitySketchLegacy = false, pads = {}, dirty = false, revision = 0, inspectionRevision = 0, saving = false, pendingCount = 0, finalized = false, autosaveTimer = null, saveFailed = false, lastSavedAt = null, revisionList = [];
   let media = { depart: [], retour: [] }, editableMedia = new Set(), queue = Promise.resolve(), failedUploads = new Map();
   const scores = {};
-  const api = (url, options = {}) => fetch(url, { ...options, credentials: "same-origin", headers: { ...(token ? { Authorization: "Bearer " + token } : {}), ...(standaloneId && csrfToken ? { "X-Agency-Csrf": csrfToken } : {}), ...options.headers } });
+  const apiClient = window.createInspectionApiClient({ fetchImpl: (...args) => fetch(...args), standalone: Boolean(standaloneId), authorizationToken: token || "", runtime: window });
+  const api = apiClient.fetch;
   const mediaUrl = () => standaloneId ? "/api/standalone-inspection-media?id=" + encodeURIComponent(standaloneId) : "/api/inspection-media";
   const mediaReadUrl = (key, variant) => mediaUrl() + (standaloneId ? "&" : "?") + "key=" + encodeURIComponent(key) + (variant ? "&variant=" + encodeURIComponent(variant) : "");
   const json = M.parseApiResponse;
@@ -265,6 +356,7 @@
   async function save(finalize) {
     if (saving || !$("form").reportValidity()) return false;
     if (!standaloneId && mode === "retour" && (!dossier.depart || Number($("km").value) < dossier.depart.km)) { message(!dossier.depart ? "Enregistrez d’abord l’état des lieux de départ." : "Le kilométrage retour ne peut pas être inférieur au départ."); return false; }
+    clearTimeout(autosaveTimer);
     saving = true; hideTechnicalDiagnostic(); status();
     let saveRequestId = "";
     try {
@@ -377,8 +469,7 @@
     if (legacy) { await legacyView(); return; }
     if (!token && !standaloneId) throw new Error("Accès agence requis. Ouvrez l’état des lieux depuis le back-office.");
     if (standaloneId) {
-      const session = await json(await fetch("/api/agency-session", { credentials: "same-origin" })); csrfToken = session.csrfToken || "";
-      if (!csrfToken) throw new Error("Accès agence requis. Ouvrez l’état des lieux depuis le back-office.");
+      await apiClient.refreshSession();
       const view = await json(await api("/api/standalone-inspections?id=" + encodeURIComponent(standaloneId)));
       const standalone = view.inspection;
       if (standalone.mode !== mode) throw new Error("Type d’état des lieux incohérent.");
