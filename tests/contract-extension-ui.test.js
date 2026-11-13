@@ -39,6 +39,21 @@ test("un conflit affiche directement la date de réservation bloquante", () => {
   assert.match(html, /error\.details\.startsAt/);
 });
 
+test("la liste propose Prolonger sur un brouillon et Renouveler sur un contrat finalisé", () => {
+  assert.match(html, /\(\(estSigne&&!estTermine\)\|\|estBrouillon\)/);
+  assert.match(html, /renewBtn\.textContent='Renouveler'/);
+  assert.match(html, /estTermine = estSigne && contratEstTermine/);
+});
+
+test("le renouvellement demande quatre champs, utilise l'API serveur et confirme sans redirection", () => {
+  for (const label of ["Nouvelle date de début", "Nouvelle heure de début", "Nouvelle date de fin", "Nouvelle heure de fin"]) assert.match(html, new RegExp(label));
+  assert.match(html, /fetch\('\/api\/contracts-renewal'/);
+  assert.match(html, /title\.textContent='Nouveau contrat créé'/);
+  assert.match(html, /open\.textContent='Ouvrir le nouveau contrat'/);
+  assert.match(html, /edit\.textContent='Modifier d’autres informations'/);
+  assert.match(html, /Contrat renouvelé depuis/);
+});
+
 test("le panneau mobile utilise des contrôles tactiles d'au moins 44 px sans tableau horizontal", () => {
   assert.match(html, /extension-fields input\{[^}]*min-height:46px/);
   assert.match(html, /sheet-actions \.btn\{[^}]*min-height:45px/);

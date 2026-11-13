@@ -5066,6 +5066,8 @@ function initOwnerView(prefill, versionId){
         versionsLine.textContent='Version actuelle : V'+((entry.version&&entry.version.version)||1)+' — '+statutContrat(entry)+' · Versions : '+entry.versions.slice().sort(function(a,b){return (a.version.version||1)-(b.version.version||1);}).map(function(item){var status=item.version.status==='signed'||item.version.status==='finalized'||item.version.status==='archived'?'✓':'Brouillon';return '[V'+item.version.version+' '+status+']';}).join(' ');
         row.querySelector('.info').appendChild(versionsLine);
       }
+      var renewalSource=entry.rawData&&entry.rawData.renewedFromContractNumero;
+      if(renewalSource){var renewalLine=document.createElement('span');renewalLine.className='details';renewalLine.textContent='Contrat renouvelé depuis '+renewalSource;row.querySelector('.info').appendChild(renewalLine);}
       var actions = row.querySelector('.actions');
 
       var driveStatut = document.createElement('span');
@@ -5194,6 +5196,21 @@ function initOwnerView(prefill, versionId){
           });
       }
 
+      function periodeContrat(cible){
+        var source=cible.rawData||cible.resume||{};
+        var debutBrut=source.depart||(source.dateDebut&&source.heureDebut?source.dateDebut+'T'+source.heureDebut:source.periodeDebut)||'';
+        var finBrute=source.fin||source.retour||(source.dateFin&&source.heureFin?source.dateFin+'T'+source.heureFin:source.periodeFin)||'';
+        var debut=/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(String(debutBrut));
+        var fin=/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(String(finBrute));
+        return debut&&fin?{debut:{date:debut[1],time:debut[2]},fin:{date:fin[1],time:fin[2]}}:null;
+      }
+
+      function contratEstTermine(cible){
+        var periode=periodeContrat(cible);
+        if(!periode)return false;
+        return new Date(periode.fin.date+'T'+periode.fin.time).getTime()<=Date.now();
+      }
+
       function ouvrirProlongation(cible){
         var source = cible.rawData || cible.resume || {};
         var finBrute = source.fin || source.retour || (source.dateFin && source.heureFin ? source.dateFin + 'T' + source.heureFin : source.periodeFin) || '';
@@ -5235,8 +5252,8 @@ function initOwnerView(prefill, versionId){
             .then(function(response){return response.json().then(function(body){if(!response.ok)throw body;return body;});})
             .then(function(body){
               var createdPreview=body.preview||preview;
-              title.textContent='Contrat prolongé — V'+escapeHtml(String(body.version&&body.version.version||''))+' créée';
-              intro.textContent='La nouvelle version est un brouillon. La signature et la finalisation restent des étapes séparées.';
+              title.textContent=body.updatedExisting?'Brouillon prolongé — V'+String(body.version&&body.version.version||'')+' mise à jour':'Contrat prolongé — V'+String(body.version&&body.version.version||'')+' créée';
+              intro.textContent=body.updatedExisting?'Le brouillon existant a été mis à jour sans créer de nouvelle version.':'La nouvelle version est un brouillon. La signature et la finalisation restent des étapes séparées.';
               context.remove();fields.remove();result.remove();status.remove();actionsSheet.innerHTML='';
               var confirmation=document.createElement('div');confirmation.className='extension-confirmation';confirmation.textContent='Prolongation enregistrée';sheet.insertBefore(confirmation,actionsSheet);
               var recap=document.createElement('div');recap.className='extension-summary';recap.innerHTML='<div><span>Nouvelle date de retour</span><strong>'+escapeHtml(formatDateHeureFR(createdPreview.newEnd))+'</strong></div><div><span>Nouveau total</span><strong>'+escapeHtml(formatEUR(createdPreview.newTotal))+'</strong></div><div><span>Supplément</span><strong>'+escapeHtml(formatEUR(createdPreview.additionalAmount))+'</strong></div>';sheet.insertBefore(recap,actionsSheet);
@@ -5251,6 +5268,64 @@ function initOwnerView(prefill, versionId){
             }).finally(function(){create.textContent='Prolonger le contrat';if(preview&&document.body.contains(create))create.disabled=false;});
         });
         overlay.addEventListener('click',function(event){if(event.target===overlay)overlay.remove();});overlay.appendChild(sheet);document.body.appendChild(overlay);dateInput.focus();
+      }
+
+      function ouvrirRenouvellement(cible){
+        var periode=periodeContrat(cible);
+        if(!periode){alert('La période du contrat source est introuvable.');return;}
+        function dateUtc(value,time){var p=value.split('-').map(Number),h=time.split(':').map(Number);return Date.UTC(p[0],p[1]-1,p[2],h[0],h[1]);}
+        function formatUtc(ms){var d=new Date(ms);return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');}
+        function moisSuivant(value){var p=value.split('-').map(Number),last=new Date(Date.UTC(p[0],p[1]+1,0)).getUTCDate(),d=new Date(Date.UTC(p[0],p[1],Math.min(p[2],last)));return formatUtc(d.getTime());}
+        var dureeMs=dateUtc(periode.fin.date,periode.fin.time)-dateUtc(periode.debut.date,periode.debut.time);
+        var dureeJours=dureeMs/86400000;
+        var defaultEndMs=dateUtc(periode.fin.date,periode.fin.time)+dureeMs;
+        var defaultEndDate=dureeJours>=25&&dureeJours<=35?moisSuivant(periode.fin.date):formatUtc(defaultEndMs);
+        var defaultEndTime=dureeJours>=25&&dureeJours<=35?periode.fin.time:String(new Date(defaultEndMs).getUTCHours()).padStart(2,'0')+':'+String(new Date(defaultEndMs).getUTCMinutes()).padStart(2,'0');
+        var source=cible.rawData||cible.resume||{},conducteur=source.conducteur||{};
+        var clientName=[conducteur.prenom||source.prenom||'',conducteur.nom||source.nom||''].join(' ').trim()||'—';
+        var vehicle=getVehiculeParId(source.vehiculeId||'');
+        var overlay=document.createElement('div');overlay.className='consultation-overlay';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','Renouveler le contrat');
+        var sheet=document.createElement('section');sheet.className='consultation-sheet';
+        var title=document.createElement('h3');title.textContent='Renouveler le contrat';sheet.appendChild(title);
+        var intro=document.createElement('p');intro.textContent='Un nouveau contrat V1 sera créé avec les informations existantes du client.';sheet.appendChild(intro);
+        var context=document.createElement('div');context.className='extension-summary';context.innerHTML='<div><span>Contrat source</span><strong>'+escapeHtml(cible.numero||'—')+'</strong></div><div><span>Client</span><strong>'+escapeHtml(clientName)+'</strong></div><div><span>Véhicule</span><strong>'+escapeHtml(vehicle?vehicle.nom:source.vehiculeId||'—')+'</strong></div><div><span>Période source</span><strong>'+escapeHtml(formatDateHeureFR(periode.debut.date+'T'+periode.debut.time))+' → '+escapeHtml(formatDateHeureFR(periode.fin.date+'T'+periode.fin.time))+'</strong></div>';sheet.appendChild(context);
+        var fields=document.createElement('div');fields.className='extension-fields';
+        function field(label,type,value){var l=document.createElement('label');l.textContent=label;var input=document.createElement('input');input.type=type;input.value=value;l.appendChild(input);fields.appendChild(l);return input;}
+        var startDate=field('Nouvelle date de début','date',periode.fin.date);
+        var startTime=field('Nouvelle heure de début','time',periode.fin.time);
+        var endDate=field('Nouvelle date de fin','date',defaultEndDate);
+        var endTime=field('Nouvelle heure de fin','time',defaultEndTime);sheet.appendChild(fields);
+        var result=document.createElement('div');result.className='extension-summary';result.setAttribute('aria-live','polite');sheet.appendChild(result);
+        var status=document.createElement('p');status.className='extension-loading';sheet.appendChild(status);
+        var actions=document.createElement('div');actions.className='sheet-actions';
+        var create=document.createElement('button');create.type='button';create.className='btn btn-primary';create.textContent='Créer le nouveau contrat';create.disabled=true;actions.appendChild(create);
+        var close=document.createElement('button');close.type='button';close.className='btn';close.textContent='Annuler';close.onclick=function(){overlay.remove();};actions.appendChild(close);sheet.appendChild(actions);
+        var preview=null,sequence=0;
+        function erreur(message){preview=null;create.disabled=true;result.innerHTML='';status.className='extension-error';status.textContent=message;}
+        function apercu(){
+          var current=++sequence;
+          if(!startDate.value||!startTime.value||!endDate.value||!endTime.value){erreur('Les quatre champs de période sont obligatoires.');return;}
+          status.className='extension-loading';status.textContent='Calcul et disponibilité en cours…';create.disabled=true;
+          fetch('/api/contracts-renewal',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken||''},body:JSON.stringify({sourceId:cible.id,startDate:startDate.value,startTime:startTime.value,endDate:endDate.value,endTime:endTime.value,preview:true})})
+            .then(function(response){return response.json().then(function(body){if(!response.ok)throw body;return body;});})
+            .then(function(body){if(current!==sequence)return;preview=body.preview;result.innerHTML='<div><span>Nouvelle période</span><strong>'+escapeHtml(formatDateHeureFR(preview.start))+' → '+escapeHtml(formatDateHeureFR(preview.end))+'</strong></div><div><span>Durée</span><strong>'+escapeHtml(String(preview.days))+' jours</strong></div><div><span>Kilométrage inclus</span><strong>'+escapeHtml(String(preview.includedMileage))+' km</strong></div><div><span>Tarif contractuel</span><strong>'+escapeHtml(formatEUR(preview.contractDailyRate))+' / jour</strong></div><div><span>Total estimé</span><strong>'+escapeHtml(formatEUR(preview.estimatedTotal))+'</strong></div>';status.className='extension-loading';status.textContent='Données reprises et disponibilité vérifiées par le serveur.';create.disabled=false;})
+            .catch(function(error){if(current!==sequence)return;erreur(error&&error.error?error.error:'Renouvellement impossible.');});
+        }
+        [startDate,startTime,endDate,endTime].forEach(function(input){input.addEventListener('change',apercu);});
+        create.onclick=function(){
+          if(!preview)return;create.disabled=true;create.textContent='Création…';
+          fetch('/api/contracts-renewal',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken||''},body:JSON.stringify({sourceId:cible.id,startDate:startDate.value,startTime:startTime.value,endDate:endDate.value,endTime:endTime.value})})
+            .then(function(response){return response.json().then(function(body){if(!response.ok)throw body;return body;});})
+            .then(function(body){
+              var created=body.preview||preview;title.textContent='Nouveau contrat créé';intro.textContent='Le contrat '+body.numero+' est une nouvelle V1 indépendante.';context.remove();fields.remove();result.remove();status.remove();actions.innerHTML='';
+              var confirmation=document.createElement('div');confirmation.className='extension-confirmation';confirmation.textContent=body.numero;sheet.insertBefore(confirmation,actions);
+              var recap=document.createElement('div');recap.className='extension-summary';recap.innerHTML='<div><span>Client</span><strong>'+escapeHtml(created.clientName||clientName)+'</strong></div><div><span>Véhicule</span><strong>'+escapeHtml(vehicle?vehicle.nom:created.vehicleId||'—')+'</strong></div><div><span>Période</span><strong>'+escapeHtml(formatDateHeureFR(created.start))+' → '+escapeHtml(formatDateHeureFR(created.end))+'</strong></div><div><span>Total estimé</span><strong>'+escapeHtml(formatEUR(created.estimatedTotal))+'</strong></div>';sheet.insertBefore(recap,actions);
+              var open=document.createElement('button');open.type='button';open.className='btn btn-primary';open.textContent='Ouvrir le nouveau contrat';open.onclick=function(){appelerLienAgence(true,{id:body.id}).catch(function(error){alert(error&&error.message?error.message:'Le nouveau contrat n’a pas pu être ouvert.');});};actions.appendChild(open);
+              var edit=document.createElement('button');edit.type='button';edit.className='btn';edit.textContent='Modifier d’autres informations';edit.onclick=function(){ouvrirEditeurVersion({id:body.id});};actions.appendChild(edit);
+              var done=document.createElement('button');done.type='button';done.className='btn';done.textContent='Fermer';done.onclick=function(){overlay.remove();};actions.appendChild(done);chargerHistorique();
+            }).catch(function(error){erreur(error&&error.error?error.error:'Le nouveau contrat n’a pas pu être créé.');}).finally(function(){create.textContent='Créer le nouveau contrat';if(preview&&document.body.contains(create))create.disabled=false;});
+        };
+        overlay.addEventListener('click',function(event){if(event.target===overlay)overlay.remove();});overlay.appendChild(sheet);document.body.appendChild(overlay);startDate.focus();apercu();
       }
 
       function ouvrirConsultation(){
@@ -5273,7 +5348,8 @@ function initOwnerView(prefill, versionId){
         }
         ajouterAction('Ouvrir le dossier', function(){ appelerLienAgence(true).catch(function(err){ alert(err.message || "Le dossier n'a pas pu être ouvert."); }); });
         if(entry.origine === 'reservation') ajouterAction('Renvoyer le lien agence', function(){ appelerLienAgence(false).catch(function(err){ alert(err.message || "Le lien n'a pas pu être généré."); }); });
-        if(estSigne) ajouterAction('Prolonger le contrat', function(){ ouvrirProlongation(entry); }, true);
+        if(!entry.archived&&(estBrouillon||(estSigne&&!contratEstTermine(entry)))) ajouterAction('Prolonger le contrat', function(){ ouvrirProlongation(entry); }, true);
+        if(estSigne) ajouterAction('Renouveler', function(){ ouvrirRenouvellement(entry); }, true);
         if(estSigne) ajouterAction('Créer V' + (((entry.version && entry.version.version) || 1) + 1), function(){ creerNouvelleVersion(entry); });
         ajouterAction('Fermer', function(){}, false);
         overlay.addEventListener('click', function(e){ if(e.target===overlay) overlay.remove(); }); overlay.appendChild(sheet); document.body.appendChild(overlay);
@@ -5289,22 +5365,23 @@ function initOwnerView(prefill, versionId){
       // transmettre directement à Antonio le lien du dossier afin qu'il
       // complète l'état des lieux de retour depuis son téléphone.
       var estSigne = entry.version && (entry.version.status === 'signed' || entry.version.status === 'finalized' || entry.version.status === 'archived');
+      var estBrouillon = entry.version && entry.version.status === 'draft';
+      var estTermine = estSigne && contratEstTermine(entry);
       var consulterBtn = document.createElement('button');
       consulterBtn.type='button'; consulterBtn.className='btn'; consulterBtn.textContent='Consulter';
       consulterBtn.addEventListener('click', function(){ appelerLienAgence(true).catch(function(err){ alert(err.message || 'Le contrat n’a pas pu être ouvert.'); }); });
       actions.appendChild(consulterBtn);
-      var actionVersionBtn = document.createElement('button');
-      actionVersionBtn.type='button'; actionVersionBtn.className='btn btn-primary';
-      if(estSigne){
-        actionVersionBtn.textContent='Créer V' + (((entry.version && entry.version.version) || 1) + 1);
-        actionVersionBtn.addEventListener('click', function(){ creerNouvelleVersion(entry); });
-      } else {
+      var actionVersionBtn = null;
+      if(!estSigne){
+        actionVersionBtn = document.createElement('button');
+        actionVersionBtn.type='button'; actionVersionBtn.className='btn btn-primary';
         actionVersionBtn.textContent='Modifier V' + ((entry.version && entry.version.version) || 1);
         actionVersionBtn.addEventListener('click', function(){ ouvrirEditeurVersion(entry); });
+        actions.appendChild(actionVersionBtn);
       }
-      actions.appendChild(actionVersionBtn);
-      if(estSigne&&!entry.archived){var extendBtn=document.createElement('button');extendBtn.type='button';extendBtn.className='btn btn-primary';extendBtn.textContent='Prolonger';extendBtn.addEventListener('click',function(){ouvrirProlongation(entry);});actions.insertBefore(extendBtn,actionVersionBtn);}
-      if(entry.archived){actionVersionBtn.disabled=true;actionVersionBtn.textContent='Contrat archivé';}
+      if(!entry.archived&&((estSigne&&!estTermine)||estBrouillon)){var extendBtn=document.createElement('button');extendBtn.type='button';extendBtn.className='btn btn-primary';extendBtn.textContent='Prolonger';extendBtn.addEventListener('click',function(){ouvrirProlongation(entry);});actions.appendChild(extendBtn);}
+      if(estSigne){var renewBtn=document.createElement('button');renewBtn.type='button';renewBtn.className='btn btn-primary';renewBtn.textContent='Renouveler';renewBtn.addEventListener('click',function(){ouvrirRenouvellement(entry);});actions.appendChild(renewBtn);}
+      if(entry.archived&&actionVersionBtn){actionVersionBtn.disabled=true;actionVersionBtn.textContent='Contrat archivé';}
       var historiqueBtn = document.createElement('button');
       historiqueBtn.type='button'; historiqueBtn.className='btn'; historiqueBtn.textContent='Historique des versions';
       historiqueBtn.addEventListener('click', function(){
@@ -5314,12 +5391,13 @@ function initOwnerView(prefill, versionId){
         var title=document.createElement('h3'); title.textContent='Historique des versions — ' + entry.numero; sheet.appendChild(title);
         versions.forEach(function(versionEntry){
           var info=versionEntry.version||{}, block=document.createElement('div'); block.className='card';
-          var status=(info.status==='signed'||info.status==='archived')?'Finalisée':info.status==='sent'?'Envoyée':'Brouillon';
+          var status=(info.status==='signed'||info.status==='finalized'||info.status==='archived')?'Finalisée':info.status==='sent'?'Envoyée':'Brouillon';
           block.innerHTML='<strong>V'+escapeHtml(String(info.version||1))+' — '+escapeHtml(status)+'</strong><p class="meta-line">Créée le '+escapeHtml(formatDateHeureFR(info.createdAt||versionEntry.createdAt||''))+(info.supersedesVersion?' · Basée sur V'+escapeHtml(String(info.supersedesVersion)):'')+(info.versionReason?' · Motif : '+escapeHtml(info.versionReason):'')+'</p>';
           var versionActions=document.createElement('div'); versionActions.className='sheet-actions';
           var open=document.createElement('button'); open.type='button'; open.className='btn'; open.textContent=status==='Brouillon'?'Modifier V'+info.version:'Consulter V'+info.version; open.onclick=function(){ if(status==='Brouillon')ouvrirEditeurVersion(versionEntry);else appelerLienAgence(true,versionEntry).catch(function(err){alert(err.message||'Ouverture impossible');}); }; versionActions.appendChild(open);
           if(versionEntry.pdf&&versionEntry.pdf.available){var pdfBtn=document.createElement('button');pdfBtn.type='button';pdfBtn.className='btn';pdfBtn.textContent='Voir PDF V'+info.version;pdfBtn.onclick=function(){ouvrirPdf(false,versionEntry);};versionActions.appendChild(pdfBtn);}
-          if(status!=='Brouillon'){var extend=document.createElement('button');extend.type='button';extend.className='btn btn-primary';extend.textContent='Prolonger depuis V'+info.version;extend.onclick=function(){ouvrirProlongation(versionEntry);};versionActions.appendChild(extend);var from=document.createElement('button');from.type='button';from.className='btn';from.textContent='Créer une nouvelle version à partir de V'+info.version;from.onclick=function(){creerNouvelleVersion(versionEntry);};versionActions.appendChild(from);}
+          if(status==='Brouillon'){var extendDraft=document.createElement('button');extendDraft.type='button';extendDraft.className='btn btn-primary';extendDraft.textContent='Prolonger V'+info.version;extendDraft.onclick=function(){ouvrirProlongation(versionEntry);};versionActions.appendChild(extendDraft);}
+          if(status!=='Brouillon'){if(!contratEstTermine(versionEntry)){var extend=document.createElement('button');extend.type='button';extend.className='btn btn-primary';extend.textContent='Prolonger depuis V'+info.version;extend.onclick=function(){ouvrirProlongation(versionEntry);};versionActions.appendChild(extend);}var renew=document.createElement('button');renew.type='button';renew.className='btn btn-primary';renew.textContent='Renouveler depuis V'+info.version;renew.onclick=function(){ouvrirRenouvellement(versionEntry);};versionActions.appendChild(renew);var from=document.createElement('button');from.type='button';from.className='btn';from.textContent='Créer une nouvelle version à partir de V'+info.version;from.onclick=function(){creerNouvelleVersion(versionEntry);};versionActions.appendChild(from);}
           block.appendChild(versionActions); sheet.appendChild(block);
         });
         var close=document.createElement('button');close.type='button';close.className='btn';close.textContent='Fermer';close.onclick=function(){overlay.remove();};sheet.appendChild(close);overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove();});overlay.appendChild(sheet);document.body.appendChild(overlay);

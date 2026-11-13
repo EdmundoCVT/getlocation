@@ -90,6 +90,7 @@ test("le Worker route la numérotation/historique des contrats manuels", () => {
   assert.match(worker, /"\/api\/contracts-history"\s*:\s*handleContractsHistory/);
   assert.match(worker, /"\/api\/contracts-version"\s*:\s*handleContractsVersion/);
   assert.match(worker, /"\/api\/contracts-extension"\s*:\s*handleContractsExtension/);
+  assert.match(worker, /"\/api\/contracts-renewal"\s*:\s*handleContractsRenewal/);
   assert.match(worker, /"\/api\/contracts-version-editor"\s*:\s*handleContractsVersionEditor/);
   assert.match(worker, /"\/api\/contracts-archive"\s*:\s*handleContractsArchive/);
   assert.match(worker, /"\/api\/agency-drive-backup"\s*:\s*handleAgencyDriveBackup/);

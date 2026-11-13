@@ -213,10 +213,21 @@ test("API : aperçu puis création, les montants falsifiés du navigateur sont i
   assert.ok(env.AGENCY_DB._raw.auditLog.some((event) => event.event_type === "contract_extension_created"));
 });
 
-test("aperçu interdit depuis un brouillon", async () => {
+test("un brouillon est prolongé en place sans changer d'id, de numéro ni de version", async () => {
   const env = environment();
   const draft = await store(env, source({ contractVersion: { contractId: "GL-20261110-0042", version: 1, status: "draft" }, contractDossier: { status: "draft" } }));
-  await assert.rejects(() => previewContractExtension(env, draft.id, { date: "2026-11-15", time: "10:00" }), (error) => error.code === "source_not_finalized");
+  const preview = await previewContractExtension(env, draft.id, { date: "2026-11-15", time: "10:00" });
+  assert.equal(preview.mode, "draft_update");
+  assert.equal(preview.targetVersion, 1);
+  const result = await createContractExtension(env, draft.id, { date: "2026-11-15", time: "10:00" }, "Edmundo");
+  assert.equal(result.updatedExisting, true);
+  assert.equal(result.version.id, draft.id);
+  assert.equal(result.version.contractNumero, draft.contractNumero);
+  assert.equal(result.version.contractVersion.version, 1);
+  assert.equal(result.version.conducteur.email, draft.conducteur.email);
+  assert.equal(result.version.dateFin, "2026-11-15");
+  assert.equal(result.version.total, 325);
+  assert.equal((await env.RESERVATIONS_KV.list({ prefix: "res_" })).keys.length, 1);
 });
 
 test("une prolongation issue d'une réservation payée étend le TTL KV sans modifier la valeur V1", async () => {

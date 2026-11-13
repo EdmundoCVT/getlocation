@@ -10,6 +10,7 @@ const {
   contractVersionInfo,
   isSignedContract,
   extendContractRetention,
+  updateReservationStatus,
   deepCloneContractData
 } = require("./reservation-store.js");
 const {
@@ -184,6 +185,13 @@ function extensionCalculation(source, newEnd) {
   const newDays = joursFacturablesPourPeriode(interval.startParts.date, interval.startParts.time, newEnd.date, newEnd.time);
   if (!oldDays || !newDays || newDays < oldDays) throw new ContractExtensionError("Durée de prolongation invalide", "invalid_extension_duration");
 
+  return contractTermsForDays(source, oldDays, newDays, { interval, newEndMs });
+}
+
+function contractTermsForDays(source, oldDays, newDays, context = {}) {
+  if (!Number.isInteger(oldDays) || oldDays < 1 || !Number.isInteger(newDays) || newDays < 1) {
+    throw new ContractExtensionError("Durée contractuelle invalide", "invalid_contract_duration");
+  }
   const oldTotal = rentalTotal(source);
   const dailyRate = contractualDailyRate(source, oldDays, oldTotal);
   const oldExtras = sourceExtras(source);
@@ -201,10 +209,24 @@ function extensionCalculation(source, newEnd) {
   const additionalAmount = money(Math.max(0, newTotal - alreadyPaid));
   const mileage = mileageForExtension(source, oldDays, newDays);
   return {
-    interval, newEndMs, oldDays, newDays, oldTotal, newTotal, dailyRate,
+    ...context, oldDays, newDays, oldTotal, newTotal, dailyRate,
     oldRental, newRental, fixedAdjustment, options, optionsAmount, protection,
     young, alreadyPaid, additionalAmount, mileage
   };
+}
+
+function contractPeriodCalculation(source, newStart, newEnd) {
+  const sourceInterval = recordInterval(source);
+  const startParts = { date: newStart && newStart.date, time: newStart && newStart.time };
+  const endParts = { date: newEnd && newEnd.date, time: newEnd && newEnd.time };
+  const startMs = instant(startParts);
+  const endMs = instant(endParts);
+  if (sourceInterval.start === null || sourceInterval.end === null || startMs === null || endMs === null || endMs <= startMs) {
+    throw new ContractExtensionError("Période du nouveau contrat invalide", "invalid_contract_period");
+  }
+  const oldDays = joursFacturablesPourPeriode(sourceInterval.startParts.date, sourceInterval.startParts.time, sourceInterval.endParts.date, sourceInterval.endParts.time);
+  const newDays = joursFacturablesPourPeriode(startParts.date, startParts.time, endParts.date, endParts.time);
+  return contractTermsForDays(source, oldDays, newDays, { sourceInterval, startParts, endParts, startMs, endMs });
 }
 
 function isBlocking(record) {
@@ -332,7 +354,11 @@ async function prepareContractExtension(env, id, newEnd) {
   if (!source || !["paid", "manual_contract", "contract_version"].includes(source.status)) {
     throw new ContractExtensionError("Contrat introuvable", "contract_not_found", 404);
   }
-  if (!isSignedContract(source)) throw new ContractExtensionError("Seule une version finalisée peut être prolongée", "source_not_finalized", 409);
+  const versionInfo = contractVersionInfo(source);
+  const updatesDraft = !isSignedContract(source);
+  if (updatesDraft && versionInfo.status !== "draft") {
+    throw new ContractExtensionError("Seul un brouillon ou une version finalisée peut être prolongé", "source_not_extendable", 409);
+  }
   if (!newEnd || !/^\d{4}-\d{2}-\d{2}$/.test(newEnd.date || "") || !/^\d{2}:\d{2}$/.test(newEnd.time || "")) {
     throw new ContractExtensionError("Nouvelle date et nouvelle heure de retour obligatoires", "invalid_extension_end");
   }
@@ -341,10 +367,10 @@ async function prepareContractExtension(env, id, newEnd) {
   if (conflict) {
     throw new ContractExtensionError("Ce véhicule est déjà réservé pendant la période de prolongation.", "extension_vehicle_conflict", 409, conflict);
   }
-  return { source, calculation };
+  return { source, calculation, updatesDraft };
 }
 
-function publicPreview(source, calculation, newEnd) {
+function publicPreview(source, calculation, newEnd, updatesDraft = false) {
   return {
     contractId: contractVersionInfo(source).contractId,
     contractNumero: source.contractNumero,
@@ -357,26 +383,38 @@ function publicPreview(source, calculation, newEnd) {
     includedMileage: calculation.mileage.kilometresInclusTotal,
     newTotal: calculation.newTotal,
     alreadyPaid: calculation.alreadyPaid,
-    additionalAmount: calculation.additionalAmount
+    additionalAmount: calculation.additionalAmount,
+    mode: updatesDraft ? "draft_update" : "new_version",
+    targetVersion: updatesDraft ? contractVersionInfo(source).version : contractVersionInfo(source).version + 1
   };
 }
 
 async function previewContractExtension(env, id, newEnd) {
-  const { source, calculation } = await prepareContractExtension(env, id, newEnd);
-  return publicPreview(source, calculation, newEnd);
+  const { source, calculation, updatesDraft } = await prepareContractExtension(env, id, newEnd);
+  return publicPreview(source, calculation, newEnd, updatesDraft);
 }
 
 async function createContractExtension(env, id, newEnd, operator, reason) {
-  const { source, calculation } = await prepareContractExtension(env, id, newEnd);
-  const version = await createContractVersion(env, id, operator, extensionReason(newEnd, reason), (draft) => applyCalculation(draft, source, calculation, newEnd, operator));
+  const { source, calculation, updatesDraft } = await prepareContractExtension(env, id, newEnd);
+  let version;
+  if (updatesDraft) {
+    version = applyCalculation(deepCloneContractData(source), source, calculation, newEnd, operator);
+    version.updatedAt = new Date().toISOString();
+    version.updatedBy = operator || source.updatedBy || null;
+    if (source.status === "paid") version = await updateReservationStatus(env, source.id, "paid", version);
+    else await env.RESERVATIONS_KV.put(source.id, JSON.stringify(version));
+  } else {
+    version = await createContractVersion(env, id, operator, extensionReason(newEnd, reason), (draft) => applyCalculation(draft, source, calculation, newEnd, operator));
+  }
   try { await refreshPaidRootRetention(env, source, calculation.newEndMs); }
   catch (error) { console.error("[contract-extension] Échec de prolongation du TTL KV", source.id); }
-  return { version, preview: publicPreview(source, calculation, newEnd) };
+  return { version, preview: publicPreview(source, calculation, newEnd, updatesDraft), updatedExisting: updatesDraft };
 }
 
 module.exports = {
   ContractExtensionError,
   extensionCalculation,
+  contractPeriodCalculation,
   findExtensionConflict,
   previewContractExtension,
   createContractExtension

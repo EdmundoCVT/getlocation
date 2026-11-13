@@ -28,16 +28,17 @@ async function handleContractsExtension(request, env) {
     if (reason.length > 500) throw new Error("Motif trop long (500 caractères maximum)");
     const result = await createContractExtension(env, body.id, newEnd, auth.session.operator, reason);
     const version = result.version;
-    enqueueDriveSync(env, version.id).catch(() => undefined);
+    void enqueueDriveSync(env, version.id).catch(() => undefined);
     await recordAuditEvent(env, {
       actor: auth.session.operator,
-      eventType: "contract_extension_created",
+      eventType: result.updatedExisting ? "contract_extension_updated" : "contract_extension_created",
       entityType: "contract",
       entityId: version.id,
       metadata: {
         contractId: version.contractVersion.contractId,
         sourceVersion: version.contractVersion.supersedesVersion,
         newVersion: version.contractVersion.version,
+        updatedExisting: result.updatedExisting,
         oldEndAt: version.contractExtensionPricing.oldEndAt,
         newEndAt: version.contractExtensionPricing.newEndAt,
         oldTotal: version.contractExtensionPricing.oldTotal,
@@ -50,8 +51,9 @@ async function handleContractsExtension(request, env) {
       id: version.id,
       numero: version.contractNumero,
       version: version.contractVersion,
-      preview: result.preview
-    }), { status: 201, headers });
+      preview: result.preview,
+      updatedExisting: result.updatedExisting
+    }), { status: result.updatedExisting ? 200 : 201, headers });
   } catch (error) {
     const status = Number(error && error.status) || (error && error.code === "contract_draft_exists" ? 409 : 400);
     return new Response(JSON.stringify({
