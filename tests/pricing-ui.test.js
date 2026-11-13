@@ -103,8 +103,9 @@ test("initReservationPage : les cartes présentent les niveaux et garanties sans
   const detailsToggle = window.document.querySelector('[data-protection="essentiel"] .protection-details-toggle');
   detailsToggle.click();
   assert.match(window.document.querySelector('[data-protection="essentiel"] .protection-details').textContent, /responsabilité civile obligatoire/i);
-  assert.match(texte, /garantie financière/i);
-  assert.match(texte, /ne limite pas les sommes/i);
+  assert.match(texte, /dépôt de garantie reste séparé du prix de la location/i);
+  assert.doesNotMatch(texte, /ne limite pas les sommes/i);
+  assert.doesNotMatch(texte, /plafond des sommes/i);
   assert.match(texte, /650\s*€/i, "le montant du dépôt du véhicule doit être visible avant paiement");
 });
 

@@ -318,9 +318,9 @@ test("contrat PDF : protection choisie et dépôt de garantie sont distincts, sa
 test("contrat PDF : la clause Dépôt de garantie précise sa portée financière", () => {
   const { tout } = contratPdf({ protection: "serenite" });
   assert.match(tout, /Dépôt de garantie\./);
-  assert.match(tout, /garantie financière/);
-  assert.match(tout, /ne constitue pas un plafond de responsabilité/);
-  assert.match(tout, /sommes complémentaires peuvent être réclamées/);
+  assert.match(tout, /distinct du prix de la location/);
+  assert.match(tout, /ne constitue pas une limitation de la responsabilité/);
+  assert.match(tout, /plafond des sommes/);
   assert.match(tout, /garantie d’absence de frais/);
 });
 
@@ -351,8 +351,8 @@ test("contrat PDF anglais : la formule porte son nom anglais sans promettre un p
   const { tout } = contratPdf({ protection: "serenite", langueClient: "en" });
   assert.match(tout, /ADDITIONAL PROTECTION/);
   assert.doesNotMatch(tout, /EXCESS|MAXIMUM LIABILITY|DEDUCTIBLE WAIVER/);
-  assert.match(tout, /financial guarantee/i);
-  assert.match(tout, /does not constitute a cap on the renter's liability/i);
+  assert.match(tout, /separate from the rental price/i);
+  assert.match(tout, /does not limit the renter[’']s liability or cap any amounts/i);
   assert.match(tout, /Additional amounts may be claimed/i);
   assert.ok(tout.includes("Comfort Protection"), "le nom de la formule doit être traduit");
   assert.equal(/NIVEAU DE PROTECTION/.test(tout), false, "aucun intitulé français sur le contrat anglais");

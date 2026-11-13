@@ -55,7 +55,9 @@ test("dépôt : un lien valide affiche le contexte, le montant figé et la préa
   assert.match(document.getElementById("depositAmount").textContent, /650/);
   assert.equal(document.getElementById("checkoutButton").href, "https://www.mollie.com/checkout/deposit");
   assert.match(document.body.textContent, /n’est pas débité immédiatement/);
-  assert.match(document.body.textContent, /ne constitue pas un plafond/);
+  assert.match(document.body.textContent, /Un dépôt de garantie est demandé avant la remise des clés/);
+  assert.match(document.body.textContent, /n’est pas inclus dans le prix de la location/);
+  assert.doesNotMatch(document.body.textContent, /ne constitue pas un plafond/);
   dom.window.close();
 });
 

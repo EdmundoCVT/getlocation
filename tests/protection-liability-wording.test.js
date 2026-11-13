@@ -22,15 +22,19 @@ test("présentation client courante : aucune ancienne notion de plafond commerci
     "reservation.html",
     "index.html",
     "paiement.html",
+    "confirmation.html",
+    "deposit.html",
     "js/data.js",
     "js/i18n.js",
     "js/deposit-ux.js",
-    "contrat.html",
-    "js/contrat-en.js"
+    "js/app.js"
   ].map(read).join("\n");
   assert.doesNotMatch(sources, /franchise/i);
   assert.doesNotMatch(sources, /rédui(?:t|re|sent) (?:votre |sa |la )?participation financière/i);
   assert.doesNotMatch(sources, /responsabilité maximale|montant maximal à la charge|maximum liability|deductible waiver/i);
+  assert.doesNotMatch(sources, /plafond des sommes|plafond de responsabilité|limitation de responsabilité|cap on the amounts|cap on the renter(?:'|’)?s liability/i);
+  assert.match(sources, /Un dépôt de garantie est demandé avant la remise des clés\. Il peut être effectué sous forme de préautorisation bancaire et n’est pas inclus dans le prix de la location\./);
+  assert.match(sources, /A security deposit is required before the vehicle is handed over\. It may be taken as a card pre-authorisation and is not included in the rental price\./);
 });
 
 test("CGL article 4 : le dépôt est une garantie financière sans plafond", () => {
@@ -44,9 +48,32 @@ test("CGL article 4 : le dépôt est une garantie financière sans plafond", () 
 test("mentions FR et EN : même portée juridique autour du dépôt", () => {
   const fr = read("contrat.html");
   const en = read("js/contrat-en.js");
-  assert.match(fr, /Le dépôt de garantie est une garantie financière et ne constitue pas un plafond de responsabilité/);
-  assert.match(fr, /Des sommes complémentaires peuvent être réclamées/);
-  assert.match(en, /The security deposit is a financial guarantee and does not constitute a cap on the renter's liability/);
-  assert.match(en, /Additional amounts may be claimed where costs chargeable to the renter exceed the security deposit/);
+  assert.match(fr, /Le dépôt de garantie est distinct du prix de la location/);
+  assert.match(fr, /Son montant ne constitue pas une limitation de la responsabilité du locataire ni un plafond des sommes/);
+  assert.match(fr, /des sommes complémentaires peuvent être réclamées/i);
+  assert.match(en, /The security deposit is separate from the rental price/);
+  assert.match(en, /Its amount does not limit the renter(?:'|’)?s liability or cap any amounts/);
+  assert.match(en, /Additional amounts may be/);
+  assert.match(en, /claimed where costs chargeable to the renter exceed the security deposit/);
   assert.doesNotMatch(en, /excess applicable|deductible waiver/i);
+});
+
+test("les montants et le snapshot historique du dépôt restent inchangés", () => {
+  const { VEHICULES } = require("../js/data.js");
+  const { resolveContractDeposit } = require("../src/lib/contract-deposit.js");
+  assert.deepEqual(Object.fromEntries(VEHICULES.map((vehicle) => [vehicle.id, vehicle.caution])), {
+    "opel-corsa": 650,
+    "peugeot-2008-hybrid": 750,
+    "peugeot-3008": 900,
+    "toyota-proace-city": 1000
+  });
+  const signedHistoricalContract = {
+    vehiculeId: "peugeot-2008-hybrid",
+    cautionContractuelle: 650,
+    contractVersion: { version: 1, status: "signed" },
+    contractDossier: { status: "signed" }
+  };
+  const before = JSON.stringify(signedHistoricalContract);
+  assert.equal(resolveContractDeposit(signedHistoricalContract), 650);
+  assert.equal(JSON.stringify(signedHistoricalContract), before, "la lecture du snapshot signé reste pure");
 });

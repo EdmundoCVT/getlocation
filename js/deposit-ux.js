@@ -162,8 +162,8 @@
     var text = document.createElement("p");
     text.style.cssText = "margin:0;color:#666";
     text.textContent = isEnglish()
-      ? "This security deposit will be requested separately when the vehicle is handed over. It is a financial guarantee, not a cap on the amounts that may remain payable by you. Depending on the method used, it may be a card pre-authorisation or another deposit method provided for in the rental agreement."
-      : "Ce dépôt de garantie sera demandé séparément le jour de la prise en charge du véhicule. Il constitue une garantie financière et non un plafond des sommes pouvant rester à votre charge. Selon le mode utilisé, il pourra s'agir d'une empreinte bancaire (préautorisation) ou d'un autre moyen prévu au contrat.";
+      ? "A security deposit is required before the vehicle is handed over. It may be taken as a card pre-authorisation and is not included in the rental price."
+      : "Un dépôt de garantie est demandé avant la remise des clés. Il peut être effectué sous forme de préautorisation bancaire et n’est pas inclus dans le prix de la location.";
 
     box.append(title, amount, text);
     summary.appendChild(box);

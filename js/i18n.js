@@ -831,8 +831,8 @@
     "Une protection est-elle incluse ?": "Is protection included?",
     "Oui. La Protection Essentielle est incluse. Des niveaux de protection complémentaires peuvent être sélectionnés pendant la commande ; leurs prix, garanties, limites et conditions sont affichés avant le paiement.":
       "Yes. Essential Protection is included. Additional protection levels can be selected during booking; their prices, cover, limits and conditions are shown before payment.",
-    "Oui. Son montant dépend du véhicule et reste affiché séparément du prix de la location dans le récapitulatif. Il constitue une garantie financière et non un plafond des sommes pouvant rester à votre charge.":
-      "Yes. The amount depends on the vehicle and is shown separately from the rental price in the summary. It is a financial guarantee, not a cap on the amounts that may remain payable by you.",
+    "Oui. Un dépôt de garantie est demandé avant la remise des clés. Il peut être effectué sous forme de préautorisation bancaire et n’est pas inclus dans le prix de la location.":
+      "Yes. A security deposit is required before the vehicle is handed over. It may be taken as a card pre-authorisation and is not included in the rental price.",
     "Oui, le paiement est traité par Mollie, un prestataire de paiement certifié. GETLOCATION ne stocke aucune donnée bancaire.":
       "Yes, payments are handled by Mollie, a certified payment provider. GETLOCATION never stores your card details.",
 
@@ -919,8 +919,8 @@
     "Payer maintenant": "Pay now",
     "🔒 Paiement chiffré de bout en bout par Mollie — GETLOCATION ne stocke aucune donnée bancaire.":
       "🔒 End-to-end encrypted payment by Mollie — GETLOCATION never stores your card details.",
-    "Le dépôt de garantie est demandé avant la remise des clés. C'est une garantie financière, pas un plafond des sommes pouvant rester à votre charge.":
-      "The security deposit is requested before the keys are handed over. It is a financial guarantee, not a cap on the amounts that may remain payable by you.",
+    "Un dépôt de garantie est demandé avant la remise des clés. Il peut être effectué sous forme de préautorisation bancaire et n’est pas inclus dans le prix de la location.":
+      "A security deposit is required before the vehicle is handed over. It may be taken as a card pre-authorisation and is not included in the rental price.",
     "Résumé de la commande": "Order summary",
     "Autre ville de livraison": "Other delivery town",
     "Distance aller jusqu’à l’adresse personnalisée (km)": "One-way distance to the custom address (km)",
@@ -969,9 +969,6 @@
     "Le total final et le paiement d’aujourd’hui incluront la livraison dès que sa distance sera indiquée.":
       "The final total and today’s payment will include delivery once its distance has been entered.",
     "Dépôt de garantie — séparé": "Security deposit — separate",
-    "Garantie financière distincte du prix de la location, demandée avant la remise des clés. Elle peut prendre la forme d’une préautorisation bancaire et ne constitue pas un plafond des sommes pouvant rester à votre charge.":
-      "A financial guarantee separate from the rental price, requested before the keys are handed over. It may take the form of a card pre-authorisation and is not a cap on the amounts that may remain payable by you.",
-
     // --- Confirmation
     "Réservation confirmée !": "Booking confirmed!",
     "Merci, votre paiement a été accepté. Un e-mail de confirmation vous a été envoyé.":
@@ -1223,8 +1220,8 @@
     "Couvert : ": "Covered: ",
     "Non couvert : ": "Not covered: ",
     "✓ Sélectionnée": "✓ Selected",
-    "Les protections complémentaires définissent les événements susceptibles d’être pris en charge, selon le contrat et les CGL. Le dépôt de garantie est une garantie financière : il ne limite pas les sommes pouvant rester à votre charge en cas de dommage ou de frais non couverts.":
-      "Additional protection options define the events that may be covered, subject to the rental agreement and terms. The security deposit is a financial guarantee: it does not cap the amounts that may remain payable by you for damage or costs that are not covered.",
+    "Les protections complémentaires définissent les événements susceptibles d’être pris en charge, selon le contrat et les CGL. Le dépôt de garantie reste séparé du prix de la location.":
+      "Additional protection options define the events that may be covered, subject to the rental agreement and terms. The security deposit remains separate from the rental price.",
     "Montant prévu pour ce véhicule : {caution}.": "Amount applicable to this vehicle: {caution}.",
     "Les garanties sont détaillées dans les Conditions Générales de Location et restent soumises aux exclusions et limitations applicables.": "The guarantees are detailed in the General Rental Conditions and remain subject to the applicable exclusions and limitations.",
     "Informations sur {protection}": "Information about {protection}",

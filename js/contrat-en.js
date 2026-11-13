@@ -107,8 +107,8 @@
     "Mode": "Method",
     "Les protections complémentaires définissent les événements susceptibles d’être pris en charge selon le contrat et les CGL. Elles ne constituent ni une assurance tous risques, ni une garantie d’absence de frais, ni un plafond général des sommes restant à la charge du locataire.":
       "Additional protection options define the events that may be covered under the rental agreement and the General Rental Conditions. They are neither comprehensive insurance, nor a guarantee that the renter will incur no charges, nor a general cap on the amounts payable by the renter.",
-    "Le dépôt de garantie est une garantie financière et ne constitue pas un plafond de responsabilité. Des sommes complémentaires peuvent être réclamées lorsque les frais restant à la charge du locataire dépassent son montant.":
-      "The security deposit is a financial guarantee and does not constitute a cap on the renter's liability. Additional amounts may be claimed where costs chargeable to the renter exceed the security deposit.",
+    "Le dépôt de garantie est distinct du prix de la location. Il peut notamment prendre la forme d’une préautorisation bancaire. Son montant ne constitue pas une limitation de la responsabilité du locataire ni un plafond des sommes qui pourraient rester à sa charge conformément au contrat et aux CGL.":
+      "The security deposit is separate from the rental price and may in particular take the form of a card pre-authorisation. Its amount does not limit the renter’s liability or cap any amounts that may remain payable under the rental agreement and the General Rental Conditions.",
     // Noms des formules : identiques à ceux affichés sur le site en anglais
     // (js/i18n.js), pour qu'un client retrouve sur son contrat le nom qu'il
     // a vu au moment de réserver.
@@ -264,11 +264,13 @@
           + "comprehensive insurance, nor a guarantee that the renter will incur no charges, nor a general cap on the amounts "
           + "payable by the renter. A condition report (photographs, odometer reading and fuel level) is carried out at pick-up and "
           + "at return; any damage not recorded at pick-up may be charged on the basis of a repair quotation.",
-        "Security deposit. The security deposit is a financial guarantee. It may be used to cover all or part of the amounts owed "
-          + "for damage, repairs, reinstatement costs, loss of use, missing fuel, cleaning, extra kilometres, traffic fines, "
-          + "administrative charges or other amounts provided for by this agreement and the General Rental Conditions. It does not "
-          + "constitute a cap on the renter's liability. Additional amounts may be claimed where costs chargeable to the renter "
-          + "exceed the security deposit, in accordance with this agreement, the protection selected and the General Rental Conditions.",
+        "Security deposit. The security deposit is separate from the rental price and may in particular take the form of a card "
+          + "pre-authorisation. Its amount does not limit the renter's liability or cap any amounts that may remain payable under "
+          + "this agreement and the General Rental Conditions. It may be used to cover all or part of the amounts owed for damage, "
+          + "repairs, reinstatement costs, loss of use, missing fuel, cleaning, extra kilometres, traffic fines, administrative "
+          + "charges or other amounts provided for by this agreement and the General Rental Conditions. Additional amounts may be "
+          + "claimed where costs chargeable to the renter exceed the security deposit, in accordance with this agreement, the "
+          + "protection selected and the General Rental Conditions.",
         "On return of the vehicle and once the joint return condition report has been agreed: where the deposit was taken as a "
           + "card pre-authorisation, GETLOCATION releases it within 7 working days. Where the deposit was paid in cash or by bank "
           + "transfer, it is returned by bank transfer to the account details provided by the renter, within a minimum of 7 working "

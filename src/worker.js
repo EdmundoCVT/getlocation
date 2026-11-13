@@ -148,12 +148,12 @@ async function withClientUX(response, pathname) {
   }
 
   if (!html.includes("/js/deposit-ux.js")) {
-    const script = '<script src="/js/deposit-ux.js?v=4"></script>';
+    const script = '<script src="/js/deposit-ux.js?v=5"></script>';
     html = html.includes("</body>")
       ? html.replace("</body>", `${script}\n</body>`)
       : `${html}\n${script}`;
   } else {
-    html = html.replace(/\/js\/deposit-ux\.js\?v=\d+/g, "/js/deposit-ux.js?v=4");
+    html = html.replace(/\/js\/deposit-ux\.js\?v=\d+/g, "/js/deposit-ux.js?v=5");
   }
 
   if (!html.includes("/js/analytics.js")) {

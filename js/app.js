@@ -2769,7 +2769,7 @@ function appendFinancialCommitment(container, prix, depositAmount, { deliveryPen
     const depositHeader = summaryRow(t("Dépôt de garantie — séparé"), formatPrixJour(Number(depositAmount)));
     depositHeader.classList.add("financial-deposit-row");
     const explanation = document.createElement("p");
-    explanation.textContent = t("Garantie financière distincte du prix de la location, demandée avant la remise des clés. Elle peut prendre la forme d’une préautorisation bancaire et ne constitue pas un plafond des sommes pouvant rester à votre charge.");
+    explanation.textContent = t("Un dépôt de garantie est demandé avant la remise des clés. Il peut être effectué sous forme de préautorisation bancaire et n’est pas inclus dans le prix de la location.");
     deposit.append(depositHeader, explanation);
     block.appendChild(deposit);
   }

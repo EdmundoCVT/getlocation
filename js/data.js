@@ -410,7 +410,7 @@ const PROTECTION_PAR_DEFAUT = "essentiel";
 // Mention affichée sous les protections. Elle distingue explicitement les
 // garanties choisies du dépôt de garantie et ne promet aucun plafond de
 // responsabilité.
-const PROTECTION_MENTION = "Les protections complémentaires définissent les événements susceptibles d’être pris en charge, selon le contrat et les CGL. Le dépôt de garantie est une garantie financière : il ne limite pas les sommes pouvant rester à votre charge en cas de dommage ou de frais non couverts.";
+const PROTECTION_MENTION = "Les protections complémentaires définissent les événements susceptibles d’être pris en charge, selon le contrat et les CGL. Le dépôt de garantie reste séparé du prix de la location.";
 
 // Accesseurs : contrat.html et js/app.js passent par eux plutôt que par les
 // constantes ci-dessus, pour rester lisibles dans les environnements où
@@ -733,8 +733,8 @@ function joursFacturablesDepuisHeures(dureeHeures) {
 //   4. + options, protection et suppléments, jamais remisés
 //
 // Les protections complémentaires ne constituent pas une assurance tous
-// risques. Le dépôt de garantie du véhicule (VEHICULES[].caution) reste une
-// garantie financière distincte du prix et des garanties de la protection.
+// risques. Le dépôt de garantie du véhicule (VEHICULES[].caution) reste
+// distinct du prix et des garanties de la protection.
 //
 // `options` est une liste d'identifiants (ex. ["siege-auto","livraison-adresse"]) ;
 // les identifiants inconnus sont ignorés ici (la validation stricte côté
