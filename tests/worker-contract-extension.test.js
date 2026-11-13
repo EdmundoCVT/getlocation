@@ -85,7 +85,7 @@ test("prolongation principale : V2 brouillon, 5 jours, 1000 km, tarif 65 €, su
   assert.equal(v2.contractVersion.version, 2);
   assert.equal(v2.contractVersion.supersedesVersion, 1);
   assert.equal(v2.contractVersion.status, "draft");
-  assert.match(v2.contractVersion.versionReason, /Prolongation jusqu’au 15\/11\/2026 10:00/);
+  assert.match(v2.contractVersion.versionReason, /Prolongation jusqu’au 15\/11\/2026 à 10:00/);
   assert.equal(v2.dateDebut, "2026-11-10");
   assert.equal(v2.heureDebut, "10:00");
   assert.equal(v2.dateFin, "2026-11-15");

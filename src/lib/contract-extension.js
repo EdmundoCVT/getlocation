@@ -247,7 +247,7 @@ async function findExtensionConflict(env, source, oldEndMs, newEndMs) {
 
 function extensionReason(newEnd, custom) {
   const trimmed = typeof custom === "string" ? custom.trim().slice(0, 500) : "";
-  return trimmed || `Prolongation jusqu’au ${newEnd.date.split("-").reverse().join("/")} ${newEnd.time}`;
+  return trimmed || `Prolongation jusqu’au ${newEnd.date.split("-").reverse().join("/")} à ${newEnd.time}`;
 }
 
 function applyCalculation(draft, source, calculation, newEnd, operator) {

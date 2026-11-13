@@ -142,7 +142,8 @@
   .extension-summary div{padding:10px;border:1px solid var(--ligne);border-radius:10px;background:var(--gris-clair);}
   .extension-summary span{display:block;color:#6b6478;font-size:12px;margin-bottom:3px;}.extension-summary strong{font-size:15px;color:var(--bleu-nuit);}
   .extension-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0;}.extension-fields label{font-size:13px;font-weight:700;color:var(--bleu-nuit);}.extension-fields input{width:100%;min-height:46px;margin-top:5px;font-size:16px;}
-  .extension-reason{width:100%;min-height:72px;margin:5px 0 12px;resize:vertical;}.extension-error{color:#a32929!important;font-weight:700;}.extension-loading{color:#6b6478!important;}
+  .extension-error{color:#a32929!important;font-weight:700;}.extension-loading{color:#6b6478!important;}
+  .extension-confirmation{padding:12px;margin:14px 0;border:1px solid #c7ebd8;border-radius:10px;background:var(--vert-clair);color:var(--vert);font-weight:700;}
   .consultation-note{margin:0 0 10px;padding:9px 10px;border-radius:8px;background:var(--gris-clair);color:#6b6478;font-size:13px;}
   .contract-section-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 18px;}
   .contract-section-tab{min-height:46px;padding:10px 12px;border:1px solid var(--ligne);border-radius:10px;background:var(--blanc);font:inherit;font-size:14px;font-weight:700;color:#6b6478;cursor:pointer;}
@@ -5201,19 +5202,20 @@ function initOwnerView(prefill, versionId){
         var overlay=document.createElement('div'); overlay.className='consultation-overlay'; overlay.setAttribute('role','dialog'); overlay.setAttribute('aria-modal','true'); overlay.setAttribute('aria-label','Prolonger le contrat');
         var sheet=document.createElement('section'); sheet.className='consultation-sheet';
         var title=document.createElement('h3'); title.textContent='Prolonger le contrat'; sheet.appendChild(title);
-        var intro=document.createElement('p'); intro.textContent=(cible.numero||'Contrat')+' · V'+((cible.version&&cible.version.version)||1)+' — seule la nouvelle fin est demandée.'; sheet.appendChild(intro);
+        var intro=document.createElement('p'); intro.textContent='Modifiez uniquement la date et l’heure de retour.'; sheet.appendChild(intro);
         var vehicleId=source.vehiculeId||''; var vehicle=getVehiculeParId(vehicleId);
+        var conducteur=source.conducteur||{};
+        var clientName=[conducteur.prenom||source.prenom||'',conducteur.nom||source.nom||''].join(' ').trim()||'—';
         var context=document.createElement('div'); context.className='extension-summary';
-        context.innerHTML='<div><span>Véhicule</span><strong>'+escapeHtml(vehicle?vehicle.nom:vehicleId||'—')+'</strong></div><div><span>Fin actuelle</span><strong>'+escapeHtml(formatDateHeureFR(finMatch[1]+'T'+finMatch[2]))+'</strong></div>';
+        context.innerHTML='<div><span>Contrat</span><strong>'+escapeHtml(cible.numero||'—')+' · V'+escapeHtml(String((cible.version&&cible.version.version)||1))+'</strong></div><div><span>Client</span><strong>'+escapeHtml(clientName)+'</strong></div><div><span>Véhicule</span><strong>'+escapeHtml(vehicle?vehicle.nom:vehicleId||'—')+'</strong></div><div><span>Retour actuel</span><strong>'+escapeHtml(formatDateHeureFR(finMatch[1]+'T'+finMatch[2]))+'</strong></div>';
         sheet.appendChild(context);
         var fields=document.createElement('div'); fields.className='extension-fields';
-        var dateLabel=document.createElement('label'); dateLabel.textContent='Nouvelle date de fin'; var dateInput=document.createElement('input'); dateInput.type='date'; dateInput.min=finMatch[1]; dateInput.value=finMatch[1]; dateLabel.appendChild(dateInput); fields.appendChild(dateLabel);
-        var timeLabel=document.createElement('label'); timeLabel.textContent='Nouvelle heure de fin'; var timeInput=document.createElement('input'); timeInput.type='time'; timeInput.value=finMatch[2]; timeLabel.appendChild(timeInput); fields.appendChild(timeLabel); sheet.appendChild(fields);
-        var reasonLabel=document.createElement('label'); reasonLabel.textContent='Motif / remarque interne (facultatif)'; var reason=document.createElement('textarea'); reason.className='extension-reason'; reason.maxLength=500; reason.placeholder='Prolongation de la location'; reasonLabel.appendChild(reason); sheet.appendChild(reasonLabel);
+        var dateLabel=document.createElement('label'); dateLabel.textContent='Nouvelle date de retour'; var dateInput=document.createElement('input'); dateInput.type='date'; dateInput.min=finMatch[1]; dateInput.value=finMatch[1]; dateLabel.appendChild(dateInput); fields.appendChild(dateLabel);
+        var timeLabel=document.createElement('label'); timeLabel.textContent='Nouvelle heure de retour'; var timeInput=document.createElement('input'); timeInput.type='time'; timeInput.value=finMatch[2]; timeLabel.appendChild(timeInput); fields.appendChild(timeLabel); sheet.appendChild(fields);
         var result=document.createElement('div'); result.className='extension-summary'; result.setAttribute('aria-live','polite'); sheet.appendChild(result);
         var status=document.createElement('p'); status.className='extension-loading'; status.textContent='Choisissez une fin postérieure pour calculer la prolongation.'; sheet.appendChild(status);
         var actionsSheet=document.createElement('div'); actionsSheet.className='sheet-actions';
-        var create=document.createElement('button'); create.type='button'; create.className='btn btn-primary'; create.textContent='Créer la prolongation'; create.disabled=true; actionsSheet.appendChild(create);
+        var create=document.createElement('button'); create.type='button'; create.className='btn btn-primary'; create.textContent='Prolonger le contrat'; create.disabled=true; actionsSheet.appendChild(create);
         var close=document.createElement('button'); close.type='button'; close.className='btn'; close.textContent='Annuler'; close.onclick=function(){overlay.remove();}; actionsSheet.appendChild(close); sheet.appendChild(actionsSheet);
         var preview=null, previewSequence=0;
         function afficherErreur(message){preview=null;create.disabled=true;result.innerHTML='';status.className='extension-error';status.textContent=message;}
@@ -5223,19 +5225,30 @@ function initOwnerView(prefill, versionId){
           status.className='extension-loading';status.textContent='Calcul serveur en cours…';create.disabled=true;
           fetch('/api/contracts-extension',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken||''},body:JSON.stringify({id:cible.id,newEndDate:dateInput.value,newEndTime:timeInput.value,preview:true})})
             .then(function(response){return response.json().then(function(body){if(!response.ok)throw body;return body;});})
-            .then(function(body){if(sequence!==previewSequence)return;preview=body.preview;result.innerHTML='<div><span>Nouvelle durée</span><strong>'+escapeHtml(String(preview.days))+' jours</strong></div><div><span>Tarif contractuel</span><strong>'+escapeHtml(formatEUR(preview.contractDailyRate))+' / jour</strong></div><div><span>Nouveau total</span><strong>'+escapeHtml(formatEUR(preview.newTotal))+'</strong></div><div><span>Déjà payé</span><strong>'+escapeHtml(formatEUR(preview.alreadyPaid))+'</strong></div><div><span>Kilométrage inclus</span><strong>'+escapeHtml(String(preview.includedMileage))+' km</strong></div><div><span>Supplément dû</span><strong>'+escapeHtml(formatEUR(preview.additionalAmount))+'</strong></div>';status.className='extension-loading';status.textContent='La version complète V'+(((cible.version&&cible.version.version)||1)+1)+' s’ouvrira après création.';create.disabled=false;})
-            .catch(function(error){if(sequence!==previewSequence)return;var message=error&&error.error?error.error:'Calcul de prolongation impossible.';if(error&&error.details&&error.details.reference)message+=' Référence en conflit : '+error.details.reference+'.';afficherErreur(message);});
+            .then(function(body){if(sequence!==previewSequence)return;preview=body.preview;result.innerHTML='<div><span>Nouveau retour</span><strong>'+escapeHtml(formatDateHeureFR(preview.newEnd))+'</strong></div><div><span>Nouvelle durée</span><strong>'+escapeHtml(String(preview.days))+' jours</strong></div><div><span>Kilométrage inclus</span><strong>'+escapeHtml(String(preview.includedMileage))+' km</strong></div><div><span>Nouveau total</span><strong>'+escapeHtml(formatEUR(preview.newTotal))+'</strong></div><div><span>Déjà payé</span><strong>'+escapeHtml(formatEUR(preview.alreadyPaid))+'</strong></div><div><span>Supplément restant à payer</span><strong>'+escapeHtml(formatEUR(preview.additionalAmount))+'</strong></div>';status.className='extension-loading';status.textContent='Montants et disponibilité vérifiés par le serveur.';create.disabled=false;})
+            .catch(function(error){if(sequence!==previewSequence)return;var message=error&&error.error?error.error:'Calcul de prolongation impossible.';if(error&&error.code==='extension_vehicle_conflict'){var conflit=error.details&&error.details.startsAt?formatDateHeureFR(error.details.startsAt):'';message='Impossible de prolonger : ce véhicule est déjà réservé'+(conflit?' à partir du '+conflit:' pendant cette période')+'.';}afficherErreur(message);});
         }
         dateInput.addEventListener('change',rafraichirApercu); timeInput.addEventListener('change',rafraichirApercu);
         create.addEventListener('click',function(){
           if(!preview)return;create.disabled=true;create.textContent='Création…';
-          fetch('/api/contracts-extension',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken||''},body:JSON.stringify({id:cible.id,newEndDate:dateInput.value,newEndTime:timeInput.value,reason:reason.value})})
+          fetch('/api/contracts-extension',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken||''},body:JSON.stringify({id:cible.id,newEndDate:dateInput.value,newEndTime:timeInput.value})})
             .then(function(response){return response.json().then(function(body){if(!response.ok)throw body;return body;});})
-            .then(function(body){window.location.href='/contrat.html?editVersionId='+encodeURIComponent(body.id);})
+            .then(function(body){
+              var createdPreview=body.preview||preview;
+              title.textContent='Contrat prolongé — V'+escapeHtml(String(body.version&&body.version.version||''))+' créée';
+              intro.textContent='La nouvelle version est un brouillon. La signature et la finalisation restent des étapes séparées.';
+              context.remove();fields.remove();result.remove();status.remove();actionsSheet.innerHTML='';
+              var confirmation=document.createElement('div');confirmation.className='extension-confirmation';confirmation.textContent='Prolongation enregistrée';sheet.insertBefore(confirmation,actionsSheet);
+              var recap=document.createElement('div');recap.className='extension-summary';recap.innerHTML='<div><span>Nouvelle date de retour</span><strong>'+escapeHtml(formatDateHeureFR(createdPreview.newEnd))+'</strong></div><div><span>Nouveau total</span><strong>'+escapeHtml(formatEUR(createdPreview.newTotal))+'</strong></div><div><span>Supplément</span><strong>'+escapeHtml(formatEUR(createdPreview.additionalAmount))+'</strong></div>';sheet.insertBefore(recap,actionsSheet);
+              var view=document.createElement('button');view.type='button';view.className='btn btn-primary';view.textContent='Voir la nouvelle version';view.onclick=function(){appelerLienAgence(true,{id:body.id}).catch(function(error){alert(error&&error.message?error.message:'La nouvelle version n’a pas pu être ouverte.');});};actionsSheet.appendChild(view);
+              var edit=document.createElement('button');edit.type='button';edit.className='btn';edit.textContent='Modifier d’autres informations';edit.onclick=function(){ouvrirEditeurVersion({id:body.id});};actionsSheet.appendChild(edit);
+              var done=document.createElement('button');done.type='button';done.className='btn';done.textContent='Fermer';done.onclick=function(){overlay.remove();};actionsSheet.appendChild(done);
+              chargerHistorique();
+            })
             .catch(function(error){
               if(error&&error.code==='contract_draft_exists'&&error.draft&&error.draft.id){status.className='extension-error';status.textContent='Un brouillon V'+error.draft.version+' est déjà en cours.';var open=document.createElement('button');open.type='button';open.className='btn';open.textContent='Ouvrir V'+error.draft.version;open.onclick=function(){window.location.href='/contrat.html?editVersionId='+encodeURIComponent(error.draft.id);};actionsSheet.insertBefore(open,close);return;}
               afficherErreur(error&&error.error?error.error:'La prolongation n’a pas pu être créée.');
-            }).finally(function(){create.textContent='Créer la prolongation';if(preview)create.disabled=false;});
+            }).finally(function(){create.textContent='Prolonger le contrat';if(preview&&document.body.contains(create))create.disabled=false;});
         });
         overlay.addEventListener('click',function(event){if(event.target===overlay)overlay.remove();});overlay.appendChild(sheet);document.body.appendChild(overlay);dateInput.focus();
       }

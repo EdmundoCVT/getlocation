@@ -11,20 +11,32 @@ test("l'historique distingue Prolonger de la création générique de version", 
   assert.match(html, /Créer une nouvelle version à partir de V/);
 });
 
-test("le panneau simplifié ne demande que la nouvelle fin et un motif facultatif", () => {
+test("le panneau simplifié ne demande que la nouvelle date et la nouvelle heure", () => {
   assert.match(html, /title\.textContent='Prolonger le contrat'/);
-  assert.match(html, /dateLabel\.textContent='Nouvelle date de fin'/);
-  assert.match(html, /timeLabel\.textContent='Nouvelle heure de fin'/);
-  assert.match(html, /reasonLabel\.textContent='Motif \/ remarque interne \(facultatif\)'/);
+  assert.match(html, /dateLabel\.textContent='Nouvelle date de retour'/);
+  assert.match(html, /timeLabel\.textContent='Nouvelle heure de retour'/);
+  assert.doesNotMatch(html, /extension-reason|reasonLabel\.textContent='Motif/);
   assert.match(html, /fetch\('\/api\/contracts-extension'.*preview:true/);
 });
 
-test("l'aperçu affiche durée, tarif figé, total, paiement, supplément et kilométrage", () => {
-  for (const label of ["Nouvelle durée", "Tarif contractuel", "Nouveau total", "Déjà payé", "Kilométrage inclus", "Supplément dû"]) {
+test("le contexte et l'aperçu affichent toutes les informations utiles sans champ calculé", () => {
+  for (const label of ["Contrat", "Client", "Véhicule", "Retour actuel", "Nouveau retour", "Nouvelle durée", "Nouveau total", "Déjà payé", "Kilométrage inclus", "Supplément restant à payer"]) {
     assert.match(html, new RegExp(label));
   }
-  assert.match(html, /Prolongation de V/);
-  assert.match(html, /Montant supplémentaire dû/);
+  assert.match(html, /create\.textContent='Prolonger le contrat'/);
+  assert.match(html, /Montants et disponibilité vérifiés par le serveur/);
+});
+
+test("la création reste dans le panneau et propose l'éditeur complet seulement en action secondaire", () => {
+  assert.match(html, /Contrat prolongé — V/);
+  assert.match(html, /view\.textContent='Voir la nouvelle version'/);
+  assert.match(html, /edit\.textContent='Modifier d’autres informations'/);
+  assert.doesNotMatch(html, /\.then\(function\(body\)\{window\.location\.href='\/contrat\.html\?editVersionId=/);
+});
+
+test("un conflit affiche directement la date de réservation bloquante", () => {
+  assert.match(html, /Impossible de prolonger : ce véhicule est déjà réservé/);
+  assert.match(html, /error\.details\.startsAt/);
 });
 
 test("le panneau mobile utilise des contrôles tactiles d'au moins 44 px sans tableau horizontal", () => {
