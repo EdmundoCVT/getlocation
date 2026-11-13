@@ -2,7 +2,7 @@
 // supprimée. La propriété appartient à la phase (départ ou retour), pas à une
 // révision PDF, afin de préserver l'historique complet.
 const { requireAgencySession } = require("../lib/agency-auth.js");
-const { getReservation, reservationTtlSeconds } = require("../lib/reservation-store.js");
+const { getReservation, reservationTtlSecondsForEnv } = require("../lib/reservation-store.js");
 const { recordAuditEvent } = require("../lib/audit-log.js");
 
 function json(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }); }
@@ -31,7 +31,7 @@ async function handleAgencyInspectionArchive(request, env) {
   if (archived) inspectionArchives[stage] = { archivedAt: now, archivedBy: auth.session.operator || null };
   else delete inspectionArchives[stage];
   const updated = { ...record, inspectionArchives, updatedAt: now };
-  await env.RESERVATIONS_KV.put(record.id, JSON.stringify(updated), record.status === "paid" ? { expirationTtl: reservationTtlSeconds(updated) } : undefined);
+  await env.RESERVATIONS_KV.put(record.id, JSON.stringify(updated), record.status === "paid" ? { expirationTtl: await reservationTtlSecondsForEnv(env, updated) } : undefined);
   await recordAuditEvent(env, { actor: auth.session.operator, eventType: archived ? "inspection_archived" : "inspection_restored", entityType: "contract", entityId: record.id, metadata: archived ? { stage, archivedAt: now, archivedBy: auth.session.operator || null } : { stage, restoredAt: now, restoredBy: auth.session.operator || null } });
   return json({ ok: true, archived, archive: inspectionArchives[stage] || null });
 }

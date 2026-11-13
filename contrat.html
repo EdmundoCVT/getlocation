@@ -138,12 +138,17 @@
   .consultation-sheet{width:min(100%,520px);max-height:calc(100vh - 24px);overflow:auto;background:#fff;border-radius:16px;padding:18px;box-shadow:0 16px 42px rgba(24,20,31,.28);}
   .consultation-sheet h3{margin:0 0 4px;font-size:16px;}.consultation-sheet p{margin:0 0 14px;color:#6b6478;font-size:13px;}
   .consultation-sheet .sheet-actions{display:grid;gap:8px;}.consultation-sheet .sheet-actions .btn{width:100%;min-height:45px;text-align:left;}
+  .extension-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0;}
+  .extension-summary div{padding:10px;border:1px solid var(--ligne);border-radius:10px;background:var(--gris-clair);}
+  .extension-summary span{display:block;color:#6b6478;font-size:12px;margin-bottom:3px;}.extension-summary strong{font-size:15px;color:var(--bleu-nuit);}
+  .extension-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0;}.extension-fields label{font-size:13px;font-weight:700;color:var(--bleu-nuit);}.extension-fields input{width:100%;min-height:46px;margin-top:5px;font-size:16px;}
+  .extension-reason{width:100%;min-height:72px;margin:5px 0 12px;resize:vertical;}.extension-error{color:#a32929!important;font-weight:700;}.extension-loading{color:#6b6478!important;}
   .consultation-note{margin:0 0 10px;padding:9px 10px;border-radius:8px;background:var(--gris-clair);color:#6b6478;font-size:13px;}
   .contract-section-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 18px;}
   .contract-section-tab{min-height:46px;padding:10px 12px;border:1px solid var(--ligne);border-radius:10px;background:var(--blanc);font:inherit;font-size:14px;font-weight:700;color:#6b6478;cursor:pointer;}
   .contract-section-tab.active{background:var(--bleu-ocean);border-color:var(--bleu-ocean);color:#fff;}
   .contract-section-heading{margin:0 0 4px;}
-  @media (max-width:600px){.historique-toolbar{align-items:stretch;flex-direction:column;}.historique-toolbar select{width:100%;}.historique-row .actions{width:100%;flex-wrap:wrap;}.historique-row .actions .btn{flex:1;}.contract-section-tab{font-size:13px;padding:9px 7px;}}
+  @media (max-width:600px){.historique-toolbar{align-items:stretch;flex-direction:column;}.historique-toolbar select{width:100%;}.historique-row .actions{width:100%;flex-wrap:wrap;}.historique-row .actions .btn{flex:1;}.contract-section-tab{font-size:13px;padding:9px 7px;}.extension-summary,.extension-fields{grid-template-columns:1fr;}.consultation-sheet{padding:16px;}.consultation-sheet .btn{min-height:46px;}}
   .link-box{display:flex;gap:8px;margin-top:14px;}
   .link-box input{background:var(--gris-clair);font-size:13px;color:#6b6478;}
   .link-box .btn{flex:none;}
@@ -3294,13 +3299,12 @@ function initDossierAgencyView(token){
       retour: formatDateHeureFR(retourISO, r.langue),
       duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
       detailFinancier: lignesDetailFinancier(detailFinancierDepuisReservation(r)),
-      // Réservation payée en ligne : la totalité est déjà réglée, le solde
-      // restant est donc nul (mêmes valeurs que montantRegle/soldeRestant
-      // ci-dessous, simplement sous forme de nombres pour la synthèse PDF).
-      syntheseFinanciere: syntheseFinancierePdf(detailFinancierDepuisReservation(r), r.total, r.total, 0),
+      // Une prolongation conserve le paiement initial : son nouveau total
+      // n'est jamais présenté comme intégralement encaissé.
+      syntheseFinanciere: syntheseFinancierePdf(detailFinancierDepuisReservation(r), r.total, r.amountAlreadyPaid === undefined || r.amountAlreadyPaid === null ? r.total : r.amountAlreadyPaid, r.additionalAmountDue === undefined || r.additionalAmountDue === null ? 0 : r.additionalAmountDue),
       total: formatEUR(r.total),
-      montantRegle: formatEUR(r.total),
-      soldeRestant: formatEUR(0),
+      montantRegle: formatEUR(r.amountAlreadyPaid === undefined || r.amountAlreadyPaid === null ? r.total : r.amountAlreadyPaid),
+      soldeRestant: formatEUR(r.additionalAmountDue === undefined || r.additionalAmountDue === null ? 0 : r.additionalAmountDue),
       modePaiement: 'Carte bancaire (paiement en ligne)',
       caution: r.vehicule ? formatEUR(r.vehicule.caution) : '',
       mode_reglement_caution: f.modeCaution === 'especes' ? 'Espèces' : 'Carte bancaire',
@@ -3369,7 +3373,11 @@ function initDossierAgencyView(token){
     recap.appendChild(recapRow('Conducteur', r.conducteur ? (r.conducteur.prenom + ' ' + r.conducteur.nom) : ''));
     recap.appendChild(recapRow('E-mail', r.conducteur ? r.conducteur.email : ''));
     recap.appendChild(recapRow('Téléphone', r.conducteur ? r.conducteur.telephone : ''));
-    recap.appendChild(recapRow('Total réglé', formatEUR(r.total)));
+    recap.appendChild(recapRow('Total du contrat', formatEUR(r.total)));
+    if(r.additionalAmountDue !== null && r.additionalAmountDue !== undefined){
+      recap.appendChild(recapRow('Déjà payé', formatEUR(r.amountAlreadyPaid || 0)));
+      recap.appendChild(recapRow('Montant supplémentaire dû', formatEUR(r.additionalAmountDue)));
+    }
     recap.appendChild(recapRow('Dépôt de garantie', r.vehicule ? formatEUR(r.vehicule.caution) : ''));
     if(view.contractMileage){
       recap.appendChild(recapRow('Kilométrage inclus', Number(view.contractMileage.kilometresInclusTotal || 0).toLocaleString('fr-FR') + ' km'));
@@ -3390,7 +3398,7 @@ function initDossierAgencyView(token){
     document.getElementById('df-versionDepot').value=r.depotGarantie===undefined||r.depotGarantie===null?'':r.depotGarantie;
     document.getElementById('df-versionProtection').value=r.protectionId||(r.protection&&r.protection.id)||'';
     document.getElementById('df-versionOptions').value=(r.options||[]).map(function(option){return option&&option.id||'';}).filter(Boolean).join(', ');
-    var history=r.financialHistory; document.getElementById('dfFinancialHistory').textContent=history?('Paiement réel historique (lecture seule) : '+(history.paidAmount===null||history.paidAmount===undefined?'montant non renseigné':formatEUR(history.paidAmount))+(history.paidAt?' · encaissé le '+formatDateHeureFR(history.paidAt):'')):'Aucune transaction réelle rattachée.';
+    var history=r.financialHistory; document.getElementById('dfFinancialHistory').textContent=history?('Paiement réel historique (lecture seule) : '+(history.paidAmount===null||history.paidAmount===undefined?'montant non renseigné':formatEUR(history.paidAmount))+(history.paidAt?' · encaissé le '+formatDateHeureFR(history.paidAt):'')+(r.additionalAmountDue!==null&&r.additionalAmountDue!==undefined?' · Montant supplémentaire dû : '+formatEUR(r.additionalAmountDue):'')):'Aucune transaction réelle rattachée.';
     var contractDataLocked=view.dossier.status==='signed';
     document.querySelectorAll('#dfVersionDataCard input').forEach(function(input){input.disabled=contractDataLocked;});document.getElementById('dfVersionDataSaveBtn').disabled=contractDataLocked;}
 
@@ -3751,13 +3759,12 @@ function initDossierClientView(token){
       retour: formatDateHeureFR(retourISO, r.langue),
       duree: formatDuree(heures) + ' — facturé ' + formatJoursFactures(jours),
       detailFinancier: lignesDetailFinancier(detailFinancierDepuisReservation(r)),
-      // Réservation payée en ligne : la totalité est déjà réglée, le solde
-      // restant est donc nul (mêmes valeurs que montantRegle/soldeRestant
-      // ci-dessous, simplement sous forme de nombres pour la synthèse PDF).
-      syntheseFinanciere: syntheseFinancierePdf(detailFinancierDepuisReservation(r), r.total, r.total, 0),
+      // Une prolongation affiche le paiement initial et le supplément sans
+      // créer de transaction de paiement fictive.
+      syntheseFinanciere: syntheseFinancierePdf(detailFinancierDepuisReservation(r), r.total, r.amountAlreadyPaid === undefined || r.amountAlreadyPaid === null ? r.total : r.amountAlreadyPaid, r.additionalAmountDue === undefined || r.additionalAmountDue === null ? 0 : r.additionalAmountDue),
       total: formatEUR(r.total),
-      montantRegle: formatEUR(r.total),
-      soldeRestant: formatEUR(0),
+      montantRegle: formatEUR(r.amountAlreadyPaid === undefined || r.amountAlreadyPaid === null ? r.total : r.amountAlreadyPaid),
+      soldeRestant: formatEUR(r.additionalAmountDue === undefined || r.additionalAmountDue === null ? 0 : r.additionalAmountDue),
       modePaiement: 'Carte bancaire (paiement en ligne)',
       caution: r.vehicule ? formatEUR(r.vehicule.caution) : '',
       mode_reglement_caution: f.modeCaution === 'especes' ? 'Espèces' : 'Carte bancaire',
@@ -4816,7 +4823,9 @@ function initOwnerView(prefill, versionId){
     document.getElementById('annulerEditionBtn').classList.remove('hidden');
     document.getElementById('modeEditionMsg').classList.add('hidden');
     var banner=document.getElementById('contractEditorVersionBanner');
-    banner.textContent=(numero||'Contrat')+suffixeVersion+' — Brouillon modifiable';banner.classList.remove('hidden');
+    banner.textContent=editorView&&editorView.extension
+      ? (numero||'Contrat')+suffixeVersion+' — Prolongation de V'+editorView.extension.sourceVersion+' · Supplément dû : '+formatEUR(editorView.extension.additionalAmount)
+      : (numero||'Contrat')+suffixeVersion+' — Brouillon modifiable';banner.classList.remove('hidden');
     document.getElementById('contractVersionSignatureCard').classList.toggle('hidden',!contratEditorVersion);
   }
   function sortirModeEdition(){
@@ -5184,6 +5193,53 @@ function initOwnerView(prefill, versionId){
           });
       }
 
+      function ouvrirProlongation(cible){
+        var source = cible.rawData || cible.resume || {};
+        var finBrute = source.fin || source.retour || (source.dateFin && source.heureFin ? source.dateFin + 'T' + source.heureFin : source.periodeFin) || '';
+        var finMatch = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(String(finBrute));
+        if(!finMatch){ alert('La date de retour actuelle est introuvable pour ce contrat.'); return; }
+        var overlay=document.createElement('div'); overlay.className='consultation-overlay'; overlay.setAttribute('role','dialog'); overlay.setAttribute('aria-modal','true'); overlay.setAttribute('aria-label','Prolonger le contrat');
+        var sheet=document.createElement('section'); sheet.className='consultation-sheet';
+        var title=document.createElement('h3'); title.textContent='Prolonger le contrat'; sheet.appendChild(title);
+        var intro=document.createElement('p'); intro.textContent=(cible.numero||'Contrat')+' · V'+((cible.version&&cible.version.version)||1)+' — seule la nouvelle fin est demandée.'; sheet.appendChild(intro);
+        var vehicleId=source.vehiculeId||''; var vehicle=getVehiculeParId(vehicleId);
+        var context=document.createElement('div'); context.className='extension-summary';
+        context.innerHTML='<div><span>Véhicule</span><strong>'+escapeHtml(vehicle?vehicle.nom:vehicleId||'—')+'</strong></div><div><span>Fin actuelle</span><strong>'+escapeHtml(formatDateHeureFR(finMatch[1]+'T'+finMatch[2]))+'</strong></div>';
+        sheet.appendChild(context);
+        var fields=document.createElement('div'); fields.className='extension-fields';
+        var dateLabel=document.createElement('label'); dateLabel.textContent='Nouvelle date de fin'; var dateInput=document.createElement('input'); dateInput.type='date'; dateInput.min=finMatch[1]; dateInput.value=finMatch[1]; dateLabel.appendChild(dateInput); fields.appendChild(dateLabel);
+        var timeLabel=document.createElement('label'); timeLabel.textContent='Nouvelle heure de fin'; var timeInput=document.createElement('input'); timeInput.type='time'; timeInput.value=finMatch[2]; timeLabel.appendChild(timeInput); fields.appendChild(timeLabel); sheet.appendChild(fields);
+        var reasonLabel=document.createElement('label'); reasonLabel.textContent='Motif / remarque interne (facultatif)'; var reason=document.createElement('textarea'); reason.className='extension-reason'; reason.maxLength=500; reason.placeholder='Prolongation de la location'; reasonLabel.appendChild(reason); sheet.appendChild(reasonLabel);
+        var result=document.createElement('div'); result.className='extension-summary'; result.setAttribute('aria-live','polite'); sheet.appendChild(result);
+        var status=document.createElement('p'); status.className='extension-loading'; status.textContent='Choisissez une fin postérieure pour calculer la prolongation.'; sheet.appendChild(status);
+        var actionsSheet=document.createElement('div'); actionsSheet.className='sheet-actions';
+        var create=document.createElement('button'); create.type='button'; create.className='btn btn-primary'; create.textContent='Créer la prolongation'; create.disabled=true; actionsSheet.appendChild(create);
+        var close=document.createElement('button'); close.type='button'; close.className='btn'; close.textContent='Annuler'; close.onclick=function(){overlay.remove();}; actionsSheet.appendChild(close); sheet.appendChild(actionsSheet);
+        var preview=null, previewSequence=0;
+        function afficherErreur(message){preview=null;create.disabled=true;result.innerHTML='';status.className='extension-error';status.textContent=message;}
+        function rafraichirApercu(){
+          var sequence=++previewSequence;
+          if(!dateInput.value||!timeInput.value){afficherErreur('Nouvelle date et nouvelle heure obligatoires.');return;}
+          status.className='extension-loading';status.textContent='Calcul serveur en cours…';create.disabled=true;
+          fetch('/api/contracts-extension',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken||''},body:JSON.stringify({id:cible.id,newEndDate:dateInput.value,newEndTime:timeInput.value,preview:true})})
+            .then(function(response){return response.json().then(function(body){if(!response.ok)throw body;return body;});})
+            .then(function(body){if(sequence!==previewSequence)return;preview=body.preview;result.innerHTML='<div><span>Nouvelle durée</span><strong>'+escapeHtml(String(preview.days))+' jours</strong></div><div><span>Tarif contractuel</span><strong>'+escapeHtml(formatEUR(preview.contractDailyRate))+' / jour</strong></div><div><span>Nouveau total</span><strong>'+escapeHtml(formatEUR(preview.newTotal))+'</strong></div><div><span>Déjà payé</span><strong>'+escapeHtml(formatEUR(preview.alreadyPaid))+'</strong></div><div><span>Kilométrage inclus</span><strong>'+escapeHtml(String(preview.includedMileage))+' km</strong></div><div><span>Supplément dû</span><strong>'+escapeHtml(formatEUR(preview.additionalAmount))+'</strong></div>';status.className='extension-loading';status.textContent='La version complète V'+(((cible.version&&cible.version.version)||1)+1)+' s’ouvrira après création.';create.disabled=false;})
+            .catch(function(error){if(sequence!==previewSequence)return;var message=error&&error.error?error.error:'Calcul de prolongation impossible.';if(error&&error.details&&error.details.reference)message+=' Référence en conflit : '+error.details.reference+'.';afficherErreur(message);});
+        }
+        dateInput.addEventListener('change',rafraichirApercu); timeInput.addEventListener('change',rafraichirApercu);
+        create.addEventListener('click',function(){
+          if(!preview)return;create.disabled=true;create.textContent='Création…';
+          fetch('/api/contracts-extension',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Agency-Csrf':agenceCsrfToken||''},body:JSON.stringify({id:cible.id,newEndDate:dateInput.value,newEndTime:timeInput.value,reason:reason.value})})
+            .then(function(response){return response.json().then(function(body){if(!response.ok)throw body;return body;});})
+            .then(function(body){window.location.href='/contrat.html?editVersionId='+encodeURIComponent(body.id);})
+            .catch(function(error){
+              if(error&&error.code==='contract_draft_exists'&&error.draft&&error.draft.id){status.className='extension-error';status.textContent='Un brouillon V'+error.draft.version+' est déjà en cours.';var open=document.createElement('button');open.type='button';open.className='btn';open.textContent='Ouvrir V'+error.draft.version;open.onclick=function(){window.location.href='/contrat.html?editVersionId='+encodeURIComponent(error.draft.id);};actionsSheet.insertBefore(open,close);return;}
+              afficherErreur(error&&error.error?error.error:'La prolongation n’a pas pu être créée.');
+            }).finally(function(){create.textContent='Créer la prolongation';if(preview)create.disabled=false;});
+        });
+        overlay.addEventListener('click',function(event){if(event.target===overlay)overlay.remove();});overlay.appendChild(sheet);document.body.appendChild(overlay);dateInput.focus();
+      }
+
       function ouvrirConsultation(){
         var overlay = document.createElement('div'); overlay.className='consultation-overlay'; overlay.setAttribute('role','dialog'); overlay.setAttribute('aria-modal','true'); overlay.setAttribute('aria-label','Consulter le contrat');
         var sheet = document.createElement('section'); sheet.className='consultation-sheet';
@@ -5204,6 +5260,7 @@ function initOwnerView(prefill, versionId){
         }
         ajouterAction('Ouvrir le dossier', function(){ appelerLienAgence(true).catch(function(err){ alert(err.message || "Le dossier n'a pas pu être ouvert."); }); });
         if(entry.origine === 'reservation') ajouterAction('Renvoyer le lien agence', function(){ appelerLienAgence(false).catch(function(err){ alert(err.message || "Le lien n'a pas pu être généré."); }); });
+        if(estSigne) ajouterAction('Prolonger le contrat', function(){ ouvrirProlongation(entry); }, true);
         if(estSigne) ajouterAction('Créer V' + (((entry.version && entry.version.version) || 1) + 1), function(){ creerNouvelleVersion(entry); });
         ajouterAction('Fermer', function(){}, false);
         overlay.addEventListener('click', function(e){ if(e.target===overlay) overlay.remove(); }); overlay.appendChild(sheet); document.body.appendChild(overlay);
@@ -5233,6 +5290,7 @@ function initOwnerView(prefill, versionId){
         actionVersionBtn.addEventListener('click', function(){ ouvrirEditeurVersion(entry); });
       }
       actions.appendChild(actionVersionBtn);
+      if(estSigne&&!entry.archived){var extendBtn=document.createElement('button');extendBtn.type='button';extendBtn.className='btn btn-primary';extendBtn.textContent='Prolonger';extendBtn.addEventListener('click',function(){ouvrirProlongation(entry);});actions.insertBefore(extendBtn,actionVersionBtn);}
       if(entry.archived){actionVersionBtn.disabled=true;actionVersionBtn.textContent='Contrat archivé';}
       var historiqueBtn = document.createElement('button');
       historiqueBtn.type='button'; historiqueBtn.className='btn'; historiqueBtn.textContent='Historique des versions';
@@ -5248,7 +5306,7 @@ function initOwnerView(prefill, versionId){
           var versionActions=document.createElement('div'); versionActions.className='sheet-actions';
           var open=document.createElement('button'); open.type='button'; open.className='btn'; open.textContent=status==='Brouillon'?'Modifier V'+info.version:'Consulter V'+info.version; open.onclick=function(){ if(status==='Brouillon')ouvrirEditeurVersion(versionEntry);else appelerLienAgence(true,versionEntry).catch(function(err){alert(err.message||'Ouverture impossible');}); }; versionActions.appendChild(open);
           if(versionEntry.pdf&&versionEntry.pdf.available){var pdfBtn=document.createElement('button');pdfBtn.type='button';pdfBtn.className='btn';pdfBtn.textContent='Voir PDF V'+info.version;pdfBtn.onclick=function(){ouvrirPdf(false,versionEntry);};versionActions.appendChild(pdfBtn);}
-          if(status!=='Brouillon'){var from=document.createElement('button');from.type='button';from.className='btn';from.textContent='Créer une nouvelle version à partir de V'+info.version;from.onclick=function(){creerNouvelleVersion(versionEntry);};versionActions.appendChild(from);}
+          if(status!=='Brouillon'){var extend=document.createElement('button');extend.type='button';extend.className='btn btn-primary';extend.textContent='Prolonger depuis V'+info.version;extend.onclick=function(){ouvrirProlongation(versionEntry);};versionActions.appendChild(extend);var from=document.createElement('button');from.type='button';from.className='btn';from.textContent='Créer une nouvelle version à partir de V'+info.version;from.onclick=function(){creerNouvelleVersion(versionEntry);};versionActions.appendChild(from);}
           block.appendChild(versionActions); sheet.appendChild(block);
         });
         var close=document.createElement('button');close.type='button';close.className='btn';close.textContent='Fermer';close.onclick=function(){overlay.remove();};sheet.appendChild(close);overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove();});overlay.appendChild(sheet);document.body.appendChild(overlay);

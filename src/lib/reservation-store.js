@@ -189,6 +189,51 @@ function reservationTtlSeconds(record) {
   return Math.max(RESERVATION_TTL_SECONDS, untilRetentionEnd);
 }
 
+function contractRetentionKey(record) {
+  const contractId = contractVersionInfo(record).contractId;
+  return contractId ? `contract_retention_${contractId}` : null;
+}
+
+async function contractRetentionEndAt(env, record) {
+  const key = contractRetentionKey(record);
+  if (!key) return null;
+  const raw = await env.RESERVATIONS_KV.get(key);
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw);
+    return typeof value.returnAt === "string" && Number.isFinite(new Date(value.returnAt).getTime()) ? value.returnAt : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function reservationTtlSecondsForEnv(env, record) {
+  if (!record || record.status !== "paid") return reservationTtlSeconds(record);
+  const anchored = await contractRetentionEndAt(env, record);
+  const ownEnd = record.periodeFin || (record.dateFin && record.heureFin ? `${record.dateFin}T${record.heureFin}:00` : null);
+  const ownMs = ownEnd ? new Date(ownEnd).getTime() : NaN;
+  const anchoredMs = anchored ? new Date(anchored).getTime() : NaN;
+  return reservationTtlSeconds(Number.isFinite(anchoredMs) && (!Number.isFinite(ownMs) || anchoredMs > ownMs) ? { ...record, periodeFin: anchored } : record);
+}
+
+async function extendContractRetention(env, paidRecord, returnAt) {
+  if (!paidRecord || paidRecord.status !== "paid") return null;
+  const requestedMs = new Date(returnAt).getTime();
+  if (!Number.isFinite(requestedMs)) return null;
+  const existing = await contractRetentionEndAt(env, paidRecord);
+  const existingMs = existing ? new Date(existing).getTime() : NaN;
+  const effective = Number.isFinite(existingMs) && existingMs > requestedMs ? existing : new Date(requestedMs).toISOString();
+  const expirationTtl = reservationTtlSeconds({ ...paidRecord, periodeFin: effective });
+  const key = contractRetentionKey(paidRecord);
+  await env.RESERVATIONS_KV.put(key, JSON.stringify({ contractId: contractVersionInfo(paidRecord).contractId, returnAt: effective }), { expirationTtl });
+  // La valeur contractuelle V1 est réécrite à l'identique : seul son TTL KV
+  // est prolongé, et l'ancre empêchera toute écriture ultérieure de le
+  // raccourcir à nouveau.
+  await env.RESERVATIONS_KV.put(paidRecord.id, JSON.stringify(paidRecord), { expirationTtl });
+  if (paidRecord.paymentId) await env.RESERVATIONS_KV.put(`pay_${paidRecord.paymentId}`, paidRecord.id, { expirationTtl });
+  return { returnAt: effective, expirationTtl };
+}
+
 // extra peut contenir n'importe quel champ métier à fusionner (ex.
 // paymentId, cglVersion, cglAcceptedAt, failureReason...). Les champs
 // id/createdAt ne sont jamais écrasables.
@@ -204,7 +249,7 @@ async function updateReservationStatus(env, id, status, extra = {}) {
     updatedAt: new Date().toISOString()
   };
 
-  const expirationTtl = reservationTtlSeconds(updated);
+  const expirationTtl = await reservationTtlSecondsForEnv(env, updated);
   updated.expiresAt = new Date(Date.now() + expirationTtl * 1000).toISOString();
   await env.RESERVATIONS_KV.put(id, JSON.stringify(updated), { expirationTtl });
   if (updated.paymentId) {
@@ -521,7 +566,7 @@ function isDraftContract(record) {
   return info.status === "draft" || info.status === "sent" || !isSignedContract(record);
 }
 
-async function createContractVersion(env, id, operator, versionReason) {
+async function createContractVersion(env, id, operator, versionReason, transformDraft) {
   const source = await getReservation(env, id);
   if (!source || !["paid", "manual_contract", "contract_version"].includes(source.status)) return null;
   if (!isSignedContract(source)) throw new Error("Seule une version signée peut être archivée et versionnée");
@@ -556,7 +601,7 @@ async function createContractVersion(env, id, operator, versionReason) {
     updatedAt: now
   } : { status: "draft", fields: null, depart: null, retour: null, observations: "" };
   const newId = generateReservationId();
-  const record = {
+  let record = {
     ...copy,
     id: newId,
     status: source.status === "manual_contract" || source.contractSourceType === "manual" ? "manual_contract" : "contract_version",
@@ -584,6 +629,17 @@ async function createContractVersion(env, id, operator, versionReason) {
     createdBy: operator || null,
     updatedBy: operator || null
   };
+  // Les cas métier spécialisés (par exemple une prolongation) peuvent
+  // recalculer le brouillon côté serveur avant son unique écriture KV. La
+  // source reste immuable et aucun brouillon partiellement construit n'est
+  // persisté si le recalcul échoue.
+  if (typeof transformDraft === "function") {
+    const transformed = await transformDraft(record, sourceCopy);
+    if (!transformed || typeof transformed !== "object" || transformed.id !== newId) {
+      throw new Error("Transformation de version invalide");
+    }
+    record = transformed;
+  }
   await env.RESERVATIONS_KV.put(newId, JSON.stringify(record));
   return record;
 }
@@ -640,6 +696,10 @@ async function listContractsHistory(env, limit = 30) {
         nom: (r.conducteur && r.conducteur.nom) || "",
         prenom: (r.conducteur && r.conducteur.prenom) || "",
         depart: r.periodeDebut || (r.dateDebut && r.heureDebut ? `${r.dateDebut}T${r.heureDebut}` : ""),
+        fin: r.dateFin && r.heureFin ? `${r.dateFin}T${r.heureFin}` : r.retour || r.periodeFin || "",
+        total: r.total !== undefined ? r.total : null,
+        paidAmount: r.financialHistory && r.financialHistory.paidAmount !== undefined ? r.financialHistory.paidAmount : r.paidAmount !== undefined ? r.paidAmount : r.total,
+        tarifJournalierContractuel: r.contractExtensionPricing && r.contractExtensionPricing.contractDailyRate !== undefined ? r.contractExtensionPricing.contractDailyRate : r.tarifJournalierContractuel !== undefined ? r.tarifJournalierContractuel : r.pricingSnapshot && r.pricingSnapshot.prixMoyenJour,
         statut: r.status,
         immatriculation: r.immatriculation || ""
       }, version, pdf, updatedAt: r.updatedAt
@@ -765,6 +825,8 @@ module.exports = {
   hasOverlappingReservation,
   generateReservationId,
   reservationTtlSeconds,
+  reservationTtlSecondsForEnv,
+  extendContractRetention,
   PAID_RETENTION_AFTER_RETURN_MS,
   generateContractNumero,
   createManualContract,

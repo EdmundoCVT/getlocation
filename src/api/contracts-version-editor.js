@@ -26,6 +26,12 @@ function view(record) {
     version,
     editable: !isSignedContract(record),
     form: recordToContractForm(record),
+    extension: record.contractExtensionPricing ? {
+      sourceVersion: record.contractExtensionPricing.sourceVersion,
+      oldEndAt: record.contractExtensionPricing.oldEndAt,
+      newEndAt: record.contractExtensionPricing.newEndAt,
+      additionalAmount: record.contractExtensionPricing.additionalAmount
+    } : null,
     signature: dossier.signature ? JSON.parse(JSON.stringify(dossier.signature)) : null
   };
 }

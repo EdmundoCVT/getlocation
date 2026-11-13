@@ -40,11 +40,11 @@ function returnMs(reservation) {
 // réservation dont le client n'a jamais rien envoyé n'a pas de "documents"
 // à purger), pas déjà purgée, et dont la restitution remonte à au moins
 // PAID_RETENTION_AFTER_RETURN_MS.
-function shouldPurgeDocuments(reservation, nowMs) {
+function shouldPurgeDocuments(reservation, nowMs, effectiveReturnMs) {
   if (!reservation || reservation.status !== "paid") return false;
   if (reservation.documentsStatus !== "submitted") return false;
   if (reservation.documentsPurgedAt) return false;
-  const returned = returnMs(reservation);
+  const returned = Number.isFinite(effectiveReturnMs) ? effectiveReturnMs : returnMs(reservation);
   if (!Number.isFinite(returned)) return false;
   return nowMs - returned >= PAID_RETENTION_AFTER_RETURN_MS;
 }
@@ -91,10 +91,21 @@ async function purgeReservationDocuments(env, reservation, nowMs, deleteDocument
 
 async function runDocumentRetentionPurge(env, nowMs = Date.now(), purge = purgeReservationDocuments) {
   const reservations = await listReservations(env);
+  // Une prolongation est une nouvelle version : la réservation payée V1
+  // garde donc volontairement son ancienne date. Pour la rétention des
+  // documents uniquement, on prend la restitution la plus tardive de tout
+  // le contrat logique afin de ne jamais purger à J+30 de l'ancienne date.
+  const latestReturnByContract = new Map();
+  for (const record of reservations) {
+    const contractId = record && record.contractVersion && record.contractVersion.contractId || record && record.contractNumero || record && record.id;
+    const returned = returnMs(record);
+    if (contractId && Number.isFinite(returned)) latestReturnByContract.set(contractId, Math.max(latestReturnByContract.get(contractId) || 0, returned));
+  }
   let purged = 0;
   let failed = 0;
   for (const reservation of reservations) {
-    if (!shouldPurgeDocuments(reservation, nowMs)) continue;
+    const contractId = reservation && reservation.contractVersion && reservation.contractVersion.contractId || reservation && reservation.contractNumero || reservation && reservation.id;
+    if (!shouldPurgeDocuments(reservation, nowMs, latestReturnByContract.get(contractId))) continue;
     const ok = await purge(env, reservation, nowMs);
     if (ok) purged += 1;
     else failed += 1;

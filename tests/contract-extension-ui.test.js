@@ -1,0 +1,41 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const html = fs.readFileSync(path.join(__dirname, "..", "contrat.html"), "utf8");
+
+test("l'historique distingue Prolonger de la création générique de version", () => {
+  assert.match(html, /extendBtn\.textContent='Prolonger'/);
+  assert.match(html, /Prolonger depuis V/);
+  assert.match(html, /Créer une nouvelle version à partir de V/);
+});
+
+test("le panneau simplifié ne demande que la nouvelle fin et un motif facultatif", () => {
+  assert.match(html, /title\.textContent='Prolonger le contrat'/);
+  assert.match(html, /dateLabel\.textContent='Nouvelle date de fin'/);
+  assert.match(html, /timeLabel\.textContent='Nouvelle heure de fin'/);
+  assert.match(html, /reasonLabel\.textContent='Motif \/ remarque interne \(facultatif\)'/);
+  assert.match(html, /fetch\('\/api\/contracts-extension'.*preview:true/);
+});
+
+test("l'aperçu affiche durée, tarif figé, total, paiement, supplément et kilométrage", () => {
+  for (const label of ["Nouvelle durée", "Tarif contractuel", "Nouveau total", "Déjà payé", "Kilométrage inclus", "Supplément dû"]) {
+    assert.match(html, new RegExp(label));
+  }
+  assert.match(html, /Prolongation de V/);
+  assert.match(html, /Montant supplémentaire dû/);
+});
+
+test("le panneau mobile utilise des contrôles tactiles d'au moins 44 px sans tableau horizontal", () => {
+  assert.match(html, /extension-fields input\{[^}]*min-height:46px/);
+  assert.match(html, /sheet-actions \.btn\{[^}]*min-height:45px/);
+  assert.match(html, /\.extension-summary,\.extension-fields\{grid-template-columns:1fr;/);
+  assert.doesNotMatch(html, /extension-(?:summary|fields)[^\n]*<table/i);
+});
+
+test("le brouillon existant est ouvert au lieu de créer une version supplémentaire", () => {
+  assert.match(html, /error\.code==='contract_draft_exists'/);
+  assert.match(html, /Un brouillon V/);
+  assert.match(html, /open\.textContent='Ouvrir V'/);
+});

@@ -67,6 +67,34 @@ test("shouldPurgeDocuments : refuse si pas payée, pas soumise, ou déjà purgé
   assert.equal(shouldPurgeDocuments(base, now), true);
 });
 
+test("runDocumentRetentionPurge : une version prolongée reporte la purge documentaire à J+30 de la nouvelle fin", async () => {
+  const e = env();
+  const paid = await makeSubmittedReservation(e, {
+    contractNumero: "GL-20260101-0042",
+    contractVersion: { contractId: "GL-20260101-0042", version: 1, status: "signed" },
+    periodeFin: "2026-01-04T10:00:00.000Z"
+  });
+  await e.RESERVATIONS_KV.put("res_" + "e".repeat(32), JSON.stringify({
+    ...paid,
+    id: "res_" + "e".repeat(32),
+    status: "contract_version",
+    contractSourceType: "reservation",
+    periodeFin: "2026-01-11T10:00:00.000Z",
+    contractVersion: { contractId: "GL-20260101-0042", version: 2, status: "draft", supersedesVersion: 1 },
+    documentFiles: [],
+    documentsStatus: null
+  }));
+  let calls = 0;
+  const oldDeadline = new Date("2026-01-04T10:00:00.000Z").getTime() + THIRTY_DAYS_MS;
+  const beforeNewDeadline = await runDocumentRetentionPurge(e, oldDeadline, async () => { calls += 1; return true; });
+  assert.equal(beforeNewDeadline.purged, 0);
+  assert.equal(calls, 0);
+  const newDeadline = new Date("2026-01-11T10:00:00.000Z").getTime() + THIRTY_DAYS_MS;
+  const afterNewDeadline = await runDocumentRetentionPurge(e, newDeadline, async () => { calls += 1; return true; });
+  assert.equal(afterNewDeadline.purged, 1);
+  assert.equal(calls, 1);
+});
+
 test("purgeReservationDocuments : succès — supprime R2, nettoie les données documentaires, préserve les données comptables/contractuelles", async () => {
   const e = env();
   const reservation = await makeSubmittedReservation(e);

@@ -74,7 +74,7 @@ function buildClientView(reservation) {
       id: reservation.id,
       contractVersion: { version: Number(reservation.contractVersion && reservation.contractVersion.version) || 1 },
       numero: reservation.contractNumero || null,
-      vehicule: vehicule ? { nom: vehicule.nom, caution: resolveContractDeposit(reservation, vehicule), prixJour: vehicule.prixJour, carburant: vehicule.carburant || null, vin: vehicule.vin || null } : null,
+      vehicule: vehicule ? { nom: vehicule.nom, caution: resolveContractDeposit(reservation, vehicule), prixJour: reservation.contractExtensionPricing && reservation.contractExtensionPricing.contractDailyRate !== undefined ? reservation.contractExtensionPricing.contractDailyRate : vehicule.prixJour, carburant: vehicule.carburant || null, vin: vehicule.vin || null } : null,
       immatriculation: fields.immatriculation || "",
       dateDebut: reservation.dateDebut,
       heureDebut: reservation.heureDebut,
@@ -101,6 +101,8 @@ function buildClientView(reservation) {
       locationNette: reservation.locationNette,
       reductionPromoMontant: reservation.reductionPromoMontant,
       total: reservation.total,
+      amountAlreadyPaid: reservation.amountAlreadyPaid !== undefined ? reservation.amountAlreadyPaid : reservation.financialHistory && reservation.financialHistory.paidAmount,
+      additionalAmountDue: reservation.additionalAmountDue !== undefined ? reservation.additionalAmountDue : null,
       conducteur: reservation.conducteur
         ? { nom: reservation.conducteur.nom, prenom: reservation.conducteur.prenom, naissance: reservation.conducteur.naissance, telephone: reservation.conducteur.telephone, email: reservation.conducteur.email }
         : null,
